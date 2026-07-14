@@ -30,6 +30,9 @@ struct MediaDetailView: View {
         .sheet(item: $presentedTrailer) { trailer in
             TrailerPlayerView(trailer: trailer)
         }
+        .navigationDestination(for: MoreLikeThisRoute.self) { route in
+            MoreLikeThisView(sourceTitleID: route.sourceTitleID)
+        }
     }
 
     private var title: MediaTitle? {
@@ -123,6 +126,14 @@ struct MediaDetailView: View {
                 }
                 .adaptiveGlassButton()
             }
+
+            NavigationLink(value: MoreLikeThisRoute(sourceTitleID: title.id)) {
+                Label("More like this", systemImage: "sparkles")
+                    .frame(maxWidth: .infinity)
+            }
+            .controlSize(.large)
+            .adaptiveGlassButton()
+            .accessibilityHint("Finds similar unwatched titles on your selected streaming services")
         }
     }
 

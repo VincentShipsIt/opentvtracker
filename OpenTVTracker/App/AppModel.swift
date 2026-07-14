@@ -57,6 +57,11 @@ final class AppModel {
         titles.filter { $0.state == state }
     }
 
+    func moreLikeThis(_ id: MediaTitle.ID, limit: Int = 12) -> [SimilarTitleMatch] {
+        guard let source = titles.first(where: { $0.id == id }) else { return [] }
+        return TitleSimilarity.matches(for: source, among: titlesOnSelectedProviders, limit: limit)
+    }
+
     func load() async {
         guard !hasLoaded else { return }
         defer { hasLoaded = true }
