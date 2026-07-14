@@ -147,7 +147,8 @@ private struct SimilarTitleCard: View {
 
     private var accessibilityLabel: String {
         let providerName = provider?.name ?? "your services"
-        return "\(match.title.title), rated \(match.title.rating, format: .number.precision(.fractionLength(1))), on \(providerName). \(match.reason)."
+        let rating = match.title.rating.formatted(.number.precision(.fractionLength(1)))
+        return "\(match.title.title), rated \(rating), on \(providerName). \(match.reason)."
     }
 
     private var provider: StreamingProvider? {
