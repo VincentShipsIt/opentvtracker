@@ -85,7 +85,7 @@ final class AppModelTests: XCTestCase {
         let model = AppModel(store: store, seed: .sample)
 
         model.toggleProvider(StreamingProvider.netflix.id)
-        try await Task.sleep(for: .milliseconds(250))
+        await model.flushPendingPersistence()
 
         let saved = try await store.load()
         XCTAssertFalse(try XCTUnwrap(saved?.selectedProviderIDs).contains(StreamingProvider.netflix.id))

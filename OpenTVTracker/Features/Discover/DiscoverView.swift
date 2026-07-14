@@ -145,7 +145,7 @@ struct DiscoverView: View {
                     .adaptiveGlassButton(prominent: true)
 
                     Button("Surprise me", systemImage: "dice") {
-                        let count = max(model.recommendations.count, 1)
+                        let count = max(model.recommendations.filter(matchesMediaFilter).count, 1)
                         surpriseOffset = (surpriseOffset + 1) % count
                     }
                     .adaptiveGlassButton()

@@ -133,7 +133,7 @@ extension LibrarySnapshot {
                 reviews: [.sampleSharp],
                 posterURL: URL(string: "https://media.themoviedb.org/t/p/w500/c15BtJxCXMrISLVmysdsnZUPQft.jpg"),
                 backdropURL: URL(string: "https://media.themoviedb.org/t/p/w780/coaPCIqQBPUZsOnJcWZxhaORcDT.jpg"),
-                trailerURL: URL(string: "https://www.aboutamazon.com/news/entertainment/fallout-series-trailer")
+                trailerURL: URL(string: "https://www.primevideo.com/region/na/detail/0HAQAA7JM43QWX0H6GUD3IOF70")
             ),
             MediaTitle(
                 id: "stranger-things",

@@ -128,6 +128,10 @@ final class AppModel {
         !selectedProviderIDs.isDisjoint(with: Set(title.providers.map(\.id)))
     }
 
+    func flushPendingPersistence() async {
+        await saveTask?.value
+    }
+
     private func addActivity(description: String) {
         let currentMember = sharedSpace.members.first(where: \.isCurrentUser)
         let activity = SharedActivity(
