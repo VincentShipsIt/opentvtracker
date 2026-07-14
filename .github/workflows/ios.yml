@@ -21,6 +21,6 @@ jobs:
           xcodebuild test
           -project OpenTVTracker.xcodeproj
           -scheme OpenTVTracker
-          -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=latest'
+          -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=latest'
           -derivedDataPath "$RUNNER_TEMP/DerivedData"
           CODE_SIGNING_ALLOWED=NO

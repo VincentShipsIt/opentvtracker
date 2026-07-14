@@ -24,6 +24,18 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(title?.state, .completed)
     }
 
+    func testFinalEpisodeLeavesUpNext() throws {
+        var snapshot = LibrarySnapshot.sample
+        let index = try XCTUnwrap(snapshot.titles.firstIndex(where: { $0.id == "severance" }))
+        snapshot.titles[index].progress = EpisodeProgress(season: 2, episode: 9, totalEpisodes: 10)
+        let model = AppModel(store: MemoryLibraryStore(), seed: snapshot)
+
+        model.markNextWatched("severance")
+
+        XCTAssertFalse(model.upNext.contains(where: { $0.id == "severance" }))
+        XCTAssertEqual(model.titles[index].state, .completed)
+    }
+
     func testTogetherToggleIsReversible() {
         let model = AppModel(store: MemoryLibraryStore(), seed: .sample)
         XCTAssertTrue(model.isShared("past-lives"))

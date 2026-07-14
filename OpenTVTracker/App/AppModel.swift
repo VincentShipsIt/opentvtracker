@@ -5,6 +5,8 @@ import Observation
 @Observable
 final class AppModel {
     private let store: any LibraryPersisting
+    private var saveTask: Task<Void, Never>?
+    private var persistenceRevision = 0
 
     private(set) var titles: [MediaTitle]
     private(set) var sharedSpace: SharedSpace
@@ -65,7 +67,7 @@ final class AppModel {
             guard progress.episode < progress.totalEpisodes else { return }
             progress.episode = min(progress.episode + 1, progress.totalEpisodes)
             titles[index].progress = progress
-            titles[index].state = .watching
+            titles[index].state = progress.episode == progress.totalEpisodes ? .completed : .watching
         }
 
         addActivity(description: "watched \(titles[index].title) \(titles[index].progress?.label ?? "")")
@@ -109,13 +111,24 @@ final class AppModel {
     private func persist() {
         let snapshot = LibrarySnapshot(titles: titles, sharedSpace: sharedSpace)
         let store = store
+        persistenceRevision += 1
+        let revision = persistenceRevision
+        saveTask?.cancel()
 
-        Task {
+        saveTask = Task {
             do {
+                try await Task.sleep(for: .milliseconds(150))
+                guard !Task.isCancelled else { return }
                 try await store.save(snapshot)
-                persistenceError = nil
+                if revision == persistenceRevision {
+                    persistenceError = nil
+                }
+            } catch is CancellationError {
+                return
             } catch {
-                persistenceError = "Your latest change is visible but could not be saved."
+                if revision == persistenceRevision {
+                    persistenceError = "Your latest change is visible but could not be saved."
+                }
             }
         }
     }
