@@ -1,0 +1,59 @@
+name: OpenTVTracker
+options:
+  bundleIdPrefix: dev.shipshit
+  deploymentTarget:
+    iOS: "18.0"
+  generateEmptyDirectories: true
+  groupSortPosition: top
+settings:
+  base:
+    CURRENT_PROJECT_VERSION: 1
+    DEVELOPMENT_TEAM: ""
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    GENERATE_INFOPLIST_FILE: NO
+    MARKETING_VERSION: 0.1.0
+    SWIFT_STRICT_CONCURRENCY: complete
+    SWIFT_VERSION: 6.0
+targets:
+  OpenTVTracker:
+    type: application
+    platform: iOS
+    sources:
+      - path: OpenTVTracker
+    resources:
+      - path: OpenTVTracker/Resources/Assets.xcassets
+    info:
+      path: Config/Info.plist
+    settings:
+      base:
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        CODE_SIGN_STYLE: Automatic
+        PRODUCT_BUNDLE_IDENTIFIER: dev.shipshit.opentvtracker
+        PRODUCT_NAME: OpenTV Tracker
+        TARGETED_DEVICE_FAMILY: 1
+    dependencies: []
+  OpenTVTrackerTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: OpenTVTrackerTests
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: dev.shipshit.opentvtracker.tests
+    dependencies:
+      - target: OpenTVTracker
+schemes:
+  OpenTVTracker:
+    build:
+      targets:
+        OpenTVTracker: all
+        OpenTVTrackerTests: [test]
+    test:
+      gatherCoverageData: true
+      targets:
+        - name: OpenTVTrackerTests
+    run:
+      config: Debug
+    archive:
+      config: Release

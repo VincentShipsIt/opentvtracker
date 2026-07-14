@@ -1,0 +1,581 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0B70093E423593321E3D848B /* MediaDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5656C1D6DE5BAA4A9047ED7E /* MediaDetailView.swift */; };
+		1C204F3574DF47B1C487410B /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = B86F3C7F8062C768E588DC69 /* Theme.swift */; };
+		26330BE05DE95CC5FB4FDB78 /* MediaModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 330E034A8A29729FC90B66CD /* MediaModels.swift */; };
+		28AA0BDC90F80CD826FD050F /* OpenTVTrackerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38C95BD81EF63DE5AB21227D /* OpenTVTrackerApp.swift */; };
+		2E71BB1853295CCE0C6A7247 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0A269289E13854EF7EFC2FA /* AppModel.swift */; };
+		4984F2EC86E19D24BC7C76B5 /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8E7E3F8A96168C055C72164 /* TodayView.swift */; };
+		508FF952C3A01ACD61A10AA7 /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37F5BE754C5B569E83074721 /* RootTabView.swift */; };
+		88127655816C90B84C533DFB /* PosterArtwork.swift in Sources */ = {isa = PBXBuildFile; fileRef = F32E6282CA61620FE165F866 /* PosterArtwork.swift */; };
+		895769957993BD0773F03855 /* DiscoverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51E06636334ABB672B302FEB /* DiscoverView.swift */; };
+		89DDDB84085CD719FA204B15 /* ServiceBoundaries.swift in Sources */ = {isa = PBXBuildFile; fileRef = 493F1A7537846757A044FDAE /* ServiceBoundaries.swift */; };
+		8EE3472510D428E5214CA56C /* AppModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A04FC826C098F98A35D87E6 /* AppModelTests.swift */; };
+		8FBE1948CCC94D6165FFCE6A /* SourceLinksTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111F7857D63324A855494D83 /* SourceLinksTests.swift */; };
+		A148312A7A5BDFD090CDF059 /* CreditsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E587E794892C46CA67E031BD /* CreditsView.swift */; };
+		BE7D2C2163FB8C4E6A36D669 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 3DD949889A9EF51594C09BA1 /* Assets.xcassets */; };
+		D0A992875FF9DADE49D281D7 /* SampleData.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6959FA42B212427BC26E3C0 /* SampleData.swift */; };
+		D40C0E60CC132F3D4F1FBB53 /* GlassSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85B0DEBE6FA007C4AD395D0A /* GlassSurface.swift */; };
+		D8515D38157AB7E96DE964CD /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0E6165457A0D58BF9970351 /* LibraryView.swift */; };
+		E47EA8A432D01C6D85B2D40F /* TogetherView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AAFCABC14F1C5AE4F0169C7 /* TogetherView.swift */; };
+		E78D65A6C0CEAEC9E4086993 /* LibraryPersisting.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBBD0032700550FCBAE59CEC /* LibraryPersisting.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		F9D6D4D0A652452B72E6C14C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5D5F0CAAF48BB4963830276C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 96396D01C2F07D817EF2875C;
+			remoteInfo = OpenTVTracker;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		109429EDBAD271EBC45D4701 /* OpenTVTracker.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = OpenTVTracker.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		111F7857D63324A855494D83 /* SourceLinksTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SourceLinksTests.swift; sourceTree = "<group>"; };
+		2AAFCABC14F1C5AE4F0169C7 /* TogetherView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TogetherView.swift; sourceTree = "<group>"; };
+		330E034A8A29729FC90B66CD /* MediaModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaModels.swift; sourceTree = "<group>"; };
+		37F5BE754C5B569E83074721 /* RootTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabView.swift; sourceTree = "<group>"; };
+		38C95BD81EF63DE5AB21227D /* OpenTVTrackerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenTVTrackerApp.swift; sourceTree = "<group>"; };
+		3A04FC826C098F98A35D87E6 /* AppModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModelTests.swift; sourceTree = "<group>"; };
+		3DD949889A9EF51594C09BA1 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		493F1A7537846757A044FDAE /* ServiceBoundaries.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceBoundaries.swift; sourceTree = "<group>"; };
+		51E06636334ABB672B302FEB /* DiscoverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverView.swift; sourceTree = "<group>"; };
+		5656C1D6DE5BAA4A9047ED7E /* MediaDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaDetailView.swift; sourceTree = "<group>"; };
+		85B0DEBE6FA007C4AD395D0A /* GlassSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassSurface.swift; sourceTree = "<group>"; };
+		B86F3C7F8062C768E588DC69 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		D0A269289E13854EF7EFC2FA /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		D8E7E3F8A96168C055C72164 /* TodayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayView.swift; sourceTree = "<group>"; };
+		DBBD0032700550FCBAE59CEC /* LibraryPersisting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryPersisting.swift; sourceTree = "<group>"; };
+		E3D33ED571ED8E1AD52A8617 /* OpenTVTrackerTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = OpenTVTrackerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		E587E794892C46CA67E031BD /* CreditsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreditsView.swift; sourceTree = "<group>"; };
+		F0E6165457A0D58BF9970351 /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
+		F32E6282CA61620FE165F866 /* PosterArtwork.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PosterArtwork.swift; sourceTree = "<group>"; };
+		F6959FA42B212427BC26E3C0 /* SampleData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleData.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		0809E00AD19E2A603C6C29D7 /* Data */ = {
+			isa = PBXGroup;
+			children = (
+				DBBD0032700550FCBAE59CEC /* LibraryPersisting.swift */,
+				493F1A7537846757A044FDAE /* ServiceBoundaries.swift */,
+			);
+			path = Data;
+			sourceTree = "<group>";
+		};
+		1A31E610871171452C49C143 /* Details */ = {
+			isa = PBXGroup;
+			children = (
+				5656C1D6DE5BAA4A9047ED7E /* MediaDetailView.swift */,
+			);
+			path = Details;
+			sourceTree = "<group>";
+		};
+		2AF140DA8A2795E3D8670884 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				3DD949889A9EF51594C09BA1 /* Assets.xcassets */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		2AFE285083A27B83A7B28B14 /* DesignSystem */ = {
+			isa = PBXGroup;
+			children = (
+				85B0DEBE6FA007C4AD395D0A /* GlassSurface.swift */,
+				F32E6282CA61620FE165F866 /* PosterArtwork.swift */,
+				B86F3C7F8062C768E588DC69 /* Theme.swift */,
+			);
+			path = DesignSystem;
+			sourceTree = "<group>";
+		};
+		3697F637604A4077E07AA5EA /* Discover */ = {
+			isa = PBXGroup;
+			children = (
+				51E06636334ABB672B302FEB /* DiscoverView.swift */,
+			);
+			path = Discover;
+			sourceTree = "<group>";
+		};
+		43313137999C60E13AF14D00 = {
+			isa = PBXGroup;
+			children = (
+				7CA6EB6FFE0C328CA84AC079 /* OpenTVTracker */,
+				DE7CD70EC07B51368CA00677 /* OpenTVTrackerTests */,
+				F2D407BA4AE2A006F9D641B9 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		5CE33953C883AAC964970D42 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				D0A269289E13854EF7EFC2FA /* AppModel.swift */,
+				38C95BD81EF63DE5AB21227D /* OpenTVTrackerApp.swift */,
+				37F5BE754C5B569E83074721 /* RootTabView.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		7CA6EB6FFE0C328CA84AC079 /* OpenTVTracker */ = {
+			isa = PBXGroup;
+			children = (
+				5CE33953C883AAC964970D42 /* App */,
+				0809E00AD19E2A603C6C29D7 /* Data */,
+				2AFE285083A27B83A7B28B14 /* DesignSystem */,
+				FFE7D898763E860947AB63DE /* Domain */,
+				9543D36C03179D829E2379DE /* Features */,
+				2AF140DA8A2795E3D8670884 /* Resources */,
+			);
+			path = OpenTVTracker;
+			sourceTree = "<group>";
+		};
+		9543D36C03179D829E2379DE /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				1A31E610871171452C49C143 /* Details */,
+				3697F637604A4077E07AA5EA /* Discover */,
+				CE90E26A3DB899A3D243A5B7 /* Library */,
+				CCB670ED0F8224F24AD62695 /* Settings */,
+				CCDB889CA8E16CA12CA3B7D8 /* Today */,
+				D62EBC8088CDB424D8145B02 /* Together */,
+			);
+			path = Features;
+			sourceTree = "<group>";
+		};
+		CCB670ED0F8224F24AD62695 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				E587E794892C46CA67E031BD /* CreditsView.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+		CCDB889CA8E16CA12CA3B7D8 /* Today */ = {
+			isa = PBXGroup;
+			children = (
+				D8E7E3F8A96168C055C72164 /* TodayView.swift */,
+			);
+			path = Today;
+			sourceTree = "<group>";
+		};
+		CE90E26A3DB899A3D243A5B7 /* Library */ = {
+			isa = PBXGroup;
+			children = (
+				F0E6165457A0D58BF9970351 /* LibraryView.swift */,
+			);
+			path = Library;
+			sourceTree = "<group>";
+		};
+		D62EBC8088CDB424D8145B02 /* Together */ = {
+			isa = PBXGroup;
+			children = (
+				2AAFCABC14F1C5AE4F0169C7 /* TogetherView.swift */,
+			);
+			path = Together;
+			sourceTree = "<group>";
+		};
+		DE7CD70EC07B51368CA00677 /* OpenTVTrackerTests */ = {
+			isa = PBXGroup;
+			children = (
+				3A04FC826C098F98A35D87E6 /* AppModelTests.swift */,
+				111F7857D63324A855494D83 /* SourceLinksTests.swift */,
+			);
+			path = OpenTVTrackerTests;
+			sourceTree = "<group>";
+		};
+		F2D407BA4AE2A006F9D641B9 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				109429EDBAD271EBC45D4701 /* OpenTVTracker.app */,
+				E3D33ED571ED8E1AD52A8617 /* OpenTVTrackerTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		FFE7D898763E860947AB63DE /* Domain */ = {
+			isa = PBXGroup;
+			children = (
+				330E034A8A29729FC90B66CD /* MediaModels.swift */,
+				F6959FA42B212427BC26E3C0 /* SampleData.swift */,
+			);
+			path = Domain;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		3420C46A6AD54978944C2D04 /* OpenTVTrackerTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 406E3F2EFC59373323553A8A /* Build configuration list for PBXNativeTarget "OpenTVTrackerTests" */;
+			buildPhases = (
+				2AD1085B07884F7ED35E2EB3 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				37592821BA5A442E61192044 /* PBXTargetDependency */,
+			);
+			name = OpenTVTrackerTests;
+			packageProductDependencies = (
+			);
+			productName = OpenTVTrackerTests;
+			productReference = E3D33ED571ED8E1AD52A8617 /* OpenTVTrackerTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		96396D01C2F07D817EF2875C /* OpenTVTracker */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 48B0F5C2082F9F3F11395223 /* Build configuration list for PBXNativeTarget "OpenTVTracker" */;
+			buildPhases = (
+				BD606C1C97ABC358252F10AE /* Sources */,
+				AC8C01322D8811F37217F627 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = OpenTVTracker;
+			packageProductDependencies = (
+			);
+			productName = OpenTVTracker;
+			productReference = 109429EDBAD271EBC45D4701 /* OpenTVTracker.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		5D5F0CAAF48BB4963830276C /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					3420C46A6AD54978944C2D04 = {
+						DevelopmentTeam = "";
+					};
+					96396D01C2F07D817EF2875C = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 5881E80C89C583FE0F1237C0 /* Build configuration list for PBXProject "OpenTVTracker" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 43313137999C60E13AF14D00;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = F2D407BA4AE2A006F9D641B9 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				96396D01C2F07D817EF2875C /* OpenTVTracker */,
+				3420C46A6AD54978944C2D04 /* OpenTVTrackerTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		AC8C01322D8811F37217F627 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BE7D2C2163FB8C4E6A36D669 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		2AD1085B07884F7ED35E2EB3 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8EE3472510D428E5214CA56C /* AppModelTests.swift in Sources */,
+				8FBE1948CCC94D6165FFCE6A /* SourceLinksTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BD606C1C97ABC358252F10AE /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2E71BB1853295CCE0C6A7247 /* AppModel.swift in Sources */,
+				A148312A7A5BDFD090CDF059 /* CreditsView.swift in Sources */,
+				895769957993BD0773F03855 /* DiscoverView.swift in Sources */,
+				D40C0E60CC132F3D4F1FBB53 /* GlassSurface.swift in Sources */,
+				E78D65A6C0CEAEC9E4086993 /* LibraryPersisting.swift in Sources */,
+				D8515D38157AB7E96DE964CD /* LibraryView.swift in Sources */,
+				0B70093E423593321E3D848B /* MediaDetailView.swift in Sources */,
+				26330BE05DE95CC5FB4FDB78 /* MediaModels.swift in Sources */,
+				28AA0BDC90F80CD826FD050F /* OpenTVTrackerApp.swift in Sources */,
+				88127655816C90B84C533DFB /* PosterArtwork.swift in Sources */,
+				508FF952C3A01ACD61A10AA7 /* RootTabView.swift in Sources */,
+				D0A992875FF9DADE49D281D7 /* SampleData.swift in Sources */,
+				89DDDB84085CD719FA204B15 /* ServiceBoundaries.swift in Sources */,
+				1C204F3574DF47B1C487410B /* Theme.swift in Sources */,
+				4984F2EC86E19D24BC7C76B5 /* TodayView.swift in Sources */,
+				E47EA8A432D01C6D85B2D40F /* TogetherView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		37592821BA5A442E61192044 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 96396D01C2F07D817EF2875C /* OpenTVTracker */;
+			targetProxy = F9D6D4D0A652452B72E6C14C /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		067E93263A2BE3F51551D6B9 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				INFOPLIST_FILE = Config/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.shipshit.opentvtracker;
+				PRODUCT_NAME = "OpenTV Tracker";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		1BEEB6FCAC6BF648007D2F7D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		674B7BE483EBF87F50F730C4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		91F13E462E072AAD8E30E2C3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.shipshit.opentvtracker.tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/OpenTVTracker.app/OpenTVTracker";
+			};
+			name = Release;
+		};
+		9F558381DDD43241BC5FACF4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.shipshit.opentvtracker.tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/OpenTVTracker.app/OpenTVTracker";
+			};
+			name = Debug;
+		};
+		A0CF78346DF9631F06C2215C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				INFOPLIST_FILE = Config/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.shipshit.opentvtracker;
+				PRODUCT_NAME = "OpenTV Tracker";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		406E3F2EFC59373323553A8A /* Build configuration list for PBXNativeTarget "OpenTVTrackerTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9F558381DDD43241BC5FACF4 /* Debug */,
+				91F13E462E072AAD8E30E2C3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		48B0F5C2082F9F3F11395223 /* Build configuration list for PBXNativeTarget "OpenTVTracker" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				067E93263A2BE3F51551D6B9 /* Debug */,
+				A0CF78346DF9631F06C2215C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		5881E80C89C583FE0F1237C0 /* Build configuration list for PBXProject "OpenTVTracker" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				674B7BE483EBF87F50F730C4 /* Debug */,
+				1BEEB6FCAC6BF648007D2F7D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 5D5F0CAAF48BB4963830276C /* Project object */;
+}

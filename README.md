@@ -12,7 +12,7 @@ The repository is private while the first usable release is taking shape. The in
 - Discover what to watch next with transparent recommendations.
 - See streaming availability and community context without building another social network first.
 
-Read [the product vision](docs/VISION.md) and [roadmap](docs/ROADMAP.md).
+Read [the product vision](docs/VISION.md), [architecture](docs/ARCHITECTURE.md), and [roadmap](docs/ROADMAP.md).
 
 ## Technical direction
 

@@ -1,0 +1,26 @@
+name: iOS
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - name: Show toolchain
+        run: xcodebuild -version
+      - name: Build and test
+        run: >-
+          xcodebuild test
+          -project OpenTVTracker.xcodeproj
+          -scheme OpenTVTracker
+          -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=latest'
+          -derivedDataPath "$RUNNER_TEMP/DerivedData"
+          CODE_SIGNING_ALLOWED=NO
