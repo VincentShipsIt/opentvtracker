@@ -20,7 +20,10 @@ extension LibrarySnapshot {
                 mood: .thoughtful,
                 palette: PosterPalette(primaryHex: "245C7A", secondaryHex: "101A2B"),
                 providers: [.appleTV],
-                reviews: [.sampleThoughtful]
+                reviews: [.sampleThoughtful],
+                posterURL: URL(string: "https://media.themoviedb.org/t/p/w500/pPHpeI2X1qEd1CS1SeyrdhZ4qnT.jpg"),
+                backdropURL: URL(string: "https://media.themoviedb.org/t/p/w780/ixgFmf1X59PUZam2qbAfskx2gQr.jpg"),
+                trailerURL: URL(string: "https://tv.apple.com/in/clip/teaser-trailer-season-1/umc.cmc.48k9lyy8hz01ue2rpyngc0e92")
             ),
             MediaTitle(
                 id: "the-bear",
@@ -39,7 +42,10 @@ extension LibrarySnapshot {
                 mood: .intense,
                 palette: PosterPalette(primaryHex: "2F5F46", secondaryHex: "12261E"),
                 providers: [.disneyPlus],
-                reviews: [.sampleWarm]
+                reviews: [.sampleWarm],
+                posterURL: URL(string: "https://media.themoviedb.org/t/p/w500/eKfVzzEazSIjJMrw9ADa2x8ksLz.jpg"),
+                backdropURL: URL(string: "https://media.themoviedb.org/t/p/w780/aJtG4txtmiRHwAAqENQHZvBs6kY.jpg"),
+                trailerURL: URL(string: "https://www.fxnetworks.com/shows/the-bear/video-extras/video/6823a554cff47e000137dcba")
             ),
             MediaTitle(
                 id: "slow-horses",
@@ -58,7 +64,10 @@ extension LibrarySnapshot {
                 mood: .funny,
                 palette: PosterPalette(primaryHex: "9B7748", secondaryHex: "30251C"),
                 providers: [.appleTV],
-                reviews: [.sampleSharp]
+                reviews: [.sampleSharp],
+                posterURL: URL(string: "https://media.themoviedb.org/t/p/w500/5RuZZIouptatjV96BdPmKmRsnGg.jpg"),
+                backdropURL: URL(string: "https://media.themoviedb.org/t/p/w780/bDfboQUb45Cv9MYyVBDZw8M8xSM.jpg"),
+                trailerURL: nil
             ),
             MediaTitle(
                 id: "past-lives",
@@ -76,8 +85,11 @@ extension LibrarySnapshot {
                 recommendationReason: "A thoughtful one-evening watch with no series commitment.",
                 mood: .thoughtful,
                 palette: PosterPalette(primaryHex: "A36555", secondaryHex: "3B2831"),
-                providers: [.mubi],
-                reviews: [.sampleTender]
+                providers: [.primeVideo],
+                reviews: [.sampleTender],
+                posterURL: URL(string: "https://media.themoviedb.org/t/p/w500/k3waqVXSnvCZWfJYNtdamTgTtTA.jpg"),
+                backdropURL: URL(string: "https://media.themoviedb.org/t/p/w780/7HR38hMBl23lf38MAN63y4pKsHz.jpg"),
+                trailerURL: nil
             ),
             MediaTitle(
                 id: "hacks",
@@ -96,7 +108,54 @@ extension LibrarySnapshot {
                 mood: .funny,
                 palette: PosterPalette(primaryHex: "B45D99", secondaryHex: "352047"),
                 providers: [.max],
-                reviews: [.sampleSharp]
+                reviews: [.sampleSharp],
+                posterURL: URL(string: "https://media.themoviedb.org/t/p/w500/ca5XiEFgyGsI38QT3wEKa1QVGX.jpg"),
+                backdropURL: URL(string: "https://media.themoviedb.org/t/p/w780/bbAR4qKxjnjyKAt4YMrL725Mtfw.jpg"),
+                trailerURL: nil
+            ),
+            MediaTitle(
+                id: "fallout",
+                catalogID: 106379,
+                title: "Fallout",
+                year: 2024,
+                kind: .series,
+                synopsis: "A vault dweller steps into a gleefully brutal wasteland and discovers that the world above has built its own strange rules for survival.",
+                genres: ["Drama", "Sci-Fi", "Adventure"],
+                runtimeMinutes: 59,
+                state: .planned,
+                progress: EpisodeProgress(season: 1, episode: 0, totalEpisodes: 8),
+                rating: 8.2,
+                nextReleaseDescription: "8 episodes on Prime Video",
+                recommendationReason: "Big-world mystery and dark humor, already on one of your services.",
+                mood: .intense,
+                palette: PosterPalette(primaryHex: "D98B32", secondaryHex: "2A241D"),
+                providers: [.primeVideo],
+                reviews: [.sampleSharp],
+                posterURL: URL(string: "https://media.themoviedb.org/t/p/w500/c15BtJxCXMrISLVmysdsnZUPQft.jpg"),
+                backdropURL: URL(string: "https://media.themoviedb.org/t/p/w780/coaPCIqQBPUZsOnJcWZxhaORcDT.jpg"),
+                trailerURL: URL(string: "https://www.aboutamazon.com/news/entertainment/fallout-series-trailer")
+            ),
+            MediaTitle(
+                id: "stranger-things",
+                catalogID: 66732,
+                title: "Stranger Things",
+                year: 2016,
+                kind: .series,
+                synopsis: "A vanished boy, a secret laboratory, and a strange young girl pull a small town into a supernatural mystery.",
+                genres: ["Drama", "Mystery", "Sci-Fi"],
+                runtimeMinutes: 52,
+                state: .planned,
+                progress: EpisodeProgress(season: 1, episode: 0, totalEpisodes: 8),
+                rating: 8.6,
+                nextReleaseDescription: "All seasons on Netflix",
+                recommendationReason: "An easy shared pick when you want mystery with a strong ensemble.",
+                mood: .intense,
+                palette: PosterPalette(primaryHex: "A61D24", secondaryHex: "140B12"),
+                providers: [.netflix],
+                reviews: [.sampleThoughtful],
+                posterURL: URL(string: "https://media.themoviedb.org/t/p/w500/uOOtwVbSr4QDjAGIifLDwpb2Pdl.jpg"),
+                backdropURL: URL(string: "https://media.themoviedb.org/t/p/w780/56v2KjBlU4XaOv9rVYEQypROD7P.jpg"),
+                trailerURL: URL(string: "https://www.netflix.com/tudum/videos/stranger-things-season-1-trailer")
             ),
             MediaTitle(
                 id: "arrival",
@@ -115,7 +174,10 @@ extension LibrarySnapshot {
                 mood: .thoughtful,
                 palette: PosterPalette(primaryHex: "70808A", secondaryHex: "1A242A"),
                 providers: [.paramount],
-                reviews: [.sampleThoughtful]
+                reviews: [.sampleThoughtful],
+                posterURL: URL(string: "https://media.themoviedb.org/t/p/w500/x2FJsf1ElAgr63Y3PNPtJrcmpoe.jpg"),
+                backdropURL: URL(string: "https://media.themoviedb.org/t/p/w780/8MUZz7oPXQftFTslZpRP3CVMOoq.jpg"),
+                trailerURL: nil
             )
         ],
         sharedSpace: SharedSpace(
@@ -137,11 +199,13 @@ extension LibrarySnapshot {
 }
 
 extension StreamingProvider {
-    static let appleTV = StreamingProvider(id: "apple-tv", name: "Apple TV+", symbol: "apple.logo")
-    static let disneyPlus = StreamingProvider(id: "disney-plus", name: "Disney+", symbol: "sparkles.tv")
-    static let max = StreamingProvider(id: "max", name: "Max", symbol: "play.tv")
-    static let mubi = StreamingProvider(id: "mubi", name: "MUBI", symbol: "m.circle")
-    static let paramount = StreamingProvider(id: "paramount", name: "Paramount+", symbol: "mountain.2")
+    static let netflix = StreamingProvider(id: "netflix", name: "Netflix", symbol: "n.square.fill", brandHex: "E50914")
+    static let primeVideo = StreamingProvider(id: "prime-video", name: "Prime Video", symbol: "play.rectangle.fill", brandHex: "00A8E1")
+    static let appleTV = StreamingProvider(id: "apple-tv", name: "Apple TV+", symbol: "apple.logo", brandHex: "1C1C1E")
+    static let disneyPlus = StreamingProvider(id: "disney-plus", name: "Disney+", symbol: "sparkles.tv", brandHex: "113CCF")
+    static let max = StreamingProvider(id: "max", name: "Max", symbol: "play.tv", brandHex: "5822B4")
+    static let mubi = StreamingProvider(id: "mubi", name: "MUBI", symbol: "m.circle", brandHex: "1976D2")
+    static let paramount = StreamingProvider(id: "paramount", name: "Paramount+", symbol: "mountain.2", brandHex: "0064FF")
 }
 
 extension CommunityReview {

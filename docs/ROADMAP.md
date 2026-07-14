@@ -3,7 +3,8 @@
 ## Milestone 0 — Foundation
 
 - SwiftUI app shell and native Liquid Glass design system
-- Today, Discover, Together, Library, and detail flows using representative preview data
+- Today, artwork-led Discover, Together, Library, trailer, and detail flows using representative preview data
+- Persistent subscription filters for Netflix, Prime Video, Apple TV+, and other supported providers
 - Domain models and repository/service boundaries
 - Local progress interactions
 - Accessibility, empty, loading, and failure states

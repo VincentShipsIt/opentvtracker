@@ -82,4 +82,5 @@ private struct LibraryRow: View {
 #Preview {
     LibraryView()
         .environment(AppModel(store: MemoryLibraryStore(), seed: .sample))
+        .environment(\.allowsRemoteArtwork, false)
 }

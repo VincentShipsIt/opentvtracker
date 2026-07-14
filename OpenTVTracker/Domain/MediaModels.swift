@@ -82,6 +82,17 @@ struct StreamingProvider: Codable, Hashable, Identifiable, Sendable {
     let id: String
     let name: String
     let symbol: String
+    var brandHex: String?
+
+    static let supportedSubscriptions: [StreamingProvider] = [
+        .netflix,
+        .primeVideo,
+        .appleTV,
+        .disneyPlus,
+        .max,
+        .mubi,
+        .paramount
+    ]
 }
 
 struct CommunityReview: Codable, Hashable, Identifiable, Sendable {
@@ -111,6 +122,9 @@ struct MediaTitle: Codable, Hashable, Identifiable, Sendable {
     var palette: PosterPalette
     var providers: [StreamingProvider]
     var reviews: [CommunityReview]
+    var posterURL: URL?
+    var backdropURL: URL?
+    var trailerURL: URL?
 
     var progressLabel: String {
         switch kind {
@@ -154,4 +168,15 @@ struct SharedSpace: Codable, Hashable, Identifiable, Sendable {
 struct LibrarySnapshot: Codable, Hashable, Sendable {
     var titles: [MediaTitle]
     var sharedSpace: SharedSpace
+    var selectedProviderIDs: Set<StreamingProvider.ID>?
+
+    init(
+        titles: [MediaTitle],
+        sharedSpace: SharedSpace,
+        selectedProviderIDs: Set<StreamingProvider.ID>? = nil
+    ) {
+        self.titles = titles
+        self.sharedSpace = sharedSpace
+        self.selectedProviderIDs = selectedProviderIDs
+    }
 }

@@ -188,4 +188,5 @@ private struct PartnerInvitationView: View {
 #Preview {
     TogetherView()
         .environment(AppModel(store: MemoryLibraryStore(), seed: .sample))
+        .environment(\.allowsRemoteArtwork, false)
 }

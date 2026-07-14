@@ -225,4 +225,5 @@ struct ActivityRow: View {
 #Preview {
     TodayView()
         .environment(AppModel(store: MemoryLibraryStore(), seed: .sample))
+        .environment(\.allowsRemoteArtwork, false)
 }

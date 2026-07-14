@@ -8,6 +8,8 @@ The repository is private while the first usable release is taking shape. The in
 
 - See new episodes and continue what you are already watching.
 - Keep a single watchlist across shows and movies.
+- Browse rich poster and backdrop artwork, then watch official trailers in-app.
+- Filter discovery to streaming services you already pay for.
 - Share progress and a watchlist with a partner.
 - Discover what to watch next with transparent recommendations.
 - See streaming availability and community context without building another social network first.

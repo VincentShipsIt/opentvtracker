@@ -3,6 +3,7 @@ import SwiftUI
 struct MediaDetailView: View {
     @Environment(AppModel.self) private var model
     let titleID: MediaTitle.ID
+    @State private var presentedTrailer: TrailerPresentation?
 
     var body: some View {
         ZStack {
@@ -26,6 +27,9 @@ struct MediaDetailView: View {
         }
         .navigationTitle(title?.title ?? "Details")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(item: $presentedTrailer) { trailer in
+            TrailerPlayerView(trailer: trailer)
+        }
     }
 
     private var title: MediaTitle? {
@@ -33,36 +37,62 @@ struct MediaDetailView: View {
     }
 
     private func hero(_ title: MediaTitle) -> some View {
-        HStack(alignment: .bottom, spacing: 18) {
-            PosterArtwork(title: title)
-                .frame(width: 140, height: 205)
+        ZStack(alignment: .bottomLeading) {
+            BackdropArtwork(title: title)
+                .frame(maxWidth: .infinity)
+                .frame(height: 300)
 
-            VStack(alignment: .leading, spacing: 9) {
-                Text(title.title)
-                    .font(.largeTitle.weight(.bold))
-                Text("\(title.year) · \(title.kind.label)")
-                    .foregroundStyle(.secondary)
-                RatingLabel(rating: title.rating)
-                Text(title.genres.joined(separator: " · "))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                if let progress = title.progress {
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text(progress.label)
-                            .font(.subheadline.weight(.semibold))
-                        ProgressView(value: progress.fraction)
-                            .tint(.accentColor)
+            LinearGradient(
+                colors: [.clear, .black.opacity(0.28), .black.opacity(0.92)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .clipShape(.rect(cornerRadius: AppTheme.cardRadius))
+
+            HStack(alignment: .bottom, spacing: 14) {
+                PosterArtwork(title: title, cornerRadius: 12)
+                    .frame(width: 104, height: 154)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    if let provider = title.providers.first {
+                        ProviderBadge(provider: provider)
+                    }
+                    Text(title.title)
+                        .font(.title.weight(.black))
+                        .foregroundStyle(.white)
+                    Text("\(title.year) · \(title.kind.label) · \(title.runtimeMinutes) min")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.78))
+                    HStack {
+                        RatingLabel(rating: title.rating)
+                        if let progress = title.progress {
+                            Text(progress.label)
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.white)
+                        }
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(16)
         }
         .padding(.top, 12)
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .contain)
     }
 
     private func actions(_ title: MediaTitle) -> some View {
         VStack(spacing: 10) {
+            if let trailerURL = title.trailerURL {
+                Button {
+                    presentedTrailer = TrailerPresentation(title: title.title, url: trailerURL)
+                } label: {
+                    Label("Watch trailer", systemImage: "play.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .controlSize(.large)
+                .adaptiveGlassButton(prominent: true)
+            }
+
             Button {
                 model.markNextWatched(title.id)
             } label: {
@@ -73,7 +103,7 @@ struct MediaDetailView: View {
                     .frame(maxWidth: .infinity)
             }
             .controlSize(.large)
-            .adaptiveGlassButton(prominent: true)
+            .adaptiveGlassButton(prominent: title.trailerURL == nil)
             .disabled(title.state == .completed)
 
             HStack(spacing: 10) {
@@ -113,11 +143,7 @@ struct MediaDetailView: View {
                 ScrollView(.horizontal) {
                     HStack(spacing: 10) {
                         ForEach(title.providers) { provider in
-                            Label(provider.name, systemImage: provider.symbol)
-                                .font(.subheadline.weight(.semibold))
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 10)
-                                .background(.thinMaterial, in: Capsule())
+                            ProviderBadge(provider: provider)
                         }
                     }
                 }
@@ -199,5 +225,6 @@ enum SourceLinks {
     NavigationStack {
         MediaDetailView(titleID: "severance")
             .environment(AppModel(store: MemoryLibraryStore(), seed: .sample))
+            .environment(\.allowsRemoteArtwork, false)
     }
 }

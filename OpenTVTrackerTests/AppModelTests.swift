@@ -55,4 +55,56 @@ final class AppModelTests: XCTestCase {
         XCTAssertFalse(model.recommendations.isEmpty)
         XCTAssertTrue(model.recommendations.allSatisfy { $0.mood == .funny })
     }
+
+    func testDefaultRecommendationsOnlyUseOwnedServices() {
+        let model = AppModel(store: MemoryLibraryStore(), seed: .sample)
+        let expectedServices: Set<StreamingProvider.ID> = ["netflix", "prime-video", "apple-tv"]
+
+        XCTAssertEqual(model.selectedProviderIDs, expectedServices)
+        XCTAssertFalse(model.recommendations.isEmpty)
+        XCTAssertTrue(model.recommendations.allSatisfy { model.isAvailableOnSelectedProviders($0) })
+    }
+
+    func testTogglingProviderImmediatelyUpdatesRecommendations() {
+        let model = AppModel(store: MemoryLibraryStore(), seed: .sample)
+
+        model.toggleProvider(StreamingProvider.netflix.id)
+        model.toggleProvider(StreamingProvider.primeVideo.id)
+        model.toggleProvider(StreamingProvider.appleTV.id)
+
+        XCTAssertTrue(model.selectedProviderIDs.isEmpty)
+        XCTAssertTrue(model.recommendations.isEmpty)
+
+        model.toggleProvider(StreamingProvider.netflix.id)
+
+        XCTAssertEqual(model.recommendations.map(\.id), ["stranger-things"])
+    }
+
+    func testProviderSelectionPersists() async throws {
+        let store = MemoryLibraryStore()
+        let model = AppModel(store: store, seed: .sample)
+
+        model.toggleProvider(StreamingProvider.netflix.id)
+        try await Task.sleep(for: .milliseconds(250))
+
+        let saved = try await store.load()
+        XCTAssertFalse(try XCTUnwrap(saved?.selectedProviderIDs).contains(StreamingProvider.netflix.id))
+    }
+
+    func testLoadingRefreshesCatalogArtworkWithoutLosingProgress() async throws {
+        var legacySnapshot = LibrarySnapshot.sample
+        legacySnapshot.titles.removeAll(where: { $0.id == "fallout" })
+        let severanceIndex = try XCTUnwrap(legacySnapshot.titles.firstIndex(where: { $0.id == "severance" }))
+        legacySnapshot.titles[severanceIndex].posterURL = nil
+        legacySnapshot.titles[severanceIndex].progress = EpisodeProgress(season: 2, episode: 7, totalEpisodes: 10)
+        let store = MemoryLibraryStore(snapshot: legacySnapshot)
+        let model = AppModel(store: store, seed: .sample)
+
+        await model.load()
+
+        let severance = try XCTUnwrap(model.titles.first(where: { $0.id == "severance" }))
+        XCTAssertNotNil(severance.posterURL)
+        XCTAssertEqual(severance.progress?.episode, 7)
+        XCTAssertTrue(model.titles.contains(where: { $0.id == "fallout" }))
+    }
 }

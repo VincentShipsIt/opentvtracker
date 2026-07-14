@@ -5,11 +5,13 @@ import Observation
 @Observable
 final class AppModel {
     private let store: any LibraryPersisting
+    private let seed: LibrarySnapshot
     private var saveTask: Task<Void, Never>?
     private var persistenceRevision = 0
 
     private(set) var titles: [MediaTitle]
     private(set) var sharedSpace: SharedSpace
+    private(set) var selectedProviderIDs: Set<StreamingProvider.ID>
     private(set) var hasLoaded = false
     private(set) var persistenceError: String?
 
@@ -20,8 +22,10 @@ final class AppModel {
         seed: LibrarySnapshot = .sample
     ) {
         self.store = store
+        self.seed = seed
         titles = seed.titles
         sharedSpace = seed.sharedSpace
+        selectedProviderIDs = seed.selectedProviderIDs ?? Self.defaultProviderIDs
     }
 
     var upNext: [MediaTitle] {
@@ -30,8 +34,18 @@ final class AppModel {
 
     var recommendations: [MediaTitle] {
         titles.filter { title in
-            title.state == .planned && (selectedMood == .any || title.mood == selectedMood)
+            title.state == .planned
+                && (selectedMood == .any || title.mood == selectedMood)
+                && isAvailableOnSelectedProviders(title)
         }
+    }
+
+    var titlesOnSelectedProviders: [MediaTitle] {
+        titles.filter(isAvailableOnSelectedProviders)
+    }
+
+    var selectedProviders: [StreamingProvider] {
+        StreamingProvider.supportedSubscriptions.filter { selectedProviderIDs.contains($0.id) }
     }
 
     var sharedTitles: [MediaTitle] {
@@ -49,8 +63,9 @@ final class AppModel {
 
         do {
             if let snapshot = try await store.load() {
-                titles = snapshot.titles
+                titles = merging(savedTitles: snapshot.titles, catalogTitles: seed.titles)
                 sharedSpace = snapshot.sharedSpace
+                selectedProviderIDs = snapshot.selectedProviderIDs ?? Self.defaultProviderIDs
             }
         } catch {
             persistenceError = "Your saved library could not be opened. Preview data is shown instead."
@@ -96,6 +111,23 @@ final class AppModel {
         sharedSpace.titleIDs.contains(id)
     }
 
+    func toggleProvider(_ id: StreamingProvider.ID) {
+        if selectedProviderIDs.contains(id) {
+            selectedProviderIDs.remove(id)
+        } else {
+            selectedProviderIDs.insert(id)
+        }
+        persist()
+    }
+
+    func isProviderSelected(_ id: StreamingProvider.ID) -> Bool {
+        selectedProviderIDs.contains(id)
+    }
+
+    func isAvailableOnSelectedProviders(_ title: MediaTitle) -> Bool {
+        !selectedProviderIDs.isDisjoint(with: Set(title.providers.map(\.id)))
+    }
+
     private func addActivity(description: String) {
         let currentMember = sharedSpace.members.first(where: \.isCurrentUser)
         let activity = SharedActivity(
@@ -109,7 +141,11 @@ final class AppModel {
     }
 
     private func persist() {
-        let snapshot = LibrarySnapshot(titles: titles, sharedSpace: sharedSpace)
+        let snapshot = LibrarySnapshot(
+            titles: titles,
+            sharedSpace: sharedSpace,
+            selectedProviderIDs: selectedProviderIDs
+        )
         let store = store
         persistenceRevision += 1
         let revision = persistenceRevision
@@ -132,4 +168,24 @@ final class AppModel {
             }
         }
     }
+
+    private func merging(savedTitles: [MediaTitle], catalogTitles: [MediaTitle]) -> [MediaTitle] {
+        let savedByID = Dictionary(uniqueKeysWithValues: savedTitles.map { ($0.id, $0) })
+        let catalogIDs = Set(catalogTitles.map(\.id))
+        let refreshedCatalog = catalogTitles.map { catalogTitle in
+            guard let savedTitle = savedByID[catalogTitle.id] else { return catalogTitle }
+            var refreshedTitle = catalogTitle
+            refreshedTitle.state = savedTitle.state
+            refreshedTitle.progress = savedTitle.progress
+            return refreshedTitle
+        }
+        let localOnlyTitles = savedTitles.filter { !catalogIDs.contains($0.id) }
+        return refreshedCatalog + localOnlyTitles
+    }
+
+    private static let defaultProviderIDs: Set<StreamingProvider.ID> = [
+        StreamingProvider.netflix.id,
+        StreamingProvider.primeVideo.id,
+        StreamingProvider.appleTV.id
+    ]
 }
