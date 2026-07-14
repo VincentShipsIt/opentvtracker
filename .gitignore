@@ -1,0 +1,25 @@
+# Xcode
+DerivedData/
+build/
+*.xcuserstate
+xcuserdata/
+*.xccheckout
+*.moved-aside
+*.xcscmblueprint
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
+
+# Credentials
+Config/Secrets.xcconfig
+*.env
+.env.*
+
+# macOS
+.DS_Store
+
+# Tool output
+*.xcresult
+artifacts/
