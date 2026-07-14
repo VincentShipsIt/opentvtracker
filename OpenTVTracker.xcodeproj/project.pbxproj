@@ -355,7 +355,6 @@
 					"@executable_path/Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = dev.shipshit.opentvtracker;
-				PRODUCT_NAME = "OpenTV Tracker";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = 1;
 			};
@@ -539,7 +538,6 @@
 					"@executable_path/Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = dev.shipshit.opentvtracker;
-				PRODUCT_NAME = "OpenTV Tracker";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = 1;
 			};

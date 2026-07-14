@@ -30,7 +30,6 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: ""
         CODE_SIGN_STYLE: Automatic
         PRODUCT_BUNDLE_IDENTIFIER: dev.shipshit.opentvtracker
-        PRODUCT_NAME: OpenTV Tracker
         TARGETED_DEVICE_FAMILY: 1
     dependencies: []
   OpenTVTrackerTests:
