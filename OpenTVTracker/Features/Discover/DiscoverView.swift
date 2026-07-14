@@ -5,7 +5,6 @@ struct DiscoverView: View {
     @State private var searchText = ""
     @State private var surpriseOffset = 0
     @State private var presentedSheet: DiscoverSheet?
-    @State private var mediaFilter: DiscoverMediaFilter = .all
 
     var body: some View {
         NavigationStack {
@@ -14,9 +13,8 @@ struct DiscoverView: View {
 
                 ScrollView {
                     LazyVStack(spacing: AppTheme.sectionSpacing) {
-                        serviceFilters
-
                         if searchText.isEmpty {
+                            DiscoverCategoryRail(sections: categorySections)
                             featuredRecommendation
                             recommendationShelf
                             providerShelves
@@ -25,6 +23,7 @@ struct DiscoverView: View {
                             searchResults
                         }
                     }
+                    .containerRelativeFrame(.horizontal)
                     .padding(.bottom, 36)
                 }
             }
@@ -40,10 +39,13 @@ struct DiscoverView: View {
             .navigationDestination(for: MediaTitle.self) { title in
                 MediaDetailView(titleID: title.id)
             }
+            .navigationDestination(for: DiscoverCategory.self) { category in
+                DiscoverCategoryShelfView(category: category)
+            }
             .sheet(item: $presentedSheet) { sheet in
                 switch sheet {
-                case .prompt:
-                    DiscoveryPromptView()
+                case .categories:
+                    DiscoveryCategoryPickerView()
                 case .services:
                     ServiceManagerView()
                 case .trailer(let trailer):
@@ -51,45 +53,6 @@ struct DiscoverView: View {
                 }
             }
         }
-    }
-
-    private var serviceFilters: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SectionHeading(
-                title: "Your streaming shelf",
-                subtitle: "Only show titles included with services you pay for"
-            )
-            .padding(.horizontal, AppTheme.horizontalPadding)
-
-            ScrollView(.horizontal) {
-                HStack(spacing: 10) {
-                    ForEach(StreamingProvider.supportedSubscriptions) { provider in
-                        ServiceFilterChip(provider: provider)
-                    }
-                }
-                .padding(.horizontal, AppTheme.horizontalPadding)
-                .padding(.vertical, 2)
-            }
-            .scrollIndicators(.hidden)
-
-            HStack(spacing: 8) {
-                ForEach(DiscoverMediaFilter.allCases) { filter in
-                    Button {
-                        mediaFilter = filter
-                    } label: {
-                        Label(filter.label, systemImage: filter.symbol)
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered)
-                    .buttonBorderShape(.capsule)
-                    .tint(mediaFilter == filter ? .accentColor : .secondary)
-                    .accessibilityAddTraits(mediaFilter == filter ? .isSelected : [])
-                }
-            }
-            .padding(.horizontal, AppTheme.horizontalPadding)
-            .sensoryFeedback(.selection, trigger: mediaFilter)
-        }
-        .padding(.top, 10)
     }
 
     @ViewBuilder
@@ -136,16 +99,16 @@ struct DiscoverView: View {
             VStack(alignment: .leading, spacing: 14) {
                 Label("Still can't decide?", systemImage: "wand.and.stars")
                     .font(.title2.weight(.bold))
-                Text("Add mood and time. OpenTV will pick from services you already have and explain the choice.")
+                Text("Browse illustrated categories, each led by the newest title available on services you already have.")
                     .foregroundStyle(.secondary)
                 HStack {
-                    Button("Choose tonight", systemImage: "sparkles") {
-                        presentedSheet = .prompt
+                    Button("Browse categories", systemImage: "square.grid.2x2.fill") {
+                        presentedSheet = .categories
                     }
                     .adaptiveGlassButton(prominent: true)
 
                     Button("Surprise me", systemImage: "dice") {
-                        let count = max(model.recommendations.filter(matchesMediaFilter).count, 1)
+                        let count = max(model.recommendations.count, 1)
                         surpriseOffset = (surpriseOffset + 1) % count
                     }
                     .adaptiveGlassButton()
@@ -194,8 +157,8 @@ struct DiscoverView: View {
                 systemImage: "play.tv",
                 description: Text(
                     model.selectedProviderIDs.isEmpty
-                        ? "Select Netflix, Prime Video, Apple TV+, or another service above."
-                        : "Try another mood or add a service you already subscribe to."
+                        ? "Use Manage Services to add Netflix, Prime Video, Apple TV+, or another subscription."
+                        : "Add another service you already subscribe to or browse a different category."
                 )
             )
             .padding(.vertical, 20)
@@ -203,7 +166,7 @@ struct DiscoverView: View {
     }
 
     private var rotatedRecommendations: [MediaTitle] {
-        let titles = model.recommendations.filter(matchesMediaFilter)
+        let titles = model.recommendations
         guard !titles.isEmpty else { return [] }
         let offset = surpriseOffset % titles.count
         return Array(titles[offset...]) + Array(titles[..<offset])
@@ -211,56 +174,24 @@ struct DiscoverView: View {
 
     private var filteredTitles: [MediaTitle] {
         model.titlesOnSelectedProviders.filter { title in
-            matchesMediaFilter(title)
-                && (
-                    title.title.localizedStandardContains(searchText)
-                        || title.genres.contains(where: { $0.localizedStandardContains(searchText) })
-                )
+            title.title.localizedStandardContains(searchText)
+                || title.genres.contains(where: { $0.localizedStandardContains(searchText) })
         }
     }
 
     private func titles(for provider: StreamingProvider) -> [MediaTitle] {
         model.titles.filter { title in
-            matchesMediaFilter(title)
-                && title.providers.contains(where: { $0.id == provider.id })
+            title.providers.contains(where: { $0.id == provider.id })
         }
     }
 
-    private func matchesMediaFilter(_ title: MediaTitle) -> Bool {
-        switch mediaFilter {
-        case .all: true
-        case .series: title.kind == .series
-        case .movies: title.kind == .movie
-        }
+    private var categorySections: [DiscoverCategorySection] {
+        DiscoverCategorySection.available(in: model.titlesOnSelectedProviders)
     }
 
     private func presentTrailer(for title: MediaTitle) {
         guard let url = title.trailerURL else { return }
         presentedSheet = .trailer(TrailerPresentation(title: title.title, url: url))
-    }
-}
-
-private enum DiscoverMediaFilter: String, CaseIterable, Identifiable {
-    case all
-    case series
-    case movies
-
-    var id: String { rawValue }
-
-    var label: String {
-        switch self {
-        case .all: "All"
-        case .series: "Shows"
-        case .movies: "Movies"
-        }
-    }
-
-    var symbol: String {
-        switch self {
-        case .all: "rectangle.grid.2x2"
-        case .series: "tv"
-        case .movies: "film"
-        }
     }
 }
 

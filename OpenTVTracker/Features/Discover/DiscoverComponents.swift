@@ -5,47 +5,51 @@ struct FeaturedMediaCard: View {
     let onTrailer: () -> Void
 
     var body: some View {
-        ZStack(alignment: .bottomLeading) {
-            BackdropArtwork(title: title)
-                .frame(maxWidth: .infinity)
-                .frame(height: 270)
+        GeometryReader { geometry in
+            ZStack(alignment: .bottomLeading) {
+                BackdropArtwork(title: title)
+                    .frame(width: geometry.size.width, height: geometry.size.height)
 
-            LinearGradient(
-                colors: [.clear, .black.opacity(0.32), .black.opacity(0.92)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .clipShape(.rect(cornerRadius: AppTheme.cardRadius))
+                LinearGradient(
+                    colors: [.clear, .black.opacity(0.32), .black.opacity(0.92)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
 
-            VStack(alignment: .leading, spacing: 10) {
-                if let provider = title.providers.first {
-                    ProviderBadge(provider: provider)
-                }
-                Text(title.title)
-                    .font(.largeTitle.weight(.black))
-                    .foregroundStyle(.white)
-                Text(title.recommendationReason ?? title.synopsis)
-                    .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.86))
-                    .lineLimit(2)
-
-                HStack(spacing: 10) {
-                    if title.trailerURL != nil {
-                        Button("Trailer", systemImage: "play.fill", action: onTrailer)
-                            .buttonStyle(.borderedProminent)
-                            .tint(.white)
-                            .foregroundStyle(.black)
+                VStack(alignment: .leading, spacing: 10) {
+                    if let provider = title.providers.first {
+                        ProviderBadge(provider: provider)
                     }
+                    Text(title.title)
+                        .font(.largeTitle.weight(.black))
+                        .foregroundStyle(.white)
+                    Text(title.recommendationReason ?? title.synopsis)
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.86))
+                        .lineLimit(2)
 
-                    NavigationLink(value: title) {
-                        Label("Details", systemImage: "info.circle")
+                    HStack(spacing: 10) {
+                        if title.trailerURL != nil {
+                            Button("Trailer", systemImage: "play.fill", action: onTrailer)
+                                .buttonStyle(.borderedProminent)
+                                .tint(.white)
+                                .foregroundStyle(.black)
+                        }
+
+                        NavigationLink(value: title) {
+                            Label("Details", systemImage: "info.circle")
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(.white)
                     }
-                    .buttonStyle(.bordered)
-                    .tint(.white)
                 }
+                .padding(18)
             }
-            .padding(18)
+            .frame(width: geometry.size.width, height: geometry.size.height)
+            .compositingGroup()
+            .clipShape(.rect(cornerRadius: AppTheme.cardRadius))
         }
+        .frame(height: 270)
         .accessibilityElement(children: .contain)
     }
 }
@@ -123,42 +127,6 @@ struct ProviderBadge: View {
         .background(brandColor, in: Capsule())
         .foregroundStyle(.white)
         .accessibilityLabel("Available on \(provider.name)")
-    }
-
-    private var brandColor: Color {
-        provider.brandHex.map { Color(hex: $0) } ?? .accentColor
-    }
-}
-
-struct ServiceFilterChip: View {
-    @Environment(AppModel.self) private var model
-    let provider: StreamingProvider
-
-    var body: some View {
-        Button {
-            model.toggleProvider(provider.id)
-        } label: {
-            HStack(spacing: 7) {
-                Image(systemName: provider.symbol)
-                Text(provider.name)
-                if model.isProviderSelected(provider.id) {
-                    Image(systemName: "checkmark.circle.fill")
-                }
-            }
-            .font(.subheadline.weight(.semibold))
-            .padding(.horizontal, 13)
-            .padding(.vertical, 10)
-        }
-        .buttonStyle(.plain)
-        .background(
-            model.isProviderSelected(provider.id) ? brandColor : Color.secondary.opacity(0.10),
-            in: Capsule()
-        )
-        .foregroundStyle(model.isProviderSelected(provider.id) ? Color.white : Color.primary)
-        .overlay {
-            Capsule().strokeBorder(model.isProviderSelected(provider.id) ? .white.opacity(0.18) : .clear)
-        }
-        .accessibilityAddTraits(model.isProviderSelected(provider.id) ? .isSelected : [])
     }
 
     private var brandColor: Color {

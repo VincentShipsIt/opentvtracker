@@ -14,6 +14,8 @@ struct PosterArtwork: View {
             title: title,
             style: .poster
         )
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .clipped()
         .clipShape(.rect(cornerRadius: cornerRadius))
         .overlay {
             RoundedRectangle(cornerRadius: cornerRadius)
@@ -34,6 +36,8 @@ struct BackdropArtwork: View {
             title: title,
             style: .backdrop
         )
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .clipped()
         .clipShape(.rect(cornerRadius: cornerRadius))
         .overlay {
             RoundedRectangle(cornerRadius: cornerRadius)

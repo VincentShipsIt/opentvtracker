@@ -24,6 +24,8 @@ targets:
       - path: OpenTVTracker/Resources/Assets.xcassets
     info:
       path: Config/Info.plist
+      properties:
+        UILaunchScreen: {}
     settings:
       base:
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
