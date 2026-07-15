@@ -78,19 +78,27 @@ struct TodayView: View {
         }
     }
 
+    @ViewBuilder
     private var partnerActivity: some View {
         VStack(alignment: .leading, spacing: 14) {
             SectionHeading(title: "Together", subtitle: model.sharedSpace.name)
-            GlassSurface(cornerRadius: AppTheme.compactRadius) {
-                VStack(spacing: 0) {
-                    ForEach(Array(model.sharedSpace.activity.prefix(3))) { activity in
-                        ActivityRow(activity: activity, space: model.sharedSpace)
-                        if activity.id != model.sharedSpace.activity.prefix(3).last?.id {
-                            Divider().padding(.leading, 48)
-                        }
+            if model.sharedSpace.activity.isEmpty {
+                ContentUnavailableView(
+                    "No shared activity yet",
+                    systemImage: "person.2",
+                    description: Text("Share a title or mark something watched together.")
+                )
+                .frame(minHeight: 180)
+            } else {
+                VStack(spacing: 12) {
+                    ForEach(model.sharedSpace.activity.prefix(3)) { activity in
+                        ActivityCard(
+                            activity: activity,
+                            space: model.sharedSpace,
+                            title: model.mediaTitle(for: activity)
+                        )
                     }
                 }
-                .padding(.vertical, 6)
             }
         }
     }
@@ -178,48 +186,6 @@ private struct CompactQueueRow: View {
             .padding(10)
         }
         .accessibilityElement(children: .combine)
-    }
-}
-
-struct ActivityRow: View {
-    @Environment(AppModel.self) private var model
-    let activity: SharedActivity
-    let space: SharedSpace
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: activity.symbol)
-                .frame(width: 32, height: 32)
-                .background(Color.accentColor.opacity(0.14), in: Circle())
-                .foregroundStyle(Color.accentColor)
-                .accessibilityHidden(true)
-
-            Text("\(memberName) \(activity.description)")
-                .font(.subheadline)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            Text(activity.relativeDate)
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-
-            Menu("React", systemImage: reactionSymbol) {
-                Button("Love", systemImage: "heart.fill") { model.react(to: activity.id, symbol: "heart.fill") }
-                Button("Nice", systemImage: "hand.thumbsup.fill") { model.react(to: activity.id, symbol: "hand.thumbsup.fill") }
-                Button("Funny", systemImage: "face.smiling.fill") { model.react(to: activity.id, symbol: "face.smiling.fill") }
-            }
-            .labelStyle(.iconOnly)
-            .accessibilityLabel("React to activity")
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .accessibilityElement(children: .combine)
-    }
-
-    private var memberName: String {
-        space.members.first(where: { $0.id == activity.memberID })?.name ?? "Someone"
-    }
-
-    private var reactionSymbol: String {
-        model.sharedSpace.reactions?.last(where: { $0.activityID == activity.id })?.symbol ?? "face.smiling"
     }
 }
 

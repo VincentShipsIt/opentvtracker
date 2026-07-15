@@ -47,7 +47,10 @@ extension AppModel {
                 season: season.number,
                 episode: episode.number
             )
-            addActivity(description: "watched \(titles[index].title) S\(season.number) E\(episode.number)")
+            addActivity(
+                description: "watched \(titles[index].title) S\(season.number) E\(episode.number)",
+                titleID: titles[index].id
+            )
         } else {
             watchedIDs.remove(episode.id)
             titles[index].watchedEpisodeIDs = watchedIDs
@@ -57,7 +60,11 @@ extension AppModel {
                 seasonNumber: season.number,
                 episodeNumber: episode.number
             )
-            addActivity(description: "marked \(titles[index].title) S\(season.number) E\(episode.number) unwatched")
+            addActivity(
+                description: "marked \(titles[index].title) S\(season.number) E\(episode.number) unwatched",
+                titleID: titles[index].id,
+                symbol: "arrow.uturn.backward"
+            )
         }
 
         persist()
@@ -98,7 +105,10 @@ extension AppModel {
                 episode: episode.number
             )
         }
-        addActivity(description: "watched \(titles[index].title) S\(season.number) E\(episode.number) together")
+        addActivity(
+            description: "watched \(titles[index].title) S\(season.number) E\(episode.number) together",
+            titleID: titles[index].id
+        )
         persist()
         syncSharedStateSoon()
     }

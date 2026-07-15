@@ -1,13 +1,30 @@
 import Foundation
 
 extension AppModel {
+    func addActivity(
+        description: String,
+        titleID: MediaTitle.ID? = nil,
+        symbol: String = "checkmark"
+    ) {
+        let currentMember = sharedSpace.members.first(where: \.isCurrentUser)
+        let activity = SharedActivity(
+            id: UUID().uuidString,
+            memberID: currentMember?.id ?? "local-user",
+            description: description.trimmingCharacters(in: .whitespaces),
+            relativeDate: "Now",
+            symbol: symbol,
+            titleID: titleID
+        )
+        sharedSpace.activity.insert(activity, at: 0)
+    }
+
     func toggleTogether(_ id: MediaTitle.ID) {
         if let index = sharedSpace.titleIDs.firstIndex(of: id) {
             sharedSpace.titleIDs.remove(at: index)
         } else {
             sharedSpace.titleIDs.append(id)
             if let title = titles.first(where: { $0.id == id }) {
-                addActivity(description: "added \(title.title)")
+                addActivity(description: "added \(title.title)", titleID: title.id, symbol: "plus")
             }
         }
         persist()
@@ -67,7 +84,10 @@ extension AppModel {
         for member in sharedSpace.members {
             appendWatchEvent(title: titles[index], kind: .watchedTogether, memberID: member.id)
         }
-        addActivity(description: "watched \(titles[index].title) together")
+        addActivity(
+            description: "watched \(titles[index].title) together",
+            titleID: titles[index].id
+        )
         persist()
         syncSharedStateSoon()
     }

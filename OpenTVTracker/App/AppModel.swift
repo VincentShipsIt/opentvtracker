@@ -158,7 +158,10 @@ extension AppModel {
         titles[index].lastWatchedAt = .now
         appendWatchEvent(title: titles[index], kind: .watched)
 
-        addActivity(description: "watched \(titles[index].title) \(titles[index].progress?.label ?? "")")
+        addActivity(
+            description: "watched \(titles[index].title) \(titles[index].progress?.label ?? "")",
+            titleID: titles[index].id
+        )
         persist()
         syncSharedStateSoon()
     }
@@ -190,7 +193,11 @@ extension AppModel {
         titles[index].rewatchCount = titles[index].completedRewatches + 1
         titles[index].lastWatchedAt = .now
         appendWatchEvent(title: titles[index], kind: .rewatch)
-        addActivity(description: "rewatched \(titles[index].title)")
+        addActivity(
+            description: "rewatched \(titles[index].title)",
+            titleID: titles[index].id,
+            symbol: "arrow.clockwise"
+        )
         persist()
         syncSharedStateSoon()
     }
@@ -206,7 +213,11 @@ extension AppModel {
         titles[index].progress = corrected
         titles[index].state = corrected.episode == corrected.totalEpisodes ? .completed : .watching
         appendWatchEvent(title: titles[index], kind: .correction, supersedesEventID: supersededID)
-        addActivity(description: "corrected \(titles[index].title) to \(corrected.label)")
+        addActivity(
+            description: "corrected \(titles[index].title) to \(corrected.label)",
+            titleID: titles[index].id,
+            symbol: "slider.horizontal.3"
+        )
         persist()
         syncSharedStateSoon()
     }
@@ -293,18 +304,6 @@ extension AppModel {
 }
 
 extension AppModel {
-    func addActivity(description: String) {
-        let currentMember = sharedSpace.members.first(where: \.isCurrentUser)
-        let activity = SharedActivity(
-            id: UUID().uuidString,
-            memberID: currentMember?.id ?? "local-user",
-            description: description.trimmingCharacters(in: .whitespaces),
-            relativeDate: "Now",
-            symbol: "checkmark"
-        )
-        sharedSpace.activity.insert(activity, at: 0)
-    }
-
     func persist() {
         let snapshot = self.snapshot
         let store = store

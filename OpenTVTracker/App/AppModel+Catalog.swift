@@ -41,6 +41,15 @@ extension AppModel {
             ?? catalogSearchResults.first(where: { $0.id == id })
     }
 
+    func mediaTitle(for activity: SharedActivity) -> MediaTitle? {
+        if let titleID = activity.titleID, let title = mediaTitle(withID: titleID) {
+            return title
+        }
+        return titles.first { title in
+            activity.description.localizedCaseInsensitiveContains(title.title)
+        }
+    }
+
     func refreshCatalogDetails(for id: MediaTitle.ID) async {
         guard let existing = mediaTitle(withID: id) else { return }
 
