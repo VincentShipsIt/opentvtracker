@@ -189,9 +189,30 @@ extension LibrarySnapshot {
             ],
             titleIDs: ["severance", "the-bear", "slow-horses", "past-lives"],
             activity: [
-                SharedActivity(id: "activity-1", memberID: "partner", description: "added Past Lives", relativeDate: "12m", symbol: "plus"),
-                SharedActivity(id: "activity-2", memberID: "vincent", description: "watched The Bear S3 E5", relativeDate: "Yesterday", symbol: "checkmark"),
-                SharedActivity(id: "activity-3", memberID: "partner", description: "reacted to Slow Horses", relativeDate: "Mon", symbol: "heart.fill")
+                SharedActivity(
+                    id: "activity-1",
+                    memberID: "partner",
+                    description: "added Past Lives",
+                    relativeDate: "12m",
+                    symbol: "plus",
+                    titleID: "past-lives"
+                ),
+                SharedActivity(
+                    id: "activity-2",
+                    memberID: "vincent",
+                    description: "watched The Bear S3 E5",
+                    relativeDate: "Yesterday",
+                    symbol: "checkmark",
+                    titleID: "the-bear"
+                ),
+                SharedActivity(
+                    id: "activity-3",
+                    memberID: "partner",
+                    description: "reacted to Slow Horses",
+                    relativeDate: "Mon",
+                    symbol: "heart.fill",
+                    titleID: "slow-horses"
+                )
             ],
             isCloudSharingEnabled: false,
             tasteProfiles: [

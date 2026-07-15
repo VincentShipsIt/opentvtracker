@@ -13,6 +13,7 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(title?.progress?.episode, 4)
         XCTAssertEqual(model.sharedSpace.activity.count, originalActivityCount + 1)
         XCTAssertEqual(model.sharedSpace.activity.first?.memberID, "vincent")
+        XCTAssertEqual(model.sharedSpace.activity.first?.titleID, "severance")
     }
 
     func testMarkMovieWatchedCompletesIt() {

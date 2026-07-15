@@ -109,19 +109,27 @@ struct TogetherView: View {
         .accessibilityIdentifier("together.viewing-analytics")
     }
 
+    @ViewBuilder
     private var recentActivity: some View {
         VStack(alignment: .leading, spacing: 14) {
             SectionHeading(title: "Recent activity", subtitle: "Spoiler-safe by default")
-            GlassSurface(cornerRadius: AppTheme.compactRadius) {
-                VStack(spacing: 0) {
+            if model.sharedSpace.activity.isEmpty {
+                ContentUnavailableView(
+                    "Nothing watched together yet",
+                    systemImage: "rectangle.stack.badge.plus",
+                    description: Text("Your shared watch history will appear here as cards.")
+                )
+                .frame(minHeight: 220)
+            } else {
+                LazyVStack(spacing: 12) {
                     ForEach(model.sharedSpace.activity) { activity in
-                        ActivityRow(activity: activity, space: model.sharedSpace)
-                        if activity.id != model.sharedSpace.activity.last?.id {
-                            Divider().padding(.leading, 48)
-                        }
+                        ActivityCard(
+                            activity: activity,
+                            space: model.sharedSpace,
+                            title: model.mediaTitle(for: activity)
+                        )
                     }
                 }
-                .padding(.vertical, 6)
             }
         }
     }

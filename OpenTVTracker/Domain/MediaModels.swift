@@ -232,6 +232,7 @@ struct SharedActivity: Codable, Hashable, Identifiable, Sendable {
     let description: String
     let relativeDate: String
     let symbol: String
+    var titleID: MediaTitle.ID? = nil
 }
 
 enum SharedMembershipState: String, Codable, Sendable {

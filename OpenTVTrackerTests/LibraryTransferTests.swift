@@ -2,6 +2,16 @@ import XCTest
 @testable import OpenTVTracker
 
 final class LibraryTransferTests: XCTestCase {
+    func testLegacyActivityWithoutTitleIDStillDecodes() throws {
+        let data = Data(
+            #"{"id":"activity","memberID":"member","description":"watched Silo","relativeDate":"Now","symbol":"checkmark"}"#.utf8
+        )
+
+        let activity = try JSONDecoder().decode(SharedActivity.self, from: data)
+
+        XCTAssertNil(activity.titleID)
+    }
+
     func testLegacyProviderIDDecodesIntoTypedIdentity() throws {
         let data = Data(
             #"{"id":"apple-tv","name":"Apple TV+","symbol":"apple.logo","brandHex":"1C1C1E"}"#.utf8
