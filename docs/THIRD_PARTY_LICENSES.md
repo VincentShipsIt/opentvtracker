@@ -4,7 +4,10 @@ The app target currently links only Apple system frameworks: SwiftUI, Observatio
 
 Development and CI use XcodeGen and SwiftLint under their respective upstream licenses. GitHub Actions uses `actions/checkout` and the Gitleaks action.
 
+The optional Bun proxy depends on `node-app-attest` (MIT) for Apple App Attest verification. Its cryptography and CBOR dependency tree includes `asn1js` and `pkijs` (BSD-3-Clause) and `cbor` (MIT), plus their transitive dependencies recorded in `server/bun.lock`. Distribution of a self-hosted proxy must retain the dependency license notices shipped in `server/node_modules` or the corresponding package archives.
+
 Catalog metadata, artwork, and reviews are sourced from TMDB; streaming provider data is JustWatch-backed through TMDB and is attributed in-app. IMDb is accessed only through user-initiated outbound search links. Malta cinema links point to Eden Cinemas, Embassy Cinemas, and Citadel Cinema official sites. Their content is not redistributed by this repository.
+
 # Data sources
 
 - TVmaze API data is licensed under CC BY-SA. Each TVmaze-backed detail screen links to its original TVmaze page.

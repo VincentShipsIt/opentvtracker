@@ -29,11 +29,11 @@ struct CreditsView: View {
                 }
 
                 Section("Privacy direction") {
-                    Text("Tracking works locally. Partner sharing uses invitation-only iCloud records separate from the personal library. AI reranking is opt-in and never embeds provider credentials in the app.")
+                    Text("Tracking works locally. Partner sharing uses invitation-only iCloud records separate from the personal library. AI reranking is opt-in and uses the user's OpenRouter key from this iPhone's Keychain.")
                 }
 
                 Section("Open source") {
-                    Text("MIT licensed. The repository remains private during the foundation phase.")
+                    Text("MIT licensed and designed for public-source development.")
                     if let url = URL(string: "https://github.com/VincentShipsIt/opentvtracker") {
                         Link("Repository", destination: url)
                     }

@@ -6,6 +6,10 @@ xcuserdata/
 *.xccheckout
 *.moved-aside
 *.xcscmblueprint
+*.xcarchive
+*.dSYM/
+*.ipa
+ExportOptions.plist
 
 # Swift Package Manager
 .build/
@@ -17,10 +21,32 @@ Config/Secrets.xcconfig
 *.env
 .env.*
 !server/.env.example
+*.p8
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.mobileprovision
+*.provisionprofile
+*.cer
+*.crt
+*.der
+*.csr
+*.key
+*.pem
+credentials*.json
+service-account*.json
+oauth-credentials*.json
+oauth-callback*.json
+pkce-verifier*
+.app-attest/
+app-attest-state*.json
+server/data/
 
 # macOS
 .DS_Store
 
 # Tool output
+node_modules/
 *.xcresult
 artifacts/

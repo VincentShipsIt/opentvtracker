@@ -8,15 +8,21 @@ import {
 
 describe("mapEpisodeSummary", () => {
   test("keeps TMDB episode artwork and overview for the mobile season screen", () => {
-    expect(mapEpisodeSummary({
-      id: 123,
-      episode_number: 4,
-      name: "The You You Are",
-      air_date: "2022-03-04",
-      runtime: 46,
-      overview: "The team meets a mysterious visitor.",
-      still_path: "/episode-still.jpg",
-    }, 95396, 1)).toEqual({
+    expect(
+      mapEpisodeSummary(
+        {
+          id: 123,
+          episode_number: 4,
+          name: "The You You Are",
+          air_date: "2022-03-04",
+          runtime: 46,
+          overview: "The team meets a mysterious visitor.",
+          still_path: "/episode-still.jpg",
+        },
+        95396,
+        1,
+      ),
+    ).toEqual({
       id: "tmdb-episode-123",
       number: 4,
       title: "The You You Are",
@@ -41,9 +47,15 @@ describe("mapStreamingProvider", () => {
   });
 
   test("maps direct subscription variants to one app provider", () => {
-    expect(mapStreamingProvider(TMDBProviderID.netflixWithAds)[0]?.id).toBe(StreamingProviderID.netflix);
-    expect(mapStreamingProvider(TMDBProviderID.primeVideoLegacy)[0]?.id).toBe(StreamingProviderID.primeVideo);
-    expect(mapStreamingProvider(TMDBProviderID.paramountEssential)[0]?.id).toBe(StreamingProviderID.paramount);
+    expect(mapStreamingProvider(TMDBProviderID.netflixWithAds)[0]?.id).toBe(
+      StreamingProviderID.netflix,
+    );
+    expect(mapStreamingProvider(TMDBProviderID.primeVideoLegacy)[0]?.id).toBe(
+      StreamingProviderID.primeVideo,
+    );
+    expect(mapStreamingProvider(TMDBProviderID.paramountEssential)[0]?.id).toBe(
+      StreamingProviderID.paramount,
+    );
   });
 
   test("does not treat channel add-ons as direct subscriptions", () => {
