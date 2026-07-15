@@ -84,6 +84,10 @@ actor CloudKitSyncCoordinator {
         await worker(for: scope).cachedPayload(stableID: stableID)
     }
 
+    func purge(scope: CloudDatabaseScope) async {
+        await worker(for: scope).purge()
+    }
+
     private func worker(for scope: CloudDatabaseScope) -> CloudKitSyncWorker {
         scope == .privateDatabase ? privateWorker : sharedWorker
     }
@@ -132,6 +136,11 @@ private final class CloudKitSyncWorker: CKSyncEngineDelegate, @unchecked Sendabl
 
     func cachedPayload(stableID: String) async -> Data? {
         await store.cachedPayload(stableID: stableID)
+    }
+
+    func purge() async {
+        await engine.cancelOperations()
+        await store.purge()
     }
 
     func handleEvent(_ event: CKSyncEngine.Event, syncEngine: CKSyncEngine) async {
@@ -235,6 +244,12 @@ private actor CloudKitSyncStore {
 
     func recordRecoverableError(_ message: String) {
         CloudKitSyncPersistence.saveError(message, scope: scope)
+    }
+
+    func purge() {
+        cache = [:]
+        outbox = [:]
+        CloudKitSyncPersistence.purge(scope: scope)
     }
 
     private func persistOutbox() {

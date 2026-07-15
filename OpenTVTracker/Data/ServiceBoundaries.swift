@@ -42,7 +42,7 @@ protocol PartnerSharingProviding: Sendable {
     func availability() async -> PartnerSharingAvailability
     func inviteURL(for spaceID: SharedSpace.ID) async throws -> URL
     func revoke(spaceID: SharedSpace.ID) async throws
-    func leave(spaceID: SharedSpace.ID) async throws
+    func leave(space: SharedSpace) async throws
 }
 
 struct FoundationPartnerSharingService: PartnerSharingProviding {
@@ -58,7 +58,7 @@ struct FoundationPartnerSharingService: PartnerSharingProviding {
         throw PartnerSharingError.notConfigured
     }
 
-    func leave(spaceID: SharedSpace.ID) async throws {
+    func leave(space: SharedSpace) async throws {
         throw PartnerSharingError.notConfigured
     }
 }

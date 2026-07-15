@@ -177,9 +177,18 @@ private struct PartnerInvitationView: View {
 
                     invitationAction
 
-                    if model.sharedSpace.resolvedMembershipState == .pending {
-                        Button("Revoke invitation", role: .destructive) {
+                    if model.sharedSpace.isCurrentUserShareOwner == true,
+                       model.sharedSpace.isCloudSharingEnabled {
+                        Button("Revoke shared space", role: .destructive) {
                             Task { await revokeInvitation() }
+                        }
+                        .disabled(isWorking)
+                    }
+
+                    if model.sharedSpace.isCurrentUserShareOwner == false,
+                       model.sharedSpace.resolvedMembershipState == .accepted {
+                        Button("Leave shared space", role: .destructive) {
+                            Task { await leaveSpace() }
                         }
                         .disabled(isWorking)
                     }
@@ -265,6 +274,18 @@ private struct PartnerInvitationView: View {
             invitationURL = nil
             model.setSharedMembershipState(.revoked)
             errorMessage = nil
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func leaveSpace() async {
+        isWorking = true
+        defer { isWorking = false }
+        do {
+            try await sharingService.leave(space: model.sharedSpace)
+            model.setSharedMembershipState(.left)
+            dismiss()
         } catch {
             errorMessage = error.localizedDescription
         }

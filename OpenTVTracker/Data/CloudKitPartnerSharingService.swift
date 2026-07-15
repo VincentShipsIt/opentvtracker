@@ -63,8 +63,12 @@ struct CloudKitPartnerSharingService: PartnerSharingProviding {
         _ = try await container.privateCloudDatabase.modifyRecordZones(saving: [], deleting: [zoneID])
     }
 
-    func leave(spaceID: SharedSpace.ID) async throws {
-        let zoneID = Self.zoneID(for: spaceID)
+    func leave(space: SharedSpace) async throws {
+        let fallbackZoneID = Self.zoneID(for: space.id)
+        let zoneID = CKRecordZone.ID(
+            zoneName: space.cloudZoneName ?? fallbackZoneID.zoneName,
+            ownerName: space.cloudOwnerName ?? fallbackZoneID.ownerName
+        )
         _ = try await container.sharedCloudDatabase.modifyRecordZones(saving: [], deleting: [zoneID])
     }
 

@@ -15,10 +15,19 @@ extension AppModel {
     }
 
     func setSharedMembershipState(_ state: SharedMembershipState) {
+        let wasOwner = sharedSpace.isCurrentUserShareOwner != false
         sharedSpace.membershipState = state
         sharedSpace.isCloudSharingEnabled = state == .pending || state == .accepted
         persist()
-        syncSharedStateSoon()
+        if sharedSpace.isCloudSharingEnabled {
+            syncSharedStateSoon()
+        } else {
+            Task {
+                await CloudKitSyncCoordinator.shared.purge(
+                    scope: wasOwner ? .privateDatabase : .sharedDatabase
+                )
+            }
+        }
     }
 
     func markPartnerShareCreated() {
