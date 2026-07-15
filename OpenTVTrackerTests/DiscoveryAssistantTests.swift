@@ -2,6 +2,12 @@ import XCTest
 @testable import OpenTVTracker
 
 final class DiscoveryAssistantTests: XCTestCase {
+    private let defaultProviderIDs: Set<StreamingProvider.ID> = [
+        StreamingProvider.netflix.id,
+        StreamingProvider.primeVideo.id,
+        StreamingProvider.appleTV.id
+    ]
+
     func testParserUnderstandsKindMoodAndRuntime() {
         let intent = DiscoveryAssistantEngine.parse("A funny show under 60 minutes")
 
@@ -30,13 +36,13 @@ final class DiscoveryAssistantTests: XCTestCase {
         let shared = DiscoveryAssistantEngine.respond(
             to: "Something thoughtful we would both like",
             titles: LibrarySnapshot.sample.titles,
-            selectedProviderIDs: LibrarySnapshot.sample.selectedProviderIDs ?? [],
+            selectedProviderIDs: defaultProviderIDs,
             tasteProfiles: LibrarySnapshot.sample.sharedSpace.tasteProfiles ?? []
         )
         let personal = DiscoveryAssistantEngine.respond(
             to: "Something thoughtful",
             titles: LibrarySnapshot.sample.titles,
-            selectedProviderIDs: LibrarySnapshot.sample.selectedProviderIDs ?? [],
+            selectedProviderIDs: defaultProviderIDs,
             tasteProfiles: LibrarySnapshot.sample.sharedSpace.tasteProfiles ?? []
         )
 
@@ -48,7 +54,7 @@ final class DiscoveryAssistantTests: XCTestCase {
         let response = DiscoveryAssistantEngine.respond(
             to: "A movie rated above 9.9 under 10 minutes",
             titles: LibrarySnapshot.sample.titles,
-            selectedProviderIDs: LibrarySnapshot.sample.selectedProviderIDs ?? [],
+            selectedProviderIDs: defaultProviderIDs,
             tasteProfiles: []
         )
 
