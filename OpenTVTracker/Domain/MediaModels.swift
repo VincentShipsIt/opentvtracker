@@ -155,6 +155,11 @@ struct CommunityReview: Codable, Hashable, Identifiable, Sendable {
     let rating: Double?
     let source: String
     let containsSpoilers: Bool
+    var username: String?
+    var avatarURL: URL?
+    var sourceURL: URL?
+    var createdAt: Date?
+    var updatedAt: Date?
 }
 
 // Optional additions keep version-one archives decodable while the schema evolves.
