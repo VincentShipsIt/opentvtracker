@@ -140,6 +140,14 @@ extension AppModel {
         if titles[index].kind == .movie {
             guard titles[index].state != .completed else { return }
             titles[index].state = .completed
+        } else if let next = nextUnwatchedEpisode(for: titles[index]) {
+            setEpisodeWatched(
+                true,
+                titleID: id,
+                seasonNumber: next.season.number,
+                episodeID: next.episode.id
+            )
+            return
         } else if var progress = titles[index].progress {
             guard progress.episode < progress.totalEpisodes else { return }
             progress.episode = min(progress.episode + 1, progress.totalEpisodes)
@@ -341,32 +349,11 @@ extension AppModel {
             refreshedTitle.isDismissed = savedTitle.isDismissed
             refreshedTitle.isDisliked = savedTitle.isDisliked
             refreshedTitle.personalWatchlist = savedTitle.personalWatchlist
+            refreshedTitle.watchedEpisodeIDs = savedTitle.watchedEpisodeIDs
             return refreshedTitle
         }
         let localOnlyTitles = savedTitles.filter { !catalogIDs.contains($0.id) }
         return refreshedCatalog + localOnlyTitles
-    }
-
-    func appendWatchEvent(
-        title: MediaTitle,
-        kind: WatchEventKind,
-        memberID: SpaceMember.ID? = nil,
-        supersedesEventID: String? = nil
-    ) {
-        let resolvedMemberID = memberID ?? sharedSpace.members.first(where: \.isCurrentUser)?.id ?? "local-user"
-        let event = SharedWatchEvent(
-            id: UUID().uuidString,
-            titleID: title.id,
-            memberID: resolvedMemberID,
-            kind: kind,
-            season: title.progress?.season,
-            episode: title.progress?.episode,
-            occurredAt: .now,
-            supersedesEventID: supersedesEventID
-        )
-        var events = sharedSpace.watchEvents ?? []
-        events.append(event)
-        sharedSpace.watchEvents = events
     }
 
     private func isHigherUpNextPriority(_ lhs: MediaTitle, _ rhs: MediaTitle) -> Bool {

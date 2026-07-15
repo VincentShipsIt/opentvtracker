@@ -91,6 +91,8 @@ struct EpisodeSummary: Codable, Hashable, Identifiable, Sendable {
     let title: String
     let airDate: Date?
     let runtimeMinutes: Int?
+    var overview: String?
+    var stillURL: URL?
 }
 
 struct SeasonSummary: Codable, Hashable, Identifiable, Sendable {
@@ -181,6 +183,7 @@ struct MediaTitle: Codable, Hashable, Identifiable, Sendable {
     var seasons: [SeasonSummary]? = nil
     var metadataSource: MetadataSource? = nil
     var sourceURL: URL? = nil
+    var watchedEpisodeIDs: Set<EpisodeSummary.ID>? = nil
 
     var progressLabel: String {
         switch kind {
@@ -308,7 +311,7 @@ struct LibrarySnapshot: Codable, Hashable, Sendable {
         selectedProviderIDs: Set<StreamingProvider.ID>? = nil,
         allowsAIReranking: Bool = false,
         streamingRegionCode: String? = nil,
-        schemaVersion: Int = 3
+        schemaVersion: Int = 4
     ) {
         self.schemaVersion = schemaVersion
         self.titles = titles

@@ -202,4 +202,78 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(model.titles.first(where: { $0.id == "severance" })?.progress?.episode, 5)
         XCTAssertEqual(model.sharedSpace.watchEvents?.filter { $0.titleID == "severance" }.count, 2)
     }
+
+    func testLegacyProgressMapsToIndividualEpisodeRows() throws {
+        var snapshot = LibrarySnapshot.sample
+        let titleIndex = try XCTUnwrap(snapshot.titles.firstIndex(where: { $0.id == "severance" }))
+        snapshot.titles[titleIndex].seasons = Self.episodeTrackingSeasons
+        snapshot.titles[titleIndex].progress = EpisodeProgress(season: 2, episode: 1, totalEpisodes: 2)
+        let model = AppModel(store: MemoryLibraryStore(), seed: snapshot)
+
+        XCTAssertTrue(model.isEpisodeWatched(titleID: "severance", seasonNumber: 1, episodeID: "s1e1"))
+        XCTAssertTrue(model.isEpisodeWatched(titleID: "severance", seasonNumber: 1, episodeID: "s1e2"))
+        XCTAssertTrue(model.isEpisodeWatched(titleID: "severance", seasonNumber: 2, episodeID: "s2e1"))
+        XCTAssertFalse(model.isEpisodeWatched(titleID: "severance", seasonNumber: 2, episodeID: "s2e2"))
+    }
+
+    func testEpisodeSwipeTrackingPersistsExactEpisode() async throws {
+        var snapshot = LibrarySnapshot.sample
+        let titleIndex = try XCTUnwrap(snapshot.titles.firstIndex(where: { $0.id == "severance" }))
+        snapshot.titles[titleIndex].seasons = Self.episodeTrackingSeasons
+        snapshot.titles[titleIndex].progress = EpisodeProgress(season: 1, episode: 0, totalEpisodes: 2)
+        let store = MemoryLibraryStore()
+        let model = AppModel(store: store, seed: snapshot)
+
+        model.setEpisodeWatched(true, titleID: "severance", seasonNumber: 1, episodeID: "s1e1")
+        await model.flushPendingPersistence()
+
+        let storedSnapshot = try await store.load()
+        let saved = try XCTUnwrap(storedSnapshot)
+        let savedTitle = try XCTUnwrap(saved.titles.first(where: { $0.id == "severance" }))
+        XCTAssertEqual(savedTitle.watchedEpisodeIDs, Set(["s1e1"]))
+        XCTAssertEqual(savedTitle.progress, EpisodeProgress(season: 1, episode: 1, totalEpisodes: 2))
+        XCTAssertEqual(savedTitle.state, .watching)
+        XCTAssertEqual(saved.sharedSpace.watchEvents?.last?.season, 1)
+        XCTAssertEqual(saved.sharedSpace.watchEvents?.last?.episode, 1)
+    }
+
+    func testMarkingEpisodeUnwatchedRemovesItFromAnalytics() throws {
+        var snapshot = LibrarySnapshot.sample
+        let titleIndex = try XCTUnwrap(snapshot.titles.firstIndex(where: { $0.id == "severance" }))
+        snapshot.titles[titleIndex].seasons = Self.episodeTrackingSeasons
+        snapshot.titles[titleIndex].progress = EpisodeProgress(season: 1, episode: 0, totalEpisodes: 2)
+        snapshot.sharedSpace.watchEvents = []
+        let model = AppModel(store: MemoryLibraryStore(), seed: snapshot)
+
+        model.setEpisodeWatched(true, titleID: "severance", seasonNumber: 1, episodeID: "s1e1")
+        model.setEpisodeWatched(false, titleID: "severance", seasonNumber: 1, episodeID: "s1e1")
+
+        XCTAssertFalse(model.isEpisodeWatched(titleID: "severance", seasonNumber: 1, episodeID: "s1e1"))
+        XCTAssertEqual(
+            ViewingAnalyticsEngine.summarize(snapshot: model.snapshot, scope: .personal).episodeCount,
+            0
+        )
+        XCTAssertEqual(model.sharedSpace.watchEvents?.map(\.kind), [.watched, .correction])
+    }
+
+    private static let episodeTrackingSeasons = [
+        SeasonSummary(
+            id: "season-1",
+            number: 1,
+            title: "Season 1",
+            episodes: [
+                EpisodeSummary(id: "s1e1", number: 1, title: "Episode 1", airDate: nil, runtimeMinutes: 50),
+                EpisodeSummary(id: "s1e2", number: 2, title: "Episode 2", airDate: nil, runtimeMinutes: 52)
+            ]
+        ),
+        SeasonSummary(
+            id: "season-2",
+            number: 2,
+            title: "Season 2",
+            episodes: [
+                EpisodeSummary(id: "s2e1", number: 1, title: "Episode 1", airDate: nil, runtimeMinutes: 48),
+                EpisodeSummary(id: "s2e2", number: 2, title: "Episode 2", airDate: nil, runtimeMinutes: 54)
+            ]
+        )
+    ]
 }

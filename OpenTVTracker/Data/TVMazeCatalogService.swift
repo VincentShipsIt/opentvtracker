@@ -206,7 +206,9 @@ private struct TVMazeShowDTO: Decodable {
                     number: number,
                     title: episode.name,
                     airDate: episode.airDate,
-                    runtimeMinutes: episode.runtime
+                    runtimeMinutes: episode.runtime,
+                    overview: Self.plainText(episode.summary),
+                    stillURL: episode.image?.original ?? episode.image?.medium
                 )
             )
         }
@@ -281,12 +283,19 @@ private struct TVMazeShowDTO: Decodable {
 }
 
 private struct TVMazeEpisodeDTO: Decodable {
+    struct Image: Decodable {
+        let medium: URL?
+        let original: URL?
+    }
+
     let id: Int
     let name: String
     let season: Int?
     let number: Int?
     let airdate: String?
     let runtime: Int?
+    let image: Image?
+    let summary: String?
 
     var airDate: Date? {
         airdate.flatMap(Self.parseDay)

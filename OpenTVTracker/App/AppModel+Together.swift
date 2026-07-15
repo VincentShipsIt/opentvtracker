@@ -55,6 +55,9 @@ extension AppModel {
         guard let index = trackableTitleIndex(for: id) else { return }
         if titles[index].kind == .movie {
             titles[index].state = .completed
+        } else if let next = nextUnwatchedEpisode(for: titles[index]) {
+            markEpisodeWatchedTogether(titleID: id, season: next.season, episode: next.episode)
+            return
         } else if var progress = titles[index].progress {
             progress.episode = min(progress.episode + 1, progress.totalEpisodes)
             titles[index].progress = progress
