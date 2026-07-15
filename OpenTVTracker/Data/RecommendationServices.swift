@@ -23,6 +23,7 @@ enum DeterministicRecommendationEngine {
             .filter { candidate in
                 candidate.state == .planned
                     && candidate.isRecommendationEligible
+                    && (context.mood == .any || candidate.mood == context.mood)
                     && isOnSelectedProvider(candidate, selectedIDs: snapshot.selectedProviderIDs)
                     && fitsRuntime(candidate, maximum: context.maximumRuntimeMinutes)
             }
@@ -109,7 +110,8 @@ enum DeterministicRecommendationEngine {
     }
 
     private static func isOnSelectedProvider(_ title: MediaTitle, selectedIDs: Set<String>?) -> Bool {
-        guard let selectedIDs, !selectedIDs.isEmpty else { return false }
+        guard let selectedIDs else { return true }
+        guard !selectedIDs.isEmpty else { return false }
         return !selectedIDs.isDisjoint(with: Set(title.providers.map(\.id)))
     }
 
