@@ -47,6 +47,23 @@ final class AppModelTests: XCTestCase {
         XCTAssertTrue(model.isShared("past-lives"))
     }
 
+    func testPersonalWatchlistToggleDoesNotStartTitle() {
+        let model = AppModel(store: MemoryLibraryStore(), seed: .sample)
+        XCTAssertTrue(model.titles(in: .planned).contains(where: { $0.id == "past-lives" }))
+
+        model.toggleWatchlist("past-lives")
+
+        let title = model.titles.first(where: { $0.id == "past-lives" })
+        XCTAssertEqual(title?.state, .planned)
+        XCTAssertEqual(title?.isOnPersonalWatchlist, false)
+        XCTAssertFalse(model.titles(in: .planned).contains(where: { $0.id == "past-lives" }))
+
+        model.toggleWatchlist("past-lives")
+
+        XCTAssertEqual(model.titles.first(where: { $0.id == "past-lives" })?.state, .planned)
+        XCTAssertTrue(model.titles(in: .planned).contains(where: { $0.id == "past-lives" }))
+    }
+
     func testMoodFiltersRecommendations() {
         let model = AppModel(store: MemoryLibraryStore(), seed: .sample)
 

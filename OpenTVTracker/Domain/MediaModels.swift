@@ -150,6 +150,7 @@ struct MediaTitle: Codable, Hashable, Identifiable, Sendable {
     var releaseDate: Date? = nil
     var isDismissed: Bool? = nil
     var isDisliked: Bool? = nil
+    var personalWatchlist: Bool? = nil
     var seasons: [SeasonSummary]? = nil
 
     var progressLabel: String {
@@ -162,6 +163,10 @@ struct MediaTitle: Codable, Hashable, Identifiable, Sendable {
     }
 
     var completedRewatches: Int { rewatchCount ?? 0 }
+
+    var isOnPersonalWatchlist: Bool {
+        personalWatchlist ?? (state == .planned)
+    }
 
     var isRecommendationEligible: Bool {
         state != .completed && isDismissed != true && isDisliked != true

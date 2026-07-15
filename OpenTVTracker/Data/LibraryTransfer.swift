@@ -19,7 +19,7 @@ enum LibraryTransferService {
 
     static func exportTitlesCSV(_ snapshot: LibrarySnapshot) -> Data {
         let header = [
-            "catalog_id", "title", "year", "kind", "state", "season", "episode",
+            "catalog_id", "title", "year", "kind", "state", "personal_watchlist", "season", "episode",
             "total_episodes", "rating", "notes", "rewatches", "last_watched_at"
         ]
         let rows = snapshot.titles.map(titleCSVRow)
@@ -168,6 +168,12 @@ extension LibraryTransferService {
            let state = WatchState(rawValue: stateValue.lowercased()) {
             title.state = state
         }
+        if let watchlist = boolValue(
+            in: values,
+            keys: ["personal_watchlist", "watchlist", "in_watchlist"]
+        ) {
+            title.personalWatchlist = watchlist
+        }
         if let rating = doubleValue(in: values, keys: ["rating", "user_rating"]) {
             title.userRating = min(max(rating, 0), 10)
         }
@@ -204,6 +210,7 @@ extension LibraryTransferService {
         result.lastWatchedAt = imported.lastWatchedAt
         result.isDismissed = imported.isDismissed
         result.isDisliked = imported.isDisliked
+        result.personalWatchlist = imported.personalWatchlist
         return result
     }
 }
@@ -218,7 +225,8 @@ extension LibraryTransferService {
 
         return [
             String(title.catalogID), title.title, String(title.year), title.kind.rawValue,
-            title.state.rawValue, season, episode, totalEpisodes, rating, title.notes ?? "",
+            title.state.rawValue, String(title.isOnPersonalWatchlist), season, episode,
+            totalEpisodes, rating, title.notes ?? "",
             String(title.completedRewatches), lastWatchedAt
         ]
     }
@@ -304,6 +312,15 @@ extension LibraryTransferService {
 
     private static func doubleValue(in values: [String: String], keys: [String]) -> Double? {
         stringValue(in: values, keys: keys).flatMap(Double.init)
+    }
+
+    private static func boolValue(in values: [String: String], keys: [String]) -> Bool? {
+        guard let value = stringValue(in: values, keys: keys)?.lowercased() else { return nil }
+        switch value {
+        case "true", "yes", "1": return true
+        case "false", "no", "0": return false
+        default: return nil
+        }
     }
 
     private static func iso8601String(_ date: Date) -> String {

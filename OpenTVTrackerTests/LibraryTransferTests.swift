@@ -8,6 +8,7 @@ final class LibraryTransferTests: XCTestCase {
         snapshot.titles[index].userRating = 9.5
         snapshot.titles[index].notes = "Watch the elevator details."
         snapshot.titles[index].rewatchCount = 2
+        snapshot.titles[index].personalWatchlist = true
 
         let data = try LibraryTransferService.exportJSON(snapshot)
         let preview = try LibraryTransferService.previewImport(data, into: .sample)
@@ -16,7 +17,24 @@ final class LibraryTransferTests: XCTestCase {
         XCTAssertEqual(imported.userRating, 9.5)
         XCTAssertEqual(imported.notes, "Watch the elevator details.")
         XCTAssertEqual(imported.completedRewatches, 2)
+        XCTAssertTrue(imported.isOnPersonalWatchlist)
         XCTAssertEqual(preview.matchedCount, snapshot.titles.count)
+    }
+
+    func testCSVImportRestoresPersonalWatchlistWithoutChangingState() throws {
+        let csv = """
+        catalog_id,title,year,state,personal_watchlist
+        95396,Severance,2022,watching,true
+        """
+
+        let preview = try LibraryTransferService.previewImport(
+            try XCTUnwrap(csv.data(using: .utf8)),
+            into: .sample
+        )
+
+        let severance = try XCTUnwrap(preview.snapshot.titles.first(where: { $0.id == "severance" }))
+        XCTAssertEqual(severance.state, .watching)
+        XCTAssertTrue(severance.isOnPersonalWatchlist)
     }
 
     func testCSVImportIsIdempotentAndReportsDuplicates() throws {

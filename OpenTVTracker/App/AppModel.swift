@@ -50,7 +50,10 @@ final class AppModel {
         titles
             .filter { title in
                 if title.state == .watching { return true }
-                guard title.kind == .movie, title.state == .planned, let releaseDate = title.releaseDate else {
+                guard title.kind == .movie,
+                      title.state == .planned,
+                      title.isOnPersonalWatchlist,
+                      let releaseDate = title.releaseDate else {
                     return false
                 }
                 return releaseDate <= .now
@@ -101,7 +104,10 @@ final class AppModel {
     }
 
     func titles(in state: WatchState) -> [MediaTitle] {
-        titles.filter { $0.state == state }
+        titles.filter { title in
+            if state == .planned { return title.isOnPersonalWatchlist }
+            return title.state == state
+        }
     }
 
     func moreLikeThis(_ id: MediaTitle.ID, limit: Int = 12) -> [SimilarTitleMatch] {
@@ -152,6 +158,9 @@ extension AppModel {
     func setWatchState(_ state: WatchState, for id: MediaTitle.ID) {
         guard let index = titles.firstIndex(where: { $0.id == id }) else { return }
         titles[index].state = state
+        if state == .planned {
+            titles[index].personalWatchlist = true
+        }
         persist()
     }
 
@@ -225,7 +234,7 @@ extension AppModel {
 
     func toggleWatchlist(_ id: MediaTitle.ID) {
         guard let index = titles.firstIndex(where: { $0.id == id }) else { return }
-        titles[index].state = titles[index].state == .planned ? .watching : .planned
+        titles[index].personalWatchlist = !titles[index].isOnPersonalWatchlist
         persist()
     }
 
@@ -326,6 +335,7 @@ extension AppModel {
             refreshedTitle.lastWatchedAt = savedTitle.lastWatchedAt
             refreshedTitle.isDismissed = savedTitle.isDismissed
             refreshedTitle.isDisliked = savedTitle.isDisliked
+            refreshedTitle.personalWatchlist = savedTitle.personalWatchlist
             return refreshedTitle
         }
         let localOnlyTitles = savedTitles.filter { !catalogIDs.contains($0.id) }
