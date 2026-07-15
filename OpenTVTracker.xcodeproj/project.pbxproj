@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		011F2EF0233A70A49BF7501E /* DiscoveryAssistantTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 058FC17069CAF8CCDAB3F30F /* DiscoveryAssistantTests.swift */; };
 		0781F3B135F9685059F3FD1A /* TitleSimilarity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 859256F3B9EF0624D5110D5A /* TitleSimilarity.swift */; };
 		0B70093E423593321E3D848B /* MediaDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5656C1D6DE5BAA4A9047ED7E /* MediaDetailView.swift */; };
 		1C204F3574DF47B1C487410B /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = B86F3C7F8062C768E588DC69 /* Theme.swift */; };
@@ -18,9 +19,12 @@
 		2B02B401599DB807591036C8 /* DiscoverComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6977EBBF896922DD143599DB /* DiscoverComponents.swift */; };
 		2B7C225B22689F41619D138B /* RecommendationServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F15155D794E90782ECB43F7 /* RecommendationServiceTests.swift */; };
 		2E71BB1853295CCE0C6A7247 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0A269289E13854EF7EFC2FA /* AppModel.swift */; };
+		3011BBCB3756342618CCD1A6 /* DiscoveryAssistantView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDAC78676BC7E387EC0461DE /* DiscoveryAssistantView.swift */; };
 		4984F2EC86E19D24BC7C76B5 /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8E7E3F8A96168C055C72164 /* TodayView.swift */; };
 		508FF952C3A01ACD61A10AA7 /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37F5BE754C5B569E83074721 /* RootTabView.swift */; };
 		55A61E52BD374B61AD607C60 /* CloudKitSyncCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDCAF7A8614B3284E9C773D8 /* CloudKitSyncCoordinator.swift */; };
+		5663DCB2997227BA4865CB63 /* VoiceSearchTranscriber.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C6625EEC34FF7E5EDF691B6 /* VoiceSearchTranscriber.swift */; };
+		5E37ABAC9E524C42758258F4 /* AppModel+Assistant.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BEAEBAA1D36179A75BAA358 /* AppModel+Assistant.swift */; };
 		6471C9F834149DE581476A06 /* DiscoverCategories.swift in Sources */ = {isa = PBXBuildFile; fileRef = 501FED03C2874DB05BB539BC /* DiscoverCategories.swift */; };
 		67881818BFB9471905BCAAD6 /* DiscoverSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43A5A29CDA89F73110A5959A /* DiscoverSheets.swift */; };
 		6C23A077E09AB48DE921D418 /* CinemaView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C70A44589B6D06A644B3F044 /* CinemaView.swift */; };
@@ -40,6 +44,7 @@
 		A148312A7A5BDFD090CDF059 /* CreditsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E587E794892C46CA67E031BD /* CreditsView.swift */; };
 		A8093A0120751277E97C4B0F /* MoreLikeThisView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4863EC48D5BCE1A5ED7573F5 /* MoreLikeThisView.swift */; };
 		BE7D2C2163FB8C4E6A36D669 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 3DD949889A9EF51594C09BA1 /* Assets.xcassets */; };
+		C08CD3A230E19AC316DAF336 /* DiscoveryAssistant.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6333506F69AFAE1BA4093A5D /* DiscoveryAssistant.swift */; };
 		C5FA762B3F89AA82611D2239 /* TrailerPlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3F0802500141629529E87F3 /* TrailerPlayerView.swift */; };
 		D0A992875FF9DADE49D281D7 /* SampleData.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6959FA42B212427BC26E3C0 /* SampleData.swift */; };
 		D40C0E60CC132F3D4F1FBB53 /* GlassSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85B0DEBE6FA007C4AD395D0A /* GlassSurface.swift */; };
@@ -65,6 +70,8 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		058FC17069CAF8CCDAB3F30F /* DiscoveryAssistantTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoveryAssistantTests.swift; sourceTree = "<group>"; };
+		0BEAEBAA1D36179A75BAA358 /* AppModel+Assistant.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+Assistant.swift"; sourceTree = "<group>"; };
 		109429EDBAD271EBC45D4701 /* OpenTVTracker.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = OpenTVTracker.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		111F7857D63324A855494D83 /* SourceLinksTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SourceLinksTests.swift; sourceTree = "<group>"; };
 		1F15155D794E90782ECB43F7 /* RecommendationServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecommendationServiceTests.swift; sourceTree = "<group>"; };
@@ -83,8 +90,10 @@
 		51E06636334ABB672B302FEB /* DiscoverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverView.swift; sourceTree = "<group>"; };
 		5656C1D6DE5BAA4A9047ED7E /* MediaDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaDetailView.swift; sourceTree = "<group>"; };
 		5C9602044383D5F1CF7154F2 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		6333506F69AFAE1BA4093A5D /* DiscoveryAssistant.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoveryAssistant.swift; sourceTree = "<group>"; };
 		64F135995FDD13BE45A3C6AA /* CloudKitPartnerSharingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitPartnerSharingService.swift; sourceTree = "<group>"; };
 		6977EBBF896922DD143599DB /* DiscoverComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverComponents.swift; sourceTree = "<group>"; };
+		7C6625EEC34FF7E5EDF691B6 /* VoiceSearchTranscriber.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceSearchTranscriber.swift; sourceTree = "<group>"; };
 		859256F3B9EF0624D5110D5A /* TitleSimilarity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TitleSimilarity.swift; sourceTree = "<group>"; };
 		85B0DEBE6FA007C4AD395D0A /* GlassSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassSurface.swift; sourceTree = "<group>"; };
 		879988888008BA4352E75285 /* DiscoverCategory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverCategory.swift; sourceTree = "<group>"; };
@@ -103,6 +112,7 @@
 		D879B525D34A583EC530DCC6 /* AppModel+Catalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+Catalog.swift"; sourceTree = "<group>"; };
 		D8E7E3F8A96168C055C72164 /* TodayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayView.swift; sourceTree = "<group>"; };
 		DBBD0032700550FCBAE59CEC /* LibraryPersisting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryPersisting.swift; sourceTree = "<group>"; };
+		DDAC78676BC7E387EC0461DE /* DiscoveryAssistantView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoveryAssistantView.swift; sourceTree = "<group>"; };
 		DDCAF7A8614B3284E9C773D8 /* CloudKitSyncCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitSyncCoordinator.swift; sourceTree = "<group>"; };
 		DF2DEBBD5763C252BCF3F0B8 /* AppModel+Together.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+Together.swift"; sourceTree = "<group>"; };
 		E3D33ED571ED8E1AD52A8617 /* OpenTVTrackerTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = OpenTVTrackerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -123,6 +133,7 @@
 				C11FB9A5364F1028ACB6AF8B /* CinemaProviding.swift */,
 				64F135995FDD13BE45A3C6AA /* CloudKitPartnerSharingService.swift */,
 				DDCAF7A8614B3284E9C773D8 /* CloudKitSyncCoordinator.swift */,
+				6333506F69AFAE1BA4093A5D /* DiscoveryAssistant.swift */,
 				DBBD0032700550FCBAE59CEC /* LibraryPersisting.swift */,
 				4678CD1604F11015454665A7 /* LibraryTransfer.swift */,
 				CC818E6FA8B8249F3F7087FB /* RecommendationServices.swift */,
@@ -171,6 +182,8 @@
 				6977EBBF896922DD143599DB /* DiscoverComponents.swift */,
 				43A5A29CDA89F73110A5959A /* DiscoverSheets.swift */,
 				51E06636334ABB672B302FEB /* DiscoverView.swift */,
+				DDAC78676BC7E387EC0461DE /* DiscoveryAssistantView.swift */,
+				7C6625EEC34FF7E5EDF691B6 /* VoiceSearchTranscriber.swift */,
 			);
 			path = Discover;
 			sourceTree = "<group>";
@@ -189,6 +202,7 @@
 			isa = PBXGroup;
 			children = (
 				D0A269289E13854EF7EFC2FA /* AppModel.swift */,
+				0BEAEBAA1D36179A75BAA358 /* AppModel+Assistant.swift */,
 				D879B525D34A583EC530DCC6 /* AppModel+Catalog.swift */,
 				B9E8BB3ECB7093326FBEC443 /* AppModel+CloudSync.swift */,
 				DF2DEBBD5763C252BCF3F0B8 /* AppModel+Together.swift */,
@@ -270,6 +284,7 @@
 			children = (
 				3A04FC826C098F98A35D87E6 /* AppModelTests.swift */,
 				8DD57852932292E08916026E /* DiscoverCategoryTests.swift */,
+				058FC17069CAF8CCDAB3F30F /* DiscoveryAssistantTests.swift */,
 				CB86ECFE65B31D28B52695CC /* LibraryTransferTests.swift */,
 				1F15155D794E90782ECB43F7 /* RecommendationServiceTests.swift */,
 				111F7857D63324A855494D83 /* SourceLinksTests.swift */,
@@ -395,6 +410,7 @@
 			files = (
 				8EE3472510D428E5214CA56C /* AppModelTests.swift in Sources */,
 				DC9197084E45B33D3448722D /* DiscoverCategoryTests.swift in Sources */,
+				011F2EF0233A70A49BF7501E /* DiscoveryAssistantTests.swift in Sources */,
 				94DD351F05C931C26FA450C1 /* LibraryTransferTests.swift in Sources */,
 				2B7C225B22689F41619D138B /* RecommendationServiceTests.swift in Sources */,
 				8FBE1948CCC94D6165FFCE6A /* SourceLinksTests.swift in Sources */,
@@ -406,6 +422,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5E37ABAC9E524C42758258F4 /* AppModel+Assistant.swift in Sources */,
 				94091C3E3C598E0EF0C9D3E1 /* AppModel+Catalog.swift in Sources */,
 				9BCCFB280C27497E504DC570 /* AppModel+CloudSync.swift in Sources */,
 				876DD7650C59253101E9CBA9 /* AppModel+Together.swift in Sources */,
@@ -422,6 +439,8 @@
 				2B02B401599DB807591036C8 /* DiscoverComponents.swift in Sources */,
 				67881818BFB9471905BCAAD6 /* DiscoverSheets.swift in Sources */,
 				895769957993BD0773F03855 /* DiscoverView.swift in Sources */,
+				C08CD3A230E19AC316DAF336 /* DiscoveryAssistant.swift in Sources */,
+				3011BBCB3756342618CCD1A6 /* DiscoveryAssistantView.swift in Sources */,
 				D40C0E60CC132F3D4F1FBB53 /* GlassSurface.swift in Sources */,
 				EB957279FF5081E3D3A2B8CA /* LibraryDataView.swift in Sources */,
 				E78D65A6C0CEAEC9E4086993 /* LibraryPersisting.swift in Sources */,
@@ -443,6 +462,7 @@
 				E47EA8A432D01C6D85B2D40F /* TogetherView.swift in Sources */,
 				26195544FE30B3982FD90DFE /* TrackingEditorView.swift in Sources */,
 				C5FA762B3F89AA82611D2239 /* TrailerPlayerView.swift in Sources */,
+				5663DCB2997227BA4865CB63 /* VoiceSearchTranscriber.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

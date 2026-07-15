@@ -14,6 +14,7 @@ struct DiscoverView: View {
                 ScrollView {
                     LazyVStack(spacing: AppTheme.sectionSpacing) {
                         if searchText.isEmpty {
+                            assistantLauncher
                             DiscoverCategoryRail(sections: categorySections)
                             CinemaDiscoveryCard()
                                 .padding(.horizontal, AppTheme.horizontalPadding)
@@ -50,6 +51,8 @@ struct DiscoverView: View {
             }
             .sheet(item: $presentedSheet) { sheet in
                 switch sheet {
+                case .assistant:
+                    DiscoveryAssistantView()
                 case .categories:
                     DiscoveryCategoryPickerView()
                 case .services:
@@ -61,6 +64,38 @@ struct DiscoverView: View {
                 }
             }
         }
+    }
+
+    private var assistantLauncher: some View {
+        Button {
+            presentedSheet = .assistant
+        } label: {
+            GlassSurface(cornerRadius: AppTheme.compactRadius, tint: .indigo) {
+                HStack(spacing: 12) {
+                    Image(systemName: "sparkles.bubble.fill")
+                        .font(.title2)
+                        .foregroundStyle(Color.accentColor)
+                        .accessibilityHidden(true)
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Ask OpenTV")
+                            .font(.headline)
+                        Text("Type or speak what you want to watch")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                    Image(systemName: "mic.fill")
+                        .foregroundStyle(Color.accentColor)
+                        .accessibilityHidden(true)
+                }
+                .padding(14)
+            }
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, AppTheme.horizontalPadding)
+        .accessibilityHint("Opens the text and voice discovery assistant")
     }
 
     @ViewBuilder
