@@ -225,7 +225,7 @@ function provider(name: string | undefined): StreamingProvider[] {
 }
 
 function mapReviews(payload: Record<string, unknown>): CommunityReview[] {
-  return (Array.isArray(payload.results) ? payload.results : []).slice(0, 8).map((value, index) => {
+  return (Array.isArray(payload.results) ? payload.results : []).slice(0, 8).map((value, index): CommunityReview => {
     const review = asRecord(value);
     const authorDetails = asRecord(review.author_details);
     const content = stringValue(review.content)?.replace(/\s+/g, " ").trim() ?? "";
