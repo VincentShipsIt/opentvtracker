@@ -35,14 +35,19 @@ extension AppModel {
         sharedSpace.cloudZoneName = zoneID.zoneName
         sharedSpace.cloudOwnerName = zoneID.ownerName
         sharedSpace.isCurrentUserShareOwner = true
-        setSharedMembershipState(.pending)
+        sharedSpace.membershipState = .pending
+        sharedSpace.isCloudSharingEnabled = true
+        persist()
     }
 
     func acceptPartnerShare(_ location: PartnerShareLocation) {
         sharedSpace.cloudZoneName = location.zoneName
         sharedSpace.cloudOwnerName = location.ownerName
         sharedSpace.isCurrentUserShareOwner = false
-        setSharedMembershipState(.accepted)
+        sharedSpace.members = [PartnerDeviceIdentity.currentMember]
+        sharedSpace.membershipState = .accepted
+        sharedSpace.isCloudSharingEnabled = true
+        persist()
         Task { await startCloudSyncIfNeeded() }
     }
 
@@ -103,5 +108,21 @@ extension AppModel {
 
     func isShared(_ id: MediaTitle.ID) -> Bool {
         sharedSpace.titleIDs.contains(id)
+    }
+}
+
+private enum PartnerDeviceIdentity {
+    private static let defaultsKey = "opentv.partner.member-id"
+
+    static var currentMember: SpaceMember {
+        let defaults = UserDefaults.standard
+        let id: String
+        if let existingID = defaults.string(forKey: defaultsKey) {
+            id = existingID
+        } else {
+            id = "partner-\(UUID().uuidString.lowercased())"
+            defaults.set(id, forKey: defaultsKey)
+        }
+        return SpaceMember(id: id, name: "Partner", initials: "P", isCurrentUser: true)
     }
 }

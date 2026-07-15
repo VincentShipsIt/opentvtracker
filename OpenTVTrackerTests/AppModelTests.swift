@@ -75,7 +75,7 @@ final class AppModelTests: XCTestCase {
 
     func testDefaultRecommendationsOnlyUseOwnedServices() {
         let model = AppModel(store: MemoryLibraryStore(), seed: .sample)
-        let expectedServices: Set<StreamingProvider.ID> = ["netflix", "prime-video", "apple-tv"]
+        let expectedServices: Set<StreamingProvider.ID> = [.netflix, .primeVideo, .appleTV]
 
         XCTAssertEqual(model.selectedProviderIDs, expectedServices)
         XCTAssertFalse(model.recommendations.isEmpty)

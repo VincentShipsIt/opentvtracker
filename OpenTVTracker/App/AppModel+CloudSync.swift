@@ -14,6 +14,10 @@ extension AppModel {
         Task { await syncSharedState() }
     }
 
+    func flushSharedState() async {
+        await syncSharedState()
+    }
+
     private func syncSharedState() async {
         guard sharedSpace.isCloudSharingEnabled else { return }
         let context = cloudSyncContext
@@ -36,24 +40,53 @@ extension AppModel {
 
     private func applyCachedSharedState() async {
         let context = cloudSyncContext
-        guard context.scope == .sharedDatabase,
-              let payload = await CloudKitSyncCoordinator.shared.cachedPayload(
+        guard let payload = await CloudKitSyncCoordinator.shared.cachedPayload(
                 stableID: "space-state",
-                scope: .sharedDatabase
+                scope: context.scope
               ),
               var remoteSpace = try? JSONDecoder.openTV.decode(SharedSpace.self, from: payload) else { return }
+        let currentMemberID = sharedSpace.members.first(where: \.isCurrentUser)?.id
+        remoteSpace.members = mergingMembers(
+            remote: remoteSpace.members,
+            local: sharedSpace.members,
+            currentMemberID: currentMemberID
+        )
         remoteSpace.titleIDs = Array(Set(remoteSpace.titleIDs + sharedSpace.titleIDs)).sorted()
         remoteSpace.activity = merging(remoteSpace.activity, sharedSpace.activity)
         remoteSpace.watchEvents = merging(remoteSpace.watchEvents ?? [], sharedSpace.watchEvents ?? [])
         remoteSpace.reactions = merging(remoteSpace.reactions ?? [], sharedSpace.reactions ?? [])
         remoteSpace.notes = merging(remoteSpace.notes ?? [], sharedSpace.notes ?? [])
-        remoteSpace.membershipState = .accepted
+        let hasPartner = remoteSpace.members.contains { !$0.isCurrentUser }
+        remoteSpace.membershipState = sharedSpace.isCurrentUserShareOwner == true && !hasPartner
+            ? .pending
+            : .accepted
         remoteSpace.isCloudSharingEnabled = true
         remoteSpace.cloudZoneName = context.zoneID.zoneName
         remoteSpace.cloudOwnerName = context.zoneID.ownerName
-        remoteSpace.isCurrentUserShareOwner = false
+        remoteSpace.isCurrentUserShareOwner = sharedSpace.isCurrentUserShareOwner
         sharedSpace = remoteSpace
         persist()
+    }
+
+    private func mergingMembers(
+        remote: [SpaceMember],
+        local: [SpaceMember],
+        currentMemberID: SpaceMember.ID?
+    ) -> [SpaceMember] {
+        var membersByID = Dictionary(uniqueKeysWithValues: remote.map { ($0.id, $0) })
+        for member in local {
+            membersByID[member.id] = member
+        }
+        return membersByID.values
+            .map { member in
+                SpaceMember(
+                    id: member.id,
+                    name: member.name,
+                    initials: member.initials,
+                    isCurrentUser: member.id == currentMemberID
+                )
+            }
+            .sorted { $0.id < $1.id }
     }
 
     private func merging<Value: Identifiable>(_ remote: [Value], _ local: [Value]) -> [Value] {

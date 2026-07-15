@@ -100,8 +100,18 @@ struct SeasonSummary: Codable, Hashable, Identifiable, Sendable {
     let episodes: [EpisodeSummary]
 }
 
+enum StreamingProviderID: String, Codable, CaseIterable, Sendable {
+    case netflix
+    case primeVideo = "prime-video"
+    case appleTV = "apple-tv"
+    case disneyPlus = "disney-plus"
+    case max
+    case mubi
+    case paramount
+}
+
 struct StreamingProvider: Codable, Hashable, Identifiable, Sendable {
-    let id: String
+    let id: StreamingProviderID
     let name: String
     let symbol: String
     var brandHex: String?
@@ -118,13 +128,13 @@ struct StreamingProvider: Codable, Hashable, Identifiable, Sendable {
 }
 
 extension StreamingProvider {
-    static let netflix = StreamingProvider(id: "netflix", name: "Netflix", symbol: "n.square.fill", brandHex: "E50914")
-    static let primeVideo = StreamingProvider(id: "prime-video", name: "Prime Video", symbol: "play.rectangle.fill", brandHex: "00A8E1")
-    static let appleTV = StreamingProvider(id: "apple-tv", name: "Apple TV+", symbol: "apple.logo", brandHex: "1C1C1E")
-    static let disneyPlus = StreamingProvider(id: "disney-plus", name: "Disney+", symbol: "sparkles.tv", brandHex: "113CCF")
-    static let max = StreamingProvider(id: "max", name: "Max", symbol: "play.tv", brandHex: "5822B4")
-    static let mubi = StreamingProvider(id: "mubi", name: "MUBI", symbol: "m.circle", brandHex: "1976D2")
-    static let paramount = StreamingProvider(id: "paramount", name: "Paramount+", symbol: "mountain.2", brandHex: "0064FF")
+    static let netflix = StreamingProvider(id: .netflix, name: "Netflix", symbol: "n.square.fill", brandHex: "E50914")
+    static let primeVideo = StreamingProvider(id: .primeVideo, name: "Prime Video", symbol: "play.rectangle.fill", brandHex: "00A8E1")
+    static let appleTV = StreamingProvider(id: .appleTV, name: "Apple TV+", symbol: "apple.logo", brandHex: "1C1C1E")
+    static let disneyPlus = StreamingProvider(id: .disneyPlus, name: "Disney+", symbol: "sparkles.tv", brandHex: "113CCF")
+    static let max = StreamingProvider(id: .max, name: "Max", symbol: "play.tv", brandHex: "5822B4")
+    static let mubi = StreamingProvider(id: .mubi, name: "MUBI", symbol: "m.circle", brandHex: "1976D2")
+    static let paramount = StreamingProvider(id: .paramount, name: "Paramount+", symbol: "mountain.2", brandHex: "0064FF")
 }
 
 struct CommunityReview: Codable, Hashable, Identifiable, Sendable {

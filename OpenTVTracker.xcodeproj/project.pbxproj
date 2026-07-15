@@ -380,10 +380,10 @@
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
 					3420C46A6AD54978944C2D04 = {
-						DevelopmentTeam = "";
+						DevelopmentTeam = C76R5DRH64;
 					};
 					96396D01C2F07D817EF2875C = {
-						DevelopmentTeam = "";
+						DevelopmentTeam = C76R5DRH64;
 						ProvisioningStyle = Automatic;
 						SystemCapabilities = "[\"com.apple.Push\": [\"enabled\": 1], \"com.apple.iCloud\": [\"enabled\": 1]]";
 					};
@@ -557,7 +557,7 @@
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = C76R5DRH64;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -619,7 +619,7 @@
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = C76R5DRH64;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;

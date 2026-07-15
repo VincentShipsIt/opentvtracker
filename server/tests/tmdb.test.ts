@@ -1,11 +1,15 @@
 import { describe, expect, test } from "bun:test";
-import { mapStreamingProvider } from "../src/tmdb";
+import {
+  mapStreamingProvider,
+  StreamingProviderID,
+  TMDBProviderID,
+} from "../src/tmdb";
 
 describe("mapStreamingProvider", () => {
-  test("maps TMDB's current Apple TV label to the Apple TV+ subscription", () => {
-    expect(mapStreamingProvider("Apple TV")).toEqual([
+  test("maps TMDB's stable Apple TV ID to the Apple TV+ subscription", () => {
+    expect(mapStreamingProvider(TMDBProviderID.appleTV)).toEqual([
       {
-        id: "apple-tv",
+        id: StreamingProviderID.appleTV,
         name: "Apple TV+",
         symbol: "apple.logo",
         brandHex: "1C1C1E",
@@ -13,17 +17,23 @@ describe("mapStreamingProvider", () => {
     ]);
   });
 
-  test("keeps legacy Apple TV+ labels compatible", () => {
-    expect(mapStreamingProvider("Apple TV+")[0]?.id).toBe("apple-tv");
-    expect(mapStreamingProvider("Apple TV Plus")[0]?.id).toBe("apple-tv");
+  test("maps direct subscription variants to one app provider", () => {
+    expect(mapStreamingProvider(TMDBProviderID.netflixWithAds)[0]?.id).toBe(StreamingProviderID.netflix);
+    expect(mapStreamingProvider(TMDBProviderID.primeVideoLegacy)[0]?.id).toBe(StreamingProviderID.primeVideo);
+    expect(mapStreamingProvider(TMDBProviderID.paramountEssential)[0]?.id).toBe(StreamingProviderID.paramount);
   });
 
-  test("does not treat an add-on Amazon Channel as a direct subscription", () => {
-    expect(mapStreamingProvider("Apple TV Amazon Channel")).toEqual([]);
+  test("does not treat channel add-ons as direct subscriptions", () => {
+    expect(mapStreamingProvider(2243)).toEqual([]); // Apple TV Amazon Channel
+    expect(mapStreamingProvider(582)).toEqual([]); // Paramount+ Amazon Channel
+    expect(mapStreamingProvider(1825)).toEqual([]); // HBO Max Amazon Channel
+    expect(mapStreamingProvider(201)).toEqual([]); // MUBI Amazon Channel
   });
 
-  test("keeps direct Prime Video subscriptions mapped", () => {
-    expect(mapStreamingProvider("Amazon Prime Video")[0]?.id).toBe("prime-video");
-    expect(mapStreamingProvider("Prime Video")[0]?.id).toBe("prime-video");
+  test("rejects malformed and unknown upstream values", () => {
+    expect(mapStreamingProvider("350")).toEqual([]);
+    expect(mapStreamingProvider(Number.NaN)).toEqual([]);
+    expect(mapStreamingProvider(undefined)).toEqual([]);
+    expect(mapStreamingProvider(999_999)).toEqual([]);
   });
 });

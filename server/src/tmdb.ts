@@ -1,4 +1,39 @@
-export type MediaKind = "movie" | "series";
+export const MediaKind = {
+  movie: "movie",
+  series: "series",
+} as const;
+
+export type MediaKind = typeof MediaKind[keyof typeof MediaKind];
+
+export const StreamingProviderID = {
+  netflix: "netflix",
+  primeVideo: "prime-video",
+  appleTV: "apple-tv",
+  disneyPlus: "disney-plus",
+  max: "max",
+  mubi: "mubi",
+  paramount: "paramount",
+} as const;
+
+export type StreamingProviderID = typeof StreamingProviderID[keyof typeof StreamingProviderID];
+
+export const TMDBProviderID = {
+  netflix: 8,
+  netflixKids: 175,
+  netflixWithAds: 1796,
+  primeVideoLegacy: 9,
+  primeVideo: 119,
+  primeVideoWithAds: 2100,
+  appleTV: 350,
+  disneyPlusLegacy: 122,
+  disneyPlus: 337,
+  mubi: 11,
+  max: 1899,
+  paramountPlus: 531,
+  paramountPremium: 2303,
+  paramountWithAds: 2304,
+  paramountEssential: 2616,
+} as const;
 
 export type CatalogTitle = {
   catalogID: number;
@@ -21,7 +56,7 @@ export type CatalogTitle = {
 };
 
 type StreamingProvider = {
-  id: string;
+  id: StreamingProviderID;
   name: string;
   symbol: string;
   brandHex: string | null;
@@ -65,7 +100,7 @@ type SearchItem = {
   backdrop_path?: string | null;
 };
 
-type TMDBProvider = { provider_name?: string };
+type TMDBProvider = { provider_id?: unknown };
 type ProviderPayload = { results?: Record<string, { flatrate?: TMDBProvider[]; link?: string }> };
 
 const API_URL = "https://api.themoviedb.org/3";
@@ -208,20 +243,42 @@ function mapDetails(
 
 function providersForRegion(payload: ProviderPayload, region: string): StreamingProvider[] {
   const entries = payload.results?.[region]?.flatrate ?? [];
-  const providers = entries.flatMap((entry) => mapStreamingProvider(entry.provider_name));
+  const providers = entries.flatMap((entry) => mapStreamingProvider(entry.provider_id));
   return [...new Map(providers.map((value) => [value.id, value])).values()];
 }
 
-export function mapStreamingProvider(name: string | undefined): StreamingProvider[] {
-  const normalized = name?.trim().toLowerCase() ?? "";
-  if (normalized.includes("netflix")) return [{ id: "netflix", name: "Netflix", symbol: "n.square.fill", brandHex: "E50914" }];
-  if (normalized === "prime video" || normalized.startsWith("amazon prime video")) return [{ id: "prime-video", name: "Prime Video", symbol: "play.rectangle.fill", brandHex: "00A8E1" }];
-  if (["apple tv", "apple tv+", "apple tv plus"].includes(normalized)) return [{ id: "apple-tv", name: "Apple TV+", symbol: "apple.logo", brandHex: "1C1C1E" }];
-  if (normalized.includes("disney plus") || normalized.includes("disney+")) return [{ id: "disney-plus", name: "Disney+", symbol: "sparkles.tv", brandHex: "113CCF" }];
-  if (normalized === "max" || normalized.includes("hbo max")) return [{ id: "max", name: "Max", symbol: "play.tv", brandHex: "5822B4" }];
-  if (normalized.includes("mubi")) return [{ id: "mubi", name: "MUBI", symbol: "m.circle", brandHex: "1976D2" }];
-  if (normalized.includes("paramount")) return [{ id: "paramount", name: "Paramount+", symbol: "mountain.2", brandHex: "0064FF" }];
-  return [];
+const providerMetadata = {
+  [StreamingProviderID.netflix]: { name: "Netflix", symbol: "n.square.fill", brandHex: "E50914" },
+  [StreamingProviderID.primeVideo]: { name: "Prime Video", symbol: "play.rectangle.fill", brandHex: "00A8E1" },
+  [StreamingProviderID.appleTV]: { name: "Apple TV+", symbol: "apple.logo", brandHex: "1C1C1E" },
+  [StreamingProviderID.disneyPlus]: { name: "Disney+", symbol: "sparkles.tv", brandHex: "113CCF" },
+  [StreamingProviderID.max]: { name: "Max", symbol: "play.tv", brandHex: "5822B4" },
+  [StreamingProviderID.mubi]: { name: "MUBI", symbol: "m.circle", brandHex: "1976D2" },
+  [StreamingProviderID.paramount]: { name: "Paramount+", symbol: "mountain.2", brandHex: "0064FF" },
+} satisfies Record<StreamingProviderID, Omit<StreamingProvider, "id">>;
+
+const providerIDByTMDBID: Readonly<Partial<Record<number, StreamingProviderID>>> = {
+  [TMDBProviderID.netflix]: StreamingProviderID.netflix,
+  [TMDBProviderID.netflixKids]: StreamingProviderID.netflix,
+  [TMDBProviderID.netflixWithAds]: StreamingProviderID.netflix,
+  [TMDBProviderID.primeVideoLegacy]: StreamingProviderID.primeVideo,
+  [TMDBProviderID.primeVideo]: StreamingProviderID.primeVideo,
+  [TMDBProviderID.primeVideoWithAds]: StreamingProviderID.primeVideo,
+  [TMDBProviderID.appleTV]: StreamingProviderID.appleTV,
+  [TMDBProviderID.disneyPlusLegacy]: StreamingProviderID.disneyPlus,
+  [TMDBProviderID.disneyPlus]: StreamingProviderID.disneyPlus,
+  [TMDBProviderID.mubi]: StreamingProviderID.mubi,
+  [TMDBProviderID.max]: StreamingProviderID.max,
+  [TMDBProviderID.paramountPlus]: StreamingProviderID.paramount,
+  [TMDBProviderID.paramountPremium]: StreamingProviderID.paramount,
+  [TMDBProviderID.paramountWithAds]: StreamingProviderID.paramount,
+  [TMDBProviderID.paramountEssential]: StreamingProviderID.paramount,
+};
+
+export function mapStreamingProvider(providerID: unknown): StreamingProvider[] {
+  if (typeof providerID !== "number" || !Number.isSafeInteger(providerID)) return [];
+  const id: StreamingProviderID | undefined = providerIDByTMDBID[providerID];
+  return id ? [{ id, ...providerMetadata[id] }] : [];
 }
 
 function mapReviews(payload: Record<string, unknown>): CommunityReview[] {
@@ -241,7 +298,7 @@ function mapReviews(payload: Record<string, unknown>): CommunityReview[] {
 }
 
 function mediaKind(value: "movie" | "tv" | "person" | undefined): MediaKind {
-  return value === "movie" ? "movie" : "series";
+  return value === "movie" ? MediaKind.movie : MediaKind.series;
 }
 
 function moodFor(genres: string[]): CatalogTitle["mood"] {

@@ -2,6 +2,22 @@ import XCTest
 @testable import OpenTVTracker
 
 final class LibraryTransferTests: XCTestCase {
+    func testLegacyProviderIDDecodesIntoTypedIdentity() throws {
+        let data = Data(
+            #"{"id":"apple-tv","name":"Apple TV+","symbol":"apple.logo","brandHex":"1C1C1E"}"#.utf8
+        )
+
+        let provider = try JSONDecoder().decode(StreamingProvider.self, from: data)
+
+        XCTAssertEqual(provider.id, .appleTV)
+    }
+
+    func testUnknownProviderIDIsRejectedAtTheNetworkBoundary() throws {
+        let data = Data(#"{"id":"made-up-service","name":"Unknown","symbol":"tv"}"#.utf8)
+
+        XCTAssertThrowsError(try JSONDecoder().decode(StreamingProvider.self, from: data))
+    }
+
     func testJSONExportRoundTripsTrackingMetadata() throws {
         var snapshot = LibrarySnapshot.sample
         let index = try XCTUnwrap(snapshot.titles.firstIndex(where: { $0.id == "severance" }))
