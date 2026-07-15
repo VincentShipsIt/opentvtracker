@@ -49,6 +49,25 @@ describe("server application", () => {
     });
   });
 
+  test("the global kill switch also disables anonymous challenge issuance", async () => {
+    const config = testConfig();
+    config.controls.proxyEnabled = false;
+    const app = testApp(config).app;
+
+    const result = await app.fetch(
+      new Request("https://example.test/v1/app-attest/challenge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ purpose: "attestation" }),
+      }),
+    );
+
+    expect(result.status).toBe(503);
+    expect(await result.json()).toEqual({
+      error: "Service temporarily unavailable",
+    });
+  });
+
   test("requires strict validation and caches only after authentication", async () => {
     let providerCalls = 0;
     const { app } = testApp(undefined, {

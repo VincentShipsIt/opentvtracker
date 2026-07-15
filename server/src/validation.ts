@@ -21,10 +21,15 @@ export async function readJSONBody(
     .toLowerCase();
   if (contentType !== "application/json")
     throw new ValidationError("invalid_content_type");
-  const declaredLength = Number(request.headers.get("content-length"));
-  if (Number.isFinite(declaredLength) && declaredLength > maximumBytes)
-    throw new ValidationError("body_too_large");
-  const bytes = new Uint8Array(await request.arrayBuffer());
+  const declaredLengthHeader = request.headers.get("content-length");
+  if (declaredLengthHeader !== null) {
+    if (!/^\d+$/.test(declaredLengthHeader))
+      throw new ValidationError("invalid_content_length");
+    const declaredLength = Number(declaredLengthHeader);
+    if (!Number.isSafeInteger(declaredLength) || declaredLength > maximumBytes)
+      throw new ValidationError("body_too_large");
+  }
+  const bytes = await readBoundedBody(request, maximumBytes);
   if (bytes.byteLength === 0 || bytes.byteLength > maximumBytes)
     throw new ValidationError("body_too_large");
   let value: unknown;
@@ -36,6 +41,35 @@ export async function readJSONBody(
   if (!value || typeof value !== "object" || Array.isArray(value))
     throw new ValidationError("invalid_json");
   return { value: value as Record<string, unknown>, bytes };
+}
+
+async function readBoundedBody(
+  request: Request,
+  maximumBytes: number,
+): Promise<Uint8Array> {
+  const reader = request.body?.getReader();
+  if (!reader) return new Uint8Array();
+  const chunks: Uint8Array[] = [];
+  let length = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      length += value.byteLength;
+      if (length > maximumBytes) throw new ValidationError("body_too_large");
+      chunks.push(value);
+    }
+  } catch (error) {
+    await reader.cancel().catch(() => {});
+    throw error;
+  }
+  const bytes = new Uint8Array(length);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes;
 }
 
 export function validateChallengeRequest(value: Record<string, unknown>): {

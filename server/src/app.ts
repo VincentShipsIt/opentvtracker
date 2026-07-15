@@ -124,6 +124,11 @@ export function createApp(dependencies: AppDependencies): {
           request.method === "POST" &&
           url.pathname === "/v1/app-attest/challenge"
         ) {
+          if (!config.controls.proxyEnabled) {
+            status = 503;
+            code = "disabled";
+            return disabled(config);
+          }
           enforceIPQuota(limiter, "challenge", ipAddress, quotas.challenge);
           const { value } = await readJSONBody(request, 1_024);
           const challengeRequest = validateChallengeRequest(value);

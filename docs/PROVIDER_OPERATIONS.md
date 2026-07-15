@@ -33,7 +33,7 @@ The user disconnects OpenRouter in the app, revokes the old key in OpenRouter, s
 
 ## Kill switches
 
-- `PROXY_ENABLED=false` — stop registration/token/catalog/cinema service globally.
+- `PROXY_ENABLED=false` — stop challenge/registration/token/catalog/cinema service globally.
 - `CATALOG_ENABLED=false` — stop TMDB access; apps use TVmaze fallback.
 - `CINEMA_ENABLED=false` — stop proxied Embassy fetches; apps use official direct source behavior.
 - `APP_ATTEST_REGISTRATION_ENABLED=false` — freeze new device registrations while existing attested devices continue.

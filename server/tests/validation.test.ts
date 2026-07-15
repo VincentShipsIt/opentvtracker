@@ -93,4 +93,19 @@ describe("request validation", () => {
       "body_too_large",
     );
   });
+
+  test("stops reading a streamed body when it crosses the endpoint limit", async () => {
+    const request = new Request(
+      "https://example.test/v1/app-attest/challenge",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ value: "x".repeat(2_000) }),
+      },
+    );
+
+    await expect(readJSONBody(request, 1_024)).rejects.toThrow(
+      "body_too_large",
+    );
+  });
 });
