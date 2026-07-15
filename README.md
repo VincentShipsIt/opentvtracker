@@ -28,6 +28,7 @@ AI reranking never uses an operator OpenRouter key. The user authorizes OpenRout
 - Swift 6, SwiftUI, and iOS 18+
 - Local-only SwiftData with versioned import/export
 - Invitation-only CloudKit custom zones and durable sync outboxes
+- Secure nearby partner pairing over peer-to-peer networking, with an ephemeral TLS code and no invitation link to send
 - TVmaze public catalog fallback and official Malta cinema sources
 - App Attest-protected Bun proxy for TMDB/JustWatch metadata and Embassy showtimes
 - User-funded OpenRouter OAuth PKCE with Keychain storage and direct reranking
