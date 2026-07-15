@@ -1,0 +1,11 @@
+included:
+  - OpenTVTracker
+  - OpenTVTrackerTests
+
+line_length:
+  warning: 240
+  error: 300
+  ignores_comments: true
+  ignores_urls: true
+
+reporter: xcode

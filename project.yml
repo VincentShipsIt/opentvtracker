@@ -1,0 +1,78 @@
+name: OpenTVTracker
+options:
+  bundleIdPrefix: dev.shipshit
+  deploymentTarget:
+    iOS: "18.0"
+  generateEmptyDirectories: true
+  groupSortPosition: top
+settings:
+  base:
+    CURRENT_PROJECT_VERSION: 1
+    DEVELOPMENT_TEAM: ""
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    GENERATE_INFOPLIST_FILE: NO
+    MARKETING_VERSION: 0.1.0
+    SWIFT_STRICT_CONCURRENCY: complete
+    SWIFT_VERSION: 6.0
+targets:
+  OpenTVTracker:
+    type: application
+    platform: iOS
+    configFiles:
+      Debug: Config/Base.xcconfig
+      Release: Config/Base.xcconfig
+    sources:
+      - path: OpenTVTracker
+    resources:
+      - path: OpenTVTracker/Resources/Assets.xcassets
+      - path: OpenTVTracker/Resources/PrivacyInfo.xcprivacy
+    info:
+      path: Config/Info.plist
+      properties:
+        CKSharingSupported: true
+        NSMicrophoneUsageDescription: OpenTV uses the microphone only while you speak a request for your next movie or show.
+        NSSpeechRecognitionUsageDescription: OpenTV turns your spoken discovery request into text so it can find matching movies and shows.
+        OpenTVAPIBaseURL: $(CATALOG_PROXY_BASE_URL)
+        UIBackgroundModes:
+          - remote-notification
+        UILaunchScreen: {}
+    settings:
+      base:
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_ENTITLEMENTS: Config/OpenTVTracker.entitlements
+        PRODUCT_BUNDLE_IDENTIFIER: dev.shipshit.opentvtracker
+        TARGETED_DEVICE_FAMILY: 1
+    attributes:
+      SystemCapabilities:
+        com.apple.iCloud:
+          enabled: 1
+        com.apple.Push:
+          enabled: 1
+    dependencies: []
+  OpenTVTrackerTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: OpenTVTrackerTests
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: dev.shipshit.opentvtracker.tests
+    dependencies:
+      - target: OpenTVTracker
+schemes:
+  OpenTVTracker:
+    build:
+      targets:
+        OpenTVTracker: all
+        OpenTVTrackerTests: [test]
+    test:
+      gatherCoverageData: true
+      targets:
+        - name: OpenTVTrackerTests
+    run:
+      config: Debug
+    archive:
+      config: Release

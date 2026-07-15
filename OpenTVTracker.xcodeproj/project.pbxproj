@@ -1,0 +1,726 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		011F2EF0233A70A49BF7501E /* DiscoveryAssistantTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 058FC17069CAF8CCDAB3F30F /* DiscoveryAssistantTests.swift */; };
+		0781F3B135F9685059F3FD1A /* TitleSimilarity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 859256F3B9EF0624D5110D5A /* TitleSimilarity.swift */; };
+		0B70093E423593321E3D848B /* MediaDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5656C1D6DE5BAA4A9047ED7E /* MediaDetailView.swift */; };
+		1C204F3574DF47B1C487410B /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = B86F3C7F8062C768E588DC69 /* Theme.swift */; };
+		25B238CC4994F492F4AABD85 /* CatalogServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAD71270E84B0549ECD57DA3 /* CatalogServices.swift */; };
+		26195544FE30B3982FD90DFE /* TrackingEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F421A0814951018D922E11F /* TrackingEditorView.swift */; };
+		26330BE05DE95CC5FB4FDB78 /* MediaModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 330E034A8A29729FC90B66CD /* MediaModels.swift */; };
+		28AA0BDC90F80CD826FD050F /* OpenTVTrackerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38C95BD81EF63DE5AB21227D /* OpenTVTrackerApp.swift */; };
+		29E1CEDDD201121D3F0CF9A7 /* EmbassyShowtimeParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CAD64D1EC93AC665ACFE5D6 /* EmbassyShowtimeParserTests.swift */; };
+		29EBDC5F9E98A963C160048A /* CinemaProviding.swift in Sources */ = {isa = PBXBuildFile; fileRef = C11FB9A5364F1028ACB6AF8B /* CinemaProviding.swift */; };
+		2B02B401599DB807591036C8 /* DiscoverComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6977EBBF896922DD143599DB /* DiscoverComponents.swift */; };
+		2B7C225B22689F41619D138B /* RecommendationServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F15155D794E90782ECB43F7 /* RecommendationServiceTests.swift */; };
+		2E71BB1853295CCE0C6A7247 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0A269289E13854EF7EFC2FA /* AppModel.swift */; };
+		3011BBCB3756342618CCD1A6 /* DiscoveryAssistantView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDAC78676BC7E387EC0461DE /* DiscoveryAssistantView.swift */; };
+		4984F2EC86E19D24BC7C76B5 /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8E7E3F8A96168C055C72164 /* TodayView.swift */; };
+		508FF952C3A01ACD61A10AA7 /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37F5BE754C5B569E83074721 /* RootTabView.swift */; };
+		55A61E52BD374B61AD607C60 /* CloudKitSyncCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDCAF7A8614B3284E9C773D8 /* CloudKitSyncCoordinator.swift */; };
+		5663DCB2997227BA4865CB63 /* VoiceSearchTranscriber.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C6625EEC34FF7E5EDF691B6 /* VoiceSearchTranscriber.swift */; };
+		5E37ABAC9E524C42758258F4 /* AppModel+Assistant.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BEAEBAA1D36179A75BAA358 /* AppModel+Assistant.swift */; };
+		6471C9F834149DE581476A06 /* DiscoverCategories.swift in Sources */ = {isa = PBXBuildFile; fileRef = 501FED03C2874DB05BB539BC /* DiscoverCategories.swift */; };
+		67881818BFB9471905BCAAD6 /* DiscoverSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43A5A29CDA89F73110A5959A /* DiscoverSheets.swift */; };
+		6C23A077E09AB48DE921D418 /* CinemaView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C70A44589B6D06A644B3F044 /* CinemaView.swift */; };
+		7334B59C6F2843B526ED4138 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 5C9602044383D5F1CF7154F2 /* PrivacyInfo.xcprivacy */; };
+		876DD7650C59253101E9CBA9 /* AppModel+Together.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF2DEBBD5763C252BCF3F0B8 /* AppModel+Together.swift */; };
+		88127655816C90B84C533DFB /* PosterArtwork.swift in Sources */ = {isa = PBXBuildFile; fileRef = F32E6282CA61620FE165F866 /* PosterArtwork.swift */; };
+		895769957993BD0773F03855 /* DiscoverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51E06636334ABB672B302FEB /* DiscoverView.swift */; };
+		89DDDB84085CD719FA204B15 /* ServiceBoundaries.swift in Sources */ = {isa = PBXBuildFile; fileRef = 493F1A7537846757A044FDAE /* ServiceBoundaries.swift */; };
+		8EE3472510D428E5214CA56C /* AppModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A04FC826C098F98A35D87E6 /* AppModelTests.swift */; };
+		8FBE1948CCC94D6165FFCE6A /* SourceLinksTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111F7857D63324A855494D83 /* SourceLinksTests.swift */; };
+		94091C3E3C598E0EF0C9D3E1 /* AppModel+Catalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = D879B525D34A583EC530DCC6 /* AppModel+Catalog.swift */; };
+		94DD351F05C931C26FA450C1 /* LibraryTransferTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB86ECFE65B31D28B52695CC /* LibraryTransferTests.swift */; };
+		976BC2E8EECFBADA02F49FF8 /* RecommendationServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC818E6FA8B8249F3F7087FB /* RecommendationServices.swift */; };
+		98591AAD4C51B9D42E46A953 /* DiscoverCategory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 879988888008BA4352E75285 /* DiscoverCategory.swift */; };
+		9A4A51A6803A136C13FBD735 /* CinemaModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB79E25ACD6BC0B971DE878A /* CinemaModels.swift */; };
+		9BCCFB280C27497E504DC570 /* AppModel+CloudSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9E8BB3ECB7093326FBEC443 /* AppModel+CloudSync.swift */; };
+		A148312A7A5BDFD090CDF059 /* CreditsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E587E794892C46CA67E031BD /* CreditsView.swift */; };
+		A8093A0120751277E97C4B0F /* MoreLikeThisView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4863EC48D5BCE1A5ED7573F5 /* MoreLikeThisView.swift */; };
+		BE7D2C2163FB8C4E6A36D669 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 3DD949889A9EF51594C09BA1 /* Assets.xcassets */; };
+		C08CD3A230E19AC316DAF336 /* DiscoveryAssistant.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6333506F69AFAE1BA4093A5D /* DiscoveryAssistant.swift */; };
+		C5FA762B3F89AA82611D2239 /* TrailerPlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3F0802500141629529E87F3 /* TrailerPlayerView.swift */; };
+		CB84D9ED0EBBE8712357CE4A /* TVMazeCatalogService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F570624616BB1EC10933521 /* TVMazeCatalogService.swift */; };
+		D0A992875FF9DADE49D281D7 /* SampleData.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6959FA42B212427BC26E3C0 /* SampleData.swift */; };
+		D40C0E60CC132F3D4F1FBB53 /* GlassSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85B0DEBE6FA007C4AD395D0A /* GlassSurface.swift */; };
+		D8515D38157AB7E96DE964CD /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0E6165457A0D58BF9970351 /* LibraryView.swift */; };
+		D9CBA5DC591FF41978849D66 /* CloudKitPartnerSharingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64F135995FDD13BE45A3C6AA /* CloudKitPartnerSharingService.swift */; };
+		DC9197084E45B33D3448722D /* DiscoverCategoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DD57852932292E08916026E /* DiscoverCategoryTests.swift */; };
+		E2B5FEB70787BE3DA72B8C7F /* LibraryTransfer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4678CD1604F11015454665A7 /* LibraryTransfer.swift */; };
+		E47EA8A432D01C6D85B2D40F /* TogetherView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AAFCABC14F1C5AE4F0169C7 /* TogetherView.swift */; };
+		E78D65A6C0CEAEC9E4086993 /* LibraryPersisting.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBBD0032700550FCBAE59CEC /* LibraryPersisting.swift */; };
+		EB957279FF5081E3D3A2B8CA /* LibraryDataView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99D8913E76F6F19B3429126F /* LibraryDataView.swift */; };
+		F301BCF6258EEA4BF0731AC9 /* TitleSimilarityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D071796CAD784E5EE144A4F /* TitleSimilarityTests.swift */; };
+		FA83A3AE5AAF5386C20AE6D3 /* MediaDetailSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = C671EAA408948077CF67A33B /* MediaDetailSections.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		F9D6D4D0A652452B72E6C14C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5D5F0CAAF48BB4963830276C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 96396D01C2F07D817EF2875C;
+			remoteInfo = OpenTVTracker;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		058FC17069CAF8CCDAB3F30F /* DiscoveryAssistantTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoveryAssistantTests.swift; sourceTree = "<group>"; };
+		0BEAEBAA1D36179A75BAA358 /* AppModel+Assistant.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+Assistant.swift"; sourceTree = "<group>"; };
+		0F570624616BB1EC10933521 /* TVMazeCatalogService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVMazeCatalogService.swift; sourceTree = "<group>"; };
+		109429EDBAD271EBC45D4701 /* OpenTVTracker.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = OpenTVTracker.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		111F7857D63324A855494D83 /* SourceLinksTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SourceLinksTests.swift; sourceTree = "<group>"; };
+		1F15155D794E90782ECB43F7 /* RecommendationServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecommendationServiceTests.swift; sourceTree = "<group>"; };
+		2AAFCABC14F1C5AE4F0169C7 /* TogetherView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TogetherView.swift; sourceTree = "<group>"; };
+		330E034A8A29729FC90B66CD /* MediaModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaModels.swift; sourceTree = "<group>"; };
+		37F5BE754C5B569E83074721 /* RootTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabView.swift; sourceTree = "<group>"; };
+		38C95BD81EF63DE5AB21227D /* OpenTVTrackerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenTVTrackerApp.swift; sourceTree = "<group>"; };
+		3A04FC826C098F98A35D87E6 /* AppModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModelTests.swift; sourceTree = "<group>"; };
+		3DD949889A9EF51594C09BA1 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		43A5A29CDA89F73110A5959A /* DiscoverSheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverSheets.swift; sourceTree = "<group>"; };
+		4678CD1604F11015454665A7 /* LibraryTransfer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryTransfer.swift; sourceTree = "<group>"; };
+		4863EC48D5BCE1A5ED7573F5 /* MoreLikeThisView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoreLikeThisView.swift; sourceTree = "<group>"; };
+		493F1A7537846757A044FDAE /* ServiceBoundaries.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceBoundaries.swift; sourceTree = "<group>"; };
+		4D071796CAD784E5EE144A4F /* TitleSimilarityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TitleSimilarityTests.swift; sourceTree = "<group>"; };
+		501FED03C2874DB05BB539BC /* DiscoverCategories.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverCategories.swift; sourceTree = "<group>"; };
+		51E06636334ABB672B302FEB /* DiscoverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverView.swift; sourceTree = "<group>"; };
+		5656C1D6DE5BAA4A9047ED7E /* MediaDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaDetailView.swift; sourceTree = "<group>"; };
+		5C9602044383D5F1CF7154F2 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		6333506F69AFAE1BA4093A5D /* DiscoveryAssistant.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoveryAssistant.swift; sourceTree = "<group>"; };
+		64F135995FDD13BE45A3C6AA /* CloudKitPartnerSharingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitPartnerSharingService.swift; sourceTree = "<group>"; };
+		6977EBBF896922DD143599DB /* DiscoverComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverComponents.swift; sourceTree = "<group>"; };
+		6CAD64D1EC93AC665ACFE5D6 /* EmbassyShowtimeParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmbassyShowtimeParserTests.swift; sourceTree = "<group>"; };
+		7C6625EEC34FF7E5EDF691B6 /* VoiceSearchTranscriber.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceSearchTranscriber.swift; sourceTree = "<group>"; };
+		859256F3B9EF0624D5110D5A /* TitleSimilarity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TitleSimilarity.swift; sourceTree = "<group>"; };
+		85B0DEBE6FA007C4AD395D0A /* GlassSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassSurface.swift; sourceTree = "<group>"; };
+		879988888008BA4352E75285 /* DiscoverCategory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverCategory.swift; sourceTree = "<group>"; };
+		8DD57852932292E08916026E /* DiscoverCategoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverCategoryTests.swift; sourceTree = "<group>"; };
+		99D8913E76F6F19B3429126F /* LibraryDataView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryDataView.swift; sourceTree = "<group>"; };
+		9F421A0814951018D922E11F /* TrackingEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackingEditorView.swift; sourceTree = "<group>"; };
+		ABC74D06E46B01B3A7DF3712 /* Base.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Base.xcconfig; sourceTree = "<group>"; };
+		B86F3C7F8062C768E588DC69 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		B9E8BB3ECB7093326FBEC443 /* AppModel+CloudSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+CloudSync.swift"; sourceTree = "<group>"; };
+		C11FB9A5364F1028ACB6AF8B /* CinemaProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CinemaProviding.swift; sourceTree = "<group>"; };
+		C671EAA408948077CF67A33B /* MediaDetailSections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaDetailSections.swift; sourceTree = "<group>"; };
+		C70A44589B6D06A644B3F044 /* CinemaView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CinemaView.swift; sourceTree = "<group>"; };
+		CB86ECFE65B31D28B52695CC /* LibraryTransferTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryTransferTests.swift; sourceTree = "<group>"; };
+		CC818E6FA8B8249F3F7087FB /* RecommendationServices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecommendationServices.swift; sourceTree = "<group>"; };
+		D0A269289E13854EF7EFC2FA /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		D879B525D34A583EC530DCC6 /* AppModel+Catalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+Catalog.swift"; sourceTree = "<group>"; };
+		D8E7E3F8A96168C055C72164 /* TodayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayView.swift; sourceTree = "<group>"; };
+		DBBD0032700550FCBAE59CEC /* LibraryPersisting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryPersisting.swift; sourceTree = "<group>"; };
+		DDAC78676BC7E387EC0461DE /* DiscoveryAssistantView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoveryAssistantView.swift; sourceTree = "<group>"; };
+		DDCAF7A8614B3284E9C773D8 /* CloudKitSyncCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitSyncCoordinator.swift; sourceTree = "<group>"; };
+		DF2DEBBD5763C252BCF3F0B8 /* AppModel+Together.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+Together.swift"; sourceTree = "<group>"; };
+		E3D33ED571ED8E1AD52A8617 /* OpenTVTrackerTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = OpenTVTrackerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		E587E794892C46CA67E031BD /* CreditsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreditsView.swift; sourceTree = "<group>"; };
+		EAD71270E84B0549ECD57DA3 /* CatalogServices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CatalogServices.swift; sourceTree = "<group>"; };
+		EB79E25ACD6BC0B971DE878A /* CinemaModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CinemaModels.swift; sourceTree = "<group>"; };
+		F0E6165457A0D58BF9970351 /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
+		F32E6282CA61620FE165F866 /* PosterArtwork.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PosterArtwork.swift; sourceTree = "<group>"; };
+		F3F0802500141629529E87F3 /* TrailerPlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrailerPlayerView.swift; sourceTree = "<group>"; };
+		F6959FA42B212427BC26E3C0 /* SampleData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleData.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		0809E00AD19E2A603C6C29D7 /* Data */ = {
+			isa = PBXGroup;
+			children = (
+				EAD71270E84B0549ECD57DA3 /* CatalogServices.swift */,
+				C11FB9A5364F1028ACB6AF8B /* CinemaProviding.swift */,
+				64F135995FDD13BE45A3C6AA /* CloudKitPartnerSharingService.swift */,
+				DDCAF7A8614B3284E9C773D8 /* CloudKitSyncCoordinator.swift */,
+				6333506F69AFAE1BA4093A5D /* DiscoveryAssistant.swift */,
+				DBBD0032700550FCBAE59CEC /* LibraryPersisting.swift */,
+				4678CD1604F11015454665A7 /* LibraryTransfer.swift */,
+				CC818E6FA8B8249F3F7087FB /* RecommendationServices.swift */,
+				493F1A7537846757A044FDAE /* ServiceBoundaries.swift */,
+				0F570624616BB1EC10933521 /* TVMazeCatalogService.swift */,
+			);
+			path = Data;
+			sourceTree = "<group>";
+		};
+		1A31E610871171452C49C143 /* Details */ = {
+			isa = PBXGroup;
+			children = (
+				C671EAA408948077CF67A33B /* MediaDetailSections.swift */,
+				5656C1D6DE5BAA4A9047ED7E /* MediaDetailView.swift */,
+				4863EC48D5BCE1A5ED7573F5 /* MoreLikeThisView.swift */,
+				9F421A0814951018D922E11F /* TrackingEditorView.swift */,
+			);
+			path = Details;
+			sourceTree = "<group>";
+		};
+		2AF140DA8A2795E3D8670884 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				3DD949889A9EF51594C09BA1 /* Assets.xcassets */,
+				5C9602044383D5F1CF7154F2 /* PrivacyInfo.xcprivacy */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		2AFE285083A27B83A7B28B14 /* DesignSystem */ = {
+			isa = PBXGroup;
+			children = (
+				85B0DEBE6FA007C4AD395D0A /* GlassSurface.swift */,
+				F32E6282CA61620FE165F866 /* PosterArtwork.swift */,
+				B86F3C7F8062C768E588DC69 /* Theme.swift */,
+				F3F0802500141629529E87F3 /* TrailerPlayerView.swift */,
+			);
+			path = DesignSystem;
+			sourceTree = "<group>";
+		};
+		3697F637604A4077E07AA5EA /* Discover */ = {
+			isa = PBXGroup;
+			children = (
+				C70A44589B6D06A644B3F044 /* CinemaView.swift */,
+				501FED03C2874DB05BB539BC /* DiscoverCategories.swift */,
+				879988888008BA4352E75285 /* DiscoverCategory.swift */,
+				6977EBBF896922DD143599DB /* DiscoverComponents.swift */,
+				43A5A29CDA89F73110A5959A /* DiscoverSheets.swift */,
+				51E06636334ABB672B302FEB /* DiscoverView.swift */,
+				DDAC78676BC7E387EC0461DE /* DiscoveryAssistantView.swift */,
+				7C6625EEC34FF7E5EDF691B6 /* VoiceSearchTranscriber.swift */,
+			);
+			path = Discover;
+			sourceTree = "<group>";
+		};
+		43313137999C60E13AF14D00 = {
+			isa = PBXGroup;
+			children = (
+				713F37C961978B2F24AC7E24 /* Config */,
+				7CA6EB6FFE0C328CA84AC079 /* OpenTVTracker */,
+				DE7CD70EC07B51368CA00677 /* OpenTVTrackerTests */,
+				F2D407BA4AE2A006F9D641B9 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		5CE33953C883AAC964970D42 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				D0A269289E13854EF7EFC2FA /* AppModel.swift */,
+				0BEAEBAA1D36179A75BAA358 /* AppModel+Assistant.swift */,
+				D879B525D34A583EC530DCC6 /* AppModel+Catalog.swift */,
+				B9E8BB3ECB7093326FBEC443 /* AppModel+CloudSync.swift */,
+				DF2DEBBD5763C252BCF3F0B8 /* AppModel+Together.swift */,
+				38C95BD81EF63DE5AB21227D /* OpenTVTrackerApp.swift */,
+				37F5BE754C5B569E83074721 /* RootTabView.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		713F37C961978B2F24AC7E24 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				ABC74D06E46B01B3A7DF3712 /* Base.xcconfig */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
+		7CA6EB6FFE0C328CA84AC079 /* OpenTVTracker */ = {
+			isa = PBXGroup;
+			children = (
+				5CE33953C883AAC964970D42 /* App */,
+				0809E00AD19E2A603C6C29D7 /* Data */,
+				2AFE285083A27B83A7B28B14 /* DesignSystem */,
+				FFE7D898763E860947AB63DE /* Domain */,
+				9543D36C03179D829E2379DE /* Features */,
+				2AF140DA8A2795E3D8670884 /* Resources */,
+			);
+			path = OpenTVTracker;
+			sourceTree = "<group>";
+		};
+		9543D36C03179D829E2379DE /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				1A31E610871171452C49C143 /* Details */,
+				3697F637604A4077E07AA5EA /* Discover */,
+				CE90E26A3DB899A3D243A5B7 /* Library */,
+				CCB670ED0F8224F24AD62695 /* Settings */,
+				CCDB889CA8E16CA12CA3B7D8 /* Today */,
+				D62EBC8088CDB424D8145B02 /* Together */,
+			);
+			path = Features;
+			sourceTree = "<group>";
+		};
+		CCB670ED0F8224F24AD62695 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				E587E794892C46CA67E031BD /* CreditsView.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+		CCDB889CA8E16CA12CA3B7D8 /* Today */ = {
+			isa = PBXGroup;
+			children = (
+				D8E7E3F8A96168C055C72164 /* TodayView.swift */,
+			);
+			path = Today;
+			sourceTree = "<group>";
+		};
+		CE90E26A3DB899A3D243A5B7 /* Library */ = {
+			isa = PBXGroup;
+			children = (
+				99D8913E76F6F19B3429126F /* LibraryDataView.swift */,
+				F0E6165457A0D58BF9970351 /* LibraryView.swift */,
+			);
+			path = Library;
+			sourceTree = "<group>";
+		};
+		D62EBC8088CDB424D8145B02 /* Together */ = {
+			isa = PBXGroup;
+			children = (
+				2AAFCABC14F1C5AE4F0169C7 /* TogetherView.swift */,
+			);
+			path = Together;
+			sourceTree = "<group>";
+		};
+		DE7CD70EC07B51368CA00677 /* OpenTVTrackerTests */ = {
+			isa = PBXGroup;
+			children = (
+				3A04FC826C098F98A35D87E6 /* AppModelTests.swift */,
+				8DD57852932292E08916026E /* DiscoverCategoryTests.swift */,
+				058FC17069CAF8CCDAB3F30F /* DiscoveryAssistantTests.swift */,
+				6CAD64D1EC93AC665ACFE5D6 /* EmbassyShowtimeParserTests.swift */,
+				CB86ECFE65B31D28B52695CC /* LibraryTransferTests.swift */,
+				1F15155D794E90782ECB43F7 /* RecommendationServiceTests.swift */,
+				111F7857D63324A855494D83 /* SourceLinksTests.swift */,
+				4D071796CAD784E5EE144A4F /* TitleSimilarityTests.swift */,
+			);
+			path = OpenTVTrackerTests;
+			sourceTree = "<group>";
+		};
+		F2D407BA4AE2A006F9D641B9 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				109429EDBAD271EBC45D4701 /* OpenTVTracker.app */,
+				E3D33ED571ED8E1AD52A8617 /* OpenTVTrackerTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		FFE7D898763E860947AB63DE /* Domain */ = {
+			isa = PBXGroup;
+			children = (
+				EB79E25ACD6BC0B971DE878A /* CinemaModels.swift */,
+				330E034A8A29729FC90B66CD /* MediaModels.swift */,
+				F6959FA42B212427BC26E3C0 /* SampleData.swift */,
+				859256F3B9EF0624D5110D5A /* TitleSimilarity.swift */,
+			);
+			path = Domain;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		3420C46A6AD54978944C2D04 /* OpenTVTrackerTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 406E3F2EFC59373323553A8A /* Build configuration list for PBXNativeTarget "OpenTVTrackerTests" */;
+			buildPhases = (
+				2AD1085B07884F7ED35E2EB3 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				37592821BA5A442E61192044 /* PBXTargetDependency */,
+			);
+			name = OpenTVTrackerTests;
+			packageProductDependencies = (
+			);
+			productName = OpenTVTrackerTests;
+			productReference = E3D33ED571ED8E1AD52A8617 /* OpenTVTrackerTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		96396D01C2F07D817EF2875C /* OpenTVTracker */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 48B0F5C2082F9F3F11395223 /* Build configuration list for PBXNativeTarget "OpenTVTracker" */;
+			buildPhases = (
+				BD606C1C97ABC358252F10AE /* Sources */,
+				AC8C01322D8811F37217F627 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = OpenTVTracker;
+			packageProductDependencies = (
+			);
+			productName = OpenTVTracker;
+			productReference = 109429EDBAD271EBC45D4701 /* OpenTVTracker.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		5D5F0CAAF48BB4963830276C /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					3420C46A6AD54978944C2D04 = {
+						DevelopmentTeam = "";
+					};
+					96396D01C2F07D817EF2875C = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
+						SystemCapabilities = "[\"com.apple.iCloud\": [\"enabled\": 1], \"com.apple.Push\": [\"enabled\": 1]]";
+					};
+				};
+			};
+			buildConfigurationList = 5881E80C89C583FE0F1237C0 /* Build configuration list for PBXProject "OpenTVTracker" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 43313137999C60E13AF14D00;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = F2D407BA4AE2A006F9D641B9 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				96396D01C2F07D817EF2875C /* OpenTVTracker */,
+				3420C46A6AD54978944C2D04 /* OpenTVTrackerTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		AC8C01322D8811F37217F627 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BE7D2C2163FB8C4E6A36D669 /* Assets.xcassets in Resources */,
+				7334B59C6F2843B526ED4138 /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		2AD1085B07884F7ED35E2EB3 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8EE3472510D428E5214CA56C /* AppModelTests.swift in Sources */,
+				DC9197084E45B33D3448722D /* DiscoverCategoryTests.swift in Sources */,
+				011F2EF0233A70A49BF7501E /* DiscoveryAssistantTests.swift in Sources */,
+				29E1CEDDD201121D3F0CF9A7 /* EmbassyShowtimeParserTests.swift in Sources */,
+				94DD351F05C931C26FA450C1 /* LibraryTransferTests.swift in Sources */,
+				2B7C225B22689F41619D138B /* RecommendationServiceTests.swift in Sources */,
+				8FBE1948CCC94D6165FFCE6A /* SourceLinksTests.swift in Sources */,
+				F301BCF6258EEA4BF0731AC9 /* TitleSimilarityTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BD606C1C97ABC358252F10AE /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5E37ABAC9E524C42758258F4 /* AppModel+Assistant.swift in Sources */,
+				94091C3E3C598E0EF0C9D3E1 /* AppModel+Catalog.swift in Sources */,
+				9BCCFB280C27497E504DC570 /* AppModel+CloudSync.swift in Sources */,
+				876DD7650C59253101E9CBA9 /* AppModel+Together.swift in Sources */,
+				2E71BB1853295CCE0C6A7247 /* AppModel.swift in Sources */,
+				25B238CC4994F492F4AABD85 /* CatalogServices.swift in Sources */,
+				9A4A51A6803A136C13FBD735 /* CinemaModels.swift in Sources */,
+				29EBDC5F9E98A963C160048A /* CinemaProviding.swift in Sources */,
+				6C23A077E09AB48DE921D418 /* CinemaView.swift in Sources */,
+				D9CBA5DC591FF41978849D66 /* CloudKitPartnerSharingService.swift in Sources */,
+				55A61E52BD374B61AD607C60 /* CloudKitSyncCoordinator.swift in Sources */,
+				A148312A7A5BDFD090CDF059 /* CreditsView.swift in Sources */,
+				6471C9F834149DE581476A06 /* DiscoverCategories.swift in Sources */,
+				98591AAD4C51B9D42E46A953 /* DiscoverCategory.swift in Sources */,
+				2B02B401599DB807591036C8 /* DiscoverComponents.swift in Sources */,
+				67881818BFB9471905BCAAD6 /* DiscoverSheets.swift in Sources */,
+				895769957993BD0773F03855 /* DiscoverView.swift in Sources */,
+				C08CD3A230E19AC316DAF336 /* DiscoveryAssistant.swift in Sources */,
+				3011BBCB3756342618CCD1A6 /* DiscoveryAssistantView.swift in Sources */,
+				D40C0E60CC132F3D4F1FBB53 /* GlassSurface.swift in Sources */,
+				EB957279FF5081E3D3A2B8CA /* LibraryDataView.swift in Sources */,
+				E78D65A6C0CEAEC9E4086993 /* LibraryPersisting.swift in Sources */,
+				E2B5FEB70787BE3DA72B8C7F /* LibraryTransfer.swift in Sources */,
+				D8515D38157AB7E96DE964CD /* LibraryView.swift in Sources */,
+				FA83A3AE5AAF5386C20AE6D3 /* MediaDetailSections.swift in Sources */,
+				0B70093E423593321E3D848B /* MediaDetailView.swift in Sources */,
+				26330BE05DE95CC5FB4FDB78 /* MediaModels.swift in Sources */,
+				A8093A0120751277E97C4B0F /* MoreLikeThisView.swift in Sources */,
+				28AA0BDC90F80CD826FD050F /* OpenTVTrackerApp.swift in Sources */,
+				88127655816C90B84C533DFB /* PosterArtwork.swift in Sources */,
+				976BC2E8EECFBADA02F49FF8 /* RecommendationServices.swift in Sources */,
+				508FF952C3A01ACD61A10AA7 /* RootTabView.swift in Sources */,
+				D0A992875FF9DADE49D281D7 /* SampleData.swift in Sources */,
+				89DDDB84085CD719FA204B15 /* ServiceBoundaries.swift in Sources */,
+				CB84D9ED0EBBE8712357CE4A /* TVMazeCatalogService.swift in Sources */,
+				1C204F3574DF47B1C487410B /* Theme.swift in Sources */,
+				0781F3B135F9685059F3FD1A /* TitleSimilarity.swift in Sources */,
+				4984F2EC86E19D24BC7C76B5 /* TodayView.swift in Sources */,
+				E47EA8A432D01C6D85B2D40F /* TogetherView.swift in Sources */,
+				26195544FE30B3982FD90DFE /* TrackingEditorView.swift in Sources */,
+				C5FA762B3F89AA82611D2239 /* TrailerPlayerView.swift in Sources */,
+				5663DCB2997227BA4865CB63 /* VoiceSearchTranscriber.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		37592821BA5A442E61192044 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 96396D01C2F07D817EF2875C /* OpenTVTracker */;
+			targetProxy = F9D6D4D0A652452B72E6C14C /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		067E93263A2BE3F51551D6B9 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = ABC74D06E46B01B3A7DF3712 /* Base.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Config/OpenTVTracker.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				INFOPLIST_FILE = Config/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.shipshit.opentvtracker;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		1BEEB6FCAC6BF648007D2F7D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		674B7BE483EBF87F50F730C4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		91F13E462E072AAD8E30E2C3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.shipshit.opentvtracker.tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/OpenTVTracker.app/OpenTVTracker";
+			};
+			name = Release;
+		};
+		9F558381DDD43241BC5FACF4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.shipshit.opentvtracker.tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/OpenTVTracker.app/OpenTVTracker";
+			};
+			name = Debug;
+		};
+		A0CF78346DF9631F06C2215C /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = ABC74D06E46B01B3A7DF3712 /* Base.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Config/OpenTVTracker.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				INFOPLIST_FILE = Config/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.shipshit.opentvtracker;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		406E3F2EFC59373323553A8A /* Build configuration list for PBXNativeTarget "OpenTVTrackerTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9F558381DDD43241BC5FACF4 /* Debug */,
+				91F13E462E072AAD8E30E2C3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		48B0F5C2082F9F3F11395223 /* Build configuration list for PBXNativeTarget "OpenTVTracker" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				067E93263A2BE3F51551D6B9 /* Debug */,
+				A0CF78346DF9631F06C2215C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		5881E80C89C583FE0F1237C0 /* Build configuration list for PBXProject "OpenTVTracker" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				674B7BE483EBF87F50F730C4 /* Debug */,
+				1BEEB6FCAC6BF648007D2F7D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 5D5F0CAAF48BB4963830276C /* Project object */;
+}

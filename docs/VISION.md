@@ -33,7 +33,7 @@ A personal queue combining the next episode, recently released episodes, unfinis
 
 ### Discover
 
-Search plus curated recommendation lanes. Filters cover mood, runtime, genre, streaming service, and whether both partners are likely to enjoy it.
+Search plus artwork-led recommendation shelves inspired by the speed of modern delivery apps. Filters default to the streaming services the viewer already pays for, then narrow by mood, runtime, genre, and whether both partners are likely to enjoy it. Every title exposes its official trailer before demanding a commitment.
 
 ### Together
 

@@ -1,0 +1,30 @@
+name: iOS
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - name: Select Xcode with an installed iOS runtime
+        run: sudo xcode-select -s /Applications/Xcode_26.4.1.app
+      - name: Show toolchain
+        run: xcodebuild -version
+      - name: Validate privacy manifest
+        run: plutil -lint OpenTVTracker/Resources/PrivacyInfo.xcprivacy
+      - name: Build and test
+        run: >-
+          xcodebuild test
+          -project OpenTVTracker.xcodeproj
+          -scheme OpenTVTracker
+          -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=latest'
+          -derivedDataPath "$RUNNER_TEMP/DerivedData"
+          CODE_SIGNING_ALLOWED=NO
