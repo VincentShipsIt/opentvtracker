@@ -6,8 +6,9 @@ final class TVTimeImportTests: XCTestCase {
     func testTVTimeZIPRestoresEpisodeHistoryRatingAndWatchDate() async throws {
         let archive = try makeArchive([
             "tracking-prod-records-v2.csv": """
-            key,s_id,series_name,s_no,ep_no,created_at,is_followed
-            watch-episode-101,42,Severance,1,1,2025-02-14T20:30:00Z,true
+            key,s_id,series_name,s_no,ep_no,created_at,is_followed,is_for_later
+            watch-episode-101,42,Severance,1,1,2025-02-14T20:30:00Z,,
+            user-series-102,43,Slow Horses,,,,true,true
             """,
             "tv_show_rate.csv": """
             tv_show_id,tv_show_name,rate
@@ -24,12 +25,14 @@ final class TVTimeImportTests: XCTestCase {
         )
 
         let severance = try XCTUnwrap(preview.snapshot.titles.first(where: { $0.id == "severance" }))
+        let slowHorses = try XCTUnwrap(preview.snapshot.titles.first(where: { $0.id == "slow-horses" }))
         XCTAssertEqual(severance.watchedEpisodeIDs, Set(["severance-s1e1"]))
         XCTAssertEqual(severance.userRating, 10)
         XCTAssertEqual(severance.state, .watching)
-        XCTAssertTrue(severance.isOnPersonalWatchlist)
+        XCTAssertFalse(severance.isOnPersonalWatchlist)
+        XCTAssertTrue(slowHorses.isOnPersonalWatchlist)
         XCTAssertEqual(preview.sourceName, "TV Time")
-        XCTAssertEqual(preview.matchedCount, 1)
+        XCTAssertEqual(preview.matchedCount, 2)
         XCTAssertEqual(preview.watchedEpisodeCount, 1)
         XCTAssertEqual(preview.watchEventCount, 1)
         XCTAssertEqual(preview.snapshot.sharedSpace.watchEvents?.first?.season, 1)
