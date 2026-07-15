@@ -115,6 +115,7 @@ struct DiscoverView: View {
                 }
             }
             .padding(18)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.horizontal, AppTheme.horizontalPadding)
     }
