@@ -3,15 +3,30 @@ import SwiftUI
 struct EpisodeStillArtwork: View {
     @Environment(\.allowsRemoteArtwork) private var allowsRemoteArtwork
     let url: URL?
+    let fallbackURL: URL?
     let showTitle: String
     let episodeLabel: String
     let palette: PosterPalette
 
+    init(
+        url: URL?,
+        fallbackURL: URL? = nil,
+        showTitle: String,
+        episodeLabel: String,
+        palette: PosterPalette
+    ) {
+        self.url = url
+        self.fallbackURL = fallbackURL
+        self.showTitle = showTitle
+        self.episodeLabel = episodeLabel
+        self.palette = palette
+    }
+
     var body: some View {
         Group {
-            if allowsRemoteArtwork, let url {
+            if allowsRemoteArtwork, let artworkURL = url ?? fallbackURL {
                 AsyncImage(
-                    url: url,
+                    url: artworkURL,
                     transaction: Transaction(animation: .easeInOut(duration: 0.2))
                 ) { phase in
                     switch phase {

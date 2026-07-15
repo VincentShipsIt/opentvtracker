@@ -5,6 +5,12 @@ struct SeasonEpisodesRoute: Hashable {
     let seasonID: SeasonSummary.ID
 }
 
+struct EpisodeDetailRoute: Hashable {
+    let titleID: MediaTitle.ID
+    let seasonID: SeasonSummary.ID
+    let episodeID: EpisodeSummary.ID
+}
+
 struct SeasonEpisodesView: View {
     @Environment(AppModel.self) private var model
     let route: SeasonEpisodesRoute
@@ -18,14 +24,28 @@ struct SeasonEpisodesView: View {
                     SeasonProgressHeader(
                         title: title,
                         season: season,
-                        watchedCount: model.watchedEpisodeCount(titleID: title.id, season: season)
+                        watchedCount: model.watchedEpisodeCount(titleID: title.id, season: season),
+                        onMarkAllWatched: {
+                            model.setSeasonEpisodesWatched(
+                                true,
+                                titleID: title.id,
+                                seasonNumber: season.number
+                            )
+                        },
+                        onMarkAllUnwatched: {
+                            model.setSeasonEpisodesWatched(
+                                false,
+                                titleID: title.id,
+                                seasonNumber: season.number
+                            )
+                        }
                     )
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
                     .listRowInsets(EdgeInsets(top: 10, leading: 20, bottom: 10, trailing: 20))
 
                     ForEach(season.episodes) { episode in
-                        episodeRow(title: title, season: season, episode: episode)
+                        TrackableEpisodeRow(title: title, season: season, episode: episode)
                     }
                 }
                 .listStyle(.plain)
@@ -40,6 +60,37 @@ struct SeasonEpisodesView: View {
         }
         .navigationTitle(season?.title ?? "Episodes")
         .navigationBarTitleDisplayMode(.inline)
+        .navigationDestination(for: EpisodeDetailRoute.self) { route in
+            EpisodeDetailView(route: route)
+        }
+        .toolbar {
+            if let title, let season {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu("Episode actions", systemImage: "ellipsis.circle") {
+                        Button("Mark all watched", systemImage: "checkmark.circle.fill") {
+                            model.setSeasonEpisodesWatched(
+                                true,
+                                titleID: title.id,
+                                seasonNumber: season.number
+                            )
+                        }
+                        .disabled(
+                            model.watchedEpisodeCount(titleID: title.id, season: season)
+                                == season.episodes.count
+                        )
+
+                        Button("Mark all unwatched", systemImage: "arrow.uturn.backward.circle") {
+                            model.setSeasonEpisodesWatched(
+                                false,
+                                titleID: title.id,
+                                seasonNumber: season.number
+                            )
+                        }
+                        .disabled(model.watchedEpisodeCount(titleID: title.id, season: season) == 0)
+                    }
+                }
+            }
+        }
     }
 
     private var title: MediaTitle? {
@@ -50,51 +101,114 @@ struct SeasonEpisodesView: View {
         title?.seasons?.first(where: { $0.id == route.seasonID })
     }
 
-    private func episodeRow(
-        title: MediaTitle,
-        season: SeasonSummary,
-        episode: EpisodeSummary
-    ) -> some View {
-        let isWatched = model.isEpisodeWatched(
-            titleID: title.id,
-            seasonNumber: season.number,
-            episodeID: episode.id
-        )
+}
 
-        return EpisodeRow(
-            title: title,
-            seasonNumber: season.number,
-            episode: episode,
-            isWatched: isWatched
-        )
+private struct TrackableEpisodeRow: View {
+    @Environment(AppModel.self) private var model
+    let title: MediaTitle
+    let season: SeasonSummary
+    let episode: EpisodeSummary
+
+    var body: some View {
+        NavigationLink(value: detailRoute) {
+            EpisodeRow(
+                title: title,
+                seasonNumber: season.number,
+                episode: episode,
+                isWatched: isWatched
+            )
+        }
+        .buttonStyle(.plain)
         .contentShape(.rect)
         .listRowBackground(Color.clear)
         .listRowSeparator(.hidden)
         .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
-        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-            Button {
-                model.setEpisodeWatched(
-                    !isWatched,
-                    titleID: title.id,
-                    seasonNumber: season.number,
-                    episodeID: episode.id
-                )
-            } label: {
-                Label(
-                    isWatched ? "Mark unwatched" : "Mark watched",
-                    systemImage: isWatched ? "arrow.uturn.backward.circle.fill" : "checkmark.circle.fill"
-                )
+        .modifier(EpisodeTrackingActions(title: title, season: season, episode: episode))
+    }
+
+    private var detailRoute: EpisodeDetailRoute {
+        EpisodeDetailRoute(titleID: title.id, seasonID: season.id, episodeID: episode.id)
+    }
+
+    private var isWatched: Bool {
+        model.isEpisodeWatched(
+            titleID: title.id,
+            seasonNumber: season.number,
+            episodeID: episode.id
+        )
+    }
+}
+
+private struct EpisodeTrackingActions: ViewModifier {
+    @Environment(AppModel.self) private var model
+    let title: MediaTitle
+    let season: SeasonSummary
+    let episode: EpisodeSummary
+
+    func body(content: Content) -> some View {
+        content
+            .swipeActions(edge: .trailing, allowsFullSwipe: true) { toggleButton }
+            .swipeActions(edge: .leading, allowsFullSwipe: false) { previousButton }
+            .contextMenu { previousButton }
+            .accessibilityAction(named: isWatched ? "Mark unwatched" : "Mark watched") {
+                toggleWatched()
             }
-            .tint(isWatched ? .orange : .green)
-        }
-        .accessibilityAction(named: isWatched ? "Mark unwatched" : "Mark watched") {
-            model.setEpisodeWatched(
-                !isWatched,
-                titleID: title.id,
-                seasonNumber: season.number,
-                episodeID: episode.id
+            .accessibilityAction(named: "Mark this and previous watched") {
+                markPreviousWatched()
+            }
+    }
+
+    private var toggleButton: some View {
+        Button {
+            toggleWatched()
+        } label: {
+            Label(
+                isWatched ? "Mark unwatched" : "Mark watched",
+                systemImage: isWatched ? "arrow.uturn.backward.circle.fill" : "checkmark.circle.fill"
             )
         }
+        .tint(isWatched ? .orange : .green)
+    }
+
+    private var previousButton: some View {
+        Button("Mark this and previous watched", systemImage: "checkmark.circle.badge.plus") {
+            markPreviousWatched()
+        }
+        .tint(.blue)
+        .disabled(arePreviousWatched)
+    }
+
+    private var isWatched: Bool {
+        model.isEpisodeWatched(
+            titleID: title.id,
+            seasonNumber: season.number,
+            episodeID: episode.id
+        )
+    }
+
+    private var arePreviousWatched: Bool {
+        model.areEpisodesWatchedThrough(
+            titleID: title.id,
+            seasonNumber: season.number,
+            episodeNumber: episode.number
+        )
+    }
+
+    private func toggleWatched() {
+        model.setEpisodeWatched(
+            !isWatched,
+            titleID: title.id,
+            seasonNumber: season.number,
+            episodeID: episode.id
+        )
+    }
+
+    private func markPreviousWatched() {
+        model.markEpisodesWatchedThrough(
+            titleID: title.id,
+            seasonNumber: season.number,
+            episodeNumber: episode.number
+        )
     }
 }
 
@@ -102,6 +216,8 @@ private struct SeasonProgressHeader: View {
     let title: MediaTitle
     let season: SeasonSummary
     let watchedCount: Int
+    let onMarkAllWatched: () -> Void
+    let onMarkAllUnwatched: () -> Void
 
     var body: some View {
         GlassSurface(tint: Color(hex: title.palette.primaryHex)) {
@@ -118,13 +234,30 @@ private struct SeasonProgressHeader: View {
                 .foregroundStyle(.secondary)
                 ProgressView(value: Double(watchedCount), total: Double(max(season.episodes.count, 1)))
                     .tint(.accentColor)
-                Text("Swipe an episode left to mark it watched or unwatched.")
+                Text("Tap an episode for details, or swipe it for watch actions.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+
+                HStack(spacing: 10) {
+                    Button(action: onMarkAllWatched) {
+                        Label("Mark all", systemImage: "checkmark.circle.fill")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .adaptiveGlassButton(prominent: true)
+                    .disabled(watchedCount == season.episodes.count)
+
+                    Button(action: onMarkAllUnwatched) {
+                        Label("Reset", systemImage: "arrow.uturn.backward")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .adaptiveGlassButton()
+                    .disabled(watchedCount == 0)
+                }
             }
             .padding(16)
         }
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Season progress")
     }
 }
 
@@ -138,6 +271,7 @@ private struct EpisodeRow: View {
         HStack(alignment: .top, spacing: 13) {
             EpisodeStillArtwork(
                 url: episode.stillURL,
+                fallbackURL: title.backdropURL ?? title.posterURL,
                 showTitle: title.title,
                 episodeLabel: "Season \(seasonNumber), episode \(episode.number)",
                 palette: title.palette
@@ -167,12 +301,18 @@ private struct EpisodeRow: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(.tertiary)
+                .frame(maxHeight: .infinity)
+                .accessibilityHidden(true)
         }
         .opacity(isWatched ? 0.68 : 1)
         .padding(.vertical, 4)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityLabel)
-        .accessibilityHint("Swipe left for tracking actions")
+        .accessibilityHint("Opens episode details. Swipe for tracking actions")
     }
 
     private var metadata: String {

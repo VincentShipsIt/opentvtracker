@@ -76,6 +76,7 @@ struct TrackingEditorView: View {
                         HStack(alignment: .top, spacing: 13) {
                             EpisodeStillArtwork(
                                 url: nextEpisode.episode.stillURL,
+                                fallbackURL: currentTitle.backdropURL ?? currentTitle.posterURL,
                                 showTitle: currentTitle.title,
                                 episodeLabel: nextEpisodeLabel,
                                 palette: currentTitle.palette

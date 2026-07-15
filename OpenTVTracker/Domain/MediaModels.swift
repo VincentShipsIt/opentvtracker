@@ -102,6 +102,7 @@ struct EpisodeSummary: Codable, Hashable, Identifiable, Sendable {
     let runtimeMinutes: Int?
     var overview: String?
     var stillURL: URL?
+    var rating: Double? = nil
 }
 
 struct SeasonSummary: Codable, Hashable, Identifiable, Sendable {

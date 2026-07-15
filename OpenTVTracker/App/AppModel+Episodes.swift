@@ -33,42 +33,73 @@ extension AppModel {
             return
         }
 
-        var watchedIDs = resolvedWatchedEpisodeIDs(for: titles[index])
-        guard watchedIDs.contains(episode.id) != watched else { return }
+        applyEpisodeWatchState(
+            watched,
+            at: index,
+            episodes: [(season, episode)],
+            activityDescription: watched
+                ? "watched \(titles[index].title) S\(season.number) E\(episode.number)"
+                : "marked \(titles[index].title) S\(season.number) E\(episode.number) unwatched",
+            activitySymbol: watched ? "checkmark" : "arrow.uturn.backward"
+        )
+    }
 
-        if watched {
-            watchedIDs.insert(episode.id)
-            titles[index].watchedEpisodeIDs = watchedIDs
-            updateEpisodeProgress(at: index, watchedIDs: watchedIDs)
-            titles[index].lastWatchedAt = .now
-            appendWatchEvent(
-                title: titles[index],
-                kind: .watched,
-                season: season.number,
-                episode: episode.number
-            )
-            addActivity(
-                description: "watched \(titles[index].title) S\(season.number) E\(episode.number)",
-                titleID: titles[index].id
-            )
-        } else {
-            watchedIDs.remove(episode.id)
-            titles[index].watchedEpisodeIDs = watchedIDs
-            updateEpisodeProgress(at: index, watchedIDs: watchedIDs)
-            supersedePersonalWatchEvents(
-                title: titles[index],
-                seasonNumber: season.number,
-                episodeNumber: episode.number
-            )
-            addActivity(
-                description: "marked \(titles[index].title) S\(season.number) E\(episode.number) unwatched",
-                titleID: titles[index].id,
-                symbol: "arrow.uturn.backward"
-            )
+    func setSeasonEpisodesWatched(
+        _ watched: Bool,
+        titleID: MediaTitle.ID,
+        seasonNumber: Int
+    ) {
+        guard let index = trackableTitleIndex(for: titleID),
+              let season = titles[index].seasons?.first(where: { $0.number == seasonNumber }) else {
+            return
         }
 
-        persist()
-        syncSharedStateSoon()
+        let episodes = season.episodes.map { (season: season, episode: $0) }
+        applyEpisodeWatchState(
+            watched,
+            at: index,
+            episodes: episodes,
+            activityDescription: watched
+                ? "watched all of \(titles[index].title) \(season.title)"
+                : "marked \(titles[index].title) \(season.title) unwatched",
+            activitySymbol: watched ? "checkmark.circle.fill" : "arrow.uturn.backward.circle.fill"
+        )
+    }
+
+    func markEpisodesWatchedThrough(
+        titleID: MediaTitle.ID,
+        seasonNumber: Int,
+        episodeNumber: Int
+    ) {
+        guard let index = trackableTitleIndex(for: titleID) else { return }
+        let episodes = episodesThrough(
+            title: titles[index],
+            seasonNumber: seasonNumber,
+            episodeNumber: episodeNumber
+        )
+        applyEpisodeWatchState(
+            true,
+            at: index,
+            episodes: episodes,
+            activityDescription: "watched \(titles[index].title) through S\(seasonNumber) E\(episodeNumber)",
+            activitySymbol: "checkmark.circle.fill"
+        )
+    }
+
+    func areEpisodesWatchedThrough(
+        titleID: MediaTitle.ID,
+        seasonNumber: Int,
+        episodeNumber: Int
+    ) -> Bool {
+        guard let title = mediaTitle(withID: titleID) else { return false }
+        let episodes = episodesThrough(
+            title: title,
+            seasonNumber: seasonNumber,
+            episodeNumber: episodeNumber
+        )
+        guard !episodes.isEmpty else { return false }
+        let watchedIDs = resolvedWatchedEpisodeIDs(for: title)
+        return episodes.allSatisfy { watchedIDs.contains($0.episode.id) }
     }
 
     func nextUnwatchedEpisode(
@@ -115,6 +146,64 @@ extension AppModel {
 }
 
 private extension AppModel {
+    func applyEpisodeWatchState(
+        _ watched: Bool,
+        at index: Int,
+        episodes: [(season: SeasonSummary, episode: EpisodeSummary)],
+        activityDescription: String,
+        activitySymbol: String
+    ) {
+        var watchedIDs = resolvedWatchedEpisodeIDs(for: titles[index])
+        let changedEpisodes = episodes.filter { watchedIDs.contains($0.episode.id) != watched }
+        guard !changedEpisodes.isEmpty else { return }
+
+        for item in changedEpisodes {
+            if watched {
+                watchedIDs.insert(item.episode.id)
+                appendWatchEvent(
+                    title: titles[index],
+                    kind: .watched,
+                    season: item.season.number,
+                    episode: item.episode.number
+                )
+            } else {
+                watchedIDs.remove(item.episode.id)
+                supersedePersonalWatchEvents(
+                    title: titles[index],
+                    seasonNumber: item.season.number,
+                    episodeNumber: item.episode.number
+                )
+            }
+        }
+
+        titles[index].watchedEpisodeIDs = watchedIDs
+        updateEpisodeProgress(at: index, watchedIDs: watchedIDs)
+        if watched {
+            titles[index].lastWatchedAt = .now
+        }
+        addActivity(
+            description: activityDescription,
+            titleID: titles[index].id,
+            symbol: activitySymbol
+        )
+        persist()
+        syncSharedStateSoon()
+    }
+
+    func episodesThrough(
+        title: MediaTitle,
+        seasonNumber: Int,
+        episodeNumber: Int
+    ) -> [(season: SeasonSummary, episode: EpisodeSummary)] {
+        regularSeasons(for: title).flatMap { season -> [(season: SeasonSummary, episode: EpisodeSummary)] in
+            guard season.number <= seasonNumber else { return [] }
+            return season.episodes
+                .filter { season.number < seasonNumber || $0.number <= episodeNumber }
+                .sorted { $0.number < $1.number }
+                .map { (season: season, episode: $0) }
+        }
+    }
+
     func resolvedWatchedEpisodeIDs(for title: MediaTitle) -> Set<EpisodeSummary.ID> {
         if let watchedEpisodeIDs = title.watchedEpisodeIDs { return watchedEpisodeIDs }
         let seasons = regularSeasons(for: title)

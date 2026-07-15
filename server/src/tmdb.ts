@@ -85,6 +85,7 @@ export type EpisodeSummary = {
   runtimeMinutes: number | null;
   overview: string | null;
   stillURL: string | null;
+  rating: number | null;
 };
 
 type SeasonSummary = {
@@ -378,6 +379,7 @@ export function mapEpisodeSummary(
     runtimeMinutes: numberValue(episode.runtime),
     overview: stringValue(episode.overview)?.trim() || null,
     stillURL: imageURL(stringValue(episode.still_path), "w500"),
+    rating: numberValue(episode.vote_average),
   };
 }
 
