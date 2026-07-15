@@ -1,5 +1,86 @@
 import SwiftUI
 
+struct MediaProgressRow: View {
+    let title: MediaTitle
+    let summary: MediaProgressSummary
+    var subtitle: String?
+
+    var body: some View {
+        GlassSurface(cornerRadius: AppTheme.compactRadius, tint: Color(hex: title.palette.primaryHex)) {
+            HStack(spacing: 14) {
+                PosterArtwork(title: title, cornerRadius: 10)
+                    .frame(width: 68, height: 96)
+                    .clipped()
+                    .clipShape(.rect(cornerRadius: 10))
+                    .accessibilityHidden(true)
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(title.title)
+                        .font(.headline)
+                        .lineLimit(2)
+
+                    if let subtitle {
+                        Text(subtitle)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+
+                    Text(summary.label)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Color.accentColor)
+                        .lineLimit(2)
+
+                    ProgressView(value: summary.fraction)
+                        .tint(Color.accentColor)
+                        .accessibilityLabel("Viewing progress")
+                        .accessibilityValue(summary.label)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
+            }
+            .padding(12)
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
+struct MediaProgressPosterCard: View {
+    let title: MediaTitle
+    let summary: MediaProgressSummary
+    var subtitle: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ZStack(alignment: .bottom) {
+                PosterArtwork(title: title, cornerRadius: 14)
+                    .aspectRatio(0.68, contentMode: .fit)
+
+                ProgressView(value: summary.fraction)
+                    .tint(Color.accentColor)
+                    .padding(.horizontal, 8)
+                    .padding(.bottom, 7)
+                    .accessibilityLabel("Viewing progress")
+                    .accessibilityValue(summary.label)
+            }
+
+            Text(title.title)
+                .font(.headline)
+                .lineLimit(1)
+
+            Text(subtitle ?? summary.label)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
 struct TrackingSummaryCard: View {
     let title: MediaTitle
     let watchedEpisodeCount: Int

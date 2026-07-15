@@ -217,6 +217,21 @@ final class AppModelTests: XCTestCase {
         XCTAssertFalse(model.isEpisodeWatched(titleID: "severance", seasonNumber: 2, episodeID: "s2e2"))
     }
 
+    func testMarkWatchedCompletesEveryKnownEpisode() throws {
+        var snapshot = LibrarySnapshot.sample
+        let titleIndex = try XCTUnwrap(snapshot.titles.firstIndex(where: { $0.id == "severance" }))
+        snapshot.titles[titleIndex].seasons = Self.episodeTrackingSeasons
+        snapshot.titles[titleIndex].watchedEpisodeIDs = []
+        let model = AppModel(store: MemoryLibraryStore(), seed: snapshot)
+
+        model.markWatched("severance")
+
+        let title = try XCTUnwrap(model.mediaTitle(withID: "severance"))
+        XCTAssertEqual(title.state, .completed)
+        XCTAssertEqual(title.watchedEpisodeIDs, Set(["s1e1", "s1e2", "s2e1", "s2e2"]))
+        XCTAssertEqual(model.progressSummary(for: title).fraction, 1)
+    }
+
     func testEpisodeSwipeTrackingPersistsExactEpisode() async throws {
         var snapshot = LibrarySnapshot.sample
         let titleIndex = try XCTUnwrap(snapshot.titles.firstIndex(where: { $0.id == "severance" }))

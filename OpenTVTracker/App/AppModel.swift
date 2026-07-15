@@ -167,12 +167,17 @@ extension AppModel {
     }
 
     func setWatchState(_ state: WatchState, for id: MediaTitle.ID) {
+        if state == .completed {
+            markWatched(id)
+            return
+        }
         guard let index = trackableTitleIndex(for: id) else { return }
         titles[index].state = state
         if state == .planned {
             titles[index].personalWatchlist = true
         }
         persist()
+        refreshRecommendationsSoon()
     }
 
     func setUserRating(_ rating: Double?, for id: MediaTitle.ID) {
@@ -329,7 +334,7 @@ extension AppModel {
         }
     }
 
-    private func refreshRecommendationsSoon() {
+    func refreshRecommendationsSoon() {
         Task { await refreshRecommendations() }
     }
 

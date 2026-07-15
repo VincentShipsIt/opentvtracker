@@ -3,6 +3,43 @@ import XCTest
 
 @MainActor
 final class EpisodeTrackingTests: XCTestCase {
+    func testMarkWatchedFromCatalogAddsTitleToRecommendationHistory() async throws {
+        let catalog = LocalCatalogService(titles: LibrarySnapshot.sample.titles)
+        let model = AppModel(
+            store: MemoryLibraryStore(),
+            catalogService: catalog,
+            seed: .empty
+        )
+
+        await model.searchCatalog(text: "Past Lives")
+        model.markWatched("past-lives")
+
+        let title = try XCTUnwrap(model.mediaTitle(withID: "past-lives"))
+        XCTAssertEqual(title.state, .completed)
+        XCTAssertFalse(title.isOnPersonalWatchlist)
+        XCTAssertNotNil(title.lastWatchedAt)
+        XCTAssertEqual(model.sharedSpace.watchEvents?.last?.kind, .watched)
+    }
+
+    func testTogetherActivityExcludesCurrentUsersSoloViewing() {
+        let model = AppModel(store: MemoryLibraryStore(), seed: .sample)
+
+        XCTAssertFalse(model.togetherActivity.contains(where: { $0.id == "activity-2" }))
+        XCTAssertTrue(model.togetherActivity.contains(where: { $0.id == "activity-1" }))
+        XCTAssertTrue(model.togetherActivity.contains(where: { $0.id == "activity-3" }))
+    }
+
+    func testProfileHistorySortsMostRecentlyWatchedFirst() throws {
+        var snapshot = LibrarySnapshot.sample
+        let olderIndex = try XCTUnwrap(snapshot.titles.firstIndex(where: { $0.id == "severance" }))
+        let newerIndex = try XCTUnwrap(snapshot.titles.firstIndex(where: { $0.id == "arrival" }))
+        snapshot.titles[olderIndex].lastWatchedAt = Date(timeIntervalSince1970: 100)
+        snapshot.titles[newerIndex].lastWatchedAt = Date(timeIntervalSince1970: 200)
+        let model = AppModel(store: MemoryLibraryStore(), seed: snapshot)
+
+        XCTAssertEqual(model.recentlyWatchedTitles.map(\.id), ["arrival", "severance"])
+    }
+
     func testMarkAllSeasonEpisodesWatchedUpdatesEveryEpisodeOnce() throws {
         let model = try makeModel()
         let originalActivityCount = model.sharedSpace.activity.count
@@ -53,6 +90,17 @@ final class EpisodeTrackingTests: XCTestCase {
         XCTAssertEqual(model.sharedSpace.watchEvents?.map(\.kind), [
             .watched, .watched, .correction, .correction
         ])
+    }
+
+    func testProgressSummaryCountsEpisodesAcrossSeasons() throws {
+        let model = try makeModel()
+
+        model.markEpisodesWatchedThrough(titleID: "severance", seasonNumber: 2, episodeNumber: 1)
+
+        let title = try XCTUnwrap(model.mediaTitle(withID: "severance"))
+        let summary = model.progressSummary(for: title)
+        XCTAssertEqual(summary.label, "3 of 4 episodes")
+        XCTAssertEqual(summary.fraction, 0.75)
     }
 
     private func makeModel() throws -> AppModel {

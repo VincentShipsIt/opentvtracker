@@ -94,6 +94,16 @@ struct EpisodeProgress: Codable, Hashable, Sendable {
     }
 }
 
+struct MediaProgressSummary: Hashable, Sendable {
+    let label: String
+    let fraction: Double
+
+    init(label: String, fraction: Double) {
+        self.label = label
+        self.fraction = min(max(fraction, 0), 1)
+    }
+}
+
 struct EpisodeSummary: Codable, Hashable, Identifiable, Sendable {
     let id: String
     let number: Int
@@ -102,7 +112,7 @@ struct EpisodeSummary: Codable, Hashable, Identifiable, Sendable {
     let runtimeMinutes: Int?
     var overview: String?
     var stillURL: URL?
-    var rating: Double? = nil
+    var rating: Double?
 }
 
 struct SeasonSummary: Codable, Hashable, Identifiable, Sendable {

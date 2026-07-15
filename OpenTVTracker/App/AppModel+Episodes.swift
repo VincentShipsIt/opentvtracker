@@ -1,6 +1,58 @@
 import Foundation
 
 extension AppModel {
+    func progressSummary(for title: MediaTitle) -> MediaProgressSummary {
+        guard title.kind == .series else {
+            return MediaProgressSummary(
+                label: title.state == .completed ? "Watched" : "Not watched yet",
+                fraction: title.state == .completed ? 1 : 0
+            )
+        }
+
+        let seasons = (title.seasons ?? []).filter { $0.number > 0 }
+        let totalEpisodeCount = seasons.reduce(0) { $0 + $1.episodes.count }
+        guard totalEpisodeCount > 0 else {
+            return MediaProgressSummary(
+                label: title.progress?.label ?? title.state.label,
+                fraction: title.state == .completed ? 1 : title.progress?.fraction ?? 0
+            )
+        }
+
+        let watchedEpisodeCount = seasons.reduce(0) { count, season in
+            count + watchedEpisodeCount(titleID: title.id, season: season)
+        }
+        return MediaProgressSummary(
+            label: "\(watchedEpisodeCount) of \(totalEpisodeCount) episodes",
+            fraction: Double(watchedEpisodeCount) / Double(totalEpisodeCount)
+        )
+    }
+
+    func togetherProgressSummary(for title: MediaTitle) -> MediaProgressSummary {
+        let togetherEvents = (sharedSpace.watchEvents ?? []).filter {
+            $0.titleID == title.id && $0.kind == .watchedTogether
+        }
+        guard !togetherEvents.isEmpty else { return progressSummary(for: title) }
+
+        guard title.kind == .series else {
+            return MediaProgressSummary(label: "Watched together", fraction: 1)
+        }
+
+        let totalEpisodeCount = (title.seasons ?? [])
+            .filter { $0.number > 0 }
+            .reduce(0) { $0 + $1.episodes.count }
+        let watchedEpisodes = Set(togetherEvents.compactMap { event -> String? in
+            guard let season = event.season, let episode = event.episode else { return nil }
+            return "\(season):\(episode)"
+        })
+        guard totalEpisodeCount > 0, !watchedEpisodes.isEmpty else {
+            return MediaProgressSummary(label: "Watched together", fraction: title.state == .completed ? 1 : 0)
+        }
+        return MediaProgressSummary(
+            label: "\(watchedEpisodes.count) of \(totalEpisodeCount) episodes together",
+            fraction: Double(watchedEpisodes.count) / Double(totalEpisodeCount)
+        )
+    }
+
     func isEpisodeWatched(
         titleID: MediaTitle.ID,
         seasonNumber: Int,
