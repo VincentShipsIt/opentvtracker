@@ -39,7 +39,8 @@ Bun.serve({
         if (!tmdb) return configurationError();
         const kind = catalogMatch[1] as MediaKind;
         const id = Number(catalogMatch[2]);
-        const result = await tmdb.title(kind, id, "MT");
+        const region = regionCode(url.searchParams.get("region") ?? "MT");
+        const result = await tmdb.title(kind, id, region);
         return response(result, 200, true);
       }
 

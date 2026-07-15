@@ -44,7 +44,7 @@ struct TVMazeCatalogService: CatalogProviding {
         return results.map(\.show.mediaTitle)
     }
 
-    func title(kind: MediaKind, catalogID: Int) async throws -> MediaTitle {
+    func title(kind: MediaKind, catalogID: Int, region _: StreamingRegion) async throws -> MediaTitle {
         guard kind == .series else { throw CatalogServiceError.notFound }
         let url = try endpoint(path: "shows/\(catalogID)", queryItems: [
             URLQueryItem(name: "embed", value: "episodes")

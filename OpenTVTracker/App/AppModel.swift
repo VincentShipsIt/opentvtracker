@@ -14,6 +14,7 @@ final class AppModel {
     var sharedSpace: SharedSpace
     private(set) var selectedProviderIDs: Set<StreamingProvider.ID>
     private(set) var allowsAIReranking: Bool
+    private(set) var streamingRegionOverride: StreamingRegion?
     private(set) var hasLoaded = false
     var persistenceError: String?
     private(set) var remoteRankedRecommendations: [Recommendation] = []
@@ -48,6 +49,7 @@ final class AppModel {
         sharedSpace = seed.sharedSpace
         selectedProviderIDs = seed.selectedProviderIDs ?? Self.defaultProviderIDs
         allowsAIReranking = seed.allowsAIReranking ?? false
+        streamingRegionOverride = seed.streamingRegionCode.flatMap(StreamingRegion.init(code:))
     }
     var upNext: [MediaTitle] {
         titles
@@ -84,14 +86,6 @@ final class AppModel {
             )
         )
     }
-    var titlesOnSelectedProviders: [MediaTitle] {
-        titles.filter(isAvailableOnSelectedProviders)
-    }
-
-    var selectedProviders: [StreamingProvider] {
-        StreamingProvider.supportedSubscriptions.filter { selectedProviderIDs.contains($0.id) }
-    }
-
     var sharedTitles: [MediaTitle] {
         let sharedIDs = Set(sharedSpace.titleIDs)
         return titles.filter { sharedIDs.contains($0.id) }
@@ -102,7 +96,8 @@ final class AppModel {
             titles: titles,
             sharedSpace: sharedSpace,
             selectedProviderIDs: selectedProviderIDs,
-            allowsAIReranking: allowsAIReranking
+            allowsAIReranking: allowsAIReranking,
+            streamingRegionCode: streamingRegionOverride?.code
         )
     }
 
@@ -128,6 +123,7 @@ final class AppModel {
                 sharedSpace = snapshot.sharedSpace
                 selectedProviderIDs = snapshot.selectedProviderIDs ?? Self.defaultProviderIDs
                 allowsAIReranking = snapshot.allowsAIReranking ?? false
+                streamingRegionOverride = snapshot.streamingRegionCode.flatMap(StreamingRegion.init(code:))
             }
         } catch {
             persistenceError = "Your saved library could not be opened. Your catalog and saved data remain separate."
@@ -228,11 +224,16 @@ extension AppModel {
         refreshRecommendationsSoon()
     }
 
+    func storeStreamingRegionOverride(_ region: StreamingRegion?) {
+        streamingRegionOverride = region
+    }
+
     func replaceLibrary(with snapshot: LibrarySnapshot) {
         titles = merging(savedTitles: snapshot.titles, catalogTitles: seed.titles)
         sharedSpace = snapshot.sharedSpace
         selectedProviderIDs = snapshot.selectedProviderIDs ?? Self.defaultProviderIDs
         allowsAIReranking = snapshot.allowsAIReranking ?? false
+        streamingRegionOverride = snapshot.streamingRegionCode.flatMap(StreamingRegion.init(code:))
         persist()
     }
 

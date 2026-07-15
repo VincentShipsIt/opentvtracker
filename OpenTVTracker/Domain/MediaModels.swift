@@ -300,19 +300,22 @@ struct LibrarySnapshot: Codable, Hashable, Sendable {
     var sharedSpace: SharedSpace
     var selectedProviderIDs: Set<StreamingProvider.ID>?
     var allowsAIReranking: Bool?
+    var streamingRegionCode: String?
 
     init(
         titles: [MediaTitle],
         sharedSpace: SharedSpace,
         selectedProviderIDs: Set<StreamingProvider.ID>? = nil,
         allowsAIReranking: Bool = false,
-        schemaVersion: Int = 2
+        streamingRegionCode: String? = nil,
+        schemaVersion: Int = 3
     ) {
         self.schemaVersion = schemaVersion
         self.titles = titles
         self.sharedSpace = sharedSpace
         self.selectedProviderIDs = selectedProviderIDs
         self.allowsAIReranking = allowsAIReranking
+        self.streamingRegionCode = streamingRegionCode
     }
 }
 
