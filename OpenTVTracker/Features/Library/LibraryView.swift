@@ -43,7 +43,6 @@ struct LibraryView: View {
                 }
                 .padding(.top, 8)
             }
-            .navigationTitle("Library")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Import or export", systemImage: "arrow.up.arrow.down") {

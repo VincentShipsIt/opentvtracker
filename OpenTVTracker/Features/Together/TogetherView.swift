@@ -4,8 +4,6 @@ struct TogetherView: View {
     @Environment(AppModel.self) private var model
     @State private var presentedSheet: TogetherSheet?
 
-    private let columns = [GridItem(.adaptive(minimum: 142), spacing: 14)]
-
     var body: some View {
         NavigationStack {
             ZStack {
@@ -14,15 +12,14 @@ struct TogetherView: View {
                 ScrollView {
                     LazyVStack(spacing: AppTheme.sectionSpacing) {
                         spaceHeader
-                        analyticsLink
                         sharedWatchlist
                         recentActivity
+                        analyticsLink
                     }
                     .padding(.horizontal, AppTheme.horizontalPadding)
                     .padding(.bottom, 32)
                 }
             }
-            .navigationTitle("Together")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Connect partner", systemImage: "person.badge.plus") {
@@ -85,13 +82,29 @@ struct TogetherView: View {
 
     private var sharedWatchlist: some View {
         VStack(alignment: .leading, spacing: 14) {
-            SectionHeading(title: "Our watchlist", subtitle: "\(model.sharedTitles.count) titles you both can move forward")
-            LazyVGrid(columns: columns, spacing: 14) {
-                ForEach(model.sharedTitles) { title in
-                    NavigationLink(value: title) {
-                        SharedPosterCard(title: title)
+            SectionHeading(
+                title: "Our shows",
+                subtitle: "\(model.sharedTitles.count) shared titles · progress follows seasons and episodes"
+            )
+            if model.sharedTitles.isEmpty {
+                ContentUnavailableView(
+                    "No shared shows yet",
+                    systemImage: "person.2.badge.plus",
+                    description: Text("Add a title to Our watchlist from its details page.")
+                )
+                .frame(minHeight: 180)
+            } else {
+                LazyVStack(spacing: 12) {
+                    ForEach(model.sharedTitles) { title in
+                        NavigationLink(value: title) {
+                            MediaProgressRow(
+                                title: title,
+                                summary: model.togetherProgressSummary(for: title),
+                                subtitle: sharedTitleSubtitle(for: title)
+                            )
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
                 }
             }
         }
@@ -109,11 +122,16 @@ struct TogetherView: View {
         .accessibilityIdentifier("together.viewing-analytics")
     }
 
+    private func sharedTitleSubtitle(for title: MediaTitle) -> String {
+        if title.kind == .movie { return "Shared movie" }
+        return title.state == .planned ? "Shared watchlist" : "Watching together"
+    }
+
     @ViewBuilder
     private var recentActivity: some View {
         VStack(alignment: .leading, spacing: 14) {
             SectionHeading(title: "Recent activity", subtitle: "Spoiler-safe by default")
-            if model.sharedSpace.activity.isEmpty {
+            if model.togetherActivity.isEmpty {
                 ContentUnavailableView(
                     "Nothing watched together yet",
                     systemImage: "rectangle.stack.badge.plus",
@@ -122,7 +140,7 @@ struct TogetherView: View {
                 .frame(minHeight: 220)
             } else {
                 LazyVStack(spacing: 12) {
-                    ForEach(model.sharedSpace.activity) { activity in
+                    ForEach(model.togetherActivity) { activity in
                         ActivityCard(
                             activity: activity,
                             space: model.sharedSpace,
@@ -132,24 +150,6 @@ struct TogetherView: View {
                 }
             }
         }
-    }
-}
-
-private struct SharedPosterCard: View {
-    let title: MediaTitle
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            PosterArtwork(title: title)
-                .aspectRatio(0.70, contentMode: .fit)
-            Text(title.title)
-                .font(.headline)
-                .lineLimit(1)
-            Text(title.progressLabel)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-        .accessibilityElement(children: .combine)
     }
 }
 

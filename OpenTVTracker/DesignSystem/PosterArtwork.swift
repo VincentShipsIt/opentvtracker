@@ -32,7 +32,7 @@ struct BackdropArtwork: View {
 
     var body: some View {
         NetworkArtwork(
-            url: title.backdropURL,
+            url: title.backdropURL ?? title.posterURL,
             title: title,
             style: .backdrop
         )

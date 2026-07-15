@@ -8,89 +8,48 @@ struct ActivityCard: View {
 
     var body: some View {
         GlassSurface(cornerRadius: AppTheme.compactRadius, tint: cardTint) {
-            VStack(spacing: 0) {
-                header
-                    .padding(.horizontal, 14)
-                    .padding(.top, 12)
-
-                Divider()
-                    .padding(.top, 10)
-
-                mediaContent
-                    .padding(12)
-
-                Divider()
-
-                reactionBar
-                    .padding(.horizontal, 14)
-                    .frame(minHeight: 50)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            mediaContent
+                .padding(12)
         }
         .accessibilityElement(children: .contain)
-    }
-
-    private var header: some View {
-        HStack(spacing: 9) {
-            Text(member.initials)
-                .font(.caption2.weight(.bold))
-                .foregroundStyle(.white)
-                .frame(width: 30, height: 30)
-                .background(Color.accentColor.gradient, in: Circle())
-                .accessibilityHidden(true)
-
-            Text(member.name)
-                .font(.subheadline.weight(.semibold))
-
-            Spacer(minLength: 8)
-
-            Label(activity.relativeDate, systemImage: "clock")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-        .accessibilityElement(children: .combine)
     }
 
     @ViewBuilder
     private var mediaContent: some View {
         if let title {
-            NavigationLink(value: title) {
-                HStack(spacing: 14) {
-                    PosterArtwork(title: title, cornerRadius: 10)
-                        .frame(width: 70, height: 96)
-                        .accessibilityHidden(true)
+            HStack(spacing: 10) {
+                NavigationLink(value: title) {
+                    HStack(spacing: 14) {
+                        PosterArtwork(title: title, cornerRadius: 10)
+                            .frame(width: 66, height: 92)
+                            .clipped()
+                            .clipShape(.rect(cornerRadius: 10))
+                            .accessibilityHidden(true)
 
-                    VStack(alignment: .leading, spacing: 7) {
-                        Text(activity.description)
-                            .font(.headline)
-                            .foregroundStyle(.primary)
-                            .multilineTextAlignment(.leading)
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(title.title)
+                                .font(.headline)
+                                .foregroundStyle(.primary)
+                                .multilineTextAlignment(.leading)
 
-                        Text(verbatim: metadata(for: title))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                            Text(activitySummary(for: title))
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(2)
 
-                        if let provider = title.providers.first {
-                            Label(provider.name, systemImage: provider.symbol)
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(cardTint ?? Color.accentColor)
-                        } else if let genre = title.genres.first {
-                            Label(genre, systemImage: "tag.fill")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(cardTint ?? Color.accentColor)
+                            Label("\(member.name) · \(activity.relativeDate)", systemImage: activity.symbol)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                    Image(systemName: "chevron.right")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(.tertiary)
-                        .accessibilityHidden(true)
+                    .contentShape(.rect)
                 }
-                .contentShape(.rect)
+                .buttonStyle(.plain)
+                .accessibilityHint("Opens \(title.title)")
+
+                reactionMenu
             }
-            .buttonStyle(.plain)
-            .accessibilityHint("Opens \(title.title)")
         } else {
             HStack(spacing: 14) {
                 Image(systemName: activity.symbol)
@@ -103,45 +62,36 @@ struct ActivityCard: View {
                 Text(activity.description)
                     .font(.headline)
                     .frame(maxWidth: .infinity, alignment: .leading)
+
+                reactionMenu
             }
         }
     }
 
-    private var reactionBar: some View {
-        HStack(spacing: 12) {
-            if reactionCounts.isEmpty {
-                Text("Be the first to react")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } else {
-                ForEach(reactionCounts) { reaction in
-                    Label("\(reaction.count)", systemImage: reaction.symbol)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
+    private var reactionMenu: some View {
+        Menu {
+            Button("Love", systemImage: "heart.fill") {
+                model.react(to: activity.id, symbol: "heart.fill")
+            }
+            Button("Nice", systemImage: "hand.thumbsup.fill") {
+                model.react(to: activity.id, symbol: "hand.thumbsup.fill")
+            }
+            Button("Funny", systemImage: "face.smiling.fill") {
+                model.react(to: activity.id, symbol: "face.smiling.fill")
+            }
+        } label: {
+            VStack(spacing: 4) {
+                Image(systemName: reactionSymbol)
+                    .font(.body.weight(.semibold))
+                if !reactionCounts.isEmpty {
+                    Text(reactionCounts.reduce(0) { $0 + $1.count }, format: .number)
+                        .font(.caption2.weight(.semibold))
                 }
             }
-
-            Spacer(minLength: 8)
-
-            Menu {
-                Button("Love", systemImage: "heart.fill") {
-                    model.react(to: activity.id, symbol: "heart.fill")
-                }
-                Button("Nice", systemImage: "hand.thumbsup.fill") {
-                    model.react(to: activity.id, symbol: "hand.thumbsup.fill")
-                }
-                Button("Funny", systemImage: "face.smiling.fill") {
-                    model.react(to: activity.id, symbol: "face.smiling.fill")
-                }
-            } label: {
-                Label(currentReaction == nil ? "React" : "Reacted", systemImage: reactionSymbol)
-                    .font(.caption.weight(.semibold))
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(Color.accentColor.opacity(0.12), in: Capsule())
-            }
-            .accessibilityLabel(currentReaction == nil ? "React to activity" : "Change reaction")
+            .foregroundStyle(currentReaction == nil ? Color.secondary : Color.accentColor)
+            .frame(width: 44, height: 44)
         }
+        .accessibilityLabel(currentReaction == nil ? "React to activity" : "Change reaction")
     }
 
     private var member: SpaceMember {
@@ -171,12 +121,14 @@ struct ActivityCard: View {
         title.map { Color(hex: $0.palette.primaryHex) }
     }
 
-    private func metadata(for title: MediaTitle) -> String {
-        var values = [String(title.year), title.kind.label]
-        if title.runtimeMinutes > 0 {
-            values.append("\(title.runtimeMinutes) min")
-        }
-        return values.joined(separator: " · ")
+    private func activitySummary(for title: MediaTitle) -> String {
+        activity.description.replacingOccurrences(
+            of: title.title,
+            with: "",
+            options: [.caseInsensitive]
+        )
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+        .capitalized
     }
 }
 

@@ -1,6 +1,15 @@
 import Foundation
 
 extension AppModel {
+    var togetherActivity: [SharedActivity] {
+        let currentMemberID = sharedSpace.members.first(where: \.isCurrentUser)?.id
+        return sharedSpace.activity.filter { activity in
+            activity.memberID != currentMemberID
+                || activity.description.localizedCaseInsensitiveContains(" together")
+                || activity.description.lowercased().hasPrefix("added ")
+        }
+    }
+
     func addActivity(
         description: String,
         titleID: MediaTitle.ID? = nil,
