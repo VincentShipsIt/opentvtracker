@@ -125,6 +125,53 @@ final class AppModelTests: XCTestCase {
         XCTAssertTrue(model.titles.contains(where: { $0.id == "fallout" }))
     }
 
+    func testRefreshingCatalogDetailsPreservesTrackingAndLoadsEpisodes() async throws {
+        var liveSnapshot = LibrarySnapshot.sample
+        let liveIndex = try XCTUnwrap(liveSnapshot.titles.firstIndex(where: { $0.id == "severance" }))
+        liveSnapshot.titles[liveIndex].rating = 9.2
+        liveSnapshot.titles[liveIndex].reviews = [
+            CommunityReview(
+                id: "live-review",
+                author: "Reviewer",
+                excerpt: "Live review",
+                rating: 9,
+                source: "TMDB",
+                containsSpoilers: false
+            )
+        ]
+        liveSnapshot.titles[liveIndex].seasons = [
+            SeasonSummary(
+                id: "season-1",
+                number: 1,
+                title: "Season 1",
+                episodes: [
+                    EpisodeSummary(
+                        id: "episode-1",
+                        number: 1,
+                        title: "Good News About Hell",
+                        airDate: nil,
+                        runtimeMinutes: 57
+                    )
+                ]
+            )
+        ]
+        let model = AppModel(
+            store: MemoryLibraryStore(),
+            catalogService: LocalCatalogService(titles: liveSnapshot.titles),
+            seed: .sample
+        )
+
+        await model.refreshCatalogDetails(for: "severance")
+
+        let refreshed = try XCTUnwrap(model.mediaTitle(withID: "severance"))
+        XCTAssertEqual(refreshed.id, "severance")
+        XCTAssertEqual(refreshed.state, .watching)
+        XCTAssertEqual(refreshed.progress?.episode, 3)
+        XCTAssertEqual(refreshed.rating, 9.2)
+        XCTAssertEqual(refreshed.reviews.first?.id, "live-review")
+        XCTAssertEqual(refreshed.seasons?.first?.episodes.first?.runtimeMinutes, 57)
+    }
+
     func testTrackingMetadataAndExplicitCorrectionPersist() async throws {
         let store = MemoryLibraryStore()
         let model = AppModel(store: store, seed: .sample)

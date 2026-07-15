@@ -20,6 +20,8 @@
 	<string>1</string>
 	<key>CKSharingSupported</key>
 	<true/>
+	<key>OpenTVAPIBaseURL</key>
+	<string>$(CATALOG_PROXY_BASE_URL)</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>

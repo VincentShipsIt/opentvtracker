@@ -18,6 +18,9 @@ targets:
   OpenTVTracker:
     type: application
     platform: iOS
+    configFiles:
+      Debug: Config/Base.xcconfig
+      Release: Config/Base.xcconfig
     sources:
       - path: OpenTVTracker
     resources:
@@ -27,6 +30,7 @@ targets:
       path: Config/Info.plist
       properties:
         CKSharingSupported: true
+        OpenTVAPIBaseURL: $(CATALOG_PROXY_BASE_URL)
         UIBackgroundModes:
           - remote-notification
         UILaunchScreen: {}

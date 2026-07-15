@@ -37,7 +37,7 @@ xcodegen generate
 open OpenTVTracker.xcodeproj
 ```
 
-No credentials are committed. Copy `Config/Secrets.example.xcconfig` to `Config/Secrets.xcconfig` when live metadata is introduced.
+No credentials are committed. Copy `Config/Secrets.example.xcconfig` to `Config/Secrets.xcconfig` and set the operator catalog proxy URL to enable live metadata. Provider credentials stay on that server; they never enter the app bundle.
 
 The app runs on iOS 18 and later, including iPhone 11 Pro. To enable partner sharing on a physical device, select your Apple Developer team, attach the `iCloud.dev.shipshit.opentvtracker` CloudKit container to the app identifier, and let Xcode create the provisioning profile. Local tracking does not require iCloud.
 

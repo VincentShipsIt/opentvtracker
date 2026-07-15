@@ -14,6 +14,10 @@ struct CreditsView: View {
                 }
 
                 Section("Data sources") {
+                    LabeledContent(
+                        "Catalog status",
+                        value: AppServiceConfiguration.apiBaseURL == nil ? "Demo data" : "Live proxy"
+                    )
                     Text("This product uses the TMDB API but is not endorsed or certified by TMDB.")
                     Text("Streaming availability data is provided by JustWatch through TMDB and may vary by region.")
                     if let url = URL(string: "https://www.themoviedb.org") {

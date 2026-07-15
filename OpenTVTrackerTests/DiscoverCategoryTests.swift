@@ -15,6 +15,14 @@ final class DiscoverCategoryTests: XCTestCase {
         XCTAssertFalse(movies.contains(where: { $0.state == .completed }))
     }
 
+    func testTopRatedIsSortedByRating() {
+        let titles = DiscoverCategory.topRated.titles(from: LibrarySnapshot.sample.titles)
+
+        XCTAssertFalse(titles.isEmpty)
+        XCTAssertEqual(titles.map(\.rating), titles.map(\.rating).sorted(by: >))
+        XCTAssertTrue(titles.allSatisfy { $0.rating >= 7.5 })
+    }
+
     func testAvailableCategoriesAlwaysHaveAnIllustratedLatestTitle() {
         let sections = DiscoverCategorySection.available(in: LibrarySnapshot.sample.titles)
 

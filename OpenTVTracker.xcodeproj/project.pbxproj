@@ -51,6 +51,7 @@
 		E78D65A6C0CEAEC9E4086993 /* LibraryPersisting.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBBD0032700550FCBAE59CEC /* LibraryPersisting.swift */; };
 		EB957279FF5081E3D3A2B8CA /* LibraryDataView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99D8913E76F6F19B3429126F /* LibraryDataView.swift */; };
 		F301BCF6258EEA4BF0731AC9 /* TitleSimilarityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D071796CAD784E5EE144A4F /* TitleSimilarityTests.swift */; };
+		FA83A3AE5AAF5386C20AE6D3 /* MediaDetailSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = C671EAA408948077CF67A33B /* MediaDetailSections.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -90,9 +91,11 @@
 		8DD57852932292E08916026E /* DiscoverCategoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverCategoryTests.swift; sourceTree = "<group>"; };
 		99D8913E76F6F19B3429126F /* LibraryDataView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryDataView.swift; sourceTree = "<group>"; };
 		9F421A0814951018D922E11F /* TrackingEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackingEditorView.swift; sourceTree = "<group>"; };
+		ABC74D06E46B01B3A7DF3712 /* Base.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Base.xcconfig; sourceTree = "<group>"; };
 		B86F3C7F8062C768E588DC69 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		B9E8BB3ECB7093326FBEC443 /* AppModel+CloudSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+CloudSync.swift"; sourceTree = "<group>"; };
 		C11FB9A5364F1028ACB6AF8B /* CinemaProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CinemaProviding.swift; sourceTree = "<group>"; };
+		C671EAA408948077CF67A33B /* MediaDetailSections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaDetailSections.swift; sourceTree = "<group>"; };
 		C70A44589B6D06A644B3F044 /* CinemaView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CinemaView.swift; sourceTree = "<group>"; };
 		CB86ECFE65B31D28B52695CC /* LibraryTransferTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryTransferTests.swift; sourceTree = "<group>"; };
 		CC818E6FA8B8249F3F7087FB /* RecommendationServices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecommendationServices.swift; sourceTree = "<group>"; };
@@ -131,6 +134,7 @@
 		1A31E610871171452C49C143 /* Details */ = {
 			isa = PBXGroup;
 			children = (
+				C671EAA408948077CF67A33B /* MediaDetailSections.swift */,
 				5656C1D6DE5BAA4A9047ED7E /* MediaDetailView.swift */,
 				4863EC48D5BCE1A5ED7573F5 /* MoreLikeThisView.swift */,
 				9F421A0814951018D922E11F /* TrackingEditorView.swift */,
@@ -174,6 +178,7 @@
 		43313137999C60E13AF14D00 = {
 			isa = PBXGroup;
 			children = (
+				713F37C961978B2F24AC7E24 /* Config */,
 				7CA6EB6FFE0C328CA84AC079 /* OpenTVTracker */,
 				DE7CD70EC07B51368CA00677 /* OpenTVTrackerTests */,
 				F2D407BA4AE2A006F9D641B9 /* Products */,
@@ -191,6 +196,14 @@
 				37F5BE754C5B569E83074721 /* RootTabView.swift */,
 			);
 			path = App;
+			sourceTree = "<group>";
+		};
+		713F37C961978B2F24AC7E24 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				ABC74D06E46B01B3A7DF3712 /* Base.xcconfig */,
+			);
+			path = Config;
 			sourceTree = "<group>";
 		};
 		7CA6EB6FFE0C328CA84AC079 /* OpenTVTracker */ = {
@@ -414,6 +427,7 @@
 				E78D65A6C0CEAEC9E4086993 /* LibraryPersisting.swift in Sources */,
 				E2B5FEB70787BE3DA72B8C7F /* LibraryTransfer.swift in Sources */,
 				D8515D38157AB7E96DE964CD /* LibraryView.swift in Sources */,
+				FA83A3AE5AAF5386C20AE6D3 /* MediaDetailSections.swift in Sources */,
 				0B70093E423593321E3D848B /* MediaDetailView.swift in Sources */,
 				26330BE05DE95CC5FB4FDB78 /* MediaModels.swift in Sources */,
 				A8093A0120751277E97C4B0F /* MoreLikeThisView.swift in Sources */,
@@ -445,6 +459,7 @@
 /* Begin XCBuildConfiguration section */
 		067E93263A2BE3F51551D6B9 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = ABC74D06E46B01B3A7DF3712 /* Base.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = "";
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -629,6 +644,7 @@
 		};
 		A0CF78346DF9631F06C2215C /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = ABC74D06E46B01B3A7DF3712 /* Base.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = "";
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;

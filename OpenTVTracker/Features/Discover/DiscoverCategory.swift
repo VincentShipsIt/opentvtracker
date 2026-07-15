@@ -2,6 +2,7 @@ import Foundation
 
 enum DiscoverCategory: String, CaseIterable, Hashable, Identifiable {
     case newAndHot
+    case topRated
     case scienceFiction
     case comedy
     case mysteryAndThrillers
@@ -14,6 +15,7 @@ enum DiscoverCategory: String, CaseIterable, Hashable, Identifiable {
     var title: String {
         switch self {
         case .newAndHot: "New & hot"
+        case .topRated: "Top rated"
         case .scienceFiction: "Sci-Fi"
         case .comedy: "Comedy"
         case .mysteryAndThrillers: "Mystery"
@@ -26,6 +28,7 @@ enum DiscoverCategory: String, CaseIterable, Hashable, Identifiable {
     var subtitle: String {
         switch self {
         case .newAndHot: "The newest arrivals on your services"
+        case .topRated: "The strongest scores on services you have"
         case .scienceFiction: "Big worlds and stranger futures"
         case .comedy: "Sharp, warm, and easy to start"
         case .mysteryAndThrillers: "Secrets, spies, and tense nights"
@@ -38,6 +41,7 @@ enum DiscoverCategory: String, CaseIterable, Hashable, Identifiable {
     var symbol: String {
         switch self {
         case .newAndHot: "flame.fill"
+        case .topRated: "star.fill"
         case .scienceFiction: "sparkles"
         case .comedy: "face.smiling.fill"
         case .mysteryAndThrillers: "eye.fill"
@@ -50,6 +54,7 @@ enum DiscoverCategory: String, CaseIterable, Hashable, Identifiable {
     var palette: PosterPalette {
         switch self {
         case .newAndHot: PosterPalette(primaryHex: "FF6B35", secondaryHex: "B42318")
+        case .topRated: PosterPalette(primaryHex: "F4B400", secondaryHex: "754C00")
         case .scienceFiction: PosterPalette(primaryHex: "4F7CFF", secondaryHex: "19224D")
         case .comedy: PosterPalette(primaryHex: "FFB547", secondaryHex: "A64B2A")
         case .mysteryAndThrillers: PosterPalette(primaryHex: "6650A4", secondaryHex: "19152A")
@@ -60,9 +65,15 @@ enum DiscoverCategory: String, CaseIterable, Hashable, Identifiable {
     }
 
     func titles(from catalog: [MediaTitle]) -> [MediaTitle] {
-        catalog
-            .filter { $0.state != .completed && matches($0) }
-            .sorted {
+        let matchingTitles = catalog.filter { $0.state != .completed && matches($0) }
+        if self == .topRated {
+            return matchingTitles.sorted {
+                if $0.rating != $1.rating { return $0.rating > $1.rating }
+                if $0.year != $1.year { return $0.year > $1.year }
+                return $0.title.localizedStandardCompare($1.title) == .orderedAscending
+            }
+        }
+        return matchingTitles.sorted {
                 if $0.year != $1.year { return $0.year > $1.year }
                 if $0.rating != $1.rating { return $0.rating > $1.rating }
                 return $0.title.localizedStandardCompare($1.title) == .orderedAscending
@@ -77,6 +88,8 @@ enum DiscoverCategory: String, CaseIterable, Hashable, Identifiable {
         switch self {
         case .newAndHot:
             true
+        case .topRated:
+            title.rating >= 7.5
         case .scienceFiction:
             title.genres.contains("Sci-Fi")
         case .comedy:

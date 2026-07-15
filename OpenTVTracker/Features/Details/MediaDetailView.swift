@@ -17,8 +17,9 @@ struct MediaDetailView: View {
                         hero(title)
                         actions(title)
                         story(title)
+                        MediaRatingSummary(title: title)
                         availability(title)
-                        episodes(title)
+                        MediaEpisodeSection(title: title)
                         if title.kind == .movie {
                             TitleCinemaAvailability(title: title)
                         }
@@ -33,6 +34,9 @@ struct MediaDetailView: View {
         }
         .navigationTitle(title?.title ?? "Details")
         .navigationBarTitleDisplayMode(.inline)
+        .task(id: titleID) {
+            await model.refreshCatalogDetails(for: titleID)
+        }
         .sheet(item: $presentedTrailer) { trailer in
             TrailerPlayerView(trailer: trailer)
         }
@@ -49,30 +53,8 @@ struct MediaDetailView: View {
         }
     }
 
-    @ViewBuilder
-    private func episodes(_ title: MediaTitle) -> some View {
-        if let seasons = title.seasons, !seasons.isEmpty {
-            VStack(alignment: .leading, spacing: 12) {
-                SectionHeading(title: "Episodes", subtitle: "Air dates and runtimes from TMDB")
-                ForEach(seasons) { season in
-                    DisclosureGroup(season.title) {
-                        ForEach(season.episodes) { episode in
-                            LabeledContent {
-                                Text(episode.airDate?.formatted(date: .abbreviated, time: .omitted) ?? "TBA")
-                            } label: {
-                                Text("E\(episode.number) · \(episode.title)")
-                                    .lineLimit(2)
-                            }
-                            .padding(.vertical, 4)
-                        }
-                    }
-                }
-            }
-        }
-    }
-
     private var title: MediaTitle? {
-        model.titles.first(where: { $0.id == titleID })
+        model.mediaTitle(withID: titleID)
     }
 
     private func hero(_ title: MediaTitle) -> some View {
@@ -316,9 +298,14 @@ private struct ReviewCard: View {
                     Text(review.author)
                         .font(.headline)
                     Spacer()
-                    Text(review.source)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
+                    VStack(alignment: .trailing, spacing: 3) {
+                        Text(review.source)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                        if let rating = review.rating {
+                            RatingLabel(rating: rating)
+                        }
+                    }
                 }
 
                 if review.containsSpoilers && !revealsSpoiler {

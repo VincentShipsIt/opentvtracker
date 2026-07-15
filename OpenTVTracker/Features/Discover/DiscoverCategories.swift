@@ -63,7 +63,7 @@ struct DiscoverCategoryTile: View {
                     .lineLimit(1)
 
                 if let latestTitle = section.latestTitle {
-                    Text("Latest · \(latestTitle.title)")
+                    Text("\(section.category == .topRated ? "Best rated" : "Latest") · \(latestTitle.title)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
@@ -193,7 +193,7 @@ struct DiscoverCategoryShelfView: View {
 
                 VStack(alignment: .leading, spacing: 14) {
                     SectionHeading(
-                        title: "Newest first",
+                        title: category == .topRated ? "Highest rated" : "Newest first",
                         subtitle: "\(categoryTitles.count) picks on your selected services"
                     )
 
@@ -238,7 +238,7 @@ struct DiscoverCategoryShelfView: View {
                 .clipShape(.rect(cornerRadius: AppTheme.cardRadius))
 
                 VStack(alignment: .leading, spacing: 7) {
-                    Label("Latest in \(category.title)", systemImage: category.symbol)
+                    Label(category == .topRated ? "Highest rated" : "Latest in \(category.title)", systemImage: category.symbol)
                         .font(.caption.weight(.bold))
                     Text(title.title)
                         .font(.title.weight(.black))

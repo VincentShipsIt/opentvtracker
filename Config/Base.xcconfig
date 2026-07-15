@@ -1,0 +1,2 @@
+CATALOG_PROXY_BASE_URL =
+#include? "Secrets.xcconfig"
