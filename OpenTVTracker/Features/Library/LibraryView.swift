@@ -19,24 +19,27 @@ struct LibraryView: View {
                     .pickerStyle(.segmented)
                     .padding(.horizontal, AppTheme.horizontalPadding)
 
-                    if filteredTitles.isEmpty {
-                        ContentUnavailableView(
-                            "Nothing \(filter.label.lowercased())",
-                            systemImage: "rectangle.stack.badge.plus",
-                            description: Text("Add something from Discover and it will appear here.")
-                        )
-                        .frame(maxHeight: .infinity)
-                    } else {
-                        List(filteredTitles) { title in
-                            NavigationLink(value: title) {
-                                LibraryRow(title: title)
+                    Group {
+                        if filteredTitles.isEmpty {
+                            ContentUnavailableView(
+                                "Nothing \(filter.label.lowercased())",
+                                systemImage: "rectangle.stack.badge.plus",
+                                description: Text("Add something from Discover and it will appear here.")
+                            )
+                            .frame(maxHeight: .infinity)
+                        } else {
+                            List(filteredTitles) { title in
+                                NavigationLink(value: title) {
+                                    LibraryRow(title: title)
+                                }
+                                .listRowBackground(Color.clear)
+                                .listRowSeparator(.hidden)
                             }
-                            .listRowBackground(Color.clear)
-                            .listRowSeparator(.hidden)
+                            .listStyle(.plain)
+                            .scrollContentBackground(.hidden)
                         }
-                        .listStyle(.plain)
-                        .scrollContentBackground(.hidden)
                     }
+                    .transaction { $0.disablesAnimations = true }
                 }
                 .padding(.top, 8)
             }
