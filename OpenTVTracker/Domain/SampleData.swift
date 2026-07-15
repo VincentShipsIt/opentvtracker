@@ -212,16 +212,6 @@ extension LibrarySnapshot {
     )
 }
 
-extension StreamingProvider {
-    static let netflix = StreamingProvider(id: "netflix", name: "Netflix", symbol: "n.square.fill", brandHex: "E50914")
-    static let primeVideo = StreamingProvider(id: "prime-video", name: "Prime Video", symbol: "play.rectangle.fill", brandHex: "00A8E1")
-    static let appleTV = StreamingProvider(id: "apple-tv", name: "Apple TV+", symbol: "apple.logo", brandHex: "1C1C1E")
-    static let disneyPlus = StreamingProvider(id: "disney-plus", name: "Disney+", symbol: "sparkles.tv", brandHex: "113CCF")
-    static let max = StreamingProvider(id: "max", name: "Max", symbol: "play.tv", brandHex: "5822B4")
-    static let mubi = StreamingProvider(id: "mubi", name: "MUBI", symbol: "m.circle", brandHex: "1976D2")
-    static let paramount = StreamingProvider(id: "paramount", name: "Paramount+", symbol: "mountain.2", brandHex: "0064FF")
-}
-
 extension CommunityReview {
     static let sampleThoughtful = CommunityReview(id: "review-thoughtful", author: "Maya R.", excerpt: "Patient, precise, and far stranger than its premise first suggests.", rating: 9, source: "TMDB", containsSpoilers: false)
     static let sampleWarm = CommunityReview(id: "review-warm", author: "Jonas", excerpt: "Chaotic on the surface, deeply generous underneath.", rating: 8.5, source: "TMDB", containsSpoilers: false)

@@ -6,7 +6,10 @@ struct MediaEpisodeSection: View {
     var body: some View {
         if let seasons = title.seasons, !seasons.isEmpty {
             VStack(alignment: .leading, spacing: 12) {
-                SectionHeading(title: "Episodes", subtitle: "Air dates and runtimes from TMDB")
+                SectionHeading(
+                    title: "Episodes",
+                    subtitle: "Air dates and runtimes from \(title.metadataSource?.displayName ?? "the catalog")"
+                )
                 ForEach(seasons) { season in
                     seasonGroup(season)
                 }
@@ -54,7 +57,7 @@ struct MediaRatingSummary: View {
         VStack(alignment: .leading, spacing: 12) {
             SectionHeading(title: "Ratings", subtitle: "Use scores as a signal, then check the reviews")
             HStack(spacing: 12) {
-                RatingSourceCard(source: "TMDB", rating: title.rating)
+                RatingSourceCard(source: title.metadataSource?.displayName ?? "Catalog", rating: title.rating)
                 if let userRating = title.userRating {
                     RatingSourceCard(source: "You", rating: userRating)
                 }

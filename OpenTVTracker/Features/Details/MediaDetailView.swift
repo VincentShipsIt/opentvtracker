@@ -18,6 +18,7 @@ struct MediaDetailView: View {
                         actions(title)
                         story(title)
                         MediaRatingSummary(title: title)
+                        sourceAttribution(title)
                         availability(title)
                         MediaEpisodeSection(title: title)
                         if title.kind == .movie {
@@ -211,10 +212,29 @@ struct MediaDetailView: View {
     }
 
     @ViewBuilder
+    private func sourceAttribution(_ title: MediaTitle) -> some View {
+        if let sourceURL = SourceLinks.catalog(for: title) {
+            Link(destination: sourceURL) {
+                Label(
+                    "Metadata from \(title.metadataSource?.displayName ?? "the catalog")",
+                    systemImage: "arrow.up.right.square"
+                )
+                .font(.footnote.weight(.semibold))
+            }
+            .accessibilityHint("Opens the original metadata source")
+        }
+    }
+
+    @ViewBuilder
     private func availability(_ title: MediaTitle) -> some View {
         if !title.providers.isEmpty {
             VStack(alignment: .leading, spacing: 12) {
-                SectionHeading(title: "Where to watch", subtitle: "Availability varies by region · data by JustWatch")
+                SectionHeading(
+                    title: "Where to watch",
+                    subtitle: title.metadataSource == .tmdb
+                        ? "Availability varies by region · data by JustWatch"
+                        : "Availability reported by \(title.metadataSource?.displayName ?? "the catalog")"
+                )
                 ScrollView(.horizontal) {
                     HStack(spacing: 10) {
                         ForEach(title.providers) { provider in
@@ -237,8 +257,8 @@ struct MediaDetailView: View {
                 }
 
                 HStack {
-                    if let tmdbURL = SourceLinks.tmdb(kind: title.kind, catalogID: title.catalogID) {
-                        Link("Open on TMDB", destination: tmdbURL)
+                    if let sourceURL = SourceLinks.catalog(for: title) {
+                        Link("Open on \(title.metadataSource?.displayName ?? "source")", destination: sourceURL)
                     }
                     Spacer()
                     if let imdbURL = SourceLinks.imdbSearch(title: title.title, year: title.year) {
@@ -325,6 +345,12 @@ private struct ReviewCard: View {
 }
 
 enum SourceLinks {
+    static func catalog(for title: MediaTitle) -> URL? {
+        if let sourceURL = title.sourceURL { return sourceURL }
+        guard title.metadataSource == nil || title.metadataSource == .tmdb else { return nil }
+        return tmdb(kind: title.kind, catalogID: title.catalogID)
+    }
+
     static func tmdb(kind: MediaKind, catalogID: Int) -> URL? {
         let path = kind == .movie ? "movie" : "tv"
         return URL(string: "https://www.themoviedb.org/\(path)/\(catalogID)")

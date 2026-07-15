@@ -19,6 +19,13 @@ enum MediaKind: String, Codable, CaseIterable, Sendable {
     }
 }
 
+enum MetadataSource: String, Codable, Sendable {
+    case tmdb = "TMDB"
+    case tvmaze = "TVmaze"
+
+    var displayName: String { rawValue }
+}
+
 enum WatchState: String, Codable, CaseIterable, Sendable {
     case watching
     case planned
@@ -110,6 +117,16 @@ struct StreamingProvider: Codable, Hashable, Identifiable, Sendable {
     ]
 }
 
+extension StreamingProvider {
+    static let netflix = StreamingProvider(id: "netflix", name: "Netflix", symbol: "n.square.fill", brandHex: "E50914")
+    static let primeVideo = StreamingProvider(id: "prime-video", name: "Prime Video", symbol: "play.rectangle.fill", brandHex: "00A8E1")
+    static let appleTV = StreamingProvider(id: "apple-tv", name: "Apple TV+", symbol: "apple.logo", brandHex: "1C1C1E")
+    static let disneyPlus = StreamingProvider(id: "disney-plus", name: "Disney+", symbol: "sparkles.tv", brandHex: "113CCF")
+    static let max = StreamingProvider(id: "max", name: "Max", symbol: "play.tv", brandHex: "5822B4")
+    static let mubi = StreamingProvider(id: "mubi", name: "MUBI", symbol: "m.circle", brandHex: "1976D2")
+    static let paramount = StreamingProvider(id: "paramount", name: "Paramount+", symbol: "mountain.2", brandHex: "0064FF")
+}
+
 struct CommunityReview: Codable, Hashable, Identifiable, Sendable {
     let id: String
     let author: String
@@ -152,6 +169,8 @@ struct MediaTitle: Codable, Hashable, Identifiable, Sendable {
     var isDisliked: Bool? = nil
     var personalWatchlist: Bool? = nil
     var seasons: [SeasonSummary]? = nil
+    var metadataSource: MetadataSource? = nil
+    var sourceURL: URL? = nil
 
     var progressLabel: String {
         switch kind {
@@ -285,4 +304,26 @@ struct LibrarySnapshot: Codable, Hashable, Sendable {
         self.selectedProviderIDs = selectedProviderIDs
         self.allowsAIReranking = allowsAIReranking
     }
+}
+
+extension LibrarySnapshot {
+    static let empty = LibrarySnapshot(
+        titles: [],
+        sharedSpace: SharedSpace(
+            id: "primary-partner-space",
+            name: "Our space",
+            members: [
+                SpaceMember(id: "local-user", name: "You", initials: "YOU", isCurrentUser: true)
+            ],
+            titleIDs: [],
+            activity: [],
+            isCloudSharingEnabled: false,
+            membershipState: .local,
+            watchEvents: [],
+            tasteProfiles: [],
+            reactions: [],
+            notes: [],
+            isCurrentUserShareOwner: true
+        )
+    )
 }

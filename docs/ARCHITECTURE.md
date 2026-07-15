@@ -23,7 +23,7 @@ Catalog, cinema, recommendation, persistence, and partner-sharing protocols isol
 
 ## Personal data
 
-The personal library is the immediate UI source of truth and works offline. Future remote changes are reconciled into local storage; UI never queries a sync provider directly.
+The personal library is the immediate UI source of truth and works offline. Remote changes are reconciled into local storage; UI never queries a sync provider directly.
 
 SwiftData is explicitly local-only and never mirrors the records managed by the CloudKit collaboration engine.
 
@@ -53,21 +53,23 @@ CloudKit is opt-in. Local tracking never requires an Apple account. Account chan
 App → operator catalog proxy → TMDB
 ```
 
-The shipped binary contains no TMDB, cinema-feed, or AI provider secret. Server DTOs are mapped into domain values and the app falls back to its local catalog when the endpoint is absent.
+The shipped binary contains no TMDB or AI provider secret. Server DTOs are mapped into domain values. When the operator endpoint is absent or unavailable, the app uses TVmaze's real public API for TV discovery and reads Embassy Cinemas' official schedule directly; production never falls back to bundled catalog records.
 
 - TMDB provides catalog metadata and source reviews.
 - TMDB's JustWatch-backed endpoints provide regional availability with visible attribution.
+- TVmaze provides keyless TV metadata, streaming schedules, seasons, and episodes under CC BY-SA with in-app source links.
+- Embassy Cinemas provides live Malta showtimes; Eden and Citadel are official outbound listings until stable feeds exist.
 - IMDb remains outbound-link only until a licensed data path exists.
 
 ## Recommendations
 
-Deterministic, explainable recommendations ship first. An optional AI service may rerank catalog candidates later, but it must:
+Deterministic, explainable recommendations are always available. When the user opts in, the operator service reranks the same bounded candidate set with OpenAI structured output. The AI boundary:
 
 - stay provider-neutral;
 - use an operator-controlled server boundary;
 - minimize consented history before sending it;
 - exclude private notes and raw shared activity by default;
-- return grounded catalog identifiers and explanations;
+- returns every supplied catalog identifier exactly once and cannot introduce titles;
 - fall back to deterministic ranking on failure.
 
 ## Availability and UI

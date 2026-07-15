@@ -45,24 +45,6 @@ protocol PartnerSharingProviding: Sendable {
     func leave(space: SharedSpace) async throws
 }
 
-struct FoundationPartnerSharingService: PartnerSharingProviding {
-    func availability() async -> PartnerSharingAvailability {
-        .notConfigured
-    }
-
-    func inviteURL(for spaceID: SharedSpace.ID) async throws -> URL {
-        throw PartnerSharingError.notConfigured
-    }
-
-    func revoke(spaceID: SharedSpace.ID) async throws {
-        throw PartnerSharingError.notConfigured
-    }
-
-    func leave(space: SharedSpace) async throws {
-        throw PartnerSharingError.notConfigured
-    }
-}
-
 enum PartnerSharingError: LocalizedError {
     case notConfigured
     case accountRequired

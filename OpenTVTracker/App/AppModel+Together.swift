@@ -47,7 +47,7 @@ extension AppModel {
     }
 
     func markWatchedTogether(_ id: MediaTitle.ID) {
-        guard let index = titles.firstIndex(where: { $0.id == id }) else { return }
+        guard let index = trackableTitleIndex(for: id) else { return }
         if titles[index].kind == .movie {
             titles[index].state = .completed
         } else if var progress = titles[index].progress {

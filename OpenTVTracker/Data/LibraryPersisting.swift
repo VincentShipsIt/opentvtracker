@@ -81,6 +81,16 @@ actor SwiftDataLibraryStore: LibraryPersisting {
     private let container: ModelContainer
 
     init(isStoredInMemoryOnly: Bool = false) throws {
+        if !isStoredInMemoryOnly,
+           let applicationSupportURL = FileManager.default.urls(
+               for: .applicationSupportDirectory,
+               in: .userDomainMask
+           ).first {
+            try FileManager.default.createDirectory(
+                at: applicationSupportURL,
+                withIntermediateDirectories: true
+            )
+        }
         let configuration = ModelConfiguration(
             "OpenTVLocalLibrary",
             isStoredInMemoryOnly: isStoredInMemoryOnly,

@@ -24,7 +24,9 @@ Read [the product vision](docs/VISION.md), [architecture](docs/ARCHITECTURE.md),
 - iOS 18 minimum; native Liquid Glass on iOS 26 with material fallbacks
 - Versioned local-only SwiftData storage with safe migration from the original JSON snapshot
 - Invitation-only CloudKit custom zones, private/shared sync engines, durable outboxes, and account-change purging
-- Server boundaries for TMDB/JustWatch catalog data, live Malta cinema feeds, and optional provider-neutral AI reranking
+- Keyless live TV discovery from TVmaze, including seasons and episodes
+- A Bun operator proxy for TMDB/JustWatch movie and TV metadata, Malta cinema listings, and optional OpenAI reranking
+- Live Embassy Cinemas showtimes from its official booking schedule, plus official Eden and Citadel links
 - Deterministic on-device recommendations with couple-match explanations and feedback exclusions
 - Air-date/release-aware Up Next tracking, ratings, notes, rewatches, explicit progress corrections, and immutable watch events
 
@@ -37,7 +39,7 @@ xcodegen generate
 open OpenTVTracker.xcodeproj
 ```
 
-No credentials are committed. Copy `Config/Secrets.example.xcconfig` to `Config/Secrets.xcconfig` and set the operator catalog proxy URL to enable live metadata. Provider credentials stay on that server; they never enter the app bundle.
+No credentials are committed. The app works without keys for TV shows and Embassy Malta showtimes. Copy `Config/Secrets.example.xcconfig` to `Config/Secrets.xcconfig` and set the operator catalog proxy URL to add TMDB movies, Malta streaming availability, reviews, trailers, and optional OpenAI reranking. Provider credentials stay on that server; they never enter the app bundle. See [`server/README.md`](server/README.md).
 
 The app runs on iOS 18 and later, including iPhone 11 Pro. To enable partner sharing on a physical device, select your Apple Developer team, attach the `iCloud.dev.shipshit.opentvtracker` CloudKit container to the app identifier, and let Xcode create the provisioning profile. Local tracking does not require iCloud.
 

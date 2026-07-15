@@ -151,7 +151,7 @@ struct CinemaView: View {
     }
 
     private var sourceNote: some View {
-        Text("OpenTV never invents a showtime. Live results come from the configured regional cinema feed; official venue pages remain available when that feed is offline.")
+        Text("Showtimes are read from Embassy Cinemas' official schedule. Eden and Citadel remain one tap away while their sites do not expose a stable schedule feed.")
             .font(.footnote)
             .foregroundStyle(.secondary)
             .padding(.horizontal, AppTheme.horizontalPadding)

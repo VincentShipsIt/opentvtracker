@@ -51,13 +51,10 @@ final class RecommendationServiceTests: XCTestCase {
 }
 
 final class CinemaServiceTests: XCTestCase {
-    func testMaltaDirectoryUsesOfficialVenuesWithoutInventingShowtimes() async throws {
+    func testMaltaDirectoryUsesOfficialVenues() {
         let service = MaltaCinemaService(endpoint: nil)
 
-        let showings = try await service.showings(on: .now, region: "MT")
-
         XCTAssertEqual(service.venues.map(\.id), ["eden", "embassy", "citadel"])
-        XCTAssertTrue(showings.isEmpty)
         XCTAssertTrue(service.venues.allSatisfy { $0.listingsURL.scheme == "https" })
     }
 }

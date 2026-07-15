@@ -1,6 +1,29 @@
 import Foundation
 
 extension AppModel {
+    func trackableTitleIndex(for id: MediaTitle.ID) -> Int? {
+        if let index = titles.firstIndex(where: { $0.id == id }) { return index }
+        guard let catalogTitle = catalogSearchResults.first(where: { $0.id == id }) else { return nil }
+        titles.append(catalogTitle)
+        return titles.indices.last
+    }
+
+    func mergeCatalogTitles(_ catalogTitles: [MediaTitle]) {
+        titles = merging(savedTitles: titles, catalogTitles: catalogTitles)
+    }
+
+    func refreshDiscoveryCatalog() async {
+        do {
+            let results = try await catalogService.search(
+                MediaSearchQuery(text: "", kind: nil, page: 1)
+            )
+            mergeCatalogTitles(results)
+            catalogSearchError = nil
+        } catch {
+            catalogSearchError = error.localizedDescription
+        }
+    }
+
     func mediaTitle(withID id: MediaTitle.ID) -> MediaTitle? {
         titles.first(where: { $0.id == id })
             ?? catalogSearchResults.first(where: { $0.id == id })
@@ -16,7 +39,8 @@ extension AppModel {
             )
             let refreshed = mergingCatalogDetails(details, into: existing)
 
-            if let index = titles.firstIndex(where: { $0.id == id }) {
+            let index = trackableTitleIndex(for: id)
+            if let index {
                 titles[index] = refreshed
                 persist()
             }

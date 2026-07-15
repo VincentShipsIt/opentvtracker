@@ -32,14 +32,17 @@ final class AppModel {
         store: any LibraryPersisting = LibraryStoreFactory.makeDefault(),
         recommendationService: any RecommendationProviding = ProviderNeutralRecommendationService(),
         catalogService: (any CatalogProviding)? = nil,
-        seed: LibrarySnapshot = .sample
+        seed: LibrarySnapshot = .empty
     ) {
         self.store = store
         self.recommendationService = recommendationService
-        self.catalogService = catalogService ?? FallbackCatalogService(
-            primary: AppServiceConfiguration.apiBaseURL.map { ServerCatalogService(baseURL: $0) },
-            fallback: LocalCatalogService(titles: seed.titles)
-        )
+        if let catalogService {
+            self.catalogService = catalogService
+        } else if seed == .empty {
+            self.catalogService = CatalogServiceFactory.makeDefault()
+        } else {
+            self.catalogService = LocalCatalogService(titles: seed.titles)
+        }
         self.seed = seed
         titles = seed.titles
         sharedSpace = seed.sharedSpace
@@ -127,15 +130,16 @@ final class AppModel {
                 allowsAIReranking = snapshot.allowsAIReranking ?? false
             }
         } catch {
-            persistenceError = "Your saved library could not be opened. Preview data is shown instead."
+            persistenceError = "Your saved library could not be opened. Your catalog and saved data remain separate."
         }
+        await refreshDiscoveryCatalog()
         await refreshRecommendations()
     }
 }
 
 extension AppModel {
     func markNextWatched(_ id: MediaTitle.ID) {
-        guard let index = titles.firstIndex(where: { $0.id == id }) else { return }
+        guard let index = trackableTitleIndex(for: id) else { return }
 
         if titles[index].kind == .movie {
             guard titles[index].state != .completed else { return }
@@ -156,7 +160,7 @@ extension AppModel {
     }
 
     func setWatchState(_ state: WatchState, for id: MediaTitle.ID) {
-        guard let index = titles.firstIndex(where: { $0.id == id }) else { return }
+        guard let index = trackableTitleIndex(for: id) else { return }
         titles[index].state = state
         if state == .planned {
             titles[index].personalWatchlist = true
@@ -165,20 +169,20 @@ extension AppModel {
     }
 
     func setUserRating(_ rating: Double?, for id: MediaTitle.ID) {
-        guard let index = titles.firstIndex(where: { $0.id == id }) else { return }
+        guard let index = trackableTitleIndex(for: id) else { return }
         titles[index].userRating = rating.map { min(max($0, 0), 10) }
         persist()
     }
 
     func updateNotes(_ notes: String, for id: MediaTitle.ID) {
-        guard let index = titles.firstIndex(where: { $0.id == id }) else { return }
+        guard let index = trackableTitleIndex(for: id) else { return }
         let trimmed = notes.trimmingCharacters(in: .whitespacesAndNewlines)
         titles[index].notes = trimmed.isEmpty ? nil : trimmed
         persist()
     }
 
     func recordRewatch(_ id: MediaTitle.ID) {
-        guard let index = titles.firstIndex(where: { $0.id == id }) else { return }
+        guard let index = trackableTitleIndex(for: id) else { return }
         titles[index].rewatchCount = titles[index].completedRewatches + 1
         titles[index].lastWatchedAt = .now
         appendWatchEvent(title: titles[index], kind: .rewatch)
@@ -188,7 +192,7 @@ extension AppModel {
     }
 
     func correctProgress(_ progress: EpisodeProgress, for id: MediaTitle.ID) {
-        guard let index = titles.firstIndex(where: { $0.id == id }), titles[index].kind == .series else { return }
+        guard let index = trackableTitleIndex(for: id), titles[index].kind == .series else { return }
         let corrected = EpisodeProgress(
             season: max(progress.season, 1),
             episode: min(max(progress.episode, 0), max(progress.totalEpisodes, 1)),
@@ -204,14 +208,14 @@ extension AppModel {
     }
 
     func setRecommendationDismissed(_ dismissed: Bool, for id: MediaTitle.ID) {
-        guard let index = titles.firstIndex(where: { $0.id == id }) else { return }
+        guard let index = trackableTitleIndex(for: id) else { return }
         titles[index].isDismissed = dismissed
         persist()
         refreshRecommendationsSoon()
     }
 
     func setRecommendationDisliked(_ disliked: Bool, for id: MediaTitle.ID) {
-        guard let index = titles.firstIndex(where: { $0.id == id }) else { return }
+        guard let index = trackableTitleIndex(for: id) else { return }
         titles[index].isDisliked = disliked
         persist()
         refreshRecommendationsSoon()
@@ -233,7 +237,7 @@ extension AppModel {
     }
 
     func toggleWatchlist(_ id: MediaTitle.ID) {
-        guard let index = titles.firstIndex(where: { $0.id == id }) else { return }
+        guard let index = trackableTitleIndex(for: id) else { return }
         titles[index].personalWatchlist = !titles[index].isOnPersonalWatchlist
         persist()
     }
@@ -321,7 +325,7 @@ extension AppModel {
         Task { await refreshRecommendations() }
     }
 
-    private func merging(savedTitles: [MediaTitle], catalogTitles: [MediaTitle]) -> [MediaTitle] {
+    func merging(savedTitles: [MediaTitle], catalogTitles: [MediaTitle]) -> [MediaTitle] {
         let savedByID = Dictionary(uniqueKeysWithValues: savedTitles.map { ($0.id, $0) })
         let catalogIDs = Set(catalogTitles.map(\.id))
         let refreshedCatalog = catalogTitles.map { catalogTitle in

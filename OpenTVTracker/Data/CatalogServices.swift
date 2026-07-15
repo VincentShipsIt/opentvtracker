@@ -77,6 +77,17 @@ struct FallbackCatalogService: CatalogProviding {
     }
 }
 
+enum CatalogServiceFactory {
+    static func makeDefault() -> any CatalogProviding {
+        let publicCatalog = TVMazeCatalogService()
+        guard let baseURL = AppServiceConfiguration.apiBaseURL else { return publicCatalog }
+        return FallbackCatalogService(
+            primary: ServerCatalogService(baseURL: baseURL),
+            fallback: publicCatalog
+        )
+    }
+}
+
 private struct CatalogSearchResponse: Decodable {
     let results: [CatalogTitleDTO]
 }
@@ -124,7 +135,10 @@ private struct CatalogTitleDTO: Decodable {
             trailerURL: trailerURL,
             nextEpisodeAirDate: nextEpisodeAirDate,
             releaseDate: releaseDate,
-            seasons: seasons
+            personalWatchlist: false,
+            seasons: seasons,
+            metadataSource: .tmdb,
+            sourceURL: URL(string: "https://www.themoviedb.org/\(kind == .movie ? "movie" : "tv")/\(catalogID)")
         )
     }
 }

@@ -57,7 +57,7 @@ struct TogetherView: View {
                 }
 
                 Label(
-                    model.sharedSpace.isCloudSharingEnabled ? "Synced privately with iCloud" : "Local preview · iCloud sharing next",
+                    model.sharedSpace.isCloudSharingEnabled ? "Synced privately with iCloud" : "Private on this iPhone · invite to sync",
                     systemImage: model.sharedSpace.isCloudSharingEnabled ? "icloud.fill" : "iphone"
                 )
                 .font(.footnote.weight(.semibold))

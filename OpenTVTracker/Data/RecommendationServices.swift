@@ -165,7 +165,16 @@ struct ProviderNeutralRecommendationService: RecommendationProviding {
             mood: context.mood.rawValue,
             maximumRuntimeMinutes: context.maximumRuntimeMinutes,
             candidates: recommendations.map {
-                .init(catalogID: $0.title.catalogID, score: $0.score)
+                .init(
+                    catalogID: $0.title.catalogID,
+                    title: $0.title.title,
+                    genres: $0.title.genres,
+                    runtimeMinutes: $0.title.runtimeMinutes,
+                    rating: $0.title.rating,
+                    providers: $0.title.providers.map(\.name),
+                    deterministicScore: $0.score,
+                    deterministicReason: $0.reason
+                )
             }
         )
         var request = URLRequest(url: endpoint)
@@ -189,7 +198,13 @@ struct ProviderNeutralRecommendationService: RecommendationProviding {
 private struct RecommendationRerankRequest: Encodable {
     struct Candidate: Encodable {
         let catalogID: Int
-        let score: Double
+        let title: String
+        let genres: [String]
+        let runtimeMinutes: Int
+        let rating: Double
+        let providers: [String]
+        let deterministicScore: Double
+        let deterministicReason: String
     }
 
     let mood: String

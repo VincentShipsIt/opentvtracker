@@ -11,7 +11,7 @@ Personal viewing history, notes, ratings, partner membership, share URLs, CloudK
 | Local SwiftData | Personal library and preferences | Local-only model container, versioned archive, export under user action |
 | Invitation-only CloudKit share | Shared list, profiles, activity, watched/correction events | Custom zone, stable IDs, CKShare, persisted outbox, revocation/leave purge |
 | OpenTV catalog/cinema service | Query, media kind, page, region/date | HTTPS endpoint, timeout, no bundled upstream credentials |
-| Optional AI reranker | Catalog IDs, local scores, mood/runtime | Explicit opt-in, payload preview, short timeout, deterministic fallback |
+| Optional AI reranker | Catalog ID/title, genres, runtime, public rating/providers, local score/reason, requested mood/runtime | Explicit opt-in, payload preview, short timeout, strict identifier validation, deterministic fallback |
 | External links | Selected TMDB, IMDb, or cinema page | User gesture; external site's policy applies |
 
 ## Failure handling
