@@ -78,6 +78,21 @@ struct EpisodeProgress: Codable, Hashable, Sendable {
     }
 }
 
+struct EpisodeSummary: Codable, Hashable, Identifiable, Sendable {
+    let id: String
+    let number: Int
+    let title: String
+    let airDate: Date?
+    let runtimeMinutes: Int?
+}
+
+struct SeasonSummary: Codable, Hashable, Identifiable, Sendable {
+    let id: String
+    let number: Int
+    let title: String
+    let episodes: [EpisodeSummary]
+}
+
 struct StreamingProvider: Codable, Hashable, Identifiable, Sendable {
     let id: String
     let name: String
@@ -135,6 +150,7 @@ struct MediaTitle: Codable, Hashable, Identifiable, Sendable {
     var releaseDate: Date? = nil
     var isDismissed: Bool? = nil
     var isDisliked: Bool? = nil
+    var seasons: [SeasonSummary]? = nil
 
     var progressLabel: String {
         switch kind {

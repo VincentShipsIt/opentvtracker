@@ -98,6 +98,7 @@ private struct CatalogTitleDTO: Decodable {
     let reviews: [CommunityReview]?
     let releaseDate: Date?
     let nextEpisodeAirDate: Date?
+    let seasons: [SeasonSummary]?
 
     var mediaTitle: MediaTitle {
         MediaTitle(
@@ -122,7 +123,8 @@ private struct CatalogTitleDTO: Decodable {
             backdropURL: backdropURL,
             trailerURL: trailerURL,
             nextEpisodeAirDate: nextEpisodeAirDate,
-            releaseDate: releaseDate
+            releaseDate: releaseDate,
+            seasons: seasons
         )
     }
 }

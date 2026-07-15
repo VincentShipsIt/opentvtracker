@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct GlassSurface<Content: View>: View {
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
     private let cornerRadius: CGFloat
     private let tint: Color?
     private let content: Content
@@ -16,7 +18,14 @@ struct GlassSurface<Content: View>: View {
     }
 
     var body: some View {
-        if #available(iOS 26, *) {
+        if reduceTransparency {
+            content
+                .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: cornerRadius))
+                .overlay {
+                    RoundedRectangle(cornerRadius: cornerRadius)
+                        .strokeBorder(.primary.opacity(contrast == .increased ? 0.34 : 0.14))
+                }
+        } else if #available(iOS 26, *) {
             if let tint {
                 content
                     .glassEffect(

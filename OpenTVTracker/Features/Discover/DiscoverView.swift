@@ -169,6 +169,11 @@ struct DiscoverView: View {
                             PosterShelfCard(title: title)
                         }
                         .buttonStyle(.plain)
+                        .task {
+                            if title.id == filteredTitles.last?.id {
+                                await model.loadMoreCatalogResults(text: searchText)
+                            }
+                        }
                     }
                 }
             }

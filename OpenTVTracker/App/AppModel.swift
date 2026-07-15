@@ -20,6 +20,9 @@ final class AppModel {
     var catalogSearchResults: [MediaTitle] = []
     var catalogSearchError: String?
     var isSearchingCatalog = false
+    var catalogSearchPage = 0
+    var catalogSearchQuery = ""
+    var hasMoreCatalogResults = false
 
     var selectedMood: Mood = .any {
         didSet { refreshRecommendationsSoon() }

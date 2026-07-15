@@ -18,6 +18,7 @@ struct MediaDetailView: View {
                         actions(title)
                         story(title)
                         availability(title)
+                        episodes(title)
                         if title.kind == .movie {
                             TitleCinemaAvailability(title: title)
                         }
@@ -45,6 +46,28 @@ struct MediaDetailView: View {
         }
         .navigationDestination(for: MoreLikeThisRoute.self) { route in
             MoreLikeThisView(sourceTitleID: route.sourceTitleID)
+        }
+    }
+
+    @ViewBuilder
+    private func episodes(_ title: MediaTitle) -> some View {
+        if let seasons = title.seasons, !seasons.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                SectionHeading(title: "Episodes", subtitle: "Air dates and runtimes from TMDB")
+                ForEach(seasons) { season in
+                    DisclosureGroup(season.title) {
+                        ForEach(season.episodes) { episode in
+                            LabeledContent {
+                                Text(episode.airDate?.formatted(date: .abbreviated, time: .omitted) ?? "TBA")
+                            } label: {
+                                Text("E\(episode.number) · \(episode.title)")
+                                    .lineLimit(2)
+                            }
+                            .padding(.vertical, 4)
+                        }
+                    }
+                }
+            }
         }
     }
 

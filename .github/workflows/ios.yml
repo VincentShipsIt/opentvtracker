@@ -16,6 +16,8 @@ jobs:
       - uses: actions/checkout@v6
       - name: Show toolchain
         run: xcodebuild -version
+      - name: Validate privacy manifest
+        run: plutil -lint OpenTVTracker/Resources/PrivacyInfo.xcprivacy
       - name: Build and test
         run: >-
           xcodebuild test
