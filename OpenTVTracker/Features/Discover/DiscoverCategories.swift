@@ -1,5 +1,29 @@
 import SwiftUI
 
+struct DiscoverCategoryCarousel: View {
+    let sections: [DiscoverCategorySection]
+
+    var body: some View {
+        ScrollView(.horizontal) {
+            LazyHStack(spacing: 14) {
+                ForEach(sections) { section in
+                    NavigationLink(value: section.category) {
+                        DiscoverCategoryTile(section: section)
+                            .frame(width: 160)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .scrollTargetLayout()
+            .padding(.horizontal, AppTheme.horizontalPadding)
+            .padding(.bottom, 4)
+        }
+        .scrollIndicators(.hidden)
+        .scrollTargetBehavior(.viewAligned)
+        .accessibilityLabel("Browse categories")
+    }
+}
+
 struct DiscoverCategoryGrid: View {
     let sections: [DiscoverCategorySection]
 
