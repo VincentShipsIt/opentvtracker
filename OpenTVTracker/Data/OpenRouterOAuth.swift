@@ -68,7 +68,7 @@ struct OpenRouterAuthorizationRequest: Sendable {
 
 enum OpenRouterPKCE {
     static func generateVerifier(randomBytes: () throws -> Data = secureRandomBytes) throws -> String {
-        randomBytes().base64URLEncodedString()
+        try randomBytes().base64URLEncodedString()
     }
 
     static func challenge(for verifier: String) -> String {

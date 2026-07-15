@@ -3,12 +3,8 @@ import SwiftUI
 
 struct ViewingAnalyticsView: View {
     @Environment(AppModel.self) private var model
-    @State private var scope: ViewingAnalyticsScope
     @State private var sharePayload: ViewingAnalyticsSharePayload?
-
-    init(initialScope: ViewingAnalyticsScope = .personal) {
-        _scope = State(initialValue: initialScope)
-    }
+    let scope: ViewingAnalyticsScope
 
     var body: some View {
         ZStack {
@@ -16,13 +12,6 @@ struct ViewingAnalyticsView: View {
 
             ScrollView {
                 LazyVStack(spacing: AppTheme.sectionSpacing) {
-                    Picker("Analytics for", selection: $scope) {
-                        ForEach(ViewingAnalyticsScope.allCases) { analyticsScope in
-                            Text(analyticsScope.label).tag(analyticsScope)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-
                     if summary.isEmpty {
                         emptyState
                     } else {
@@ -51,7 +40,7 @@ struct ViewingAnalyticsView: View {
                 .padding(.bottom, 32)
             }
         }
-        .navigationTitle("Viewing analytics")
+        .navigationTitle(scope == .personal ? "My viewing stats" : "Our viewing stats")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button("Share analytics", systemImage: "square.and.arrow.up") {
@@ -357,7 +346,7 @@ extension Int {
 
 #Preview {
     NavigationStack {
-        ViewingAnalyticsView()
+        ViewingAnalyticsView(scope: .personal)
             .environment(AppModel(store: MemoryLibraryStore(), seed: .sample))
     }
 }

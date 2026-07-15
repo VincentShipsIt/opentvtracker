@@ -104,7 +104,8 @@ struct AIRankingSettingsView: View {
             let authorization = try await client.authorizationRequest()
             let callback = try await webAuthenticationSession.authenticate(
                 using: authorization.authorizationURL,
-                callback: .https(host: authorization.callbackHost, path: authorization.callbackPath)
+                callback: .https(host: authorization.callbackHost, path: authorization.callbackPath),
+                additionalHeaderFields: [:]
             )
             try await client.complete(callback, authorization: authorization)
             isAuthorized = true
