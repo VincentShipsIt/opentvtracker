@@ -27,7 +27,7 @@ struct MediaEpisodeSection: View {
     }
 }
 
-private struct SeasonNavigationRow: View {
+struct SeasonNavigationRow: View {
     let season: SeasonSummary
     let watchedCount: Int
 

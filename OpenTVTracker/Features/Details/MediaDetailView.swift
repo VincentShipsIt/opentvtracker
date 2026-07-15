@@ -198,7 +198,7 @@ struct MediaDetailView: View {
             Button {
                 showsTrackingEditor = true
             } label: {
-                Label("Edit tracking", systemImage: "slider.horizontal.3")
+                Label("Your activity", systemImage: "checkmark.rectangle.stack")
                     .frame(maxWidth: .infinity)
             }
             .adaptiveGlassButton()

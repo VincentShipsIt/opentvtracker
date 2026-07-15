@@ -40,6 +40,15 @@ enum WatchState: String, Codable, CaseIterable, Sendable {
         case .completed: "Completed"
         }
     }
+
+    var symbol: String {
+        switch self {
+        case .watching: "play.circle.fill"
+        case .planned: "bookmark.fill"
+        case .paused: "pause.circle.fill"
+        case .completed: "checkmark.circle.fill"
+        }
+    }
 }
 
 enum Mood: String, Codable, CaseIterable, Identifiable, Sendable {
