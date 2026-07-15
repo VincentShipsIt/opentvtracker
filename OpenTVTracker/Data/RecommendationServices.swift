@@ -109,7 +109,10 @@ enum DeterministicRecommendationEngine {
         return "Available on your services, unwatched, and highly rated."
     }
 
-    private static func isOnSelectedProvider(_ title: MediaTitle, selectedIDs: Set<String>?) -> Bool {
+    private static func isOnSelectedProvider(
+        _ title: MediaTitle,
+        selectedIDs: Set<StreamingProvider.ID>?
+    ) -> Bool {
         guard let selectedIDs else { return true }
         guard !selectedIDs.isEmpty else { return false }
         return !selectedIDs.isDisjoint(with: Set(title.providers.map(\.id)))
