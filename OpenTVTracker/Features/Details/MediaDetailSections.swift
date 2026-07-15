@@ -21,6 +21,7 @@ struct MediaEpisodeSection: View {
                         )
                     }
                     .buttonStyle(.plain)
+                    .accessibilityIdentifier("season.\(season.number)")
                 }
             }
         }

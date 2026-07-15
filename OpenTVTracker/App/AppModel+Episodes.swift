@@ -154,6 +154,21 @@ extension AppModel {
         return episodes.allSatisfy { watchedIDs.contains($0.episode.id) }
     }
 
+    func hasUnwatchedEpisodesBefore(
+        titleID: MediaTitle.ID,
+        seasonNumber: Int,
+        episodeNumber: Int
+    ) -> Bool {
+        guard let title = mediaTitle(withID: titleID),
+              let season = regularSeasons(for: title).first(where: { $0.number == seasonNumber }) else {
+            return false
+        }
+        let watchedIDs = resolvedWatchedEpisodeIDs(for: title)
+        return season.episodes.contains { episode in
+            episode.number < episodeNumber && !watchedIDs.contains(episode.id)
+        }
+    }
+
     func nextUnwatchedEpisode(
         for title: MediaTitle
     ) -> (season: SeasonSummary, episode: EpisodeSummary)? {
@@ -239,6 +254,7 @@ private extension AppModel {
             symbol: activitySymbol
         )
         persist()
+        refreshRecommendationsSoon()
         syncSharedStateSoon()
     }
 
@@ -247,13 +263,13 @@ private extension AppModel {
         seasonNumber: Int,
         episodeNumber: Int
     ) -> [(season: SeasonSummary, episode: EpisodeSummary)] {
-        regularSeasons(for: title).flatMap { season -> [(season: SeasonSummary, episode: EpisodeSummary)] in
-            guard season.number <= seasonNumber else { return [] }
-            return season.episodes
-                .filter { season.number < seasonNumber || $0.number <= episodeNumber }
-                .sorted { $0.number < $1.number }
-                .map { (season: season, episode: $0) }
+        guard let season = regularSeasons(for: title).first(where: { $0.number == seasonNumber }) else {
+            return []
         }
+        return season.episodes
+            .filter { $0.number <= episodeNumber }
+            .sorted { $0.number < $1.number }
+            .map { (season: season, episode: $0) }
     }
 
     func resolvedWatchedEpisodeIDs(for title: MediaTitle) -> Set<EpisodeSummary.ID> {

@@ -140,6 +140,7 @@ private struct UpNextHero: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                         }
                         .buttonStyle(.plain)
+                        .accessibilityIdentifier("home.up-next-title")
 
                         ProgressView(value: progressSummary.fraction)
                             .tint(.white)

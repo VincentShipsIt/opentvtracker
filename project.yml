@@ -33,6 +33,8 @@ targets:
     info:
       path: Config/Info.plist
       properties:
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         CKSharingSupported: true
         NSBonjourServices:
           - _opentv-pair._tcp
@@ -58,8 +60,10 @@ targets:
       configs:
         Debug:
           APP_ATTEST_ENVIRONMENT: development
+          PUSH_NOTIFICATIONS_ENVIRONMENT: development
         Release:
           APP_ATTEST_ENVIRONMENT: production
+          PUSH_NOTIFICATIONS_ENVIRONMENT: production
     attributes:
       SystemCapabilities:
         com.apple.iCloud:
@@ -82,16 +86,29 @@ targets:
     dependencies:
       - target: OpenTVTracker
       - package: ZIPFoundation
+  OpenTVTrackerUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: OpenTVTrackerUITests
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: dev.shipshit.opentvtracker.uitests
+    dependencies:
+      - target: OpenTVTracker
 schemes:
   OpenTVTracker:
     build:
       targets:
         OpenTVTracker: all
         OpenTVTrackerTests: [test]
+        OpenTVTrackerUITests: [test]
     test:
       gatherCoverageData: true
       targets:
         - name: OpenTVTrackerTests
+        - name: OpenTVTrackerUITests
     run:
       config: Debug
     archive:

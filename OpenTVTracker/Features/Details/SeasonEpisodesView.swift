@@ -13,6 +13,8 @@ struct EpisodeDetailRoute: Hashable {
 
 struct SeasonEpisodesView: View {
     @Environment(AppModel.self) private var model
+    @State private var pendingSeasonAction: SeasonWatchAction?
+    @State private var showsSeasonConfirmation = false
     let route: SeasonEpisodesRoute
 
     var body: some View {
@@ -26,18 +28,10 @@ struct SeasonEpisodesView: View {
                         season: season,
                         watchedCount: model.watchedEpisodeCount(titleID: title.id, season: season),
                         onMarkAllWatched: {
-                            model.setSeasonEpisodesWatched(
-                                true,
-                                titleID: title.id,
-                                seasonNumber: season.number
-                            )
+                            requestSeasonAction(.markWatched)
                         },
                         onMarkAllUnwatched: {
-                            model.setSeasonEpisodesWatched(
-                                false,
-                                titleID: title.id,
-                                seasonNumber: season.number
-                            )
+                            requestSeasonAction(.markUnwatched)
                         }
                     )
                     .listRowBackground(Color.clear)
@@ -68,11 +62,7 @@ struct SeasonEpisodesView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu("Episode actions", systemImage: "ellipsis.circle") {
                         Button("Mark all watched", systemImage: "checkmark.circle.fill") {
-                            model.setSeasonEpisodesWatched(
-                                true,
-                                titleID: title.id,
-                                seasonNumber: season.number
-                            )
+                            requestSeasonAction(.markWatched)
                         }
                         .disabled(
                             model.watchedEpisodeCount(titleID: title.id, season: season)
@@ -80,16 +70,24 @@ struct SeasonEpisodesView: View {
                         )
 
                         Button("Mark all unwatched", systemImage: "arrow.uturn.backward.circle") {
-                            model.setSeasonEpisodesWatched(
-                                false,
-                                titleID: title.id,
-                                seasonNumber: season.number
-                            )
+                            requestSeasonAction(.markUnwatched)
                         }
                         .disabled(model.watchedEpisodeCount(titleID: title.id, season: season) == 0)
                     }
                 }
             }
+        }
+        .confirmationDialog(
+            pendingSeasonAction?.title ?? "Update season progress?",
+            isPresented: $showsSeasonConfirmation,
+            presenting: pendingSeasonAction
+        ) { action in
+            Button(action.confirmationTitle, role: action.role) {
+                applySeasonAction(action)
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: { action in
+            Text(action.message(for: season?.title ?? "this season"))
         }
     }
 
@@ -101,6 +99,36 @@ struct SeasonEpisodesView: View {
         title?.seasons?.first(where: { $0.id == route.seasonID })
     }
 
+    private func requestSeasonAction(_ action: SeasonWatchAction) {
+        pendingSeasonAction = action
+        showsSeasonConfirmation = true
+    }
+
+    private func applySeasonAction(_ action: SeasonWatchAction) {
+        defer { pendingSeasonAction = nil }
+        guard let title, let season else { return }
+        model.setSeasonEpisodesWatched(
+            action.watched,
+            titleID: title.id,
+            seasonNumber: season.number
+        )
+    }
+}
+
+private enum SeasonWatchAction: Equatable {
+    case markWatched
+    case markUnwatched
+
+    var watched: Bool { self == .markWatched }
+    var title: String { watched ? "Mark the full season watched?" : "Reset the full season?" }
+    var confirmationTitle: String { watched ? "Mark season watched" : "Mark season unwatched" }
+    var role: ButtonRole? { watched ? nil : .destructive }
+
+    func message(for seasonTitle: String) -> String {
+        watched
+            ? "Every episode in \(seasonTitle) will be added to your watch history and recommendation profile."
+            : "Every episode in \(seasonTitle) will be removed from your watched progress."
+    }
 }
 
 private struct TrackableEpisodeRow: View {
@@ -124,6 +152,7 @@ private struct TrackableEpisodeRow: View {
         .listRowSeparator(.hidden)
         .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
         .modifier(EpisodeTrackingActions(title: title, season: season, episode: episode))
+        .accessibilityIdentifier("episode.\(episode.number)")
     }
 
     private var detailRoute: EpisodeDetailRoute {
@@ -135,79 +164,6 @@ private struct TrackableEpisodeRow: View {
             titleID: title.id,
             seasonNumber: season.number,
             episodeID: episode.id
-        )
-    }
-}
-
-private struct EpisodeTrackingActions: ViewModifier {
-    @Environment(AppModel.self) private var model
-    let title: MediaTitle
-    let season: SeasonSummary
-    let episode: EpisodeSummary
-
-    func body(content: Content) -> some View {
-        content
-            .swipeActions(edge: .trailing, allowsFullSwipe: true) { toggleButton }
-            .swipeActions(edge: .leading, allowsFullSwipe: false) { previousButton }
-            .contextMenu { previousButton }
-            .accessibilityAction(named: isWatched ? "Mark unwatched" : "Mark watched") {
-                toggleWatched()
-            }
-            .accessibilityAction(named: "Mark this and previous watched") {
-                markPreviousWatched()
-            }
-    }
-
-    private var toggleButton: some View {
-        Button {
-            toggleWatched()
-        } label: {
-            Label(
-                isWatched ? "Mark unwatched" : "Mark watched",
-                systemImage: isWatched ? "arrow.uturn.backward.circle.fill" : "checkmark.circle.fill"
-            )
-        }
-        .tint(isWatched ? .orange : .green)
-    }
-
-    private var previousButton: some View {
-        Button("Mark this and previous watched", systemImage: "checkmark.circle.badge.plus") {
-            markPreviousWatched()
-        }
-        .tint(.blue)
-        .disabled(arePreviousWatched)
-    }
-
-    private var isWatched: Bool {
-        model.isEpisodeWatched(
-            titleID: title.id,
-            seasonNumber: season.number,
-            episodeID: episode.id
-        )
-    }
-
-    private var arePreviousWatched: Bool {
-        model.areEpisodesWatchedThrough(
-            titleID: title.id,
-            seasonNumber: season.number,
-            episodeNumber: episode.number
-        )
-    }
-
-    private func toggleWatched() {
-        model.setEpisodeWatched(
-            !isWatched,
-            titleID: title.id,
-            seasonNumber: season.number,
-            episodeID: episode.id
-        )
-    }
-
-    private func markPreviousWatched() {
-        model.markEpisodesWatchedThrough(
-            titleID: title.id,
-            seasonNumber: season.number,
-            episodeNumber: episode.number
         )
     }
 }
@@ -245,6 +201,7 @@ private struct SeasonProgressHeader: View {
                     }
                     .adaptiveGlassButton(prominent: true)
                     .disabled(watchedCount == season.episodes.count)
+                    .accessibilityIdentifier("season.mark-all-watched")
 
                     Button(action: onMarkAllUnwatched) {
                         Label("Reset", systemImage: "arrow.uturn.backward")
@@ -302,11 +259,6 @@ private struct EpisodeRow: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            Image(systemName: "chevron.right")
-                .font(.caption.weight(.bold))
-                .foregroundStyle(.tertiary)
-                .frame(maxHeight: .infinity)
-                .accessibilityHidden(true)
         }
         .opacity(isWatched ? 0.68 : 1)
         .padding(.vertical, 4)

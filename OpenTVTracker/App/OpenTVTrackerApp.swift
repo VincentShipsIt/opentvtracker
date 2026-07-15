@@ -46,7 +46,19 @@ extension Notification.Name {
 struct OpenTVTrackerApp: App {
     @UIApplicationDelegateAdaptor(OpenTVAppDelegate.self) private var appDelegate
     @Environment(\.scenePhase) private var scenePhase
-    @State private var model = AppModel()
+    @State private var model: AppModel
+
+    init() {
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-ui-testing-bulk-watch") {
+            _model = State(initialValue: AppModel(store: MemoryLibraryStore(), seed: .bulkWatchUITest))
+        } else {
+            _model = State(initialValue: AppModel())
+        }
+        #else
+        _model = State(initialValue: AppModel())
+        #endif
+    }
 
     var body: some Scene {
         WindowGroup {

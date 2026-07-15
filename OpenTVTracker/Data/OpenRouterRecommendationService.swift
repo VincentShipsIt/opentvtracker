@@ -46,6 +46,7 @@ struct OpenRouterRecommendationService: Sendable {
                     content: try String(data: JSONEncoder().encode(OpenRouterRerankInput(
                         mood: context.mood.rawValue,
                         maximumRuntimeMinutes: context.maximumRuntimeMinutes,
+                        viewingProfile: context.viewingProfile,
                         candidates: recommendations.map(OpenRouterRerankInput.Candidate.init)
                     )), encoding: .utf8) ?? "{}"
                 )
@@ -116,6 +117,7 @@ private struct OpenRouterRerankInput: Encodable {
 
     let mood: String
     let maximumRuntimeMinutes: Int?
+    let viewingProfile: RecommendationViewingProfile?
     let candidates: [Candidate]
 }
 

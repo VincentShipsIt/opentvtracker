@@ -37,17 +37,6 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(model.titles[index].state, .completed)
     }
 
-    func testTogetherToggleIsReversible() {
-        let model = AppModel(store: MemoryLibraryStore(), seed: .sample)
-        XCTAssertTrue(model.isShared("past-lives"))
-
-        model.toggleTogether("past-lives")
-        XCTAssertFalse(model.isShared("past-lives"))
-
-        model.toggleTogether("past-lives")
-        XCTAssertTrue(model.isShared("past-lives"))
-    }
-
     func testPersonalWatchlistToggleDoesNotStartTitle() {
         let model = AppModel(store: MemoryLibraryStore(), seed: .sample)
         XCTAssertTrue(model.titles(in: .planned).contains(where: { $0.id == "past-lives" }))

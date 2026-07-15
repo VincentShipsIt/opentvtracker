@@ -233,6 +233,54 @@ extension LibrarySnapshot {
     )
 }
 
+#if DEBUG
+extension LibrarySnapshot {
+    static let bulkWatchUITest: LibrarySnapshot = {
+        var snapshot = LibrarySnapshot.empty
+        snapshot.titles = [
+            MediaTitle(
+                id: "ui-test-show",
+                catalogID: 99_001,
+                title: "Test Show",
+                year: 2026,
+                kind: .series,
+                synopsis: "A deterministic show used to verify episode tracking interactions.",
+                genres: ["Drama"],
+                runtimeMinutes: 45,
+                state: .watching,
+                progress: EpisodeProgress(season: 1, episode: 0, totalEpisodes: 6),
+                rating: 8.5,
+                nextReleaseDescription: "Six episodes available",
+                recommendationReason: nil,
+                mood: .thoughtful,
+                palette: PosterPalette(primaryHex: "3155A4", secondaryHex: "111831"),
+                providers: [.appleTV],
+                reviews: [],
+                personalWatchlist: true,
+                seasons: [
+                    SeasonSummary(
+                        id: "ui-test-season-1",
+                        number: 1,
+                        title: "Season 1",
+                        episodes: (1...6).map { number in
+                            EpisodeSummary(
+                                id: "ui-test-s1e\(number)",
+                                number: number,
+                                title: "Episode \(number)",
+                                airDate: nil,
+                                runtimeMinutes: 45
+                            )
+                        }
+                    )
+                ],
+                watchedEpisodeIDs: []
+            )
+        ]
+        return snapshot
+    }()
+}
+#endif
+
 extension CommunityReview {
     static let sampleThoughtful = CommunityReview(id: "review-thoughtful", author: "Maya R.", excerpt: "Patient, precise, and far stranger than its premise first suggests.", rating: 9, source: "TMDB", containsSpoilers: false)
     static let sampleWarm = CommunityReview(id: "review-warm", author: "Jonas", excerpt: "Chaotic on the surface, deeply generous underneath.", rating: 8.5, source: "TMDB", containsSpoilers: false)

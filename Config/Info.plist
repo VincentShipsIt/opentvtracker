@@ -15,9 +15,9 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.0</string>
+	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
-	<string>1</string>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>CKSharingSupported</key>
 	<true/>
 	<key>NSBonjourServices</key>
@@ -30,14 +30,14 @@
 	<string>OpenTV uses the microphone only while you speak a request for your next movie or show.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>OpenTV turns your spoken discovery request into text so it can find matching movies and shows.</string>
-	<key>OpenTVAPIBaseURL</key>
-	<string>$(CATALOG_PROXY_BASE_URL)</string>
 	<key>OpenRouterModel</key>
 	<string>$(OPENROUTER_MODEL)</string>
 	<key>OpenRouterOAuthCallbackURL</key>
 	<string>$(OPENROUTER_OAUTH_CALLBACK_URL)</string>
 	<key>OpenRouterSiteURL</key>
 	<string>$(OPENROUTER_SITE_URL)</string>
+	<key>OpenTVAPIBaseURL</key>
+	<string>$(CATALOG_PROXY_BASE_URL)</string>
 	<key>OpenTVAppAttestDevelopmentToken</key>
 	<string>$(APP_ATTEST_DEVELOPMENT_TOKEN)</string>
 	<key>UIBackgroundModes</key>

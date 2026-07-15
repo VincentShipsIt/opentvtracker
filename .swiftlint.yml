@@ -1,6 +1,7 @@
 included:
   - OpenTVTracker
   - OpenTVTrackerTests
+  - OpenTVTrackerUITests
 
 line_length:
   warning: 240
