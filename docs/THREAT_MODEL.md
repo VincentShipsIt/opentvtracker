@@ -12,6 +12,7 @@ Expected adversaries include automated scrapers, replay attackers, modified or f
 | ------------------------ | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Local SwiftData          | Personal library and preferences                         | Local model, versioned archive, user-initiated export                                                                                                                |
 | Invitation-only CloudKit | Shared list, profiles, activity, events                  | Custom zone, stable IDs, CKShare, outbox, revocation/leave purge                                                                                                     |
+| Nearby partner pairing   | Short-lived CloudKit invitation URL                      | User-initiated Bonjour discovery, local-only peer connection, six-digit TLS pre-shared key, payload validation, session ends with the pairing screen                 |
 | Official proxy           | Bounded catalog/cinema query plus App Attest headers     | HTTPS, official App ID validation, persisted key/counter, one-time challenge, signed payload, short token, per-device/IP quota, strict schemas, timeout, kill switch |
 | Direct OpenRouter        | User key and at most 20 public recommendation candidates | OAuth PKCE, associated HTTPS callback, Keychain, explicit opt-in, timeout, strict output IDs, deterministic fallback                                                 |
 | Public providers         | TV search or official cinema page                        | Keyless fallback, timeout, source attribution                                                                                                                        |
@@ -28,6 +29,7 @@ Expected adversaries include automated scrapers, replay attackers, modified or f
 - **CORS confusion:** native auth is App Attest; CORS is optional and does not affect authorization.
 - **Log exfiltration:** structured logs use path only and exclude query, IP, headers, body, secrets, assertions, receipts, and personal fields.
 - **Operator-funded AI abuse:** the server has no OpenRouter credential or reranking endpoint; users pay through their own capped key.
+- **Nearby invitation interception:** pairing advertises only while the owner keeps the screen open; the invitation travels over TLS authenticated by the displayed code and is accepted through the existing CloudKit flow.
 
 ## Residual risks
 

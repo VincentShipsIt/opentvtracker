@@ -25,7 +25,7 @@ struct TogetherView: View {
             .navigationTitle("Together")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Invite partner", systemImage: "person.badge.plus") {
+                    Button("Connect partner", systemImage: "person.badge.plus") {
                         presentedSheet = .invite
                     }
                     .accessibilityIdentifier("together.invite-partner")
@@ -153,11 +153,6 @@ private struct SharedPosterCard: View {
     }
 }
 
-private enum TogetherSheet: String, Identifiable {
-    case invite
-    var id: String { rawValue }
-}
-
 private struct PartnerInvitationView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
@@ -165,6 +160,7 @@ private struct PartnerInvitationView: View {
     private let sharingService: any PartnerSharingProviding = CloudKitPartnerSharingService()
     @State private var availability: PartnerSharingAvailability?
     @State private var invitationURL: URL?
+    @State private var nearbyPairingRoute: NearbyPairingRoute?
     @State private var isWorking = false
     @State private var errorMessage: String?
 
@@ -179,7 +175,7 @@ private struct PartnerInvitationView: View {
                         .accessibilityHidden(true)
 
                     VStack(spacing: 8) {
-                        Text("Invite someone to \(space.name)")
+                        Text("Connect someone to \(space.name)")
                             .font(.title2.weight(.bold))
                         Text(invitationDescription)
                             .multilineTextAlignment(.center)
@@ -196,7 +192,16 @@ private struct PartnerInvitationView: View {
                         .padding(16)
                     }
 
-                    invitationAction
+                    nearbyPairingActions
+
+                    if model.sharedSpace.isCurrentUserShareOwner != false {
+                        VStack(spacing: 10) {
+                            Text("OR SEND A LINK")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                            invitationAction
+                        }
+                    }
 
                     if model.sharedSpace.isCurrentUserShareOwner == true,
                        model.sharedSpace.isCloudSharingEnabled {
@@ -223,7 +228,7 @@ private struct PartnerInvitationView: View {
                 }
                 .padding(AppTheme.horizontalPadding)
             }
-            .navigationTitle("Partner invitation")
+            .navigationTitle("Connect partner")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -231,6 +236,51 @@ private struct PartnerInvitationView: View {
                 }
             }
             .task { availability = await sharingService.availability() }
+            .sheet(item: $nearbyPairingRoute) { route in
+                switch route {
+                case .host(let invitationURL):
+                    NearbyPartnerPairingView(
+                        role: .host(
+                            invitationURL: invitationURL,
+                            displayName: currentMemberName,
+                            spaceName: space.name
+                        )
+                    )
+                case .join:
+                    NearbyPartnerPairingView(role: .join)
+                }
+            }
+        }
+    }
+
+    private var nearbyPairingActions: some View {
+        VStack(spacing: 12) {
+            if model.sharedSpace.isCurrentUserShareOwner != false,
+               model.sharedSpace.resolvedMembershipState != .accepted {
+                Button {
+                    Task { await prepareNearbyHosting() }
+                } label: {
+                    if isWorking {
+                        ProgressView().frame(maxWidth: .infinity)
+                    } else {
+                        Label("Pair nearby", systemImage: "dot.radiowaves.left.and.right")
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+                .adaptiveGlassButton(prominent: true)
+                .disabled(isWorking || availability != .available)
+                .accessibilityHint("Creates a secure code to connect a nearby partner's iPhone")
+            }
+
+            if !model.sharedSpace.isCloudSharingEnabled {
+                Button("Join partner nearby", systemImage: "iphone.radiowaves.left.and.right") {
+                    nearbyPairingRoute = .join
+                }
+                .frame(maxWidth: .infinity)
+                .adaptiveGlassButton()
+                .disabled(isWorking || availability != .available)
+                .accessibilityHint("Finds a partner who is showing a nearby pairing code")
+            }
         }
     }
 
@@ -271,7 +321,26 @@ private struct PartnerInvitationView: View {
         switch availability {
         case .iCloudAccountRequired: "Open Settings and sign in to iCloud, then return here. Your personal library stays local."
         case .notConfigured: "Select your Apple Developer team and enable the OpenTV CloudKit container for this app target."
-        default: "Create an invitation-only iCloud space for your shared watchlist and watched-together activity."
+        default: "Pair nearby without sending a link. OpenTV securely hands off the invitation, then iCloud keeps your shared space in sync."
+        }
+    }
+
+    private var currentMemberName: String {
+        model.sharedSpace.members.first(where: \.isCurrentUser)?.name ?? "Partner"
+    }
+
+    private func prepareNearbyHosting() async {
+        isWorking = true
+        defer { isWorking = false }
+        do {
+            let url = try await sharingService.inviteURL(for: space.id)
+            model.markPartnerShareCreated()
+            await model.flushSharedState()
+            invitationURL = url
+            errorMessage = nil
+            nearbyPairingRoute = .host(url)
+        } catch {
+            errorMessage = error.localizedDescription
         }
     }
 
