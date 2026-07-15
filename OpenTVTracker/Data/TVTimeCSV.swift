@@ -69,9 +69,9 @@ enum TVTimeCSV {
     static func bool(_ values: [String: String], _ keys: [String]) -> Bool? {
         guard let value = string(values, keys)?.lowercased() else { return nil }
         switch value {
-        case "1", "true", "yes": true
-        case "0", "false", "no": false
-        default: nil
+        case "1", "true", "yes": return true
+        case "0", "false", "no": return false
+        default: return nil
         }
     }
 
