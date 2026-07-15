@@ -16,6 +16,7 @@ Package.resolved
 Config/Secrets.xcconfig
 *.env
 .env.*
+!server/.env.example
 
 # macOS
 .DS_Store
