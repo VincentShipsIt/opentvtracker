@@ -23,9 +23,11 @@ struct StreamingRegion: Hashable, Identifiable, Sendable {
     }
 
     static func deviceDefault(locale: Locale = .autoupdatingCurrent) -> StreamingRegion {
-        locale.region?.identifier
-            .flatMap(StreamingRegion.init(code:))
-            ?? .malta
+        guard let code = locale.region?.identifier,
+              let region = StreamingRegion(code: code) else {
+            return .malta
+        }
+        return region
     }
 
     static let malta = StreamingRegion(uncheckedCode: "MT")
