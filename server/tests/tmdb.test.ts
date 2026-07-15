@@ -1,10 +1,44 @@
 import { describe, expect, test } from "bun:test";
 import {
   mapEpisodeSummary,
+  mapReviews,
   mapStreamingProvider,
   StreamingProviderID,
   TMDBProviderID,
 } from "../src/tmdb";
+
+describe("mapReviews", () => {
+  test("keeps complete TMDB review content and source metadata", () => {
+    const content = "A".repeat(900);
+    expect(mapReviews({
+      results: [{
+        id: "review-id",
+        author: "Reviewer",
+        author_details: {
+          username: "reviewer-name",
+          avatar_path: "/avatar.jpg",
+          rating: 8,
+        },
+        content,
+        url: "https://www.themoviedb.org/review/review-id",
+        created_at: "2026-07-14T10:30:15.123Z",
+        updated_at: "2026-07-15T11:45:00.000Z",
+      }],
+    })[0]).toEqual({
+      id: "tmdb-review-review-id",
+      author: "Reviewer",
+      excerpt: content,
+      rating: 8,
+      source: "TMDB",
+      containsSpoilers: true,
+      username: "reviewer-name",
+      avatarURL: "https://image.tmdb.org/t/p/w185/avatar.jpg",
+      sourceURL: "https://www.themoviedb.org/review/review-id",
+      createdAt: "2026-07-14T10:30:15Z",
+      updatedAt: "2026-07-15T11:45:00Z",
+    });
+  });
+});
 
 describe("mapEpisodeSummary", () => {
   test("keeps TMDB episode artwork and overview for the mobile season screen", () => {
