@@ -5,6 +5,7 @@ enum AppTab: Hashable {
     case discover
     case together
     case library
+    case profile
 }
 
 struct RootTabView: View {
@@ -30,6 +31,11 @@ struct RootTabView: View {
             Tab("Library", systemImage: "rectangle.stack.fill", value: .library) {
                 LibraryView()
                     .accessibilityIdentifier("tab.library")
+            }
+
+            Tab("Profile", systemImage: "person.crop.circle.fill", value: .profile) {
+                ProfileView()
+                    .accessibilityIdentifier("tab.profile")
             }
         }
         .tint(.accentColor)

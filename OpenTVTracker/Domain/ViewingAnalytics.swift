@@ -1,17 +1,8 @@
 import Foundation
 
-enum ViewingAnalyticsScope: String, CaseIterable, Identifiable, Sendable {
+enum ViewingAnalyticsScope: String, Sendable {
     case personal
     case together
-
-    var id: String { rawValue }
-
-    var label: String {
-        switch self {
-        case .personal: "Me"
-        case .together: "Together"
-        }
-    }
 }
 
 struct ViewingAnalyticsMetric: Hashable, Identifiable, Sendable {

@@ -46,13 +46,6 @@ struct LibraryView: View {
             .navigationTitle("Library")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink {
-                        ViewingAnalyticsView()
-                    } label: {
-                        Label("Viewing analytics", systemImage: "chart.bar.xaxis")
-                    }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
                     Button("Import or export", systemImage: "arrow.up.arrow.down") {
                         showsDataTools = true
                     }
