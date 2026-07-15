@@ -33,17 +33,18 @@ struct DiscoverCategoryGrid: View {
     let sections: [DiscoverCategorySection]
 
     private let columns = [
-        GridItem(.flexible(), spacing: 14),
-        GridItem(.flexible(), spacing: 14)
+        GridItem(.flexible(minimum: 0), spacing: 12),
+        GridItem(.flexible(minimum: 0), spacing: 12)
     ]
 
     var body: some View {
-        LazyVGrid(columns: columns, spacing: 16) {
+        LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
             ForEach(sections) { section in
                 NavigationLink(value: section.category) {
                     DiscoverCategoryTile(section: section)
                 }
                 .buttonStyle(.plain)
+                .frame(maxWidth: .infinity)
             }
         }
     }
@@ -53,38 +54,18 @@ struct DiscoverCategoryTile: View {
     let section: DiscoverCategorySection
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            categoryArtwork
-                .frame(height: 116)
-
-            VStack(alignment: .leading, spacing: 5) {
-                Text(section.category.title)
-                    .font(.headline.weight(.bold))
-                    .lineLimit(1)
-
-                if let latestTitle = section.latestTitle {
-                    Text("\(section.category == .topRated ? "Best rated" : "Latest") · \(latestTitle.title)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
+        categoryArtwork
+            .aspectRatio(1.45, contentMode: .fit)
+            .frame(maxWidth: .infinity)
+            .overlay {
+                RoundedRectangle(cornerRadius: AppTheme.compactRadius)
+                    .strokeBorder(.white.opacity(0.18))
             }
-            .padding(12)
-            .frame(maxWidth: .infinity, minHeight: 68, alignment: .topLeading)
-        }
-        .background(
-            Color(hex: section.category.palette.primaryHex).opacity(0.13),
-            in: RoundedRectangle(cornerRadius: AppTheme.compactRadius)
-        )
-        .overlay {
-            RoundedRectangle(cornerRadius: AppTheme.compactRadius)
-                .strokeBorder(.white.opacity(0.16))
-        }
-        .compositingGroup()
-        .clipShape(.rect(cornerRadius: AppTheme.compactRadius))
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(accessibilityLabel)
-        .accessibilityHint("Opens titles in this category")
+            .compositingGroup()
+            .clipShape(.rect(cornerRadius: AppTheme.compactRadius))
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(accessibilityLabel)
+            .accessibilityHint("Opens titles in this category")
     }
 
     private var categoryArtwork: some View {
@@ -103,29 +84,19 @@ struct DiscoverCategoryTile: View {
             }
 
             LinearGradient(
-                colors: [.clear, Color(hex: section.category.palette.secondaryHex).opacity(0.88)],
+                colors: [.clear, .black.opacity(0.22), .black.opacity(0.82)],
                 startPoint: .top,
                 endPoint: .bottom
             )
 
-            if section.titles.count > 1 {
-                PosterArtwork(title: section.titles[1], cornerRadius: 7)
-                    .frame(width: 40, height: 59)
-                    .padding(10)
-                    .rotationEffect(.degrees(-4))
-                    .shadow(color: .black.opacity(0.28), radius: 5, y: 3)
-            }
-
-            Image(systemName: section.category.symbol)
-                .font(.headline.weight(.bold))
+            Text(section.category.title)
+                .font(.headline.weight(.semibold))
                 .foregroundStyle(.white)
-                .frame(width: 38, height: 38)
-                .background(.black.opacity(0.34), in: Circle())
-                .overlay { Circle().strokeBorder(.white.opacity(0.30)) }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-                .padding(10)
-                .accessibilityHidden(true)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .padding(12)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .clipped()
     }
 
@@ -142,19 +113,10 @@ struct DiscoveryCategoryPickerView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 18) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("What sounds good?")
-                            .font(.largeTitle.weight(.black))
-                        Text("Choose a category, then pick from the newest movies and shows included with your subscriptions.")
-                            .foregroundStyle(.secondary)
-                    }
-
-                    DiscoverCategoryGrid(sections: sections)
-                }
-                .padding(.horizontal, AppTheme.horizontalPadding)
-                .padding(.top, 12)
-                .padding(.bottom, 34)
+                DiscoverCategoryGrid(sections: sections)
+                    .padding(.horizontal, AppTheme.horizontalPadding)
+                    .padding(.top, 16)
+                    .padding(.bottom, 34)
             }
             .background(AmbientBackdrop())
             .navigationTitle("Choose tonight")
