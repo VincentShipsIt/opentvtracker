@@ -18,12 +18,12 @@ extension AppModel {
             )
         }
 
-        let watchedEpisodeCount = seasons.reduce(0) { count, season in
+        let watchedCount = seasons.reduce(0) { count, season in
             count + watchedEpisodeCount(titleID: title.id, season: season)
         }
         return MediaProgressSummary(
-            label: "\(watchedEpisodeCount) of \(totalEpisodeCount) episodes",
-            fraction: Double(watchedEpisodeCount) / Double(totalEpisodeCount)
+            label: "\(watchedCount) of \(totalEpisodeCount) episodes",
+            fraction: Double(watchedCount) / Double(totalEpisodeCount)
         )
     }
 
