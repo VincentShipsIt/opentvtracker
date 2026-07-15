@@ -21,11 +21,15 @@ struct LocalCatalogService: CatalogProviding {
 
 struct ServerCatalogService: CatalogProviding {
     private let baseURL: URL
-    private let session: URLSession
+    private let appAttest: AppAttestClient
 
-    init(baseURL: URL, session: URLSession = .shared) {
+    init(
+        baseURL: URL,
+        session: URLSession = .shared,
+        appAttest: AppAttestClient? = nil
+    ) {
         self.baseURL = baseURL
-        self.session = session
+        self.appAttest = appAttest ?? AppAttestClient(baseURL: baseURL, session: session)
     }
 
     func search(_ query: MediaSearchQuery) async throws -> [MediaTitle] {
@@ -54,7 +58,7 @@ struct ServerCatalogService: CatalogProviding {
         var request = URLRequest(url: url)
         request.timeoutInterval = 8
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await appAttest.data(for: request)
         guard let response = response as? HTTPURLResponse else { throw CatalogServiceError.unavailable }
         if response.statusCode == 404 { throw CatalogServiceError.notFound }
         guard 200..<300 ~= response.statusCode else { throw CatalogServiceError.unavailable }

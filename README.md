@@ -2,35 +2,36 @@
 
 An open-source, privacy-minded iPhone app for tracking TV shows and movies — solo or together.
 
-The repository is private while the first usable release is taking shape. The intended public license is MIT.
-
 ## Product
 
-- See new episodes and continue what you are already watching.
-- Keep a single watchlist across shows and movies.
-- Browse rich poster and backdrop artwork, then watch official trailers in-app.
-- Filter discovery to streaming services you already pay for.
-- Share progress and a watchlist with a partner.
-- Compare personal and shared viewing analytics, then share a generated recap card on X.
-- Discover what to watch next with transparent recommendations.
-- Check Malta cinema listings and jump to Eden, Embassy, or Citadel booking pages.
-- Import or export a portable versioned library as JSON/CSV.
-- See streaming availability and attributed community context without building another social network first.
+- Track episodes, movies, ratings, notes, rewatches, and a unified watchlist.
+- Discover titles on selected streaming services with transparent on-device recommendations.
+- Optionally rerank the same bounded candidates using a user-controlled OpenRouter key.
+- Share a watchlist and progress through invitation-only CloudKit records.
+- View Malta cinema listings and open official booking pages.
+- Import and export a portable, versioned library.
 
-Read [the product vision](docs/VISION.md), [architecture](docs/ARCHITECTURE.md), and [roadmap](docs/ROADMAP.md).
+Read the [product vision](docs/VISION.md), [architecture](docs/ARCHITECTURE.md), [threat model](docs/THREAT_MODEL.md), and [roadmap](docs/ROADMAP.md).
+
+## Trust model
+
+OpenTV works without an account or hosted service. Personal tracking and deterministic recommendations stay on the iPhone. TVmaze and official cinema pages provide public-source fallbacks.
+
+The official binary may use Vincent's hosted TMDB/cinema proxy. That service accepts only production App Attest keys for `C76R5DRH64.dev.shipshit.opentvtracker`; every protected request carries a fresh challenge and a payload-bound assertion. Unsupported devices fall back gracefully and do not receive an anonymous hosted-service bypass.
+
+Forks and self-built apps cannot use Vincent's hosted proxy. Configure and operate your own proxy, Apple App ID, provider key, state storage, OAuth callback, quotas, and edge controls. See [self-hosting](docs/SELF_HOSTING.md) and [provider operations](docs/PROVIDER_OPERATIONS.md).
+
+AI reranking never uses an operator OpenRouter key. The user authorizes OpenRouter with OAuth PKCE, the resulting user-controlled API key is stored in the iOS Keychain, and requests go directly from the iPhone to OpenRouter. AI stays off by default and any failure returns the deterministic ranking.
 
 ## Current implementation
 
-- Swift 6 and SwiftUI
-- iOS 18 minimum; native Liquid Glass on iOS 26 with material fallbacks
-- Versioned local-only SwiftData storage with safe migration from the original JSON snapshot
-- Invitation-only CloudKit custom zones, private/shared sync engines, durable outboxes, and account-change purging
-- Keyless live TV discovery from TVmaze, including seasons and episodes
-- A Dockerized Bun operator proxy for TMDB/JustWatch movie and TV metadata, Malta cinema listings, and optional OpenRouter reranking
-- Live Embassy Cinemas showtimes from its official booking schedule, plus official Eden and Citadel links
-- Deterministic on-device recommendations with couple-match explanations and feedback exclusions
-- Air-date/release-aware Up Next tracking, ratings, notes, rewatches, explicit progress corrections, and immutable watch events
-- Event-backed hours watched, title/episode totals, genre and service breakdowns, partner stats, and shareable recap cards
+- Swift 6, SwiftUI, and iOS 18+
+- Local-only SwiftData with versioned import/export
+- Invitation-only CloudKit custom zones and durable sync outboxes
+- TVmaze public catalog fallback and official Malta cinema sources
+- App Attest-protected Bun proxy for TMDB/JustWatch metadata and Embassy showtimes
+- User-funded OpenRouter OAuth PKCE with Keychain storage and direct reranking
+- Docker packaging and GitHub Actions for iOS, server, and secret scanning
 
 ## Development
 
@@ -41,11 +42,13 @@ xcodegen generate
 open OpenTVTracker.xcodeproj
 ```
 
-No credentials are committed. The app works without keys for TV shows and Embassy Malta showtimes. Copy `Config/Secrets.example.xcconfig` to `Config/Secrets.xcconfig` and set the operator catalog proxy URL to add TMDB movies, Malta streaming availability, reviews, trailers, and optional OpenRouter reranking. Provider credentials stay on that server; they never enter the app bundle. See [`server/README.md`](server/README.md).
+The keyless build works with public TV sources. For a local proxy, copy `Config/Secrets.example.xcconfig` to the ignored `Config/Secrets.xcconfig`, set your proxy URL, and use the development-only App Attest bypass described in [self-hosting](docs/SELF_HOSTING.md). Never ship that bypass token.
 
-The app runs on iOS 18 and later, including iPhone 11 Pro. To enable partner sharing on a physical device, select your Apple Developer team, attach the `iCloud.dev.shipshit.opentvtracker` CloudKit container to the app identifier, and let Xcode create the provisioning profile. Local tracking does not require iCloud.
+OpenRouter OAuth requires an HTTPS callback domain associated with the app. Official defaults point to `shipshit.dev`; forks must change `OPENROUTER_OAUTH_CALLBACK_URL`, `OPENROUTER_ASSOCIATED_DOMAIN`, and `OPENROUTER_SITE_URL` in their own build configuration.
 
-See [PRIVACY.md](PRIVACY.md), [CONTRIBUTING.md](CONTRIBUTING.md), and the [public release checklist](docs/PUBLIC_RELEASE_CHECKLIST.md).
+To enable partner sharing on a physical device, configure your own CloudKit container and provisioning profile. Local tracking does not require iCloud.
+
+See [PRIVACY.md](PRIVACY.md), [SECURITY.md](SECURITY.md), [CONTRIBUTING.md](CONTRIBUTING.md), and the [public release checklist](docs/PUBLIC_RELEASE_CHECKLIST.md).
 
 ## License
 

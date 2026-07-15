@@ -26,6 +26,14 @@
 	<string>OpenTV turns your spoken discovery request into text so it can find matching movies and shows.</string>
 	<key>OpenTVAPIBaseURL</key>
 	<string>$(CATALOG_PROXY_BASE_URL)</string>
+	<key>OpenRouterModel</key>
+	<string>$(OPENROUTER_MODEL)</string>
+	<key>OpenRouterOAuthCallbackURL</key>
+	<string>$(OPENROUTER_OAUTH_CALLBACK_URL)</string>
+	<key>OpenRouterSiteURL</key>
+	<string>$(OPENROUTER_SITE_URL)</string>
+	<key>OpenTVAppAttestDevelopmentToken</key>
+	<string>$(APP_ATTEST_DEVELOPMENT_TOKEN)</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>

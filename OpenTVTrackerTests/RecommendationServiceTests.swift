@@ -2,6 +2,11 @@ import XCTest
 @testable import OpenTVTracker
 
 final class RecommendationServiceTests: XCTestCase {
+    override func tearDown() {
+        TestURLProtocol.handler = nil
+        super.tearDown()
+    }
+
     func testRankingIsReproducibleAndExplained() {
         let context = RecommendationContext(
             mood: .any,
@@ -47,6 +52,49 @@ final class RecommendationServiceTests: XCTestCase {
         let results = DeterministicRecommendationEngine.rank(snapshot: .sample, context: context)
 
         XCTAssertTrue(results.contains(where: { $0.reason.contains("both taste profiles") }))
+    }
+
+    func testUserFundedOpenRouterRerankingCallsProviderDirectlyWithKeychainCredential() async throws {
+        let store = MemorySecureCredentialStore()
+        try store.set(Data("sk-or-v1-user-key".utf8), for: OpenRouterOAuthClient.apiKeyAccount)
+        let session = TestURLProtocol.session()
+        let deterministic = DeterministicRecommendationEngine.rank(
+            snapshot: .sample,
+            context: RecommendationContext(
+                mood: .any,
+                maximumRuntimeMinutes: nil,
+                sharedSpaceID: LibrarySnapshot.sample.sharedSpace.id
+            )
+        )
+        let expected = Array(deterministic.prefix(2).reversed()).map(\.title.catalogID)
+        TestURLProtocol.handler = { request in
+            XCTAssertEqual(request.url?.host, "openrouter.ai")
+            XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer sk-or-v1-user-key")
+            let content = try JSONSerialization.data(withJSONObject: ["catalogIDs": expected])
+            let contentString = try XCTUnwrap(String(data: content, encoding: .utf8))
+            let response = try JSONSerialization.data(withJSONObject: [
+                "choices": [["message": ["content": contentString]]]
+            ])
+            return (
+                HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!,
+                response
+            )
+        }
+        let service = OpenRouterRecommendationService(
+            model: "openai/gpt-4o-mini",
+            siteURL: URL(string: "https://github.com/VincentShipsIt/opentvtracker"),
+            credentials: store,
+            session: session
+        )
+
+        let reranked = try await service.rerank(Array(deterministic.prefix(2)), context: RecommendationContext(
+            mood: .any,
+            maximumRuntimeMinutes: nil,
+            sharedSpaceID: LibrarySnapshot.sample.sharedSpace.id,
+            allowsRemoteReranking: true
+        ))
+
+        XCTAssertEqual(reranked.map(\.title.catalogID), expected)
     }
 }
 

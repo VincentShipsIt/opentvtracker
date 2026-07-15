@@ -52,7 +52,7 @@ Episode and movie metadata, progress controls, streaming availability, spoiler-s
 - TMDB is the primary catalog, artwork, discovery, and review source. Its required attribution belongs in Settings/Credits.
 - Streaming availability comes through TMDB's JustWatch-backed provider endpoints and must visibly attribute JustWatch.
 - IMDb is used through outbound links or a future licensed data path; the app does not scrape IMDb pages.
-- AI calls go through an operator-controlled proxy. Personal history is minimized and redacted before leaving the device.
+- Optional AI calls go directly to OpenRouter with a user-authorized, Keychain-stored key. The operator proxy has no AI credential or paid reranking route, and private history stays out of the bounded candidate payload.
 
 ## Non-goals for v1
 

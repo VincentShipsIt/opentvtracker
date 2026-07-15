@@ -1,80 +1,58 @@
 # Architecture
 
-## Current architecture
+## Local application
 
 ```text
 SwiftUI features
     ↓
 @MainActor AppModel
-    ↓
-LibraryPersisting
-    ├── SwiftDataLibraryStore (versioned, local-only)
-    ├── FileLibraryStore (legacy migration/fallback)
-    └── MemoryLibraryStore (previews/tests)
+    ├── local SwiftData / versioned import-export
+    ├── private and shared CloudKit sync (optional)
+    ├── deterministic recommendation engine
+    └── service protocols
+          ├── public TVmaze / official cinema fallbacks
+          ├── App Attest-protected operator proxy
+          └── direct user-funded OpenRouter reranking (optional)
 ```
 
-Catalog, cinema, recommendation, persistence, and partner-sharing protocols isolate SwiftUI from DTOs, provider failures, CloudKit records, and credentials.
+The personal library is the immediate source of truth and works offline. SwiftData never mirrors CloudKit collaboration records. Catalog, cinema, recommendation, persistence, and sharing protocols keep SwiftUI independent from DTOs, provider failures, and credentials.
 
-## Identity
+## Official proxy trust flow
 
-- `MediaTitle.id` is a stable app identity, independent from mutable titles.
-- Catalog lookups always carry both `MediaKind` and the numeric catalog identifier because movie and TV namespaces can overlap.
-- Future local records, spaces, members, events, and CloudKit records receive separate stable identifiers.
+```text
+iPhone                           Bun proxy                         Apple / providers
+  │ POST challenge (attestation)   │
+  │◀──────────────── random, 60 s ─│
+  │ attest Secure Enclave key ──────────────────────────────────▶ App Attest
+  │ POST attestation               │ verify cert chain, nonce,
+  │                                │ Team ID, bundle ID, key ID
+  │◀──────────── 10 min token ─────│ persist public key + counter
+  │
+  │ POST challenge (request)       │ validate token + key
+  │◀──────────────── random, 60 s ─│
+  │ sign challenge + method + exact target + body hash
+  │ GET catalog + assertion ──────▶│ consume challenge; verify signature/counter
+  │                                │ quota device + IP; validate; cache
+  │                                │─────────────────────────────▶ TMDB / cinema
+  │◀──────────────── response ─────│
+```
 
-## Personal data
+Tokens reduce unauthenticated challenge abuse but never replace assertions. Every protected request is bound to its exact method, percent-encoded path/query, body digest, and one-time challenge. The server updates the counter before provider access. Challenges, rate buckets, and response caches are bounded and expire; verified device keys and counters use an atomic file-backed state store on a persistent disk.
 
-The personal library is the immediate UI source of truth and works offline. Remote changes are reconciled into local storage; UI never queries a sync provider directly.
+Production starts only with Team ID, bundle ID, token secret, and TMDB read token. Development/test mode is explicit and production rejects any configured bypass token.
 
-SwiftData is explicitly local-only and never mirrors the records managed by the CloudKit collaboration engine.
+The server cache is private and evaluated after authorization. `CDN-Cache-Control: no-store` prevents an ordinary shared cache from bypassing App Attest. An edge cache may be enabled only if App Attest and quota enforcement run before cache lookup.
+
+## Unsupported devices and forks
+
+The official service does not expose an anonymous fallback. Unsupported devices use TVmaze and direct official cinema pages. This is lower functionality without operator-funded abuse risk.
+
+App Attest validates the App ID (`TeamID.BundleID`), so a public fork cannot authenticate to Vincent's service. Self-hosters configure their own App ID, persistent state path, TMDB key, proxy URL, associated OAuth domain, and edge controls.
+
+## OpenRouter
+
+OAuth PKCE runs in a SwiftUI web authentication session using an associated HTTPS callback. The exchanged user key is a this-device-only Keychain item. Direct chat-completions calls send at most 20 public candidates and validate that structured output contains every supplied ID exactly once. The operator server has no OpenRouter route, key, model, or spend exposure.
 
 ## Partner sharing
 
-Partner data stays separate from the personal library. Separate private and shared `CKSyncEngine` workers reconcile persisted local caches and durable outboxes through CloudKit.
-
-One custom CloudKit zone represents one private partner space:
-
-```text
-PartnerSpace_<stable ID>
-├── zone-wide CKShare (invitation-only)
-├── Space
-├── Member
-├── SharedTitle
-├── WatchEvent
-└── ProgressCorrection
-```
-
-Progress is event-based rather than one mutable episode counter. Concurrent watch events converge by set union. Moving progress backward requires an explicit correction, so ordinary sync never silently erases viewing history.
-
-CloudKit is opt-in. Local tracking never requires an Apple account. Account changes, revocation, and leaving purge retained shared state.
-
-## Catalog and community data
-
-```text
-App → operator catalog proxy → TMDB
-```
-
-The shipped binary contains no TMDB or AI provider secret. Server DTOs are mapped into domain values. When the operator endpoint is absent or unavailable, the app uses TVmaze's real public API for TV discovery and reads Embassy Cinemas' official schedule directly; production never falls back to bundled catalog records.
-
-- TMDB provides catalog metadata and source reviews.
-- TMDB's JustWatch-backed endpoints provide regional availability with visible attribution.
-- TVmaze provides keyless TV metadata, streaming schedules, seasons, and episodes under CC BY-SA with in-app source links.
-- Embassy Cinemas provides live Malta showtimes; Eden and Citadel are official outbound listings until stable feeds exist.
-- IMDb remains outbound-link only until a licensed data path exists.
-
-## Recommendations
-
-Deterministic, explainable recommendations are always available. When the user opts in, the operator service reranks the same bounded candidate set through OpenRouter structured output. The AI boundary:
-
-- stay provider-neutral;
-- use an operator-controlled server boundary;
-- minimize consented history before sending it;
-- exclude private notes and raw shared activity by default;
-- returns every supplied catalog identifier exactly once and cannot introduce titles;
-- fall back to deterministic ranking on failure.
-
-## Availability and UI
-
-- iOS 18 is the deployment floor.
-- iOS 26 uses native `glassEffect` and glass button styles.
-- iOS 18–25 use material and bordered-control fallbacks.
-- Standard SwiftUI bars and controls provide most glass behavior; custom glass is reserved for meaningful grouped surfaces.
+One custom CloudKit zone represents one private partner space with a zone-wide `CKShare`, members, shared titles, append-only watch events, and explicit progress corrections. Account changes, revocation, and leaving purge retained shared state.

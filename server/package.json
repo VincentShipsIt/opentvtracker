@@ -11,5 +11,8 @@
   "devDependencies": {
     "@types/bun": "latest",
     "typescript": "latest"
+  },
+  "dependencies": {
+    "node-app-attest": "1.0.1"
   }
 }

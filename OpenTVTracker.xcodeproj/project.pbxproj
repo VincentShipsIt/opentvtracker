@@ -7,6 +7,12 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A10000000000000000000001 /* AppAttestClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10000000000000000000001 /* AppAttestClient.swift */; };
+		A10000000000000000000002 /* OpenRouterOAuth.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10000000000000000000002 /* OpenRouterOAuth.swift */; };
+		A10000000000000000000003 /* OpenRouterRecommendationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10000000000000000000003 /* OpenRouterRecommendationService.swift */; };
+		B10000000000000000000001 /* AppAttestClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10000000000000000000004 /* AppAttestClientTests.swift */; };
+		B10000000000000000000002 /* OpenRouterOAuthTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10000000000000000000005 /* OpenRouterOAuthTests.swift */; };
+		B10000000000000000000003 /* SecurityTestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10000000000000000000006 /* SecurityTestSupport.swift */; };
 		011F2EF0233A70A49BF7501E /* DiscoveryAssistantTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 058FC17069CAF8CCDAB3F30F /* DiscoveryAssistantTests.swift */; };
 		0781F3B135F9685059F3FD1A /* TitleSimilarity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 859256F3B9EF0624D5110D5A /* TitleSimilarity.swift */; };
 		0B70093E423593321E3D848B /* MediaDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5656C1D6DE5BAA4A9047ED7E /* MediaDetailView.swift */; };
@@ -76,6 +82,12 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		C10000000000000000000001 /* AppAttestClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppAttestClient.swift; sourceTree = "<group>"; };
+		C10000000000000000000002 /* OpenRouterOAuth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenRouterOAuth.swift; sourceTree = "<group>"; };
+		C10000000000000000000003 /* OpenRouterRecommendationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenRouterRecommendationService.swift; sourceTree = "<group>"; };
+		C10000000000000000000004 /* AppAttestClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppAttestClientTests.swift; sourceTree = "<group>"; };
+		C10000000000000000000005 /* OpenRouterOAuthTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenRouterOAuthTests.swift; sourceTree = "<group>"; };
+		C10000000000000000000006 /* SecurityTestSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecurityTestSupport.swift; sourceTree = "<group>"; };
 		058FC17069CAF8CCDAB3F30F /* DiscoveryAssistantTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoveryAssistantTests.swift; sourceTree = "<group>"; };
 		0BEAEBAA1D36179A75BAA358 /* AppModel+Assistant.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+Assistant.swift"; sourceTree = "<group>"; };
 		0F570624616BB1EC10933521 /* TVMazeCatalogService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVMazeCatalogService.swift; sourceTree = "<group>"; };
@@ -141,6 +153,7 @@
 		0809E00AD19E2A603C6C29D7 /* Data */ = {
 			isa = PBXGroup;
 			children = (
+				C10000000000000000000001 /* AppAttestClient.swift */,
 				EAD71270E84B0549ECD57DA3 /* CatalogServices.swift */,
 				C11FB9A5364F1028ACB6AF8B /* CinemaProviding.swift */,
 				64F135995FDD13BE45A3C6AA /* CloudKitPartnerSharingService.swift */,
@@ -148,6 +161,8 @@
 				6333506F69AFAE1BA4093A5D /* DiscoveryAssistant.swift */,
 				DBBD0032700550FCBAE59CEC /* LibraryPersisting.swift */,
 				4678CD1604F11015454665A7 /* LibraryTransfer.swift */,
+				C10000000000000000000002 /* OpenRouterOAuth.swift */,
+				C10000000000000000000003 /* OpenRouterRecommendationService.swift */,
 				CC818E6FA8B8249F3F7087FB /* RecommendationServices.swift */,
 				493F1A7537846757A044FDAE /* ServiceBoundaries.swift */,
 				0F570624616BB1EC10933521 /* TVMazeCatalogService.swift */,
@@ -297,12 +312,15 @@
 		DE7CD70EC07B51368CA00677 /* OpenTVTrackerTests */ = {
 			isa = PBXGroup;
 			children = (
+				C10000000000000000000004 /* AppAttestClientTests.swift */,
 				3A04FC826C098F98A35D87E6 /* AppModelTests.swift */,
 				8DD57852932292E08916026E /* DiscoverCategoryTests.swift */,
 				058FC17069CAF8CCDAB3F30F /* DiscoveryAssistantTests.swift */,
 				6CAD64D1EC93AC665ACFE5D6 /* EmbassyShowtimeParserTests.swift */,
 				CB86ECFE65B31D28B52695CC /* LibraryTransferTests.swift */,
 				1F15155D794E90782ECB43F7 /* RecommendationServiceTests.swift */,
+				C10000000000000000000005 /* OpenRouterOAuthTests.swift */,
+				C10000000000000000000006 /* SecurityTestSupport.swift */,
 				111F7857D63324A855494D83 /* SourceLinksTests.swift */,
 				4D071796CAD784E5EE144A4F /* TitleSimilarityTests.swift */,
 				F823FF292350485AF96063E3 /* ViewingAnalyticsTests.swift */,
@@ -385,7 +403,7 @@
 					96396D01C2F07D817EF2875C = {
 						DevelopmentTeam = C76R5DRH64;
 						ProvisioningStyle = Automatic;
-						SystemCapabilities = "[\"com.apple.Push\": [\"enabled\": 1], \"com.apple.iCloud\": [\"enabled\": 1]]";
+						SystemCapabilities = "[\"com.apple.DeviceCheck\": [\"enabled\": 1], \"com.apple.Push\": [\"enabled\": 1], \"com.apple.iCloud\": [\"enabled\": 1]]";
 					};
 				};
 			};
@@ -426,12 +444,15 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B10000000000000000000001 /* AppAttestClientTests.swift in Sources */,
 				8EE3472510D428E5214CA56C /* AppModelTests.swift in Sources */,
 				DC9197084E45B33D3448722D /* DiscoverCategoryTests.swift in Sources */,
 				011F2EF0233A70A49BF7501E /* DiscoveryAssistantTests.swift in Sources */,
 				29E1CEDDD201121D3F0CF9A7 /* EmbassyShowtimeParserTests.swift in Sources */,
 				94DD351F05C931C26FA450C1 /* LibraryTransferTests.swift in Sources */,
 				2B7C225B22689F41619D138B /* RecommendationServiceTests.swift in Sources */,
+				B10000000000000000000002 /* OpenRouterOAuthTests.swift in Sources */,
+				B10000000000000000000003 /* SecurityTestSupport.swift in Sources */,
 				8FBE1948CCC94D6165FFCE6A /* SourceLinksTests.swift in Sources */,
 				F301BCF6258EEA4BF0731AC9 /* TitleSimilarityTests.swift in Sources */,
 				FBC0C7E9602AB3C29FF9711D /* ViewingAnalyticsTests.swift in Sources */,
@@ -442,6 +463,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A10000000000000000000001 /* AppAttestClient.swift in Sources */,
 				5E37ABAC9E524C42758258F4 /* AppModel+Assistant.swift in Sources */,
 				94091C3E3C598E0EF0C9D3E1 /* AppModel+Catalog.swift in Sources */,
 				9BCCFB280C27497E504DC570 /* AppModel+CloudSync.swift in Sources */,
@@ -471,6 +493,8 @@
 				26330BE05DE95CC5FB4FDB78 /* MediaModels.swift in Sources */,
 				A8093A0120751277E97C4B0F /* MoreLikeThisView.swift in Sources */,
 				28AA0BDC90F80CD826FD050F /* OpenTVTrackerApp.swift in Sources */,
+				A10000000000000000000002 /* OpenRouterOAuth.swift in Sources */,
+				A10000000000000000000003 /* OpenRouterRecommendationService.swift in Sources */,
 				88127655816C90B84C533DFB /* PosterArtwork.swift in Sources */,
 				976BC2E8EECFBADA02F49FF8 /* RecommendationServices.swift in Sources */,
 				508FF952C3A01ACD61A10AA7 /* RootTabView.swift in Sources */,
@@ -505,6 +529,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = ABC74D06E46B01B3A7DF3712 /* Base.xcconfig */;
 			buildSettings = {
+				APP_ATTEST_ENVIRONMENT = development;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Config/OpenTVTracker.entitlements;
@@ -690,6 +715,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = ABC74D06E46B01B3A7DF3712 /* Base.xcconfig */;
 			buildSettings = {
+				APP_ATTEST_ENVIRONMENT = production;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Config/OpenTVTracker.entitlements;

@@ -1,23 +1,31 @@
 # Privacy
 
-OpenTV works without an account. By default, watch state, progress, ratings, notes, subscription choices, recommendation feedback, and imports stay on the iPhone in local SwiftData storage.
+OpenTV works without an account. Watch state, progress, ratings, notes, subscription choices, recommendation feedback, and imports stay in local SwiftData by default.
 
 ## Partner sharing
 
-Partner sharing is optional and uses an invitation-only CloudKit share. Only the shared watchlist, shared activity, member identifiers, taste preferences, and immutable watched/correction events enter that share. Personal notes, the rest of the personal library, and subscription credentials do not.
+Partner sharing is optional and uses an invitation-only CloudKit share. Only the shared watchlist, shared activity, member identifiers, taste preferences, and watched/correction events enter that share. Personal notes, the rest of the personal library, provider credentials, OpenRouter credentials, and App Attest credentials do not.
 
-The owner can revoke a share. A participant can leave it. Sign-out and account switching purge the retained shared cache, sync state, and outbox before another account is used.
+The owner can revoke a share and a participant can leave. Sign-out and account switching purge retained shared cache, sync state, and outbox data before another account is used.
 
-## Recommendations
+## Recommendations and OpenRouter
 
-Deterministic recommendations run on-device. Optional AI reranking is off by default. When enabled, OpenTV sends only candidate TMDB IDs, deterministic scores, mood, and an optional runtime limit to the configured OpenTV service. Names, private notes, member names, and raw watch events are never included. Timeout or service failure falls back to the on-device result.
+Deterministic recommendations run on-device and are the default. Optional AI reranking is off until the user connects an OpenRouter account and enables it.
 
-## Catalog and cinema services
+OpenRouter OAuth uses PKCE. The user-controlled API key returned by OpenRouter is stored as a this-device-only Keychain item and sent only to `openrouter.ai` as a bearer credential. It is never sent to the OpenTV proxy, Vincent, CloudKit, analytics, or logs. A reranking request contains a maximum of 20 public candidates with catalog ID, title, genres, runtime, rating, providers, deterministic score/reason, mood, and optional runtime limit. It excludes notes, member names, private watch events, and raw viewing history. OpenRouter receives the request directly and applies its own privacy policy.
 
-Catalog searches and live cinema requests may reach the configured OpenTV service with the search text, page, media kind, date, and Malta region code. Provider credentials are never shipped in the app. Official cinema links open the selected venue website under that venue's privacy policy.
+Disconnecting OpenRouter deletes the Keychain item. A timeout, revoked key, quota failure, invalid response, or provider outage silently restores the deterministic order.
+
+## Official catalog and cinema proxy
+
+The official app may send catalog query text, media kind, page, region, catalog ID, and cinema date to the configured proxy. Each request also contains App Attest material: a public key identifier, one-time challenge identifier, short-lived service token, and cryptographic assertion. The proxy persists the verified public key, Apple receipt, environment, monotonic counter, and registration/last-seen timestamps to prevent replay. These records are security identifiers, not advertising identifiers, and are not used for cross-app tracking.
+
+Production request logs contain only a random request ID, method, route path, status, coarse error code, and duration. They exclude IP addresses, query values, bodies, App Attest keys/assertions/tokens, OpenRouter credentials, and personal data. IP addresses are hashed transiently in memory only for quota enforcement.
+
+Devices without App Attest support do not receive anonymous access to the official hosted proxy. The app falls back to TVmaze and official cinema sources.
 
 ## Control and deletion
 
-Library data can be exported as versioned JSON or CSV. Removing the app removes local data. Revoking or leaving a partner share removes CloudKit access and purges the app's retained shared cache. OpenTV does not sell data, track users across apps, or include advertising SDKs.
+Library data can be exported as versioned JSON or CSV. Removing the app removes local data and Keychain credentials. Revoking or leaving a partner share removes CloudKit access and purges retained shared state. Proxy operators can remove an App Attest device record from their configured state store. OpenTV does not sell data, track users across apps, or include advertising SDKs.
 
-Security reports belong at the private contact in [SECURITY.md](SECURITY.md), not in a public issue.
+Report security issues privately as described in [SECURITY.md](SECURITY.md).

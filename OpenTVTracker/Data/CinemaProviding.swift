@@ -9,10 +9,16 @@ struct MaltaCinemaService: CinemaProviding {
     let venues = CinemaVenue.malta
     private let endpoint: URL?
     private let session: URLSession
+    private let appAttest: AppAttestClient?
 
-    init(endpoint: URL? = AppServiceConfiguration.apiBaseURL, session: URLSession = .shared) {
+    init(
+        endpoint: URL? = AppServiceConfiguration.apiBaseURL,
+        session: URLSession = .shared,
+        appAttest: AppAttestClient? = nil
+    ) {
         self.endpoint = endpoint
         self.session = session
+        self.appAttest = endpoint.map { appAttest ?? AppAttestClient(baseURL: $0, session: session) }
     }
 
     func showings(on date: Date, region: String = "MT") async throws -> [CinemaShowing] {
@@ -32,7 +38,8 @@ struct MaltaCinemaService: CinemaProviding {
         request.timeoutInterval = 8
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
-        let (data, response) = try await session.data(for: request)
+        guard let appAttest else { throw CinemaServiceError.unavailable }
+        let (data, response) = try await appAttest.data(for: request)
         guard let response = response as? HTTPURLResponse, 200..<300 ~= response.statusCode else {
             throw CinemaServiceError.unavailable
         }
@@ -249,8 +256,30 @@ enum AppServiceConfiguration {
         return URL(string: value)
     }
 
-    static var recommendationURL: URL? {
-        apiBaseURL?.appending(path: "v1/recommendations/rerank")
+    static var openRouterOAuthCallbackURL: URL? {
+        configuredURL(for: "OpenRouterOAuthCallbackURL")
+    }
+
+    static var openRouterModel: String? {
+        configuredString(for: "OpenRouterModel")
+    }
+
+    static var openRouterSiteURL: URL? {
+        configuredURL(for: "OpenRouterSiteURL")
+    }
+
+    static var appAttestDevelopmentToken: String? {
+        configuredString(for: "OpenTVAppAttestDevelopmentToken")
+    }
+
+    private static func configuredURL(for key: String) -> URL? {
+        configuredString(for: key).flatMap(URL.init(string:))
+    }
+
+    private static func configuredString(for key: String) -> String? {
+        guard let value = Bundle.main.object(forInfoDictionaryKey: key) as? String else { return nil }
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 }
 

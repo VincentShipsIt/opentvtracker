@@ -1,3 +1,4 @@
+import AuthenticationServices
 import SwiftUI
 
 enum DiscoverSheet: Identifiable {
@@ -21,10 +22,37 @@ enum DiscoverSheet: Identifiable {
 struct AIRankingSettingsView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.webAuthenticationSession) private var webAuthenticationSession
+    @State private var isAuthorized = false
+    @State private var isAuthorizing = false
+    @State private var authorizationError: String?
 
     var body: some View {
         NavigationStack {
             Form {
+                Section("OpenRouter account") {
+                    LabeledContent("Status", value: isAuthorized ? "Connected" : "Not connected")
+
+                    if isAuthorized {
+                        Button("Disconnect OpenRouter", role: .destructive) {
+                            Task { await disconnect() }
+                        }
+                    } else {
+                        Button("Connect OpenRouter") {
+                            Task { await connect() }
+                        }
+                        .disabled(isAuthorizing)
+                    }
+
+                    if isAuthorizing {
+                        ProgressView("Waiting for OpenRouter…")
+                    }
+                    if let authorizationError {
+                        Text(authorizationError)
+                            .foregroundStyle(.red)
+                    }
+                }
+
                 Section {
                     Toggle(
                         "Optional AI reranking",
@@ -33,8 +61,9 @@ struct AIRankingSettingsView: View {
                             set: { enabled in model.setAIRerankingEnabled(enabled) }
                         )
                     )
+                    .disabled(!isAuthorized)
                 } footer: {
-                    Text("Off by default. Deterministic recommendations always remain available.")
+                    Text("Off by default. Your OpenRouter key is created with OAuth PKCE, kept in this iPhone's Keychain, and used directly. Deterministic recommendations always remain available.")
                 }
 
                 Section("Exact payload preview") {
@@ -44,9 +73,10 @@ struct AIRankingSettingsView: View {
                 }
 
                 Section("Failure behavior") {
-                    Text("A 2.5-second timeout, quota error, invalid response, or unavailable provider silently falls back to the reproducible on-device ranking.")
+                    Text("A timeout, quota error, revoked key, invalid response, or unavailable provider silently falls back to the reproducible on-device ranking.")
                 }
             }
+            .task { await refreshAuthorizationStatus() }
             .navigationTitle("AI discovery")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -54,6 +84,48 @@ struct AIRankingSettingsView: View {
                     Button("Done") { dismiss() }
                 }
             }
+        }
+    }
+
+    private func connect() async {
+        guard let callbackURL = AppServiceConfiguration.openRouterOAuthCallbackURL else {
+            authorizationError = OpenRouterOAuthError.invalidConfiguration.localizedDescription
+            return
+        }
+        isAuthorizing = true
+        authorizationError = nil
+        defer { isAuthorizing = false }
+        do {
+            let client = OpenRouterOAuthClient(callbackURL: callbackURL)
+            let authorization = try await client.authorizationRequest()
+            let callback = try await webAuthenticationSession.authenticate(
+                using: authorization.authorizationURL,
+                callback: .https(host: authorization.callbackHost, path: authorization.callbackPath)
+            )
+            try await client.complete(callback, authorization: authorization)
+            isAuthorized = true
+            model.setAIRerankingEnabled(true)
+        } catch {
+            authorizationError = error.localizedDescription
+        }
+    }
+
+    private func disconnect() async {
+        guard let callbackURL = AppServiceConfiguration.openRouterOAuthCallbackURL else { return }
+        do {
+            try await OpenRouterOAuthClient(callbackURL: callbackURL).disconnect()
+            isAuthorized = false
+            model.setAIRerankingEnabled(false)
+        } catch {
+            authorizationError = error.localizedDescription
+        }
+    }
+
+    private func refreshAuthorizationStatus() async {
+        guard let callbackURL = AppServiceConfiguration.openRouterOAuthCallbackURL else { return }
+        isAuthorized = await OpenRouterOAuthClient(callbackURL: callbackURL).isAuthorized()
+        if !isAuthorized, model.allowsAIReranking {
+            model.setAIRerankingEnabled(false)
         }
     }
 }

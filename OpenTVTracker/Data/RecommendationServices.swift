@@ -135,12 +135,10 @@ enum DeterministicRecommendationEngine {
 
 struct ProviderNeutralRecommendationService: RecommendationProviding {
     private let fallback = DeterministicRecommendationService()
-    private let endpoint: URL?
-    private let session: URLSession
+    private let reranker: OpenRouterRecommendationService?
 
-    init(endpoint: URL? = AppServiceConfiguration.recommendationURL, session: URLSession = .shared) {
-        self.endpoint = endpoint
-        self.session = session
+    init(reranker: OpenRouterRecommendationService? = OpenRouterRecommendationService.configured()) {
+        self.reranker = reranker
     }
 
     func recommendations(
@@ -148,77 +146,14 @@ struct ProviderNeutralRecommendationService: RecommendationProviding {
         context: RecommendationContext
     ) async throws -> [Recommendation] {
         let deterministic = try await fallback.recommendations(from: snapshot, context: context)
-        guard context.allowsRemoteReranking, let endpoint, !deterministic.isEmpty else {
+        guard context.allowsRemoteReranking, let reranker, !deterministic.isEmpty else {
             return deterministic
         }
 
         do {
-            return try await rerank(deterministic, context: context, endpoint: endpoint)
+            return try await reranker.rerank(deterministic, context: context)
         } catch {
             return deterministic
         }
     }
-
-    private func rerank(
-        _ recommendations: [Recommendation],
-        context: RecommendationContext,
-        endpoint: URL
-    ) async throws -> [Recommendation] {
-        let payload = RecommendationRerankRequest(
-            mood: context.mood.rawValue,
-            maximumRuntimeMinutes: context.maximumRuntimeMinutes,
-            candidates: recommendations.map {
-                .init(
-                    catalogID: $0.title.catalogID,
-                    title: $0.title.title,
-                    genres: $0.title.genres,
-                    runtimeMinutes: $0.title.runtimeMinutes,
-                    rating: $0.title.rating,
-                    providers: $0.title.providers.map(\.name),
-                    deterministicScore: $0.score,
-                    deterministicReason: $0.reason
-                )
-            }
-        )
-        var request = URLRequest(url: endpoint)
-        request.httpMethod = "POST"
-        request.timeoutInterval = 10
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try JSONEncoder().encode(payload)
-
-        let (data, response) = try await session.data(for: request)
-        guard let response = response as? HTTPURLResponse, 200..<300 ~= response.statusCode else {
-            throw RecommendationServiceError.unavailable
-        }
-        let rankedIDs = try JSONDecoder().decode(RecommendationRerankResponse.self, from: data).catalogIDs
-        let rank = Dictionary(uniqueKeysWithValues: rankedIDs.enumerated().map { ($0.element, $0.offset) })
-        return recommendations.sorted {
-            (rank[$0.title.catalogID] ?? .max) < (rank[$1.title.catalogID] ?? .max)
-        }
-    }
-}
-
-private struct RecommendationRerankRequest: Encodable {
-    struct Candidate: Encodable {
-        let catalogID: Int
-        let title: String
-        let genres: [String]
-        let runtimeMinutes: Int
-        let rating: Double
-        let providers: [String]
-        let deterministicScore: Double
-        let deterministicReason: String
-    }
-
-    let mood: String
-    let maximumRuntimeMinutes: Int?
-    let candidates: [Candidate]
-}
-
-private struct RecommendationRerankResponse: Decodable {
-    let catalogIDs: [Int]
-}
-
-private enum RecommendationServiceError: Error {
-    case unavailable
 }
