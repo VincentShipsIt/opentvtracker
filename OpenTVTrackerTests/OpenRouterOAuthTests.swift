@@ -47,9 +47,10 @@ final class OpenRouterOAuthTests: XCTestCase {
         try await client.complete(callback, authorization: authorization)
 
         let isAuthorized = await client.isAuthorized()
+        let apiKey = try await client.apiKey()
         XCTAssertTrue(isAuthorized)
         XCTAssertEqual(store.writtenAccounts, [OpenRouterOAuthClient.apiKeyAccount])
-        XCTAssertEqual(try await client.apiKey(), "sk-or-v1-user-controlled")
+        XCTAssertEqual(apiKey, "sk-or-v1-user-controlled")
     }
 
     func testOAuthRejectsCallbackFromAnotherHostBeforeExchange() async throws {
