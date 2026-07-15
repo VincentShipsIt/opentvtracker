@@ -2,7 +2,7 @@ import SwiftUI
 
 struct TodayView: View {
     @Environment(AppModel.self) private var model
-    @State private var showsCredits = false
+    @State private var showsSettings = false
 
     var body: some View {
         NavigationStack {
@@ -28,14 +28,14 @@ struct TodayView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Credits", systemImage: "person.crop.circle") {
-                        showsCredits = true
+                    Button("Settings", systemImage: "gearshape.fill") {
+                        showsSettings = true
                     }
-                    .accessibilityHint("Opens app settings and data source credits")
+                    .accessibilityHint("Opens streaming region, subscriptions, and privacy settings")
                 }
             }
-            .sheet(isPresented: $showsCredits) {
-                CreditsView()
+            .sheet(isPresented: $showsSettings) {
+                AppSettingsView()
             }
             .navigationDestination(for: MediaTitle.self) { title in
                 MediaDetailView(titleID: title.id)

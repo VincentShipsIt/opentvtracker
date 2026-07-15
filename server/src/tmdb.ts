@@ -71,12 +71,14 @@ type CommunityReview = {
   containsSpoilers: true;
 };
 
-type EpisodeSummary = {
+export type EpisodeSummary = {
   id: string;
   number: number;
   title: string;
   airDate: string | null;
   runtimeMinutes: number | null;
+  overview: string | null;
+  stillURL: string | null;
 };
 
 type SeasonSummary = {
@@ -166,17 +168,7 @@ export class TMDBClient {
         id: `tmdb-season-${showID}-${number}`,
         number,
         title: stringValue(season.name) ?? (number === 0 ? "Specials" : `Season ${number}`),
-        episodes: episodes.map((value) => {
-          const episode = asRecord(value);
-          const episodeNumber = numberValue(episode.episode_number) ?? 0;
-          return {
-            id: `tmdb-episode-${numberValue(episode.id) ?? `${showID}-${number}-${episodeNumber}`}`,
-            number: episodeNumber,
-            title: stringValue(episode.name) ?? `Episode ${episodeNumber}`,
-            airDate: isoDay(stringValue(episode.air_date)),
-            runtimeMinutes: numberValue(episode.runtime),
-          };
-        }),
+        episodes: episodes.map((value) => mapEpisodeSummary(value, showID, number)),
       }];
     }).sort((left, right) => left.number - right.number);
   }
@@ -279,6 +271,20 @@ export function mapStreamingProvider(providerID: unknown): StreamingProvider[] {
   if (typeof providerID !== "number" || !Number.isSafeInteger(providerID)) return [];
   const id: StreamingProviderID | undefined = providerIDByTMDBID[providerID];
   return id ? [{ id, ...providerMetadata[id] }] : [];
+}
+
+export function mapEpisodeSummary(value: unknown, showID: number, seasonNumber: number): EpisodeSummary {
+  const episode = asRecord(value);
+  const episodeNumber = numberValue(episode.episode_number) ?? 0;
+  return {
+    id: `tmdb-episode-${numberValue(episode.id) ?? `${showID}-${seasonNumber}-${episodeNumber}`}`,
+    number: episodeNumber,
+    title: stringValue(episode.name) ?? `Episode ${episodeNumber}`,
+    airDate: isoDay(stringValue(episode.air_date)),
+    runtimeMinutes: numberValue(episode.runtime),
+    overview: stringValue(episode.overview)?.trim() || null,
+    stillURL: imageURL(stringValue(episode.still_path), "w500"),
+  };
 }
 
 function mapReviews(payload: Record<string, unknown>): CommunityReview[] {

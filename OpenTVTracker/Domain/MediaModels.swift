@@ -40,6 +40,15 @@ enum WatchState: String, Codable, CaseIterable, Sendable {
         case .completed: "Completed"
         }
     }
+
+    var symbol: String {
+        switch self {
+        case .watching: "play.circle.fill"
+        case .planned: "bookmark.fill"
+        case .paused: "pause.circle.fill"
+        case .completed: "checkmark.circle.fill"
+        }
+    }
 }
 
 enum Mood: String, Codable, CaseIterable, Identifiable, Sendable {
@@ -91,6 +100,8 @@ struct EpisodeSummary: Codable, Hashable, Identifiable, Sendable {
     let title: String
     let airDate: Date?
     let runtimeMinutes: Int?
+    var overview: String?
+    var stillURL: URL?
 }
 
 struct SeasonSummary: Codable, Hashable, Identifiable, Sendable {
@@ -181,6 +192,7 @@ struct MediaTitle: Codable, Hashable, Identifiable, Sendable {
     var seasons: [SeasonSummary]? = nil
     var metadataSource: MetadataSource? = nil
     var sourceURL: URL? = nil
+    var watchedEpisodeIDs: Set<EpisodeSummary.ID>? = nil
 
     var progressLabel: String {
         switch kind {
@@ -300,19 +312,22 @@ struct LibrarySnapshot: Codable, Hashable, Sendable {
     var sharedSpace: SharedSpace
     var selectedProviderIDs: Set<StreamingProvider.ID>?
     var allowsAIReranking: Bool?
+    var streamingRegionCode: String?
 
     init(
         titles: [MediaTitle],
         sharedSpace: SharedSpace,
         selectedProviderIDs: Set<StreamingProvider.ID>? = nil,
         allowsAIReranking: Bool = false,
-        schemaVersion: Int = 2
+        streamingRegionCode: String? = nil,
+        schemaVersion: Int = 4
     ) {
         self.schemaVersion = schemaVersion
         self.titles = titles
         self.sharedSpace = sharedSpace
         self.selectedProviderIDs = selectedProviderIDs
         self.allowsAIReranking = allowsAIReranking
+        self.streamingRegionCode = streamingRegionCode
     }
 }
 

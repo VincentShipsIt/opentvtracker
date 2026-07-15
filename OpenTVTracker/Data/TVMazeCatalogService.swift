@@ -44,7 +44,7 @@ struct TVMazeCatalogService: CatalogProviding {
         return results.map(\.show.mediaTitle)
     }
 
-    func title(kind: MediaKind, catalogID: Int) async throws -> MediaTitle {
+    func title(kind: MediaKind, catalogID: Int, region _: StreamingRegion) async throws -> MediaTitle {
         guard kind == .series else { throw CatalogServiceError.notFound }
         let url = try endpoint(path: "shows/\(catalogID)", queryItems: [
             URLQueryItem(name: "embed", value: "episodes")
@@ -206,7 +206,9 @@ private struct TVMazeShowDTO: Decodable {
                     number: number,
                     title: episode.name,
                     airDate: episode.airDate,
-                    runtimeMinutes: episode.runtime
+                    runtimeMinutes: episode.runtime,
+                    overview: Self.plainText(episode.summary),
+                    stillURL: episode.image?.original ?? episode.image?.medium
                 )
             )
         }
@@ -281,12 +283,19 @@ private struct TVMazeShowDTO: Decodable {
 }
 
 private struct TVMazeEpisodeDTO: Decodable {
+    struct Image: Decodable {
+        let medium: URL?
+        let original: URL?
+    }
+
     let id: Int
     let name: String
     let season: Int?
     let number: Int?
     let airdate: String?
     let runtime: Int?
+    let image: Image?
+    let summary: String?
 
     var airDate: Date? {
         airdate.flatMap(Self.parseDay)

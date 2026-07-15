@@ -171,7 +171,9 @@ private extension ViewingAnalyticsEngine {
             return max(expectedInitialWatch - recordedInitialWatches, 0) + missingRewatches
         case .series:
             let expectedEpisodes: Int
-            if let progress = title.progress {
+            if let watchedEpisodeIDs = title.watchedEpisodeIDs {
+                expectedEpisodes = watchedEpisodeIDs.count
+            } else if let progress = title.progress {
                 expectedEpisodes = progress.episode
             } else if title.state == .completed {
                 expectedEpisodes = title.seasons?.reduce(0) { $0 + $1.episodes.count } ?? 0

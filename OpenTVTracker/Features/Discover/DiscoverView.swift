@@ -15,7 +15,8 @@ struct DiscoverView: View {
                     LazyVStack(spacing: AppTheme.sectionSpacing) {
                         if searchText.isEmpty {
                             assistantLauncher
-                            DiscoverCategoryRail(sections: categorySections)
+                            DiscoverCategoryGrid(sections: categorySections)
+                                .padding(.horizontal, AppTheme.horizontalPadding)
                             CinemaDiscoveryCard()
                                 .padding(.horizontal, AppTheme.horizontalPadding)
                             featuredRecommendation

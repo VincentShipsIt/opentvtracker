@@ -52,6 +52,9 @@ struct MediaDetailView: View {
         .navigationDestination(for: MoreLikeThisRoute.self) { route in
             MoreLikeThisView(sourceTitleID: route.sourceTitleID)
         }
+        .navigationDestination(for: SeasonEpisodesRoute.self) { route in
+            SeasonEpisodesView(route: route)
+        }
     }
 
     private var title: MediaTitle? {
@@ -195,7 +198,7 @@ struct MediaDetailView: View {
             Button {
                 showsTrackingEditor = true
             } label: {
-                Label("Edit tracking", systemImage: "slider.horizontal.3")
+                Label("Your activity", systemImage: "checkmark.rectangle.stack")
                     .frame(maxWidth: .infinity)
             }
             .adaptiveGlassButton()
