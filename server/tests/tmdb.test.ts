@@ -52,6 +52,7 @@ describe("mapEpisodeSummary", () => {
           runtime: 46,
           overview: "The team meets a mysterious visitor.",
           still_path: "/episode-still.jpg",
+          vote_average: 8.4,
         },
         95396,
         1,
@@ -64,6 +65,7 @@ describe("mapEpisodeSummary", () => {
       runtimeMinutes: 46,
       overview: "The team meets a mysterious visitor.",
       stillURL: "https://image.tmdb.org/t/p/w500/episode-still.jpg",
+      rating: 8.4,
     });
   });
 });

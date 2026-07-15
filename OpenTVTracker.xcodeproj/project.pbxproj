@@ -27,6 +27,7 @@
 		3011BBCB3756342618CCD1A6 /* DiscoveryAssistantView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDAC78676BC7E387EC0461DE /* DiscoveryAssistantView.swift */; };
 		354B9F99E8BC5F479432258D /* OpenRouterOAuthTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72D3B828F5E37999D78BDC82 /* OpenRouterOAuthTests.swift */; };
 		3E59E13E219DBAD767FB2AE7 /* NearbyPartnerPairingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F61F112D5E7C9F7AD8805316 /* NearbyPartnerPairingView.swift */; };
+		44F7965B8A09B4C6F469F0E8 /* EpisodeTrackingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A2D4801169B99AA39704399 /* EpisodeTrackingTests.swift */; };
 		4984F2EC86E19D24BC7C76B5 /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8E7E3F8A96168C055C72164 /* TodayView.swift */; };
 		508FF952C3A01ACD61A10AA7 /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37F5BE754C5B569E83074721 /* RootTabView.swift */; };
 		55A61E52BD374B61AD607C60 /* CloudKitSyncCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDCAF7A8614B3284E9C773D8 /* CloudKitSyncCoordinator.swift */; };
@@ -64,6 +65,7 @@
 		9C56B7143471BDF6AC187259 /* AppAttestClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 625AD0EEA5B826967E8AA51B /* AppAttestClientTests.swift */; };
 		9F5F136FE575F031BFABFD1D /* ActivityCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 894C207692BF083B85E0608C /* ActivityCard.swift */; };
 		A148312A7A5BDFD090CDF059 /* CreditsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E587E794892C46CA67E031BD /* CreditsView.swift */; };
+		A189A502FB1E724B1C743305 /* EpisodeDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1E154300D1D203FFB6846FC /* EpisodeDetailView.swift */; };
 		A8093A0120751277E97C4B0F /* MoreLikeThisView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4863EC48D5BCE1A5ED7573F5 /* MoreLikeThisView.swift */; };
 		ACF5AFE9033CB230A610ECE9 /* SecurityTestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE0F1C9FB65AADD9A652894A /* SecurityTestSupport.swift */; };
 		BE7D2C2163FB8C4E6A36D669 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 3DD949889A9EF51594C09BA1 /* Assets.xcassets */; };
@@ -140,6 +142,7 @@
 		85B0DEBE6FA007C4AD395D0A /* GlassSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassSurface.swift; sourceTree = "<group>"; };
 		879988888008BA4352E75285 /* DiscoverCategory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverCategory.swift; sourceTree = "<group>"; };
 		894C207692BF083B85E0608C /* ActivityCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityCard.swift; sourceTree = "<group>"; };
+		8A2D4801169B99AA39704399 /* EpisodeTrackingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EpisodeTrackingTests.swift; sourceTree = "<group>"; };
 		8DD57852932292E08916026E /* DiscoverCategoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverCategoryTests.swift; sourceTree = "<group>"; };
 		99D8913E76F6F19B3429126F /* LibraryDataView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryDataView.swift; sourceTree = "<group>"; };
 		9C4926F1D5F8E422DC0A8DD6 /* StreamingRegionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingRegionTests.swift; sourceTree = "<group>"; };
@@ -174,6 +177,7 @@
 		EC075EAA6985B494E82C7BA2 /* TogetherRoutes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TogetherRoutes.swift; sourceTree = "<group>"; };
 		F0E6165457A0D58BF9970351 /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
 		F1ABEDE58FB8DD13AF7208FA /* ViewingAnalyticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewingAnalyticsView.swift; sourceTree = "<group>"; };
+		F1E154300D1D203FFB6846FC /* EpisodeDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EpisodeDetailView.swift; sourceTree = "<group>"; };
 		F23141F5E89993ABFB71E2F4 /* ViewingAnalyticsPreviewCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewingAnalyticsPreviewCard.swift; sourceTree = "<group>"; };
 		F2D95E2B69673BB4685CBF95 /* CommunityReviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommunityReviewView.swift; sourceTree = "<group>"; };
 		F32E6282CA61620FE165F866 /* PosterArtwork.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PosterArtwork.swift; sourceTree = "<group>"; };
@@ -210,6 +214,7 @@
 			isa = PBXGroup;
 			children = (
 				F2D95E2B69673BB4685CBF95 /* CommunityReviewView.swift */,
+				F1E154300D1D203FFB6846FC /* EpisodeDetailView.swift */,
 				C671EAA408948077CF67A33B /* MediaDetailSections.swift */,
 				5656C1D6DE5BAA4A9047ED7E /* MediaDetailView.swift */,
 				4863EC48D5BCE1A5ED7573F5 /* MoreLikeThisView.swift */,
@@ -373,6 +378,7 @@
 				8DD57852932292E08916026E /* DiscoverCategoryTests.swift */,
 				058FC17069CAF8CCDAB3F30F /* DiscoveryAssistantTests.swift */,
 				6CAD64D1EC93AC665ACFE5D6 /* EmbassyShowtimeParserTests.swift */,
+				8A2D4801169B99AA39704399 /* EpisodeTrackingTests.swift */,
 				CB86ECFE65B31D28B52695CC /* LibraryTransferTests.swift */,
 				2EABBCF99AF35E31BADA99A9 /* NearbyPartnerPairingTests.swift */,
 				72D3B828F5E37999D78BDC82 /* OpenRouterOAuthTests.swift */,
@@ -508,6 +514,7 @@
 				DC9197084E45B33D3448722D /* DiscoverCategoryTests.swift in Sources */,
 				011F2EF0233A70A49BF7501E /* DiscoveryAssistantTests.swift in Sources */,
 				29E1CEDDD201121D3F0CF9A7 /* EmbassyShowtimeParserTests.swift in Sources */,
+				44F7965B8A09B4C6F469F0E8 /* EpisodeTrackingTests.swift in Sources */,
 				94DD351F05C931C26FA450C1 /* LibraryTransferTests.swift in Sources */,
 				DE8C312423B5EA01F18239AC /* NearbyPartnerPairingTests.swift in Sources */,
 				354B9F99E8BC5F479432258D /* OpenRouterOAuthTests.swift in Sources */,
@@ -549,6 +556,7 @@
 				895769957993BD0773F03855 /* DiscoverView.swift in Sources */,
 				C08CD3A230E19AC316DAF336 /* DiscoveryAssistant.swift in Sources */,
 				3011BBCB3756342618CCD1A6 /* DiscoveryAssistantView.swift in Sources */,
+				A189A502FB1E724B1C743305 /* EpisodeDetailView.swift in Sources */,
 				7E3E00001AD43A3185712E8B /* EpisodeStillArtwork.swift in Sources */,
 				D40C0E60CC132F3D4F1FBB53 /* GlassSurface.swift in Sources */,
 				EB957279FF5081E3D3A2B8CA /* LibraryDataView.swift in Sources */,
