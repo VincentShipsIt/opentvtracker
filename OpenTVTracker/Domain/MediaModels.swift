@@ -104,6 +104,8 @@ struct CommunityReview: Codable, Hashable, Identifiable, Sendable {
     let containsSpoilers: Bool
 }
 
+// Optional additions keep version-one archives decodable while the schema evolves.
+// swiftlint:disable implicit_optional_initialization
 struct MediaTitle: Codable, Hashable, Identifiable, Sendable {
     let id: String
     let catalogID: Int
@@ -125,6 +127,14 @@ struct MediaTitle: Codable, Hashable, Identifiable, Sendable {
     var posterURL: URL?
     var backdropURL: URL?
     var trailerURL: URL?
+    var userRating: Double? = nil
+    var notes: String? = nil
+    var rewatchCount: Int? = nil
+    var lastWatchedAt: Date? = nil
+    var nextEpisodeAirDate: Date? = nil
+    var releaseDate: Date? = nil
+    var isDismissed: Bool? = nil
+    var isDisliked: Bool? = nil
 
     var progressLabel: String {
         switch kind {
@@ -133,6 +143,12 @@ struct MediaTitle: Codable, Hashable, Identifiable, Sendable {
         case .series:
             progress?.label ?? state.label
         }
+    }
+
+    var completedRewatches: Int { rewatchCount ?? 0 }
+
+    var isRecommendationEligible: Bool {
+        state != .completed && isDismissed != true && isDisliked != true
     }
 }
 
@@ -156,6 +172,56 @@ struct SharedActivity: Codable, Hashable, Identifiable, Sendable {
     let symbol: String
 }
 
+enum SharedMembershipState: String, Codable, Sendable {
+    case local
+    case pending
+    case accepted
+    case revoked
+    case expired
+    case left
+}
+
+enum WatchEventKind: String, Codable, Sendable {
+    case watched
+    case correction
+    case rewatch
+    case watchedTogether
+}
+
+struct SharedWatchEvent: Codable, Hashable, Identifiable, Sendable {
+    let id: String
+    let titleID: MediaTitle.ID
+    let memberID: SpaceMember.ID
+    let kind: WatchEventKind
+    let season: Int?
+    let episode: Int?
+    let occurredAt: Date
+    let supersedesEventID: String?
+}
+
+struct MemberTasteProfile: Codable, Hashable, Identifiable, Sendable {
+    let id: SpaceMember.ID
+    var preferredGenres: [String]
+    var preferredMoods: [Mood]
+    var maximumRuntimeMinutes: Int?
+}
+
+struct SharedReaction: Codable, Hashable, Identifiable, Sendable {
+    let id: String
+    let activityID: SharedActivity.ID
+    let memberID: SpaceMember.ID
+    let symbol: String
+    let occurredAt: Date
+}
+
+struct SharedNote: Codable, Hashable, Identifiable, Sendable {
+    let id: String
+    let titleID: MediaTitle.ID
+    let memberID: SpaceMember.ID
+    let text: String
+    let createdAt: Date
+}
+
 struct SharedSpace: Codable, Hashable, Identifiable, Sendable {
     let id: String
     var name: String
@@ -163,20 +229,39 @@ struct SharedSpace: Codable, Hashable, Identifiable, Sendable {
     var titleIDs: [MediaTitle.ID]
     var activity: [SharedActivity]
     var isCloudSharingEnabled: Bool
+    var membershipState: SharedMembershipState? = nil
+    var watchEvents: [SharedWatchEvent]? = nil
+    var tasteProfiles: [MemberTasteProfile]? = nil
+    var reactions: [SharedReaction]? = nil
+    var notes: [SharedNote]? = nil
+    var cloudZoneName: String? = nil
+    var cloudOwnerName: String? = nil
+    var isCurrentUserShareOwner: Bool? = nil
+
+    var resolvedMembershipState: SharedMembershipState {
+        membershipState ?? (isCloudSharingEnabled ? .accepted : .local)
+    }
 }
+// swiftlint:enable implicit_optional_initialization
 
 struct LibrarySnapshot: Codable, Hashable, Sendable {
+    var schemaVersion: Int?
     var titles: [MediaTitle]
     var sharedSpace: SharedSpace
     var selectedProviderIDs: Set<StreamingProvider.ID>?
+    var allowsAIReranking: Bool?
 
     init(
         titles: [MediaTitle],
         sharedSpace: SharedSpace,
-        selectedProviderIDs: Set<StreamingProvider.ID>? = nil
+        selectedProviderIDs: Set<StreamingProvider.ID>? = nil,
+        allowsAIReranking: Bool = false,
+        schemaVersion: Int = 2
     ) {
+        self.schemaVersion = schemaVersion
         self.titles = titles
         self.sharedSpace = sharedSpace
         self.selectedProviderIDs = selectedProviderIDs
+        self.allowsAIReranking = allowsAIReranking
     }
 }

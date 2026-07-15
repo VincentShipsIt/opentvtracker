@@ -3,13 +3,55 @@ import SwiftUI
 enum DiscoverSheet: Identifiable {
     case categories
     case services
+    case aiRanking
     case trailer(TrailerPresentation)
 
     var id: String {
         switch self {
         case .categories: "categories"
         case .services: "services"
+        case .aiRanking: "ai-ranking"
         case .trailer(let trailer): "trailer-\(trailer.id)"
+        }
+    }
+}
+
+struct AIRankingSettingsView: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Toggle(
+                        "Optional AI reranking",
+                        isOn: Binding(
+                            get: { model.allowsAIReranking },
+                            set: { enabled in model.setAIRerankingEnabled(enabled) }
+                        )
+                    )
+                } footer: {
+                    Text("Off by default. Deterministic recommendations always remain available.")
+                }
+
+                Section("Exact payload preview") {
+                    LabeledContent("Candidate", value: "TMDB catalog ID")
+                    LabeledContent("Signals", value: "local score, mood, max runtime")
+                    LabeledContent("Never sent", value: "notes, names, watch events")
+                }
+
+                Section("Failure behavior") {
+                    Text("A 2.5-second timeout, quota error, invalid response, or unavailable provider silently falls back to the reproducible on-device ranking.")
+                }
+            }
+            .navigationTitle("AI discovery")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
         }
     }
 }

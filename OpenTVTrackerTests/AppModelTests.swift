@@ -107,4 +107,35 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(severance.progress?.episode, 7)
         XCTAssertTrue(model.titles.contains(where: { $0.id == "fallout" }))
     }
+
+    func testTrackingMetadataAndExplicitCorrectionPersist() async throws {
+        let store = MemoryLibraryStore()
+        let model = AppModel(store: store, seed: .sample)
+
+        model.setWatchState(.paused, for: "severance")
+        model.setUserRating(9.5, for: "severance")
+        model.updateNotes("Pause after episode four.", for: "severance")
+        model.correctProgress(
+            EpisodeProgress(season: 2, episode: 2, totalEpisodes: 10),
+            for: "severance"
+        )
+        await model.flushPendingPersistence()
+
+        let saved = try await store.load()
+        let title = try XCTUnwrap(saved?.titles.first(where: { $0.id == "severance" }))
+        XCTAssertEqual(title.userRating, 9.5)
+        XCTAssertEqual(title.notes, "Pause after episode four.")
+        XCTAssertEqual(title.progress?.episode, 2)
+        XCTAssertEqual(saved?.sharedSpace.watchEvents?.last?.kind, .correction)
+    }
+
+    func testOrdinaryWatchUpdateNeverMovesProgressBackward() {
+        let model = AppModel(store: MemoryLibraryStore(), seed: .sample)
+
+        model.markNextWatched("severance")
+        model.markNextWatched("severance")
+
+        XCTAssertEqual(model.titles.first(where: { $0.id == "severance" })?.progress?.episode, 5)
+        XCTAssertEqual(model.sharedSpace.watchEvents?.filter { $0.titleID == "severance" }.count, 2)
+    }
 }

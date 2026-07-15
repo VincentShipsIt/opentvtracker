@@ -3,6 +3,7 @@ import SwiftUI
 struct LibraryView: View {
     @Environment(AppModel.self) private var model
     @State private var filter: WatchState = .watching
+    @State private var showsDataTools = false
 
     var body: some View {
         NavigationStack {
@@ -40,6 +41,16 @@ struct LibraryView: View {
                 .padding(.top, 8)
             }
             .navigationTitle("Library")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Import or export", systemImage: "arrow.up.arrow.down") {
+                        showsDataTools = true
+                    }
+                }
+            }
+            .sheet(isPresented: $showsDataTools) {
+                LibraryDataView()
+            }
             .navigationDestination(for: MediaTitle.self) { title in
                 MediaDetailView(titleID: title.id)
             }

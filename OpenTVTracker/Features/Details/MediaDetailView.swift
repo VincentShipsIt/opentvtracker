@@ -4,6 +4,8 @@ struct MediaDetailView: View {
     @Environment(AppModel.self) private var model
     let titleID: MediaTitle.ID
     @State private var presentedTrailer: TrailerPresentation?
+    @State private var showsTrackingEditor = false
+    @State private var showsSharedNoteEditor = false
 
     var body: some View {
         ZStack {
@@ -16,6 +18,9 @@ struct MediaDetailView: View {
                         actions(title)
                         story(title)
                         availability(title)
+                        if title.kind == .movie {
+                            TitleCinemaAvailability(title: title)
+                        }
                         community(title)
                     }
                     .padding(.horizontal, AppTheme.horizontalPadding)
@@ -29,6 +34,14 @@ struct MediaDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .sheet(item: $presentedTrailer) { trailer in
             TrailerPlayerView(trailer: trailer)
+        }
+        .sheet(isPresented: $showsTrackingEditor) {
+            if let title {
+                TrackingEditorView(title: title)
+            }
+        }
+        .sheet(isPresented: $showsSharedNoteEditor) {
+            if let title { SharedNoteEditorView(title: title) }
         }
         .navigationDestination(for: MoreLikeThisRoute.self) { route in
             MoreLikeThisView(sourceTitleID: route.sourceTitleID)
@@ -127,6 +140,30 @@ struct MediaDetailView: View {
                 .adaptiveGlassButton()
             }
 
+            recommendationAndTrackingActions(title)
+
+            if model.isShared(title.id) {
+                sharedActions(title)
+            }
+        }
+    }
+
+    private func sharedActions(_ title: MediaTitle) -> some View {
+        HStack(spacing: 10) {
+            Button("Watched together", systemImage: "person.2.fill") {
+                model.markWatchedTogether(title.id)
+            }
+            .adaptiveGlassButton()
+
+            Button("Shared note", systemImage: "note.text.badge.plus") {
+                showsSharedNoteEditor = true
+            }
+            .adaptiveGlassButton()
+        }
+    }
+
+    private func recommendationAndTrackingActions(_ title: MediaTitle) -> some View {
+        VStack(spacing: 10) {
             NavigationLink(value: MoreLikeThisRoute(sourceTitleID: title.id)) {
                 Label("More like this", systemImage: "sparkles")
                     .frame(maxWidth: .infinity)
@@ -134,6 +171,14 @@ struct MediaDetailView: View {
             .controlSize(.large)
             .adaptiveGlassButton()
             .accessibilityHint("Finds similar unwatched titles on your selected streaming services")
+
+            Button {
+                showsTrackingEditor = true
+            } label: {
+                Label("Edit tracking", systemImage: "slider.horizontal.3")
+                    .frame(maxWidth: .infinity)
+            }
+            .adaptiveGlassButton()
         }
     }
 
@@ -182,6 +227,42 @@ struct MediaDetailView: View {
                     }
                 }
                 .font(.footnote.weight(.semibold))
+            }
+        }
+    }
+}
+
+private struct SharedNoteEditorView: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
+    let title: MediaTitle
+    @State private var text = ""
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Note for both of you") {
+                    TextEditor(text: $text)
+                        .frame(minHeight: 140)
+                        .accessibilityLabel("Shared note about \(title.title)")
+                }
+                Section {
+                    Text("This note enters the invitation-only partner space. Personal tracking notes remain local.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .navigationTitle("Shared note")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Add") {
+                        model.addSharedNote(text, titleID: title.id)
+                        dismiss()
+                    }
+                    .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
             }
         }
     }

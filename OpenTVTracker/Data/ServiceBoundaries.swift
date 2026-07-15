@@ -15,6 +15,7 @@ struct RecommendationContext: Hashable, Sendable {
     var mood: Mood
     var maximumRuntimeMinutes: Int?
     var sharedSpaceID: SharedSpace.ID?
+    var allowsRemoteReranking = false
 }
 
 struct Recommendation: Hashable, Identifiable, Sendable {
@@ -40,6 +41,8 @@ enum PartnerSharingAvailability: Hashable, Sendable {
 protocol PartnerSharingProviding: Sendable {
     func availability() async -> PartnerSharingAvailability
     func inviteURL(for spaceID: SharedSpace.ID) async throws -> URL
+    func revoke(spaceID: SharedSpace.ID) async throws
+    func leave(spaceID: SharedSpace.ID) async throws
 }
 
 struct FoundationPartnerSharingService: PartnerSharingProviding {
@@ -50,12 +53,26 @@ struct FoundationPartnerSharingService: PartnerSharingProviding {
     func inviteURL(for spaceID: SharedSpace.ID) async throws -> URL {
         throw PartnerSharingError.notConfigured
     }
+
+    func revoke(spaceID: SharedSpace.ID) async throws {
+        throw PartnerSharingError.notConfigured
+    }
+
+    func leave(spaceID: SharedSpace.ID) async throws {
+        throw PartnerSharingError.notConfigured
+    }
 }
 
 enum PartnerSharingError: LocalizedError {
     case notConfigured
+    case accountRequired
+    case shareUnavailable
 
     var errorDescription: String? {
-        "Private iCloud invitations are planned for the Together milestone."
+        switch self {
+        case .notConfigured: "CloudKit sharing is not configured for this build."
+        case .accountRequired: "Sign in to iCloud on this iPhone to invite your partner."
+        case .shareUnavailable: "OpenTV could not create the private invitation. Try again."
+        }
     }
 }

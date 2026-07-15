@@ -27,6 +27,7 @@ struct TogetherView: View {
                     Button("Invite partner", systemImage: "person.badge.plus") {
                         presentedSheet = .invite
                     }
+                    .accessibilityIdentifier("together.invite-partner")
                 }
             }
             .sheet(item: $presentedSheet) { sheet in
@@ -137,8 +138,14 @@ private enum TogetherSheet: String, Identifiable {
 }
 
 private struct PartnerInvitationView: View {
+    @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     let space: SharedSpace
+    private let sharingService: any PartnerSharingProviding = CloudKitPartnerSharingService()
+    @State private var availability: PartnerSharingAvailability?
+    @State private var invitationURL: URL?
+    @State private var isWorking = false
+    @State private var errorMessage: String?
 
     var body: some View {
         NavigationStack {
@@ -153,7 +160,7 @@ private struct PartnerInvitationView: View {
                     VStack(spacing: 8) {
                         Text("Invite someone to \(space.name)")
                             .font(.title2.weight(.bold))
-                        Text("This screen is the production boundary for a private CloudKit share. It stays unavailable until the container, acceptance flow, and revocation behavior are configured together.")
+                        Text(invitationDescription)
                             .multilineTextAlignment(.center)
                             .foregroundStyle(.secondary)
                     }
@@ -168,9 +175,21 @@ private struct PartnerInvitationView: View {
                         .padding(16)
                     }
 
-                    Button("CloudKit setup required") { }
-                        .adaptiveGlassButton(prominent: true)
-                        .disabled(true)
+                    invitationAction
+
+                    if model.sharedSpace.resolvedMembershipState == .pending {
+                        Button("Revoke invitation", role: .destructive) {
+                            Task { await revokeInvitation() }
+                        }
+                        .disabled(isWorking)
+                    }
+
+                    if let errorMessage {
+                        Text(errorMessage)
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                            .multilineTextAlignment(.center)
+                    }
                 }
                 .padding(AppTheme.horizontalPadding)
             }
@@ -181,6 +200,73 @@ private struct PartnerInvitationView: View {
                     Button("Done") { dismiss() }
                 }
             }
+            .task { availability = await sharingService.availability() }
+        }
+    }
+
+    @ViewBuilder
+    private var invitationAction: some View {
+        if let invitationURL {
+            ShareLink(item: invitationURL, subject: Text("Join \(space.name) on OpenTV")) {
+                Label("Send private invitation", systemImage: "square.and.arrow.up")
+                    .frame(maxWidth: .infinity)
+            }
+            .adaptiveGlassButton(prominent: true)
+        } else {
+            Button {
+                Task { await createInvitation() }
+            } label: {
+                if isWorking {
+                    ProgressView().frame(maxWidth: .infinity)
+                } else {
+                    Label(actionTitle, systemImage: "person.badge.plus")
+                        .frame(maxWidth: .infinity)
+                }
+            }
+            .adaptiveGlassButton(prominent: true)
+            .disabled(isWorking || availability != .available)
+        }
+    }
+
+    private var actionTitle: String {
+        switch availability {
+        case .available: "Create private invitation"
+        case .iCloudAccountRequired: "Sign in to iCloud first"
+        case .notConfigured: "Configure the iCloud container"
+        case nil: "Checking iCloud…"
+        }
+    }
+
+    private var invitationDescription: String {
+        switch availability {
+        case .iCloudAccountRequired: "Open Settings and sign in to iCloud, then return here. Your personal library stays local."
+        case .notConfigured: "Select your Apple Developer team and enable the OpenTV CloudKit container for this app target."
+        default: "Create an invitation-only iCloud space for your shared watchlist and watched-together activity."
+        }
+    }
+
+    private func createInvitation() async {
+        isWorking = true
+        defer { isWorking = false }
+        do {
+            invitationURL = try await sharingService.inviteURL(for: space.id)
+            model.markPartnerShareCreated()
+            errorMessage = nil
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func revokeInvitation() async {
+        isWorking = true
+        defer { isWorking = false }
+        do {
+            try await sharingService.revoke(spaceID: space.id)
+            invitationURL = nil
+            model.setSharedMembershipState(.revoked)
+            errorMessage = nil
+        } catch {
+            errorMessage = error.localizedDescription
         }
     }
 }

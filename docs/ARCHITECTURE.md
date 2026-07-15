@@ -1,8 +1,6 @@
 # Architecture
 
-## Current foundation
-
-The first pull request is a representative-data vertical slice, not a production schema commitment.
+## Current architecture
 
 ```text
 SwiftUI features
@@ -10,13 +8,12 @@ SwiftUI features
 @MainActor AppModel
     ↓
 LibraryPersisting
-    ├── FileLibraryStore (small local JSON snapshot)
-    └── MemoryLibraryStore (previews and tests)
+    ├── SwiftDataLibraryStore (versioned, local-only)
+    ├── FileLibraryStore (legacy migration/fallback)
+    └── MemoryLibraryStore (previews/tests)
 ```
 
-The local file makes tracking interactions survive relaunches while the domain is still moving. Milestone 1 replaces it with a versioned SwiftData implementation behind the same boundary.
-
-Catalog, recommendation, and partner-sharing protocols exist as seams only. Views do not know about TMDB DTOs, AI providers, CloudKit records, or credentials.
+Catalog, cinema, recommendation, persistence, and partner-sharing protocols isolate SwiftUI from DTOs, provider failures, CloudKit records, and credentials.
 
 ## Identity
 
@@ -28,11 +25,11 @@ Catalog, recommendation, and partner-sharing protocols exist as seams only. View
 
 The personal library is the immediate UI source of truth and works offline. Future remote changes are reconciled into local storage; UI never queries a sync provider directly.
 
-When SwiftData lands, it is explicitly local-only. It must not automatically mirror the same records managed by the manual CloudKit collaboration engine.
+SwiftData is explicitly local-only and never mirrors the records managed by the CloudKit collaboration engine.
 
 ## Partner sharing
 
-Partner data stays separate from the personal library. Milestone 2 adds a durable local shared cache and outbox, then reconciles them through CloudKit.
+Partner data stays separate from the personal library. Separate private and shared `CKSyncEngine` workers reconcile persisted local caches and durable outboxes through CloudKit.
 
 One custom CloudKit zone represents one private partner space:
 
@@ -48,7 +45,7 @@ PartnerSpace_<stable ID>
 
 Progress is event-based rather than one mutable episode counter. Concurrent watch events converge by set union. Moving progress backward requires an explicit correction, so ordinary sync never silently erases viewing history.
 
-Do not enable CloudKit capabilities, `CKSharingSupported`, or remote notifications until invitation acceptance, account changes, revocation, and cache purging are implemented together.
+CloudKit is opt-in. Local tracking never requires an Apple account. Account changes, revocation, and leaving purge retained shared state.
 
 ## Catalog and community data
 
@@ -56,7 +53,7 @@ Do not enable CloudKit capabilities, `CKSharingSupported`, or remote notificatio
 App → operator catalog proxy → TMDB
 ```
 
-The shipped binary contains no TMDB or AI provider secret. TMDB DTOs and image configuration remain inside a future data adapter and are mapped into domain values.
+The shipped binary contains no TMDB, cinema-feed, or AI provider secret. Server DTOs are mapped into domain values and the app falls back to its local catalog when the endpoint is absent.
 
 - TMDB provides catalog metadata and source reviews.
 - TMDB's JustWatch-backed endpoints provide regional availability with visible attribution.

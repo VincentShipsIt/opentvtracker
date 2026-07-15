@@ -15,6 +15,8 @@ struct DiscoverView: View {
                     LazyVStack(spacing: AppTheme.sectionSpacing) {
                         if searchText.isEmpty {
                             DiscoverCategoryRail(sections: categorySections)
+                            CinemaDiscoveryCard()
+                                .padding(.horizontal, AppTheme.horizontalPadding)
                             featuredRecommendation
                             recommendationShelf
                             providerShelves
@@ -29,11 +31,15 @@ struct DiscoverView: View {
             }
             .navigationTitle("Discover")
             .searchable(text: $searchText, prompt: "Shows, movies, genres")
+            .task(id: searchText) {
+                await model.searchCatalog(text: searchText)
+            }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Manage services", systemImage: "slider.horizontal.3") {
                         presentedSheet = .services
                     }
+                    .accessibilityIdentifier("discover.manage-services")
                 }
             }
             .navigationDestination(for: MediaTitle.self) { title in
@@ -48,6 +54,8 @@ struct DiscoverView: View {
                     DiscoveryCategoryPickerView()
                 case .services:
                     ServiceManagerView()
+                case .aiRanking:
+                    AIRankingSettingsView()
                 case .trailer(let trailer):
                     TrailerPlayerView(trailer: trailer)
                 }
@@ -113,6 +121,11 @@ struct DiscoverView: View {
                     }
                     .adaptiveGlassButton()
                 }
+
+                Button("AI ranking settings", systemImage: "brain.head.profile") {
+                    presentedSheet = .aiRanking
+                }
+                .adaptiveGlassButton()
             }
             .padding(18)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -128,9 +141,21 @@ struct DiscoverView: View {
             )
 
             if filteredTitles.isEmpty {
-                ContentUnavailableView.search(text: searchText)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 24)
+                if model.isSearchingCatalog {
+                    ProgressView("Searching the catalog…")
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 24)
+                } else if let error = model.catalogSearchError {
+                    ContentUnavailableView(
+                        "Catalog unavailable",
+                        systemImage: "wifi.exclamationmark",
+                        description: Text(error)
+                    )
+                } else {
+                    ContentUnavailableView.search(text: searchText)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 24)
+                }
             } else {
                 LazyVGrid(
                     columns: [
@@ -174,9 +199,13 @@ struct DiscoverView: View {
     }
 
     private var filteredTitles: [MediaTitle] {
-        model.titlesOnSelectedProviders.filter { title in
+        let candidates = model.catalogSearchResults.isEmpty ? model.titlesOnSelectedProviders : model.catalogSearchResults
+        return candidates.filter { title in
+            model.isAvailableOnSelectedProviders(title)
+                && (
             title.title.localizedStandardContains(searchText)
                 || title.genres.contains(where: { $0.localizedStandardContains(searchText) })
+                )
         }
     }
 

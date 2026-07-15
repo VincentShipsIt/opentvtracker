@@ -194,6 +194,7 @@ private struct CompactQueueRow: View {
 }
 
 struct ActivityRow: View {
+    @Environment(AppModel.self) private var model
     let activity: SharedActivity
     let space: SharedSpace
 
@@ -211,6 +212,14 @@ struct ActivityRow: View {
             Text(activity.relativeDate)
                 .font(.caption)
                 .foregroundStyle(.tertiary)
+
+            Menu("React", systemImage: reactionSymbol) {
+                Button("Love", systemImage: "heart.fill") { model.react(to: activity.id, symbol: "heart.fill") }
+                Button("Nice", systemImage: "hand.thumbsup.fill") { model.react(to: activity.id, symbol: "hand.thumbsup.fill") }
+                Button("Funny", systemImage: "face.smiling.fill") { model.react(to: activity.id, symbol: "face.smiling.fill") }
+            }
+            .labelStyle(.iconOnly)
+            .accessibilityLabel("React to activity")
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
@@ -219,6 +228,10 @@ struct ActivityRow: View {
 
     private var memberName: String {
         space.members.first(where: { $0.id == activity.memberID })?.name ?? "Someone"
+    }
+
+    private var reactionSymbol: String {
+        model.sharedSpace.reactions?.last(where: { $0.activityID == activity.id })?.symbol ?? "face.smiling"
     }
 }
 

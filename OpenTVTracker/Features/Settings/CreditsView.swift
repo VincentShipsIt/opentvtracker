@@ -8,9 +8,9 @@ struct CreditsView: View {
             Form {
                 Section("OpenTV Tracker") {
                     LabeledContent("Version", value: "0.1.0")
-                    LabeledContent("Storage", value: "On this iPhone")
-                    LabeledContent("Sharing", value: "Not configured")
-                    LabeledContent("AI", value: "Deterministic preview")
+                    LabeledContent("Storage", value: "Local SwiftData")
+                    LabeledContent("Sharing", value: "Optional private iCloud")
+                    LabeledContent("AI", value: "Optional · off by default")
                 }
 
                 Section("Data sources") {
@@ -25,7 +25,7 @@ struct CreditsView: View {
                 }
 
                 Section("Privacy direction") {
-                    Text("Tracking works locally. Partner sharing will use invitation-only iCloud records separate from the personal library. AI will be optional and will never embed provider credentials in the app.")
+                    Text("Tracking works locally. Partner sharing uses invitation-only iCloud records separate from the personal library. AI reranking is opt-in and never embeds provider credentials in the app.")
                 }
 
                 Section("Open source") {

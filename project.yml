@@ -22,17 +22,28 @@ targets:
       - path: OpenTVTracker
     resources:
       - path: OpenTVTracker/Resources/Assets.xcassets
+      - path: OpenTVTracker/Resources/PrivacyInfo.xcprivacy
     info:
       path: Config/Info.plist
       properties:
+        CKSharingSupported: true
+        UIBackgroundModes:
+          - remote-notification
         UILaunchScreen: {}
     settings:
       base:
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         ASSETCATALOG_COMPILER_APPICON_NAME: ""
         CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_ENTITLEMENTS: Config/OpenTVTracker.entitlements
         PRODUCT_BUNDLE_IDENTIFIER: dev.shipshit.opentvtracker
         TARGETED_DEVICE_FAMILY: 1
+    attributes:
+      SystemCapabilities:
+        com.apple.iCloud:
+          enabled: 1
+        com.apple.Push:
+          enabled: 1
     dependencies: []
   OpenTVTrackerTests:
     type: bundle.unit-test

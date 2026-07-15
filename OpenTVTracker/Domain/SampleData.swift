@@ -193,7 +193,21 @@ extension LibrarySnapshot {
                 SharedActivity(id: "activity-2", memberID: "vincent", description: "watched The Bear S3 E5", relativeDate: "Yesterday", symbol: "checkmark"),
                 SharedActivity(id: "activity-3", memberID: "partner", description: "reacted to Slow Horses", relativeDate: "Mon", symbol: "heart.fill")
             ],
-            isCloudSharingEnabled: false
+            isCloudSharingEnabled: false,
+            tasteProfiles: [
+                MemberTasteProfile(
+                    id: "vincent",
+                    preferredGenres: ["Sci-Fi", "Mystery", "Thriller"],
+                    preferredMoods: [.intense, .thoughtful],
+                    maximumRuntimeMinutes: 120
+                ),
+                MemberTasteProfile(
+                    id: "partner",
+                    preferredGenres: ["Drama", "Comedy", "Romance"],
+                    preferredMoods: [.funny, .thoughtful],
+                    maximumRuntimeMinutes: 105
+                )
+            ]
         )
     )
 }
