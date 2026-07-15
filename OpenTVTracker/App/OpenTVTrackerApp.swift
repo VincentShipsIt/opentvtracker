@@ -45,6 +45,7 @@ extension Notification.Name {
 @main
 struct OpenTVTrackerApp: App {
     @UIApplicationDelegateAdaptor(OpenTVAppDelegate.self) private var appDelegate
+    @Environment(\.scenePhase) private var scenePhase
     @State private var model = AppModel()
 
     var body: some Scene {
@@ -62,6 +63,10 @@ struct OpenTVTrackerApp: App {
                 }
                 .onReceive(NotificationCenter.default.publisher(for: .openTVPartnerShareAcceptanceFailed)) { notification in
                     model.persistenceError = notification.object as? String
+                }
+                .onChange(of: scenePhase) { _, phase in
+                    guard phase == .active else { return }
+                    Task { await model.startCloudSyncIfNeeded() }
                 }
         }
     }

@@ -288,8 +288,10 @@ private struct PartnerInvitationView: View {
         isWorking = true
         defer { isWorking = false }
         do {
-            invitationURL = try await sharingService.inviteURL(for: space.id)
+            let url = try await sharingService.inviteURL(for: space.id)
             model.markPartnerShareCreated()
+            await model.flushSharedState()
+            invitationURL = url
             errorMessage = nil
         } catch {
             errorMessage = error.localizedDescription
