@@ -26,7 +26,7 @@ final class OpenRouterOAuthTests: XCTestCase {
         TestURLProtocol.handler = { request in
             XCTAssertEqual(request.url?.absoluteString, "https://openrouter.ai/api/v1/auth/keys")
             XCTAssertEqual(request.httpMethod, "POST")
-            let body = try XCTUnwrap(request.httpBody)
+            let body = try XCTUnwrap(TestURLProtocol.bodyData(for: request))
             let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: String])
             XCTAssertEqual(json["code"], "authorization-code")
             XCTAssertEqual(json["code_challenge_method"], "S256")

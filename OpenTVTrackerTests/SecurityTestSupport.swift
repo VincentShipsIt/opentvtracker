@@ -26,6 +26,26 @@ final class TestURLProtocol: URLProtocol, @unchecked Sendable {
         configuration.protocolClasses = [TestURLProtocol.self]
         return URLSession(configuration: configuration)
     }
+
+    static func bodyData(for request: URLRequest) throws -> Data? {
+        if let body = request.httpBody { return body }
+        guard let stream = request.httpBodyStream else { return nil }
+
+        stream.open()
+        defer { stream.close() }
+
+        var body = Data()
+        var buffer = [UInt8](repeating: 0, count: 4_096)
+        while true {
+            let count = stream.read(&buffer, maxLength: buffer.count)
+            if count < 0 {
+                throw stream.streamError ?? URLError(.cannotDecodeContentData)
+            }
+            if count == 0 { break }
+            body.append(contentsOf: buffer.prefix(count))
+        }
+        return body
+    }
 }
 
 final class MemorySecureCredentialStore: SecureCredentialStoring, @unchecked Sendable {

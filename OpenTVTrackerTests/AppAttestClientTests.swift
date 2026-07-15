@@ -14,7 +14,7 @@ final class AppAttestClientTests: XCTestCase {
         TestURLProtocol.handler = { request in
             let path = try XCTUnwrap(request.url?.path)
             if path == "/v1/app-attest/challenge" {
-                let body = try XCTUnwrap(request.httpBody)
+                let body = try XCTUnwrap(TestURLProtocol.bodyData(for: request))
                 let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: String])
                 let purpose = try XCTUnwrap(json["purpose"])
                 let challenge = purpose == "attestation" ? "registration-challenge" : "request-challenge"
