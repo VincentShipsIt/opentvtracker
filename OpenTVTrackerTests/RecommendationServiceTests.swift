@@ -96,6 +96,42 @@ final class RecommendationServiceTests: XCTestCase {
 
         XCTAssertEqual(reranked.map(\.title.catalogID), expected)
     }
+
+    func testOpenRouterRerankingRejectsMoreThanTwentyCandidatesBeforeNetworkAccess() async throws {
+        let store = MemorySecureCredentialStore()
+        try store.set(Data("sk-or-v1-user-key".utf8), for: OpenRouterOAuthClient.apiKeyAccount)
+        let service = OpenRouterRecommendationService(
+            model: "openai/gpt-4o-mini",
+            siteURL: nil,
+            credentials: store,
+            session: TestURLProtocol.session()
+        )
+        let recommendation = try XCTUnwrap(DeterministicRecommendationEngine.rank(
+            snapshot: .sample,
+            context: RecommendationContext(
+                mood: .any,
+                maximumRuntimeMinutes: nil,
+                sharedSpaceID: LibrarySnapshot.sample.sharedSpace.id
+            )
+        ).first)
+
+        do {
+            _ = try await service.rerank(
+                Array(repeating: recommendation, count: 21),
+                context: RecommendationContext(
+                    mood: .any,
+                    maximumRuntimeMinutes: nil,
+                    sharedSpaceID: LibrarySnapshot.sample.sharedSpace.id,
+                    allowsRemoteReranking: true
+                )
+            )
+            XCTFail("Expected candidate bound rejection")
+        } catch let error as OpenRouterRecommendationError {
+            guard case .tooManyCandidates = error else {
+                return XCTFail("Unexpected error: \(error)")
+            }
+        }
+    }
 }
 
 final class CinemaServiceTests: XCTestCase {

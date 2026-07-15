@@ -13,6 +13,8 @@ Choose an HTTPS OpenRouter callback URL on a domain associated with your app. Pu
 - `OPENROUTER_SITE_URL`
 - optionally `OPENROUTER_MODEL`
 
+The domain must serve `/.well-known/apple-app-site-association` as JSON without a redirect and include the application identifier `<TEAM_ID>.<BUNDLE_ID>` for the OAuth callback path. Verify the production file and entitlement together before release; an HTTPS URL alone is insufficient for `ASWebAuthenticationSession.Callback.https`.
+
 OpenRouter redirects the browser to the exact HTTPS callback and SwiftUI's web authentication session matches its host/path. The app exchanges the code with S256 PKCE and stores the resulting user key in Keychain.
 
 ## 2. Provider and server configuration
@@ -40,7 +42,7 @@ Production configuration rejects a development bypass token and accepts only pro
 
 ## 5. Edge and persistence
 
-Place a WAF/CDN in front of Render for coarse per-IP limits on challenge, registration, catalog, and cinema paths. Preserve origin IP forwarding only through a trusted proxy configuration. Keep the Bun per-IP and per-device limits; edge CORS or rate limiting is defense in depth.
+Place a WAF/CDN in front of Render for coarse per-IP limits on challenge, registration, catalog, and cinema paths. Restrict direct origin access, configure `CLIENT_IP_HEADER` only for a header the trusted edge overwrites, and otherwise leave it empty so the Bun service uses the peer address. Keep the Bun per-IP and per-device limits; edge CORS or rate limiting is defense in depth.
 
 Do not configure a shared cache that serves protected routes before authentication. The origin sends `CDN-Cache-Control: no-store` and performs its bounded cache lookup after verifying App Attest.
 

@@ -6,6 +6,7 @@ import {
   BoundedRateLimiter,
   canonicalRequestPayload,
   ChallengeStore,
+  clientIPAddress,
   type AppAttestCryptography,
   MemoryDeviceStore,
 } from "../src/security";
@@ -146,6 +147,26 @@ describe("bounded replay and quota state", () => {
     expect(limiter.consume("device", 1, 1_000).allowed).toBe(false);
     now = 6_001;
     expect(limiter.consume("device", 1, 1_000).allowed).toBe(true);
+  });
+
+  test("uses a valid client IP only from an explicitly trusted header", () => {
+    const request = new Request("https://example.test/health", {
+      headers: { "CF-Connecting-IP": "203.0.113.10" },
+    });
+
+    expect(clientIPAddress(request, "10.0.0.5")).toBe("10.0.0.5");
+    expect(clientIPAddress(request, "10.0.0.5", "cf-connecting-ip")).toBe(
+      "203.0.113.10",
+    );
+    expect(
+      clientIPAddress(
+        new Request("https://example.test/health", {
+          headers: { "CF-Connecting-IP": "not-an-ip" },
+        }),
+        "10.0.0.5",
+        "cf-connecting-ip",
+      ),
+    ).toBe("10.0.0.5");
   });
 });
 

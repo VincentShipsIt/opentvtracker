@@ -5,6 +5,7 @@ import {
   timingSafeEqual,
 } from "node:crypto";
 import { mkdir, rename } from "node:fs/promises";
+import { isIP } from "node:net";
 import { dirname } from "node:path";
 import { verifyAssertion, verifyAttestation } from "node-app-attest";
 import type { AppAttestMode, ServerConfig } from "./config";
@@ -472,6 +473,19 @@ export class SecurityError extends Error {
   constructor(readonly code: string) {
     super(code);
   }
+}
+
+export function clientIPAddress(
+  request: Request,
+  peerAddress: string,
+  trustedHeader?: string,
+): string {
+  const forwardedAddress = trustedHeader
+    ? request.headers.get(trustedHeader)?.split(",", 1)[0]?.trim()
+    : undefined;
+  return forwardedAddress && isIP(forwardedAddress)
+    ? forwardedAddress
+    : peerAddress;
 }
 
 export function isDevelopmentMode(mode: AppAttestMode): boolean {

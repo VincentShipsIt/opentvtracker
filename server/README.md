@@ -15,6 +15,8 @@ Protected catalog/cinema requests require an official App Attest key, a valid sh
 
 Optional TTLs default to 60 seconds for challenges and 10 minutes for tokens. Native iOS clients do not need CORS. If `CORS_ALLOWED_ORIGIN` is set, it permits one exact origin but does not change App Attest authorization.
 
+By default, per-IP quotas use the direct peer address. Set `CLIENT_IP_HEADER` only when the origin accepts traffic exclusively from a trusted edge that overwrites that header (for example, `CF-Connecting-IP` behind Cloudflare). Never trust a client-supplied forwarding header on a directly reachable origin.
+
 ## Run locally
 
 ```sh

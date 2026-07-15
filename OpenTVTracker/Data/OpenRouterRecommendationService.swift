@@ -30,12 +30,10 @@ struct OpenRouterRecommendationService: Sendable {
         _ recommendations: [Recommendation],
         context: RecommendationContext
     ) async throws -> [Recommendation] {
-        guard recommendations.count <= 20,
-              let keyData = try credentials.data(for: OpenRouterOAuthClient.apiKeyAccount),
-              let apiKey = String(data: keyData, encoding: .utf8),
-              apiKey.hasPrefix("sk-or-") else {
-            throw OpenRouterRecommendationError.notAuthorized
+        guard recommendations.count <= 20 else {
+            throw OpenRouterRecommendationError.tooManyCandidates
         }
+        let apiKey = try authorizedAPIKey()
         let payload = OpenRouterChatRequest(
             model: model,
             messages: [
@@ -82,6 +80,15 @@ struct OpenRouterRecommendationService: Sendable {
             (rank[$0.title.catalogID] ?? .max) < (rank[$1.title.catalogID] ?? .max)
         }
     }
+
+    private func authorizedAPIKey() throws -> String {
+        guard let keyData = try credentials.data(for: OpenRouterOAuthClient.apiKeyAccount),
+              let apiKey = String(data: keyData, encoding: .utf8),
+              apiKey.hasPrefix("sk-or-") else {
+            throw OpenRouterRecommendationError.notAuthorized
+        }
+        return apiKey
+    }
 }
 
 private struct OpenRouterRerankInput: Encodable {
@@ -122,12 +129,14 @@ private struct OpenRouterChatRequest: Encodable {
     let messages: [Message]
     let responseFormat: OpenRouterResponseFormat
     let stream: Bool
+    let maxTokens = 512
 
     enum CodingKeys: String, CodingKey {
         case model
         case messages
         case responseFormat = "response_format"
         case stream
+        case maxTokens = "max_tokens"
     }
 }
 
@@ -185,6 +194,7 @@ private struct OpenRouterRanking: Decodable {
 }
 
 enum OpenRouterRecommendationError: Error {
+    case tooManyCandidates
     case notAuthorized
     case unavailable
     case invalidRanking

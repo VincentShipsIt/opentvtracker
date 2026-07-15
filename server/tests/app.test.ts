@@ -99,6 +99,7 @@ describe("server application", () => {
     expect(invalid.status).toBe(400);
     expect(first.status).toBe(200);
     expect(second.status).toBe(200);
+    expect(first.headers.get("Cache-Control")).toContain("max-age=300");
     expect(first.headers.get("CDN-Cache-Control")).toBe("no-store");
     expect(providerCalls).toBe(1);
   });

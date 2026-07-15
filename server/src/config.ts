@@ -20,6 +20,7 @@ export type ServerConfig = {
     registrationEnabled: boolean;
   };
   corsAllowedOrigin?: string;
+  clientIPHeader?: string;
 };
 
 export function loadConfig(
@@ -59,6 +60,7 @@ export function loadConfig(
       registrationEnabled: enabled(env.APP_ATTEST_REGISTRATION_ENABLED, true),
     },
     corsAllowedOrigin: nonempty(env.CORS_ALLOWED_ORIGIN),
+    clientIPHeader: headerName(env.CLIENT_IP_HEADER),
   };
 
   if (mode === "production") {
@@ -92,6 +94,14 @@ export function loadConfig(
     );
   }
   return config;
+}
+
+function headerName(value: string | undefined): string | undefined {
+  const name = nonempty(value)?.toLowerCase();
+  if (name && !/^[a-z0-9!#$%&'*+.^_`|~-]+$/.test(name)) {
+    throw new Error("CLIENT_IP_HEADER must be a valid HTTP header name");
+  }
+  return name;
 }
 
 function appAttestMode(value: string | undefined): AppAttestMode {

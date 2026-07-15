@@ -362,18 +362,38 @@ async function cachedJSON(
 ): Promise<Response> {
   const cached = cache.get(key);
   if (cached && request.headers.get("if-none-match") === cached.etag) {
-    return response(null, 304, config, cacheHeaders(cached.etag, tag));
+    return response(
+      null,
+      304,
+      config,
+      cacheHeaders(cached.etag, tag, ttlMilliseconds),
+    );
   }
   if (cached)
-    return rawJSON(cached.body, 200, config, cacheHeaders(cached.etag, tag));
+    return rawJSON(
+      cached.body,
+      200,
+      config,
+      cacheHeaders(cached.etag, tag, ttlMilliseconds),
+    );
   const body = JSON.stringify(await load());
   const value = cache.set(key, body, ttlMilliseconds);
-  return rawJSON(body, 200, config, cacheHeaders(value.etag, tag));
+  return rawJSON(
+    body,
+    200,
+    config,
+    cacheHeaders(value.etag, tag, ttlMilliseconds),
+  );
 }
 
-function cacheHeaders(etag: string, tag: string): Record<string, string> {
+function cacheHeaders(
+  etag: string,
+  tag: string,
+  ttlMilliseconds: number,
+): Record<string, string> {
+  const maximumAge = Math.max(1, Math.floor(ttlMilliseconds / 1_000));
   return {
-    "Cache-Control": "private, max-age=300, stale-while-revalidate=600",
+    "Cache-Control": `private, max-age=${maximumAge}, stale-while-revalidate=${Math.min(maximumAge * 2, 600)}`,
     "CDN-Cache-Control": "no-store",
     ETag: etag,
     Vary: "Authorization, X-App-Attest-Key-ID",
