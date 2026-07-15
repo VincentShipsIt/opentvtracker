@@ -68,7 +68,7 @@ describe("server application", () => {
     });
   });
 
-  test("requires strict validation and caches only after authentication", async () => {
+  test("requires strict validation before provider access", async () => {
     let providerCalls = 0;
     const { app } = testApp(undefined, {
       search: async () => {
@@ -85,23 +85,53 @@ describe("server application", () => {
         "https://example.test/v1/catalog/search?q=Drama&page=0",
       ),
     );
-    const first = await app.fetch(
-      developmentRequest(
-        "https://example.test/v1/catalog/search?q=Drama&page=1&region=MT",
-      ),
-    );
-    const second = await app.fetch(
-      developmentRequest(
-        "https://example.test/v1/catalog/search?q=Drama&page=1&region=MT",
-      ),
-    );
 
     expect(invalid.status).toBe(400);
+    expect(providerCalls).toBe(0);
+  });
+
+  test("caches catalog responses only after authentication", async () => {
+    let providerCalls = 0;
+    const { app } = testApp(undefined, {
+      search: async () => {
+        providerCalls += 1;
+        return [];
+      },
+      title: async () => {
+        throw new Error("not expected");
+      },
+    });
+
+    const url =
+      "https://example.test/v1/catalog/search?q=Drama&page=1&region=MT";
+    const unauthenticated = await app.fetch(new Request(url));
+    const first = await app.fetch(developmentRequest(url));
+    const second = await app.fetch(developmentRequest(url));
+
+    expect(unauthenticated.status).toBe(401);
     expect(first.status).toBe(200);
     expect(second.status).toBe(200);
     expect(first.headers.get("Cache-Control")).toContain("max-age=300");
     expect(first.headers.get("CDN-Cache-Control")).toBe("no-store");
     expect(providerCalls).toBe(1);
+  });
+
+  test("authenticated invalid requests count toward the development quota", async () => {
+    const { app } = testApp();
+    const invalidURL =
+      "https://example.test/v1/catalog/search?q=Drama&page=0";
+
+    const first = await app.fetch(developmentRequest(invalidURL));
+    const second = await app.fetch(developmentRequest(invalidURL));
+    const limited = await app.fetch(
+      developmentRequest(
+        "https://example.test/v1/catalog/search?q=Drama&page=1&region=MT",
+      ),
+    );
+
+    expect(first.status).toBe(400);
+    expect(second.status).toBe(400);
+    expect(limited.status).toBe(429);
   });
 
   test("applies a deliberately lower device quota to the development bypass", async () => {
