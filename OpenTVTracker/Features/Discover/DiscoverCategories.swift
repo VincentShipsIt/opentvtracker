@@ -1,34 +1,5 @@
 import SwiftUI
 
-struct DiscoverCategoryRail: View {
-    let sections: [DiscoverCategorySection]
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            SectionHeading(
-                title: "Browse like a menu",
-                subtitle: "Pick a category. We show what is newest on your services."
-            )
-            .padding(.horizontal, AppTheme.horizontalPadding)
-
-            ScrollView(.horizontal) {
-                LazyHStack(spacing: 14) {
-                    ForEach(sections) { section in
-                        NavigationLink(value: section.category) {
-                            DiscoverCategoryTile(section: section)
-                                .frame(width: 180)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(.horizontal, AppTheme.horizontalPadding)
-                .padding(.bottom, 4)
-            }
-            .scrollIndicators(.hidden)
-        }
-    }
-}
-
 struct DiscoverCategoryGrid: View {
     let sections: [DiscoverCategorySection]
 
@@ -45,6 +16,7 @@ struct DiscoverCategoryGrid: View {
                 }
                 .buttonStyle(.plain)
                 .frame(maxWidth: .infinity)
+                .clipped()
             }
         }
     }
@@ -54,22 +26,42 @@ struct DiscoverCategoryTile: View {
     let section: DiscoverCategorySection
 
     var body: some View {
-        categoryArtwork
-            .aspectRatio(1.45, contentMode: .fit)
-            .frame(maxWidth: .infinity)
-            .overlay {
-                RoundedRectangle(cornerRadius: AppTheme.compactRadius)
-                    .strokeBorder(.white.opacity(0.18))
-            }
-            .compositingGroup()
-            .clipShape(.rect(cornerRadius: AppTheme.compactRadius))
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(accessibilityLabel)
-            .accessibilityHint("Opens titles in this category")
+        GeometryReader { geometry in
+            categoryArtwork
+                .frame(width: geometry.size.width, height: geometry.size.height)
+                .clipped()
+                .overlay {
+                    LinearGradient(
+                        colors: [.clear, .black.opacity(0.18), .black.opacity(0.82)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                }
+                .overlay(alignment: .bottomLeading) {
+                    Text(section.category.title)
+                        .font(.headline.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                        .padding(12)
+                }
+                .compositingGroup()
+                .clipShape(.rect(cornerRadius: AppTheme.compactRadius))
+                .overlay {
+                    RoundedRectangle(cornerRadius: AppTheme.compactRadius)
+                        .strokeBorder(.white.opacity(0.18))
+                }
+        }
+        .aspectRatio(1.45, contentMode: .fit)
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityHint("Opens titles in this category")
     }
 
+    @ViewBuilder
     private var categoryArtwork: some View {
-        ZStack(alignment: .bottomLeading) {
+        Group {
             if let latestTitle = section.latestTitle {
                 BackdropArtwork(title: latestTitle, cornerRadius: 0)
             } else {
@@ -82,19 +74,6 @@ struct DiscoverCategoryTile: View {
                     endPoint: .bottomTrailing
                 )
             }
-
-            LinearGradient(
-                colors: [.clear, .black.opacity(0.22), .black.opacity(0.82)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-
-            Text(section.category.title)
-                .font(.headline.weight(.semibold))
-                .foregroundStyle(.white)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-                .padding(12)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .clipped()

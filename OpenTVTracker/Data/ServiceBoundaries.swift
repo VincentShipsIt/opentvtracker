@@ -4,11 +4,12 @@ struct MediaSearchQuery: Hashable, Sendable {
     var text: String
     var kind: MediaKind?
     var page: Int
+    var region: StreamingRegion
 }
 
 protocol CatalogProviding: Sendable {
     func search(_ query: MediaSearchQuery) async throws -> [MediaTitle]
-    func title(kind: MediaKind, catalogID: Int) async throws -> MediaTitle
+    func title(kind: MediaKind, catalogID: Int, region: StreamingRegion) async throws -> MediaTitle
 }
 
 struct RecommendationContext: Hashable, Sendable {

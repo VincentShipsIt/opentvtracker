@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct MediaEpisodeSection: View {
+    @Environment(AppModel.self) private var model
     let title: MediaTitle
 
     var body: some View {
@@ -11,42 +12,48 @@ struct MediaEpisodeSection: View {
                     subtitle: "Air dates and runtimes from \(title.metadataSource?.displayName ?? "the catalog")"
                 )
                 ForEach(seasons) { season in
-                    seasonGroup(season)
+                    NavigationLink(
+                        value: SeasonEpisodesRoute(titleID: title.id, seasonID: season.id)
+                    ) {
+                        SeasonNavigationRow(
+                            season: season,
+                            watchedCount: model.watchedEpisodeCount(titleID: title.id, season: season)
+                        )
+                    }
+                    .buttonStyle(.plain)
                 }
             }
         }
     }
+}
 
-    private func seasonGroup(_ season: SeasonSummary) -> some View {
-        DisclosureGroup {
-            ForEach(season.episodes) { episode in
-                episodeRow(episode)
-            }
-        } label: {
-            VStack(alignment: .leading, spacing: 2) {
+struct SeasonNavigationRow: View {
+    let season: SeasonSummary
+    let watchedCount: Int
+
+    var body: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text(season.title)
-                Text("\(season.episodes.count) episodes")
+                    .font(.body.weight(.medium))
+                Text(progressLabel)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+            Spacer(minLength: 12)
+            Image(systemName: "chevron.right")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.secondary)
         }
+        .contentShape(.rect)
+        .padding(.vertical, 5)
+        .accessibilityElement(children: .combine)
+        .accessibilityHint("Opens the full episode list")
     }
 
-    private func episodeRow(_ episode: EpisodeSummary) -> some View {
-        LabeledContent {
-            VStack(alignment: .trailing, spacing: 3) {
-                Text(episode.airDate?.formatted(date: .abbreviated, time: .omitted) ?? "TBA")
-                if let runtime = episode.runtimeMinutes {
-                    Text("\(runtime) min")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-        } label: {
-            Text("E\(episode.number) · \(episode.title)")
-                .lineLimit(2)
-        }
-        .padding(.vertical, 4)
+    private var progressLabel: String {
+        guard watchedCount > 0 else { return "\(season.episodes.count) episodes" }
+        return "\(watchedCount) of \(season.episodes.count) watched"
     }
 }
 

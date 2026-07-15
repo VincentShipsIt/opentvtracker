@@ -1,6 +1,18 @@
 import Foundation
 
 extension AppModel {
+    var titlesOnSelectedProviders: [MediaTitle] {
+        titles.filter(isAvailableOnSelectedProviders)
+    }
+
+    var selectedProviders: [StreamingProvider] {
+        StreamingProvider.supportedSubscriptions.filter { selectedProviderIDs.contains($0.id) }
+    }
+
+    var streamingRegion: StreamingRegion {
+        streamingRegionOverride ?? .deviceDefault()
+    }
+
     func trackableTitleIndex(for id: MediaTitle.ID) -> Int? {
         if let index = titles.firstIndex(where: { $0.id == id }) { return index }
         guard let catalogTitle = catalogSearchResults.first(where: { $0.id == id }) else { return nil }
@@ -15,7 +27,7 @@ extension AppModel {
     func refreshDiscoveryCatalog() async {
         do {
             let results = try await catalogService.search(
-                MediaSearchQuery(text: "", kind: nil, page: 1)
+                MediaSearchQuery(text: "", kind: nil, page: 1, region: streamingRegion)
             )
             mergeCatalogTitles(results)
             catalogSearchError = nil
@@ -35,7 +47,8 @@ extension AppModel {
         do {
             let details = try await catalogService.title(
                 kind: existing.kind,
-                catalogID: existing.catalogID
+                catalogID: existing.catalogID,
+                region: streamingRegion
             )
             let refreshed = mergingCatalogDetails(details, into: existing)
 
@@ -70,7 +83,7 @@ extension AppModel {
             try await Task.sleep(for: .milliseconds(250))
             guard !Task.isCancelled else { return }
             let results = try await catalogService.search(
-                MediaSearchQuery(text: queryText, kind: nil, page: 1)
+                MediaSearchQuery(text: queryText, kind: nil, page: 1, region: streamingRegion)
             )
             guard queryText == text.trimmingCharacters(in: .whitespacesAndNewlines) else { return }
             catalogSearchResults = results
@@ -94,7 +107,7 @@ extension AppModel {
         do {
             let nextPage = catalogSearchPage + 1
             let results = try await catalogService.search(
-                MediaSearchQuery(text: queryText, kind: nil, page: nextPage)
+                MediaSearchQuery(text: queryText, kind: nil, page: nextPage, region: streamingRegion)
             )
             let existingIDs = Set(catalogSearchResults.map(\.id))
             catalogSearchResults.append(contentsOf: results.filter { !existingIDs.contains($0.id) })
@@ -102,6 +115,36 @@ extension AppModel {
             hasMoreCatalogResults = results.count >= 20
         } catch {
             catalogSearchError = error.localizedDescription
+        }
+    }
+
+    func setStreamingRegionOverride(_ region: StreamingRegion?) {
+        let previousRegion = streamingRegion
+        storeStreamingRegionOverride(region)
+        persist()
+
+        guard streamingRegion != previousRegion else { return }
+        clearUntrackedCatalogTitles()
+        catalogSearchResults = []
+        catalogSearchPage = 0
+        catalogSearchQuery = ""
+        hasMoreCatalogResults = false
+
+        Task {
+            await refreshDiscoveryCatalog()
+            await refreshRecommendations()
+        }
+    }
+
+    private func clearUntrackedCatalogTitles() {
+        let sharedTitleIDs = Set(sharedSpace.titleIDs)
+        titles.removeAll { title in
+            title.state == .planned
+                && !title.isOnPersonalWatchlist
+                && title.userRating == nil
+                && title.notes == nil
+                && title.completedRewatches == 0
+                && !sharedTitleIDs.contains(title.id)
         }
     }
 
