@@ -11,6 +11,7 @@ The repository is private while the first usable release is taking shape. The in
 - Browse rich poster and backdrop artwork, then watch official trailers in-app.
 - Filter discovery to streaming services you already pay for.
 - Share progress and a watchlist with a partner.
+- Compare personal and shared viewing analytics, then share a generated recap card on X.
 - Discover what to watch next with transparent recommendations.
 - Check Malta cinema listings and jump to Eden, Embassy, or Citadel booking pages.
 - Import or export a portable versioned library as JSON/CSV.
@@ -29,6 +30,7 @@ Read [the product vision](docs/VISION.md), [architecture](docs/ARCHITECTURE.md),
 - Live Embassy Cinemas showtimes from its official booking schedule, plus official Eden and Citadel links
 - Deterministic on-device recommendations with couple-match explanations and feedback exclusions
 - Air-date/release-aware Up Next tracking, ratings, notes, rewatches, explicit progress corrections, and immutable watch events
+- Event-backed hours watched, title/episode totals, genre and service breakdowns, partner stats, and shareable recap cards
 
 ## Development
 

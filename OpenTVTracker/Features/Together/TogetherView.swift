@@ -14,6 +14,7 @@ struct TogetherView: View {
                 ScrollView {
                     LazyVStack(spacing: AppTheme.sectionSpacing) {
                         spaceHeader
+                        analyticsLink
                         sharedWatchlist
                         recentActivity
                     }
@@ -94,6 +95,35 @@ struct TogetherView: View {
                 }
             }
         }
+    }
+
+    private var analyticsLink: some View {
+        NavigationLink {
+            ViewingAnalyticsView(initialScope: .together)
+        } label: {
+            GlassSurface(cornerRadius: AppTheme.compactRadius, tint: .pink) {
+                HStack(spacing: 14) {
+                    Image(systemName: "chart.bar.xaxis")
+                        .font(.title2.weight(.semibold))
+                        .foregroundStyle(.pink)
+                        .frame(width: 40, height: 40)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Our viewing stats")
+                            .font(.headline)
+                        Text("Hours, genres, movies and episodes together")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.tertiary)
+                }
+                .padding(16)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("together.viewing-analytics")
     }
 
     private var recentActivity: some View {
