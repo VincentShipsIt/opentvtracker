@@ -35,6 +35,11 @@ describe("request validation", () => {
     ).toThrow("unknown_query_parameter");
     expect(() =>
       validateCatalogSearch(
+        new URL("https://example.test/v1/catalog/search?page=1&page=2"),
+      ),
+    ).toThrow("duplicate_query_parameter");
+    expect(() =>
+      validateCatalogSearch(
         new URL(`https://example.test/v1/catalog/search?q=${"x".repeat(101)}`),
       ),
     ).toThrow("invalid_query");

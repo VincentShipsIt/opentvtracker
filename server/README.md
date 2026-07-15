@@ -19,6 +19,8 @@ By default, per-IP quotas use the direct peer address. Set `CLIENT_IP_HEADER` on
 
 Request/token challenges, token refreshes, catalog reads, and cinema reads have stable per-device quotas in addition to per-IP quotas. Initial attestation registration is not yet a verified device and is therefore limited by IP until validation succeeds.
 
+Rate/challenge/cache maps and verified-device records have explicit capacity limits. Rate-limit saturation rejects new identities rather than evicting live quota buckets. Catalog search is intentionally stricter than title lookup because one search can fan out to multiple TMDB detail requests.
+
 ## Run locally
 
 ```sh

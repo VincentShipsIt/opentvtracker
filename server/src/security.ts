@@ -102,6 +102,8 @@ export type VerifiedDevice = {
   lastSeenAt: string;
 };
 
+const maximumVerifiedDevices = 100_000;
+
 export interface DeviceStore {
   get(keyID: string): VerifiedDevice | undefined;
   register(device: VerifiedDevice): Promise<void>;
@@ -110,6 +112,8 @@ export interface DeviceStore {
 
 export class MemoryDeviceStore implements DeviceStore {
   protected readonly devices = new Map<string, VerifiedDevice>();
+
+  constructor(private readonly maximumEntries = maximumVerifiedDevices) {}
 
   get(keyID: string): VerifiedDevice | undefined {
     const device = this.devices.get(keyID);
@@ -120,6 +124,8 @@ export class MemoryDeviceStore implements DeviceStore {
     const existing = this.devices.get(device.keyID);
     if (existing && existing.publicKey !== device.publicKey)
       throw new SecurityError("duplicate_key");
+    if (!existing && this.devices.size >= this.maximumEntries)
+      throw new SecurityError("device_capacity_reached");
     this.devices.set(device.keyID, { ...device });
     await this.persist();
   }
@@ -155,6 +161,8 @@ export class FileDeviceStore extends MemoryDeviceStore {
       };
       if (parsed.version !== 1 || !Array.isArray(parsed.devices))
         throw new Error("Invalid App Attest state file");
+      if (parsed.devices.length > maximumVerifiedDevices)
+        throw new Error("App Attest state exceeds the verified-device limit");
       for (const value of parsed.devices) {
         const device = parseStoredDevice(value);
         store.devices.set(device.keyID, device);
@@ -449,8 +457,16 @@ export class BoundedRateLimiter {
     let entry = this.entries.get(key);
     if (!entry || entry.resetAt <= now) {
       if (this.entries.size >= this.maximumEntries) {
-        const oldest = this.entries.keys().next().value as string | undefined;
-        if (oldest) this.entries.delete(oldest);
+        const oldest = this.entries.values().next().value as
+          | RateLimitEntry
+          | undefined;
+        return {
+          allowed: false,
+          retryAfterSeconds: Math.max(
+            1,
+            Math.ceil(((oldest?.resetAt ?? now + 1_000) - now) / 1_000),
+          ),
+        };
       }
       entry = { count: 0, resetAt: now + windowMilliseconds };
       this.entries.set(key, entry);

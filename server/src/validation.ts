@@ -192,9 +192,12 @@ function exactKeys(value: Record<string, unknown>, allowed: string[]): void {
 }
 
 function exactQueryKeys(url: URL, allowed: string[]): void {
+  const seen = new Set<string>();
   for (const key of url.searchParams.keys()) {
     if (!allowed.includes(key))
       throw new ValidationError("unknown_query_parameter");
+    if (seen.has(key)) throw new ValidationError("duplicate_query_parameter");
+    seen.add(key);
   }
 }
 

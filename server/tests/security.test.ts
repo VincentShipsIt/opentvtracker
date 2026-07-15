@@ -149,6 +149,26 @@ describe("bounded replay and quota state", () => {
     expect(limiter.consume("device", 1, 1_000).allowed).toBe(true);
   });
 
+  test("rate-limit state fails closed instead of evicting a live bucket", () => {
+    let now = 5_000;
+    const limiter = new BoundedRateLimiter(1, () => now);
+
+    expect(limiter.consume("first-device", 10, 1_000).allowed).toBe(true);
+    expect(limiter.consume("new-device", 10, 1_000).allowed).toBe(false);
+    expect(limiter.consume("first-device", 10, 1_000).allowed).toBe(true);
+    now = 6_001;
+    expect(limiter.consume("new-device", 10, 1_000).allowed).toBe(true);
+  });
+
+  test("verified-device state has an explicit capacity bound", async () => {
+    const devices = new MemoryDeviceStore(1);
+    await devices.register(verifiedDevice("first-key"));
+
+    await expect(
+      devices.register(verifiedDevice("second-key")),
+    ).rejects.toThrow("device_capacity_reached");
+  });
+
   test("uses a valid client IP only from an explicitly trusted header", () => {
     const request = new Request("https://example.test/health", {
       headers: { "CF-Connecting-IP": "203.0.113.10" },
@@ -218,5 +238,17 @@ function appAttestConfig(): ServerConfig["appAttest"] {
     statePath: "unused",
     challengeTTLSeconds: 60,
     tokenTTLSeconds: 600,
+  };
+}
+
+function verifiedDevice(keyID: string) {
+  return {
+    keyID,
+    publicKey: `public-${keyID}`,
+    signCount: 0,
+    environment: "production",
+    receipt: "receipt",
+    registeredAt: "2026-07-15T12:00:00.000Z",
+    lastSeenAt: "2026-07-15T12:00:00.000Z",
   };
 }

@@ -80,9 +80,9 @@ const quotas = {
   challenge: { ip: 30, device: 30, window: 60_000 },
   register: { ip: 5, device: 5, window: 3_600_000 },
   token: { ip: 20, device: 20, window: 60_000 },
-  catalogSearch: { ip: 120, device: 60, window: 60_000 },
-  catalogTitle: { ip: 180, device: 90, window: 60_000 },
-  cinema: { ip: 60, device: 30, window: 60_000 },
+  catalogSearch: { ip: 30, device: 10, window: 60_000 },
+  catalogTitle: { ip: 120, device: 60, window: 60_000 },
+  cinema: { ip: 40, device: 20, window: 60_000 },
 } as const;
 
 export function createApp(dependencies: AppDependencies): {
