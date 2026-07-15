@@ -252,14 +252,15 @@ enum CinemaServiceError: LocalizedError {
 enum AppServiceConfiguration {
     static var apiBaseURL: URL? {
         guard let url = configuredURL(for: "OpenTVAPIBaseURL"),
+              url.host != nil,
               url.user == nil,
               url.password == nil,
               url.query == nil,
               url.fragment == nil else { return nil }
-        if url.scheme == "https" { return url }
+        if url.scheme?.lowercased() == "https" { return url }
         #if DEBUG
         if let host = url.host,
-           url.scheme == "http",
+           url.scheme?.lowercased() == "http",
            ["localhost", "127.0.0.1", "::1"].contains(host) {
             return url
         }
