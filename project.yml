@@ -14,6 +14,10 @@ settings:
     MARKETING_VERSION: 0.1.0
     SWIFT_STRICT_CONCURRENCY: complete
     SWIFT_VERSION: 6.0
+packages:
+  ZIPFoundation:
+    url: https://github.com/weichsel/ZIPFoundation
+    from: 0.9.20
 targets:
   OpenTVTracker:
     type: application
@@ -64,7 +68,8 @@ targets:
           enabled: 1
         com.apple.DeviceCheck:
           enabled: 1
-    dependencies: []
+    dependencies:
+      - package: ZIPFoundation
   OpenTVTrackerTests:
     type: bundle.unit-test
     platform: iOS
@@ -76,6 +81,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: dev.shipshit.opentvtracker.tests
     dependencies:
       - target: OpenTVTracker
+      - package: ZIPFoundation
 schemes:
   OpenTVTracker:
     build:

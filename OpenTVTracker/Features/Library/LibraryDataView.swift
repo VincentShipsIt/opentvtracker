@@ -9,6 +9,7 @@ struct LibraryDataView: View {
     @State private var exportFilename = "OpenTV-library"
     @State private var showsExporter = false
     @State private var showsImporter = false
+    @State private var isImporting = false
     @State private var importPreview: LibraryImportPreview?
     @State private var statusMessage: String?
 
@@ -28,17 +29,29 @@ struct LibraryDataView: View {
                 }
 
                 Section {
-                    Button("Import JSON or CSV", systemImage: "square.and.arrow.down") {
+                    Button("Import OpenTV or TV Time", systemImage: "square.and.arrow.down") {
                         showsImporter = true
                     }
+                    .disabled(isImporting)
+
+                    if isImporting {
+                        ProgressView("Reading your TV Time history…")
+                    }
                 } footer: {
-                    Text("OpenTV previews matches, duplicates, and skipped rows before changing your library. Reimporting the same file is safe.")
+                    Text("Choose an OpenTV JSON/CSV file or the ZIP from TV Time's data export. OpenTV previews every import before changing your library.")
                 }
 
                 if let importPreview {
                     Section("Import preview") {
+                        LabeledContent("Source", value: importPreview.sourceName)
                         LabeledContent("Matched", value: String(importPreview.matchedCount))
                         LabeledContent("New", value: String(importPreview.addedCount))
+                        if importPreview.watchedEpisodeCount > 0 {
+                            LabeledContent("Watched episodes", value: String(importPreview.watchedEpisodeCount))
+                        }
+                        if importPreview.watchEventCount > 0 {
+                            LabeledContent("Dated watches", value: String(importPreview.watchEventCount))
+                        }
                         LabeledContent("Duplicates", value: String(importPreview.duplicateCount))
                         LabeledContent("Skipped", value: String(importPreview.skippedCount))
 
@@ -76,7 +89,7 @@ struct LibraryDataView: View {
             }
             .fileImporter(
                 isPresented: $showsImporter,
-                allowedContentTypes: [.json, .commaSeparatedText]
+                allowedContentTypes: [.zip, .json, .commaSeparatedText]
             ) { result in
                 importFile(result)
             }
@@ -115,8 +128,27 @@ struct LibraryDataView: View {
                 if hasAccess { url.stopAccessingSecurityScopedResource() }
             }
             let data = try Data(contentsOf: url)
-            importPreview = try LibraryTransferService.previewImport(data, into: model.snapshot)
-            statusMessage = nil
+            if TVTimeImportService.isZIPArchive(data) {
+                isImporting = true
+                Task {
+                    defer { isImporting = false }
+                    do {
+                        importPreview = try await TVTimeImportService.previewImport(
+                            data,
+                            into: model.snapshot,
+                            catalog: model.catalogService,
+                            region: model.streamingRegion
+                        )
+                        statusMessage = nil
+                    } catch {
+                        importPreview = nil
+                        statusMessage = error.localizedDescription
+                    }
+                }
+            } else {
+                importPreview = try LibraryTransferService.previewImport(data, into: model.snapshot)
+                statusMessage = nil
+            }
         } catch {
             importPreview = nil
             statusMessage = error.localizedDescription
