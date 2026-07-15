@@ -111,56 +111,67 @@ private struct UpNextHero: View {
             SectionHeading(title: "Up next", subtitle: title.nextReleaseDescription)
                 .padding(.horizontal, AppTheme.horizontalPadding)
 
-            ZStack(alignment: .bottomLeading) {
-                BackdropArtwork(title: title, cornerRadius: 0)
+            GeometryReader { geometry in
+                ZStack(alignment: .bottomLeading) {
+                    BackdropArtwork(title: title, cornerRadius: 0)
+                        .frame(width: geometry.size.width, height: geometry.size.height)
 
-                LinearGradient(
-                    colors: [.clear, .black.opacity(0.28), .black.opacity(0.96)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
+                    LinearGradient(
+                        colors: [.clear, .black.opacity(0.28), .black.opacity(0.96)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
 
-                VStack(alignment: .leading, spacing: 13) {
-                    NavigationLink(value: title) {
-                        VStack(alignment: .leading, spacing: 7) {
-                            Text(title.title)
-                                .font(.largeTitle.weight(.black))
-                                .foregroundStyle(.white)
-                                .lineLimit(2)
-                            Text("\(title.kind.label) · \(title.genres.prefix(2).joined(separator: " · ")) · \(title.runtimeMinutes) min")
-                                .font(.subheadline.weight(.medium))
-                                .foregroundStyle(.white.opacity(0.82))
-                            Text(progressSummary.label)
-                                .font(.headline)
-                                .foregroundStyle(.white)
+                    VStack(alignment: .leading, spacing: 13) {
+                        NavigationLink(value: title) {
+                            VStack(alignment: .leading, spacing: 7) {
+                                Text(title.title)
+                                    .font(.largeTitle.weight(.black))
+                                    .foregroundStyle(.white)
+                                    .lineLimit(2)
+                                Text("\(title.kind.label) · \(title.genres.prefix(2).joined(separator: " · ")) · \(title.runtimeMinutes) min")
+                                    .font(.subheadline.weight(.medium))
+                                    .foregroundStyle(.white.opacity(0.82))
+                                    .lineLimit(2)
+                                Text(progressSummary.label)
+                                    .font(.headline)
+                                    .foregroundStyle(.white)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         }
-                    }
-                    .buttonStyle(.plain)
+                        .buttonStyle(.plain)
 
-                    ProgressView(value: progressSummary.fraction)
+                        ProgressView(value: progressSummary.fraction)
+                            .tint(.white)
+                            .accessibilityLabel("Viewing progress")
+                            .accessibilityValue(progressSummary.label)
+
+                        Button {
+                            model.markNextWatched(title.id)
+                            progressTrigger += 1
+                        } label: {
+                            Label(watchedActionTitle, systemImage: "checkmark.circle.fill")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .controlSize(.large)
+                        .buttonStyle(.borderedProminent)
                         .tint(.white)
-                        .accessibilityLabel("Viewing progress")
-                        .accessibilityValue(progressSummary.label)
-
-                    Button {
-                        model.markNextWatched(title.id)
-                        progressTrigger += 1
-                    } label: {
-                        Label("Mark next episode watched", systemImage: "checkmark.circle.fill")
-                            .frame(maxWidth: 280)
+                        .foregroundStyle(.black)
+                        .sensoryFeedback(.success, trigger: progressTrigger)
                     }
-                    .controlSize(.large)
-                    .buttonStyle(.borderedProminent)
-                    .tint(.white)
-                    .foregroundStyle(.black)
-                    .sensoryFeedback(.success, trigger: progressTrigger)
+                    .frame(width: max(geometry.size.width - (AppTheme.horizontalPadding * 2), 0))
+                    .padding(.horizontal, AppTheme.horizontalPadding)
+                    .padding(.bottom, 24)
                 }
-                .padding(.horizontal, AppTheme.horizontalPadding)
-                .padding(.bottom, 24)
+                .frame(width: geometry.size.width, height: geometry.size.height)
+                .clipped()
             }
             .frame(height: 430)
-            .clipped()
         }
+    }
+
+    private var watchedActionTitle: String {
+        title.kind == .movie ? "Mark watched" : "Mark next episode watched"
     }
 }
 

@@ -13,33 +13,25 @@ struct RootTabView: View {
     @State private var presentsAssistant = false
 
     var body: some View {
-        TabView(selection: $selection) {
-            Tab("Today", systemImage: "sparkles", value: .today) {
+        Group {
+            switch selection {
+            case .today:
                 TodayView()
                     .accessibilityIdentifier("tab.today")
-            }
-
-            Tab("Discover", systemImage: "safari", value: .discover) {
+            case .discover:
                 DiscoverView()
                     .accessibilityIdentifier("tab.discover")
-            }
-
-            Tab("Together", systemImage: "person.2.fill", value: .together) {
+            case .together:
                 TogetherView()
                     .accessibilityIdentifier("tab.together")
-            }
-
-            Tab("Library", systemImage: "rectangle.stack.fill", value: .library) {
+            case .library:
                 LibraryView()
                     .accessibilityIdentifier("tab.library")
-            }
-
-            Tab("Profile", systemImage: "person.crop.circle.fill", value: .profile) {
+            case .profile:
                 ProfileView()
                     .accessibilityIdentifier("tab.profile")
             }
         }
-        .toolbar(.hidden, for: .tabBar)
         .tint(.accentColor)
         .safeAreaInset(edge: .bottom, spacing: 0) {
             OpenTVTabBar(selection: $selection) {
