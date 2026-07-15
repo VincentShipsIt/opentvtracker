@@ -64,6 +64,10 @@ extension AppModel {
             let index = trackableTitleIndex(for: id)
             if let index {
                 titles[index] = refreshed
+                if isShared(id) {
+                    prepareSharedTitleMetadataForSync()
+                    syncSharedStateSoon()
+                }
                 persist()
             }
             if let index = catalogSearchResults.firstIndex(where: { $0.id == id }) {

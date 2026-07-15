@@ -57,27 +57,67 @@ final class EpisodeTrackingTests: XCTestCase {
         XCTAssertEqual(model.sharedSpace.activity.count, originalActivityCount + 1)
     }
 
-    func testMarkThisAndPreviousWatchedIncludesEarlierSeasons() throws {
+    func testMarkThisAndPreviousWatchedOnlyIncludesCurrentSeason() throws {
         let model = try makeModel()
 
-        model.markEpisodesWatchedThrough(titleID: "severance", seasonNumber: 2, episodeNumber: 1)
+        model.markEpisodesWatchedThrough(titleID: "severance", seasonNumber: 2, episodeNumber: 2)
 
-        XCTAssertTrue(model.isEpisodeWatched(titleID: "severance", seasonNumber: 1, episodeID: "s1e1"))
-        XCTAssertTrue(model.isEpisodeWatched(titleID: "severance", seasonNumber: 1, episodeID: "s1e2"))
+        XCTAssertFalse(model.isEpisodeWatched(titleID: "severance", seasonNumber: 1, episodeID: "s1e1"))
+        XCTAssertFalse(model.isEpisodeWatched(titleID: "severance", seasonNumber: 1, episodeID: "s1e2"))
         XCTAssertTrue(model.isEpisodeWatched(titleID: "severance", seasonNumber: 2, episodeID: "s2e1"))
-        XCTAssertFalse(model.isEpisodeWatched(titleID: "severance", seasonNumber: 2, episodeID: "s2e2"))
+        XCTAssertTrue(model.isEpisodeWatched(titleID: "severance", seasonNumber: 2, episodeID: "s2e2"))
         XCTAssertTrue(
             model.areEpisodesWatchedThrough(
                 titleID: "severance",
                 seasonNumber: 2,
-                episodeNumber: 1
+                episodeNumber: 2
             )
         )
         XCTAssertEqual(
             model.mediaTitle(withID: "severance")?.progress,
-            EpisodeProgress(season: 2, episode: 1, totalEpisodes: 2)
+            EpisodeProgress(season: 2, episode: 2, totalEpisodes: 6)
         )
-        XCTAssertEqual(model.sharedSpace.watchEvents?.filter { $0.titleID == "severance" }.count, 3)
+        XCTAssertEqual(model.sharedSpace.watchEvents?.filter { $0.titleID == "severance" }.count, 2)
+    }
+
+    func testMarkEpisodeSixWatchedThroughRecordsEachEpisodeOnceForRecommendations() throws {
+        let model = try makeModel()
+        let initialProfile = RecommendationViewingProfiler.profile(from: model.snapshot)
+
+        model.setEpisodeWatched(true, titleID: "severance", seasonNumber: 2, episodeID: "s2e2")
+        XCTAssertTrue(
+            model.hasUnwatchedEpisodesBefore(
+                titleID: "severance",
+                seasonNumber: 2,
+                episodeNumber: 6
+            )
+        )
+
+        model.markEpisodesWatchedThrough(titleID: "severance", seasonNumber: 2, episodeNumber: 6)
+
+        for episodeNumber in 1...6 {
+            XCTAssertTrue(
+                model.isEpisodeWatched(
+                    titleID: "severance",
+                    seasonNumber: 2,
+                    episodeID: "s2e\(episodeNumber)"
+                )
+            )
+        }
+        XCTAssertFalse(model.isEpisodeWatched(titleID: "severance", seasonNumber: 1, episodeID: "s1e1"))
+        XCTAssertFalse(
+            model.hasUnwatchedEpisodesBefore(
+                titleID: "severance",
+                seasonNumber: 2,
+                episodeNumber: 6
+            )
+        )
+        XCTAssertEqual(model.sharedSpace.watchEvents?.filter { $0.titleID == "severance" }.count, 6)
+
+        let profile = RecommendationViewingProfiler.profile(from: model.snapshot)
+        XCTAssertEqual(profile.watchedEpisodeCount, initialProfile.watchedEpisodeCount + 6)
+        XCTAssertEqual(profile.recentTitles.first?.watchedEpisodeCount, 6)
+        XCTAssertTrue(profile.topGenres.contains(where: { $0.genre == "Drama" }))
     }
 
     func testMarkAllSeasonEpisodesUnwatchedCreatesCorrections() throws {
@@ -99,8 +139,8 @@ final class EpisodeTrackingTests: XCTestCase {
 
         let title = try XCTUnwrap(model.mediaTitle(withID: "severance"))
         let summary = model.progressSummary(for: title)
-        XCTAssertEqual(summary.label, "3 of 4 episodes")
-        XCTAssertEqual(summary.fraction, 0.75)
+        XCTAssertEqual(summary.label, "1 of 8 episodes")
+        XCTAssertEqual(summary.fraction, 0.125)
     }
 
     private func makeModel() throws -> AppModel {
@@ -129,7 +169,11 @@ final class EpisodeTrackingTests: XCTestCase {
             title: "Season 2",
             episodes: [
                 EpisodeSummary(id: "s2e1", number: 1, title: "Episode 1", airDate: nil, runtimeMinutes: 48),
-                EpisodeSummary(id: "s2e2", number: 2, title: "Episode 2", airDate: nil, runtimeMinutes: 54)
+                EpisodeSummary(id: "s2e2", number: 2, title: "Episode 2", airDate: nil, runtimeMinutes: 54),
+                EpisodeSummary(id: "s2e3", number: 3, title: "Episode 3", airDate: nil, runtimeMinutes: 51),
+                EpisodeSummary(id: "s2e4", number: 4, title: "Episode 4", airDate: nil, runtimeMinutes: 49),
+                EpisodeSummary(id: "s2e5", number: 5, title: "Episode 5", airDate: nil, runtimeMinutes: 50),
+                EpisodeSummary(id: "s2e6", number: 6, title: "Episode 6", airDate: nil, runtimeMinutes: 53)
             ]
         )
     ]

@@ -68,17 +68,7 @@ final class RecommendationServiceTests: XCTestCase {
         )
         let expected = Array(deterministic.prefix(2).reversed()).map(\.title.catalogID)
         TestURLProtocol.handler = { request in
-            XCTAssertEqual(request.url?.host, "openrouter.ai")
-            XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer sk-or-v1-user-key")
-            let content = try JSONSerialization.data(withJSONObject: ["catalogIDs": expected])
-            let contentString = try XCTUnwrap(String(data: content, encoding: .utf8))
-            let response = try JSONSerialization.data(withJSONObject: [
-                "choices": [["message": ["content": contentString]]]
-            ])
-            return (
-                HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!,
-                response
-            )
+            try Self.openRouterResponse(for: request, rankedCatalogIDs: expected)
         }
         let service = OpenRouterRecommendationService(
             model: "openai/gpt-4o-mini",
@@ -87,14 +77,44 @@ final class RecommendationServiceTests: XCTestCase {
             session: session
         )
 
-        let reranked = try await service.rerank(Array(deterministic.prefix(2)), context: RecommendationContext(
-            mood: .any,
-            maximumRuntimeMinutes: nil,
-            sharedSpaceID: LibrarySnapshot.sample.sharedSpace.id,
-            allowsRemoteReranking: true
-        ))
+        let reranked = try await service.rerank(
+            Array(deterministic.prefix(2)),
+            context: RecommendationContext(
+                mood: .any,
+                maximumRuntimeMinutes: nil,
+                sharedSpaceID: LibrarySnapshot.sample.sharedSpace.id,
+                allowsRemoteReranking: true,
+                viewingProfile: RecommendationViewingProfiler.profile(from: .sample)
+            )
+        )
 
         XCTAssertEqual(reranked.map(\.title.catalogID), expected)
+    }
+
+    private static func openRouterResponse(
+        for request: URLRequest,
+        rankedCatalogIDs: [Int]
+    ) throws -> (HTTPURLResponse, Data) {
+        XCTAssertEqual(request.url?.host, "openrouter.ai")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer sk-or-v1-user-key")
+        let body = try XCTUnwrap(TestURLProtocol.bodyData(for: request))
+        let payload = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
+        let messages = try XCTUnwrap(payload["messages"] as? [[String: Any]])
+        let userContent = try XCTUnwrap(messages.last?["content"] as? String)
+        let userPayload = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: Data(userContent.utf8)) as? [String: Any]
+        )
+        let viewingProfile = try XCTUnwrap(userPayload["viewingProfile"] as? [String: Any])
+        XCTAssertGreaterThan(try XCTUnwrap(viewingProfile["watchedEpisodeCount"] as? Int), 0)
+        let content = try JSONSerialization.data(withJSONObject: ["catalogIDs": rankedCatalogIDs])
+        let contentString = try XCTUnwrap(String(data: content, encoding: .utf8))
+        let response = try JSONSerialization.data(withJSONObject: [
+            "choices": [["message": ["content": contentString]]]
+        ])
+        return (
+            HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!,
+            response
+        )
     }
 
     func testOpenRouterRerankingRejectsMoreThanTwentyCandidatesBeforeNetworkAccess() async throws {

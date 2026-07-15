@@ -316,6 +316,7 @@ struct SharedSpace: Codable, Hashable, Identifiable, Sendable {
     var cloudZoneName: String? = nil
     var cloudOwnerName: String? = nil
     var isCurrentUserShareOwner: Bool? = nil
+    var titleMetadata: [MediaTitle]? = nil
 
     var resolvedMembershipState: SharedMembershipState {
         membershipState ?? (isCloudSharingEnabled ? .accepted : .local)

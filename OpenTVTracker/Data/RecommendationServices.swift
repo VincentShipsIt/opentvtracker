@@ -16,7 +16,8 @@ enum DeterministicRecommendationEngine {
         limit: Int = 20
     ) -> [Recommendation] {
         let history = snapshot.titles.filter { $0.state == .completed || $0.state == .watching }
-        let genreWeights = preferredGenreWeights(history: history)
+        let analytics = ViewingAnalyticsEngine.summarize(snapshot: snapshot, scope: .personal)
+        let genreWeights = preferredGenreWeights(history: history, analytics: analytics)
         let profiles = snapshot.sharedSpace.tasteProfiles ?? []
 
         return snapshot.titles
@@ -68,14 +69,22 @@ enum DeterministicRecommendationEngine {
         )
     }
 
-    private static func preferredGenreWeights(history: [MediaTitle]) -> [String: Double] {
-        history.reduce(into: [:]) { weights, title in
+    private static func preferredGenreWeights(
+        history: [MediaTitle],
+        analytics: ViewingAnalyticsSummary
+    ) -> [String: Double] {
+        var weights = history.reduce(into: [String: Double]()) { weights, title in
             let completionWeight = title.state == .completed ? 1.5 : 1.0
             let ratingWeight = title.userRating.map { max($0 - 5, 0) / 5 } ?? 0.5
             for genre in title.genres {
                 weights[normalized(genre), default: 0] += completionWeight + ratingWeight
             }
         }
+        for metric in analytics.genreBreakdown {
+            let engagementWeight = log2(1 + Double(metric.minutes) / 60)
+            weights[normalized(metric.label), default: 0] += engagementWeight
+        }
+        return weights
     }
 
     private static func profileScore(_ profile: MemberTasteProfile, candidate: MediaTitle) -> Double {
@@ -151,9 +160,68 @@ struct ProviderNeutralRecommendationService: RecommendationProviding {
         }
 
         do {
-            return try await reranker.rerank(deterministic, context: context)
+            var enrichedContext = context
+            enrichedContext.viewingProfile = RecommendationViewingProfiler.profile(from: snapshot)
+            return try await reranker.rerank(deterministic, context: enrichedContext)
         } catch {
             return deterministic
         }
+    }
+}
+
+enum RecommendationViewingProfiler {
+    static func profile(from snapshot: LibrarySnapshot) -> RecommendationViewingProfile {
+        let analytics = ViewingAnalyticsEngine.summarize(snapshot: snapshot, scope: .personal)
+        let recentTitles = snapshot.titles
+            .filter { title in
+                title.lastWatchedAt != nil
+                    || title.state == .watching
+                    || title.state == .completed
+                    || !(title.watchedEpisodeIDs ?? []).isEmpty
+            }
+            .sorted(by: isMoreRecent)
+            .prefix(20)
+            .map(titleEngagement)
+
+        return RecommendationViewingProfile(
+            watchedMinutes: analytics.totalMinutes,
+            watchedEpisodeCount: analytics.episodeCount,
+            watchedTitleCount: analytics.titleCount,
+            topGenres: analytics.genreBreakdown.prefix(8).map {
+                RecommendationGenreAffinity(genre: $0.label, watchedMinutes: $0.minutes)
+            },
+            recentTitles: Array(recentTitles)
+        )
+    }
+
+    private static func titleEngagement(_ title: MediaTitle) -> RecommendationTitleEngagement {
+        let episodeCount = title.kind == .series ? (title.watchedEpisodeIDs?.count ?? 0) : 0
+        let totalEpisodeCount = title.seasons?
+            .filter { $0.number > 0 }
+            .reduce(0) { $0 + $1.episodes.count } ?? 0
+        let completionFraction: Double
+        if title.kind == .movie {
+            completionFraction = title.state == .completed ? 1 : 0
+        } else if totalEpisodeCount > 0 {
+            completionFraction = min(Double(episodeCount) / Double(totalEpisodeCount), 1)
+        } else {
+            completionFraction = title.state == .completed ? 1 : title.progress?.fraction ?? 0
+        }
+
+        return RecommendationTitleEngagement(
+            title: title.title,
+            genres: title.genres,
+            watchedEpisodeCount: episodeCount,
+            completionFraction: completionFraction,
+            userRating: title.userRating,
+            lastWatchedAt: title.lastWatchedAt
+        )
+    }
+
+    private static func isMoreRecent(_ lhs: MediaTitle, _ rhs: MediaTitle) -> Bool {
+        if lhs.lastWatchedAt != rhs.lastWatchedAt {
+            return (lhs.lastWatchedAt ?? .distantPast) > (rhs.lastWatchedAt ?? .distantPast)
+        }
+        return lhs.title.localizedStandardCompare(rhs.title) == .orderedAscending
     }
 }

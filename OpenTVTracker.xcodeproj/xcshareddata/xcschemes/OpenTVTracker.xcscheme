@@ -35,6 +35,20 @@
                ReferencedContainer = "container:OpenTVTracker.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "NO"
+            buildForProfiling = "NO"
+            buildForArchiving = "NO"
+            buildForAnalyzing = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "B0AF29D3A827D293C2407B7B"
+               BuildableName = "OpenTVTrackerUITests.xctest"
+               BlueprintName = "OpenTVTrackerUITests"
+               ReferencedContainer = "container:OpenTVTracker.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction
@@ -62,6 +76,17 @@
                BlueprintIdentifier = "3420C46A6AD54978944C2D04"
                BuildableName = "OpenTVTrackerTests.xctest"
                BlueprintName = "OpenTVTrackerTests"
+               ReferencedContainer = "container:OpenTVTracker.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "B0AF29D3A827D293C2407B7B"
+               BuildableName = "OpenTVTrackerUITests.xctest"
+               BlueprintName = "OpenTVTrackerUITests"
                ReferencedContainer = "container:OpenTVTracker.xcodeproj">
             </BuildableReference>
          </TestableReference>

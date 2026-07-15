@@ -30,9 +30,11 @@ extension AppModel {
     func toggleTogether(_ id: MediaTitle.ID) {
         if let index = sharedSpace.titleIDs.firstIndex(of: id) {
             sharedSpace.titleIDs.remove(at: index)
+            sharedSpace.titleMetadata?.removeAll { $0.id == id }
         } else {
             sharedSpace.titleIDs.append(id)
             if let title = titles.first(where: { $0.id == id }) {
+                storeSharedTitleMetadata(title)
                 addActivity(description: "added \(title.title)", titleID: title.id, symbol: "plus")
             }
         }
@@ -140,6 +142,44 @@ extension AppModel {
 
     func isShared(_ id: MediaTitle.ID) -> Bool {
         sharedSpace.titleIDs.contains(id)
+    }
+
+    func prepareSharedTitleMetadataForSync() {
+        let existingByID = Dictionary(
+            uniqueKeysWithValues: (sharedSpace.titleMetadata ?? []).map { ($0.id, $0) }
+        )
+        sharedSpace.titleMetadata = sharedSpace.titleIDs.compactMap { id in
+            if let title = titles.first(where: { $0.id == id }) {
+                return sharedMetadataCopy(of: title)
+            }
+            return existingByID[id]
+        }
+    }
+
+    func mergeSharedTitleMetadataIntoLibrary(_ metadata: [MediaTitle]) {
+        mergeCatalogTitles(metadata)
+    }
+
+    private func storeSharedTitleMetadata(_ title: MediaTitle) {
+        var metadata = sharedSpace.titleMetadata ?? []
+        metadata.removeAll { $0.id == title.id }
+        metadata.append(sharedMetadataCopy(of: title))
+        sharedSpace.titleMetadata = metadata
+    }
+
+    private func sharedMetadataCopy(of title: MediaTitle) -> MediaTitle {
+        var metadata = title
+        metadata.state = .planned
+        metadata.progress = nil
+        metadata.userRating = nil
+        metadata.notes = nil
+        metadata.rewatchCount = nil
+        metadata.lastWatchedAt = nil
+        metadata.isDismissed = nil
+        metadata.isDisliked = nil
+        metadata.personalWatchlist = false
+        metadata.watchedEpisodeIDs = nil
+        return metadata
     }
 }
 

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct EpisodeDetailView: View {
     @Environment(AppModel.self) private var model
+    @State private var showsPreviousEpisodesConfirmation = false
     let route: EpisodeDetailRoute
 
     var body: some View {
@@ -30,6 +31,32 @@ struct EpisodeDetailView: View {
         }
         .navigationTitle(navigationTitle)
         .navigationBarTitleDisplayMode(.inline)
+        .confirmationDialog(
+            "Mark previous episodes too?",
+            isPresented: $showsPreviousEpisodesConfirmation,
+            titleVisibility: .visible
+        ) {
+            if let title, let season, let episode {
+                Button("Episodes 1–\(episode.number)") {
+                    model.markEpisodesWatchedThrough(
+                        titleID: title.id,
+                        seasonNumber: season.number,
+                        episodeNumber: episode.number
+                    )
+                }
+                Button("Only episode \(episode.number)") {
+                    model.setEpisodeWatched(
+                        true,
+                        titleID: title.id,
+                        seasonNumber: season.number,
+                        episodeID: episode.id
+                    )
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Some earlier episodes in this season are still unwatched. What should be added to your history?")
+        }
     }
 
     private var title: MediaTitle? {
@@ -104,11 +131,11 @@ struct EpisodeDetailView: View {
 
         return VStack(spacing: 10) {
             Button {
-                model.setEpisodeWatched(
-                    !isWatched,
-                    titleID: title.id,
-                    seasonNumber: season.number,
-                    episodeID: episode.id
+                requestEpisodeWatch(
+                    isWatched: isWatched,
+                    title: title,
+                    season: season,
+                    episode: episode
                 )
             } label: {
                 Label(
@@ -119,12 +146,13 @@ struct EpisodeDetailView: View {
             }
             .controlSize(.large)
             .adaptiveGlassButton(prominent: !isWatched)
+            .accessibilityIdentifier("episode.mark-watched")
 
             Button {
-                model.markEpisodesWatchedThrough(
-                    titleID: title.id,
-                    seasonNumber: season.number,
-                    episodeNumber: episode.number
+                requestPreviousEpisodesWatch(
+                    title: title,
+                    season: season,
+                    episode: episode
                 )
             } label: {
                 Label(
@@ -136,6 +164,56 @@ struct EpisodeDetailView: View {
             .controlSize(.large)
             .adaptiveGlassButton()
             .disabled(arePreviousWatched)
+        }
+    }
+
+    private func requestPreviousEpisodesWatch(
+        title: MediaTitle,
+        season: SeasonSummary,
+        episode: EpisodeSummary
+    ) {
+        if model.hasUnwatchedEpisodesBefore(
+            titleID: title.id,
+            seasonNumber: season.number,
+            episodeNumber: episode.number
+        ) {
+            showsPreviousEpisodesConfirmation = true
+        } else {
+            model.setEpisodeWatched(
+                true,
+                titleID: title.id,
+                seasonNumber: season.number,
+                episodeID: episode.id
+            )
+        }
+    }
+
+    private func requestEpisodeWatch(
+        isWatched: Bool,
+        title: MediaTitle,
+        season: SeasonSummary,
+        episode: EpisodeSummary
+    ) {
+        if isWatched {
+            model.setEpisodeWatched(
+                false,
+                titleID: title.id,
+                seasonNumber: season.number,
+                episodeID: episode.id
+            )
+        } else if model.hasUnwatchedEpisodesBefore(
+            titleID: title.id,
+            seasonNumber: season.number,
+            episodeNumber: episode.number
+        ) {
+            showsPreviousEpisodesConfirmation = true
+        } else {
+            model.setEpisodeWatched(
+                true,
+                titleID: title.id,
+                seasonNumber: season.number,
+                episodeID: episode.id
+            )
         }
     }
 

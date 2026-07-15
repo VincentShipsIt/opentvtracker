@@ -17,6 +17,29 @@ struct RecommendationContext: Hashable, Sendable {
     var maximumRuntimeMinutes: Int?
     var sharedSpaceID: SharedSpace.ID?
     var allowsRemoteReranking = false
+    var viewingProfile: RecommendationViewingProfile?
+}
+
+struct RecommendationGenreAffinity: Codable, Hashable, Sendable {
+    let genre: String
+    let watchedMinutes: Int
+}
+
+struct RecommendationTitleEngagement: Codable, Hashable, Sendable {
+    let title: String
+    let genres: [String]
+    let watchedEpisodeCount: Int
+    let completionFraction: Double
+    let userRating: Double?
+    let lastWatchedAt: Date?
+}
+
+struct RecommendationViewingProfile: Codable, Hashable, Sendable {
+    let watchedMinutes: Int
+    let watchedEpisodeCount: Int
+    let watchedTitleCount: Int
+    let topGenres: [RecommendationGenreAffinity]
+    let recentTitles: [RecommendationTitleEngagement]
 }
 
 struct Recommendation: Hashable, Identifiable, Sendable {
