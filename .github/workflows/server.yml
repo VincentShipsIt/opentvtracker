@@ -20,3 +20,6 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun test
       - run: bun run typecheck
+      - name: Build the production Docker image
+        working-directory: .
+        run: docker build --tag opentvtracker-server:ci .

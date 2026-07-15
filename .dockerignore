@@ -1,0 +1,17 @@
+.git
+.github
+.claude
+Config
+OpenTVTracker
+OpenTVTracker.xcodeproj
+OpenTVTrackerTests
+artifacts
+build
+DerivedData
+docs
+server/.env
+server/.env.*
+server/node_modules
+server/tests
+*.md
+*.xcresult

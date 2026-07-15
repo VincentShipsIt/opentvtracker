@@ -8,7 +8,7 @@
 - Personal and shared watchlists, episode progress, ratings, notes, rewatches, and release-aware Up Next
 - Invitation-only partner sharing and offline reconciliation through CloudKit
 - Food-delivery-style illustrated category discovery, service selection, and More Like This
-- Text and voice discovery assistant with deterministic recommendations and opt-in OpenAI reranking
+- Text and voice discovery assistant with deterministic recommendations and opt-in OpenRouter reranking
 - Live Embassy Cinemas schedules and official Embassy, Eden, and Citadel booking links for Malta
 - Versioned JSON/CSV import and export, privacy controls, attribution, and failure states
 

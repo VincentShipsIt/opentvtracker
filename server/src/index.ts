@@ -1,13 +1,15 @@
 import { embassyShowings } from "./cinema";
-import { rerankWithOpenAI, type RerankRequest } from "./openai";
+import { rerankWithOpenRouter, type RerankRequest } from "./openrouter";
 import { TMDBClient, type MediaKind } from "./tmdb";
 
 const port = Number(Bun.env.PORT ?? 8787);
 const token = Bun.env.TMDB_READ_ACCESS_TOKEN ?? Bun.env.TMDB_API_READ_ACCESS_TOKEN;
 const tmdb = token ? new TMDBClient(token) : null;
-const openAIKey = Bun.env.OPENAI_API_KEY;
+const openRouterKey = Bun.env.OPENROUTER_API_KEY;
+const openRouterModel = Bun.env.OPENROUTER_MODEL;
 
 Bun.serve({
+  hostname: "0.0.0.0",
   port,
   async fetch(request) {
     if (request.method === "OPTIONS") return response(null, 204);
@@ -18,7 +20,7 @@ Bun.serve({
         return response({
           status: "ok",
           tmdb: tmdb ? "configured" : "missing",
-          aiReranking: openAIKey ? "configured" : "missing",
+          aiReranking: openRouterKey && openRouterModel ? "configured" : "missing",
         });
       }
 
@@ -50,9 +52,14 @@ Bun.serve({
       }
 
       if (request.method === "POST" && url.pathname === "/v1/recommendations/rerank") {
-        if (!openAIKey) return response({ error: "OPENAI_API_KEY is not configured on this server." }, 503);
+        if (!openRouterKey) return response({ error: "OPENROUTER_API_KEY is not configured on this server." }, 503);
+        if (!openRouterModel) return response({ error: "OPENROUTER_MODEL is not configured on this server." }, 503);
         const payload = await request.json() as RerankRequest;
-        const catalogIDs = await rerankWithOpenAI(openAIKey, payload);
+        const catalogIDs = await rerankWithOpenRouter(openRouterKey, payload, {
+          model: openRouterModel,
+          siteURL: Bun.env.OPENROUTER_SITE_URL,
+          appName: Bun.env.OPENROUTER_APP_NAME,
+        });
         return response({ catalogIDs });
       }
 

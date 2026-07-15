@@ -63,7 +63,7 @@ The shipped binary contains no TMDB or AI provider secret. Server DTOs are mappe
 
 ## Recommendations
 
-Deterministic, explainable recommendations are always available. When the user opts in, the operator service reranks the same bounded candidate set with OpenAI structured output. The AI boundary:
+Deterministic, explainable recommendations are always available. When the user opts in, the operator service reranks the same bounded candidate set through OpenRouter structured output. The AI boundary:
 
 - stay provider-neutral;
 - use an operator-controlled server boundary;
