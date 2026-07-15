@@ -4,6 +4,7 @@ struct DiscoverView: View {
     @Environment(AppModel.self) private var model
     @State private var searchText = ""
     @State private var surpriseOffset = 0
+    @State private var presentsAssistant = false
     @State private var presentedSheet: DiscoverSheet?
 
     var body: some View {
@@ -15,8 +16,7 @@ struct DiscoverView: View {
                     LazyVStack(spacing: AppTheme.sectionSpacing) {
                         if searchText.isEmpty {
                             assistantLauncher
-                            DiscoverCategoryGrid(sections: categorySections)
-                                .padding(.horizontal, AppTheme.horizontalPadding)
+                            DiscoverCategoryCarousel(sections: categorySections)
                             CinemaDiscoveryCard()
                                 .padding(.horizontal, AppTheme.horizontalPadding)
                             featuredRecommendation
@@ -50,10 +50,11 @@ struct DiscoverView: View {
             .navigationDestination(for: DiscoverCategory.self) { category in
                 DiscoverCategoryShelfView(category: category)
             }
+            .fullScreenCover(isPresented: $presentsAssistant) {
+                DiscoveryAssistantView()
+            }
             .sheet(item: $presentedSheet) { sheet in
                 switch sheet {
-                case .assistant:
-                    DiscoveryAssistantView()
                 case .categories:
                     DiscoveryCategoryPickerView()
                 case .services:
@@ -69,34 +70,38 @@ struct DiscoverView: View {
 
     private var assistantLauncher: some View {
         Button {
-            presentedSheet = .assistant
+            presentsAssistant = true
         } label: {
-            GlassSurface(cornerRadius: AppTheme.compactRadius, tint: .indigo) {
-                HStack(spacing: 12) {
-                    Image(systemName: "sparkles.bubble.fill")
-                        .font(.title2)
-                        .foregroundStyle(Color.accentColor)
-                        .accessibilityHidden(true)
-
-                    VStack(alignment: .leading, spacing: 3) {
+            GlassSurface(cornerRadius: AppTheme.cardRadius, tint: .indigo) {
+                HStack(spacing: 18) {
+                    VStack(alignment: .leading, spacing: 7) {
                         Text("Ask OpenTV")
-                            .font(.headline)
-                        Text("Type or speak what you want to watch")
+                            .font(.title2.weight(.bold))
+                        Text("Have a conversation about what to watch next.")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
+
+                        Label("Open assistant", systemImage: "arrow.up.right")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(Color.accentColor)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                    Image(systemName: "mic.fill")
-                        .foregroundStyle(Color.accentColor)
+                    Image(systemName: "waveform.and.mic")
+                        .font(.title.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 62, height: 62)
+                        .background(Color.accentColor.gradient, in: Circle())
                         .accessibilityHidden(true)
                 }
-                .padding(14)
+                .padding(18)
+                .frame(maxWidth: .infinity, minHeight: 124, alignment: .leading)
             }
         }
         .buttonStyle(.plain)
         .padding(.horizontal, AppTheme.horizontalPadding)
-        .accessibilityHint("Opens the text and voice discovery assistant")
+        .accessibilityLabel("Ask OpenTV")
+        .accessibilityHint("Opens a full-screen text and voice conversation")
     }
 
     @ViewBuilder
