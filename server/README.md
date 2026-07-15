@@ -17,6 +17,8 @@ Optional TTLs default to 60 seconds for challenges and 10 minutes for tokens. Na
 
 By default, per-IP quotas use the direct peer address. Set `CLIENT_IP_HEADER` only when the origin accepts traffic exclusively from a trusted edge that overwrites that header (for example, `CF-Connecting-IP` behind Cloudflare). Never trust a client-supplied forwarding header on a directly reachable origin.
 
+Request/token challenges, token refreshes, catalog reads, and cinema reads have stable per-device quotas in addition to per-IP quotas. Initial attestation registration is not yet a verified device and is therefore limited by IP until validation succeeds.
+
 ## Run locally
 
 ```sh

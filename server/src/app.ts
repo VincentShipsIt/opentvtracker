@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { embassyShowings } from "./cinema";
 import type { ServerConfig } from "./config";
 import {
+  AppAttestHeaders,
   AppAttestSecurity,
   BoundedRateLimiter,
   SecurityError,
@@ -132,6 +133,14 @@ export function createApp(dependencies: AppDependencies): {
           enforceIPQuota(limiter, "challenge", ipAddress, quotas.challenge);
           const { value } = await readJSONBody(request, 1_024);
           const challengeRequest = validateChallengeRequest(value);
+          if (challengeRequest.keyID) {
+            enforceDeviceQuota(
+              limiter,
+              "challenge",
+              hash(challengeRequest.keyID),
+              quotas.challenge,
+            );
+          }
           const challenge = security.issueChallenge(
             challengeRequest.purpose,
             challengeRequest.keyID,
@@ -177,6 +186,10 @@ export function createApp(dependencies: AppDependencies): {
             return disabled(config);
           }
           enforceIPQuota(limiter, "token", ipAddress, quotas.token);
+          const keyID = request.headers.get(AppAttestHeaders.keyID)?.trim();
+          if (keyID) {
+            enforceDeviceQuota(limiter, "token", hash(keyID), quotas.token);
+          }
           const { value, bytes } = await readJSONBody(request, 128);
           validateEmptyObject(value);
           const token = await security.refreshToken(request, bytes);
@@ -408,6 +421,20 @@ function enforceIPQuota(
   quota: { ip: number; window: number },
 ): void {
   enforce(limiter, `${endpoint}:ip:${hash(ipAddress)}`, quota.ip, quota.window);
+}
+
+function enforceDeviceQuota(
+  limiter: BoundedRateLimiter,
+  endpoint: string,
+  deviceID: string,
+  quota: { device: number; window: number },
+): void {
+  enforce(
+    limiter,
+    `${endpoint}:device:${deviceID}`,
+    quota.device,
+    quota.window,
+  );
 }
 
 function enforceProtectedQuota(
