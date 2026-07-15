@@ -70,6 +70,11 @@ type CommunityReview = {
   rating: number | null;
   source: "TMDB";
   containsSpoilers: true;
+  username: string | null;
+  avatarURL: string | null;
+  sourceURL: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
 };
 
 export type EpisodeSummary = {
@@ -376,7 +381,7 @@ export function mapEpisodeSummary(
   };
 }
 
-function mapReviews(payload: Record<string, unknown>): CommunityReview[] {
+export function mapReviews(payload: Record<string, unknown>): CommunityReview[] {
   return (Array.isArray(payload.results) ? payload.results : [])
     .slice(0, 8)
     .map((value, index): CommunityReview => {
@@ -387,10 +392,15 @@ function mapReviews(payload: Record<string, unknown>): CommunityReview[] {
       return {
         id: `tmdb-review-${stringValue(review.id) ?? index}`,
         author: stringValue(review.author) ?? "TMDB member",
-        excerpt: content.length > 600 ? `${content.slice(0, 597)}…` : content,
+        excerpt: content,
         rating: numberValue(authorDetails.rating),
         source: "TMDB",
         containsSpoilers: true,
+        username: stringValue(authorDetails.username),
+        avatarURL: reviewAvatarURL(stringValue(authorDetails.avatar_path)),
+        sourceURL: stringValue(review.url),
+        createdAt: isoTimestamp(stringValue(review.created_at)),
+        updatedAt: isoTimestamp(stringValue(review.updated_at)),
       };
     })
     .filter((review) => review.excerpt.length > 0);
@@ -420,6 +430,12 @@ function imageURL(
   return path ? `${IMAGE_URL}/${size}${path}` : null;
 }
 
+function reviewAvatarURL(path: string | null): string | null {
+  if (!path) return null;
+  if (path.startsWith("/https://") || path.startsWith("/http://")) return path.slice(1);
+  return imageURL(path, "w185");
+}
+
 function youtubeURL(key: string | null): string | null {
   return key
     ? `https://www.youtube.com/watch?v=${encodeURIComponent(key)}`
@@ -435,6 +451,13 @@ function isoDay(value: string | null | undefined): string | null {
   return value && /^\d{4}-\d{2}-\d{2}$/.test(value)
     ? `${value}T00:00:00Z`
     : null;
+}
+
+function isoTimestamp(value: string | null): string | null {
+  if (!value) return null;
+  const timestamp = new Date(value);
+  if (Number.isNaN(timestamp.valueOf())) return null;
+  return timestamp.toISOString().replace(/\.\d{3}Z$/, "Z");
 }
 
 function asRecord(value: unknown): Record<string, unknown> {

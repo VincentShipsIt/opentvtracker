@@ -55,6 +55,7 @@ struct MediaDetailView: View {
         .navigationDestination(for: SeasonEpisodesRoute.self) { route in
             SeasonEpisodesView(route: route)
         }
+        .navigationDestination(for: CommunityReview.self) { CommunityReviewDetailView(review: $0) }
     }
 
     private var title: MediaTitle? {
@@ -306,43 +307,6 @@ private struct SharedNoteEditorView: View {
                     .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
-        }
-    }
-}
-
-private struct ReviewCard: View {
-    let review: CommunityReview
-    @State private var revealsSpoiler = false
-
-    var body: some View {
-        GlassSurface(cornerRadius: AppTheme.compactRadius) {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    Text(review.author)
-                        .font(.headline)
-                    Spacer()
-                    VStack(alignment: .trailing, spacing: 3) {
-                        Text(review.source)
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                        if let rating = review.rating {
-                            RatingLabel(rating: rating)
-                        }
-                    }
-                }
-
-                if review.containsSpoilers && !revealsSpoiler {
-                    Button("Reveal spoiler", systemImage: "eye.slash") {
-                        revealsSpoiler = true
-                    }
-                    .adaptiveGlassButton()
-                } else {
-                    Text(review.excerpt)
-                        .font(.body)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(16)
         }
     }
 }
