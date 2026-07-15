@@ -1,6 +1,8 @@
 # Third-party software and data
 
-The app target currently links only Apple system frameworks: SwiftUI, Observation, Foundation, SwiftData, CloudKit, UIKit, UniformTypeIdentifiers, and WebKit. No third-party binary SDK is embedded.
+The app target links ZIPFoundation 0.9.20 (MIT) to inspect TV Time data-export ZIP archives in memory. ZIPFoundation is Copyright © 2017-2025 Thomas Zoechling and contributors; its license is available at https://github.com/weichsel/ZIPFoundation/blob/0.9.20/LICENSE.
+
+The remaining app dependencies are Apple system frameworks: SwiftUI, Observation, Foundation, SwiftData, CloudKit, UIKit, UniformTypeIdentifiers, and WebKit. No third-party binary SDK is embedded.
 
 Development and CI use XcodeGen and SwiftLint under their respective upstream licenses. GitHub Actions uses `actions/checkout` and the Gitleaks action.
 
