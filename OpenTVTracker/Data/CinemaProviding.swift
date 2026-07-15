@@ -251,9 +251,20 @@ enum CinemaServiceError: LocalizedError {
 
 enum AppServiceConfiguration {
     static var apiBaseURL: URL? {
-        guard let value = Bundle.main.object(forInfoDictionaryKey: "OpenTVAPIBaseURL") as? String,
-              !value.isEmpty else { return nil }
-        return URL(string: value)
+        guard let url = configuredURL(for: "OpenTVAPIBaseURL"),
+              url.user == nil,
+              url.password == nil,
+              url.query == nil,
+              url.fragment == nil else { return nil }
+        if url.scheme == "https" { return url }
+        #if DEBUG
+        if let host = url.host,
+           url.scheme == "http",
+           ["localhost", "127.0.0.1", "::1"].contains(host) {
+            return url
+        }
+        #endif
+        return nil
     }
 
     static var openRouterOAuthCallbackURL: URL? {
@@ -269,7 +280,11 @@ enum AppServiceConfiguration {
     }
 
     static var appAttestDevelopmentToken: String? {
+        #if DEBUG
         configuredString(for: "OpenTVAppAttestDevelopmentToken")
+        #else
+        nil
+        #endif
     }
 
     private static func configuredURL(for key: String) -> URL? {

@@ -37,6 +37,10 @@ struct AIRankingSettingsView: View {
                         Button("Disconnect OpenRouter", role: .destructive) {
                             Task { await disconnect() }
                         }
+                        Link(
+                            "Manage spend cap or revoke key",
+                            destination: URL(string: "https://openrouter.ai/settings/keys")!
+                        )
                     } else {
                         Button("Connect OpenRouter") {
                             Task { await connect() }

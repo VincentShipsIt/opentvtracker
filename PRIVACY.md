@@ -14,7 +14,7 @@ Deterministic recommendations run on-device and are the default. Optional AI rer
 
 OpenRouter OAuth uses PKCE. The user-controlled API key returned by OpenRouter is stored as a this-device-only Keychain item and sent only to `openrouter.ai` as a bearer credential. It is never sent to the OpenTV proxy, Vincent, CloudKit, analytics, or logs. A reranking request contains a maximum of 20 public candidates with catalog ID, title, genres, runtime, rating, providers, deterministic score/reason, mood, and optional runtime limit. It excludes notes, member names, private watch events, and raw viewing history. OpenRouter receives the request directly and applies its own privacy policy.
 
-Disconnecting OpenRouter deletes the Keychain item. A timeout, revoked key, quota failure, invalid response, or provider outage silently restores the deterministic order.
+Disconnecting OpenRouter deletes the Keychain item from this iPhone. The user must revoke the key in OpenRouter to invalidate it remotely; the settings screen links to that control. A timeout, revoked key, quota failure, invalid response, or provider outage silently restores the deterministic order.
 
 ## Official catalog and cinema proxy
 

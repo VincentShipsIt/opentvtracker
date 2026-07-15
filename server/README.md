@@ -27,6 +27,8 @@ cp .env.example .env
 
 For a local simulator only, set `APP_ATTEST_MODE=development` and a random `APP_ATTEST_DEVELOPMENT_BYPASS_TOKEN`, then put the matching value in ignored `Config/Secrets.xcconfig` as `APP_ATTEST_DEVELOPMENT_TOKEN`. Development bypass traffic receives one quarter of normal origin quotas. Never configure or ship the bypass in production.
 
+Release builds ignore `APP_ATTEST_DEVELOPMENT_TOKEN` at compile time and accept only an HTTPS proxy origin. Debug builds additionally permit loopback HTTP for local development.
+
 Start with `bun run dev`. The repository-root Dockerfile runs the same service.
 
 ## Endpoints
