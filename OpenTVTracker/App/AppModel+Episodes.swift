@@ -195,7 +195,7 @@ private extension AppModel {
         seasonNumber: Int,
         episodeNumber: Int
     ) -> [(season: SeasonSummary, episode: EpisodeSummary)] {
-        regularSeasons(for: title).flatMap { season in
+        regularSeasons(for: title).flatMap { season -> [(season: SeasonSummary, episode: EpisodeSummary)] in
             guard season.number <= seasonNumber else { return [] }
             return season.episodes
                 .filter { season.number < seasonNumber || $0.number <= episodeNumber }
