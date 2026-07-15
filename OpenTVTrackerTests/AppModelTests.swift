@@ -243,6 +243,7 @@ final class AppModelTests: XCTestCase {
         let titleIndex = try XCTUnwrap(snapshot.titles.firstIndex(where: { $0.id == "severance" }))
         snapshot.titles[titleIndex].seasons = Self.episodeTrackingSeasons
         snapshot.titles[titleIndex].progress = EpisodeProgress(season: 1, episode: 0, totalEpisodes: 2)
+        snapshot.titles = [snapshot.titles[titleIndex]]
         snapshot.sharedSpace.watchEvents = []
         let model = AppModel(store: MemoryLibraryStore(), seed: snapshot)
 

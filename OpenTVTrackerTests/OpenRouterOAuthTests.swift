@@ -26,7 +26,7 @@ final class OpenRouterOAuthTests: XCTestCase {
         TestURLProtocol.handler = { request in
             XCTAssertEqual(request.url?.absoluteString, "https://openrouter.ai/api/v1/auth/keys")
             XCTAssertEqual(request.httpMethod, "POST")
-            let body = try XCTUnwrap(request.httpBody)
+            let body = try XCTUnwrap(TestURLProtocol.bodyData(for: request))
             let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: String])
             XCTAssertEqual(json["code"], "authorization-code")
             XCTAssertEqual(json["code_challenge_method"], "S256")
@@ -47,9 +47,10 @@ final class OpenRouterOAuthTests: XCTestCase {
         try await client.complete(callback, authorization: authorization)
 
         let isAuthorized = await client.isAuthorized()
+        let apiKey = try await client.apiKey()
         XCTAssertTrue(isAuthorized)
         XCTAssertEqual(store.writtenAccounts, [OpenRouterOAuthClient.apiKeyAccount])
-        XCTAssertEqual(try await client.apiKey(), "sk-or-v1-user-controlled")
+        XCTAssertEqual(apiKey, "sk-or-v1-user-controlled")
     }
 
     func testOAuthRejectsCallbackFromAnotherHostBeforeExchange() async throws {
