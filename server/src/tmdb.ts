@@ -208,15 +208,15 @@ function mapDetails(
 
 function providersForRegion(payload: ProviderPayload, region: string): StreamingProvider[] {
   const entries = payload.results?.[region]?.flatrate ?? [];
-  const providers = entries.flatMap((entry) => provider(entry.provider_name));
+  const providers = entries.flatMap((entry) => mapStreamingProvider(entry.provider_name));
   return [...new Map(providers.map((value) => [value.id, value])).values()];
 }
 
-function provider(name: string | undefined): StreamingProvider[] {
-  const normalized = name?.toLowerCase() ?? "";
+export function mapStreamingProvider(name: string | undefined): StreamingProvider[] {
+  const normalized = name?.trim().toLowerCase() ?? "";
   if (normalized.includes("netflix")) return [{ id: "netflix", name: "Netflix", symbol: "n.square.fill", brandHex: "E50914" }];
-  if (normalized.includes("amazon") || normalized.includes("prime video")) return [{ id: "prime-video", name: "Prime Video", symbol: "play.rectangle.fill", brandHex: "00A8E1" }];
-  if (normalized.includes("apple tv+")) return [{ id: "apple-tv", name: "Apple TV+", symbol: "apple.logo", brandHex: "1C1C1E" }];
+  if (normalized === "prime video" || normalized.startsWith("amazon prime video")) return [{ id: "prime-video", name: "Prime Video", symbol: "play.rectangle.fill", brandHex: "00A8E1" }];
+  if (["apple tv", "apple tv+", "apple tv plus"].includes(normalized)) return [{ id: "apple-tv", name: "Apple TV+", symbol: "apple.logo", brandHex: "1C1C1E" }];
   if (normalized.includes("disney plus") || normalized.includes("disney+")) return [{ id: "disney-plus", name: "Disney+", symbol: "sparkles.tv", brandHex: "113CCF" }];
   if (normalized === "max" || normalized.includes("hbo max")) return [{ id: "max", name: "Max", symbol: "play.tv", brandHex: "5822B4" }];
   if (normalized.includes("mubi")) return [{ id: "mubi", name: "MUBI", symbol: "m.circle", brandHex: "1976D2" }];
