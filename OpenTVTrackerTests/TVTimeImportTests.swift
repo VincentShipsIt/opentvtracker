@@ -184,6 +184,6 @@ final class TVTimeImportTests: XCTestCase {
                 }
             )
         }
-        return archive.data
+        return try XCTUnwrap(archive.data)
     }
 }
