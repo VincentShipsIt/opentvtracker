@@ -150,6 +150,11 @@ struct TVTimeWatch: Hashable, Sendable {
     var episode: Int?
     var occurredAt: Date?
     var isRewatch: Bool
+    var rewatchCount = 0
+
+    var importedRewatchCount: Int {
+        max(rewatchCount, isRewatch ? 1 : 0)
+    }
 }
 
 enum TVTimeImportError: LocalizedError {

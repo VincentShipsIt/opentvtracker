@@ -104,6 +104,8 @@ enum TVTimeImportReportBuilder {
                 entity.watches.filter(\.isRewatch).count
             ].max() ?? 0
         }
-        return entity.watches.filter(\.isRewatch).count
+        return entity.watches.reduce(0) {
+            $0 + $1.importedRewatchCount
+        }
     }
 }

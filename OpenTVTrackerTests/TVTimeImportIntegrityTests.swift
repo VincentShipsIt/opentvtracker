@@ -201,6 +201,37 @@ final class TVTimeImportIntegrityTests: XCTestCase {
         XCTAssertEqual(metric(.watchlist, in: preview)?.importedCount, 0)
     }
 
+    func testUnmatchedEpisodeDoesNotAdvanceProgressOrWatchDate() async throws {
+        let archive = try makeArchive([
+            "tracking-prod-records-v2.csv": """
+            key,s_id,series_name,s_no,ep_no,created_at
+            watch-episode-101,42,Severance,1,1,2025-02-14T20:30:00Z
+            watch-episode-999,42,Severance,1,99,2025-03-14T20:30:00Z
+            """
+        ])
+        var snapshot = snapshotWithSeveranceEpisodes()
+        let index = try XCTUnwrap(snapshot.titles.firstIndex(where: { $0.id == "severance" }))
+        snapshot.titles[index].progress = nil
+        snapshot.titles[index].lastWatchedAt = nil
+
+        let preview = try await TVTimeImportService.previewImport(
+            archive,
+            into: snapshot,
+            catalog: LocalCatalogService(titles: snapshot.titles),
+            region: .malta
+        )
+
+        let severance = try XCTUnwrap(preview.snapshot.titles.first(where: { $0.id == "severance" }))
+        let event = try XCTUnwrap(preview.snapshot.sharedSpace.watchEvents?.first)
+        XCTAssertEqual(severance.progress?.episode, 1)
+        XCTAssertEqual(severance.lastWatchedAt, event.occurredAt)
+        XCTAssertEqual(event.episode, 1)
+        XCTAssertEqual(preview.watchedEpisodeCount, 1)
+        XCTAssertEqual(preview.skippedCount, 1)
+        XCTAssertEqual(metric(.episodes, in: preview)?.sourceCount, 2)
+        XCTAssertEqual(metric(.episodes, in: preview)?.importedCount, 1)
+    }
+
     private func metric(
         _ category: ImportMetricCategory,
         in preview: LibraryImportPreview

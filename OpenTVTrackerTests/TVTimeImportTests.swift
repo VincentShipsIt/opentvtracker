@@ -71,7 +71,7 @@ final class TVTimeImportTests: XCTestCase {
         let archive = try makeArchive([
             "tvtime-series-episodes-2026.csv": """
             series_tvdb_id,title,season,episode,is_watched,watched_at,rewatch_count
-            42,Severance,1,1,true,2025-02-14 20:30:00,1
+            42,Severance,1,1,true,2025-02-14 20:30:00,3
             42,Severance,1,2,false,,0
             """,
             "tvtime-movies-2026.csv": """
@@ -91,10 +91,37 @@ final class TVTimeImportTests: XCTestCase {
         let severance = try XCTUnwrap(preview.snapshot.titles.first(where: { $0.id == "severance" }))
         let movie = try XCTUnwrap(preview.snapshot.titles.first(where: { $0.id == "past-lives" }))
         XCTAssertEqual(severance.watchedEpisodeIDs, Set(["severance-s1e1"]))
+        XCTAssertEqual(severance.completedRewatches, 3)
         XCTAssertEqual(movie.state, .completed)
         XCTAssertEqual(movie.completedRewatches, 2)
         XCTAssertEqual(preview.watchedEpisodeCount, 1)
         XCTAssertEqual(preview.watchEventCount, 2)
+        XCTAssertEqual(
+            preview.integrityCounts.first(where: { $0.category == .rewatches }),
+            ImportCountComparison(category: .rewatches, sourceCount: 5, importedCount: 5)
+        )
+    }
+
+    @MainActor
+    func testCancelledResolutionSearchDoesNotSurfaceCatalogError() async throws {
+        let session = TVTimeImportSession(
+            archive: TVTimeArchive(
+                entities: [],
+                duplicateCount: 0,
+                diagnostics: TVTimeImportDiagnostics()
+            ),
+            current: .empty,
+            catalog: CancellingCatalog(),
+            region: .malta
+        )
+        let coordinator = TVTimeImportCoordinator(session: session)
+
+        do {
+            _ = try await coordinator.search("Severance", kind: .series)
+            XCTFail("Expected cancellation to propagate")
+        } catch is CancellationError {
+            XCTAssertNil(coordinator.errorMessage)
+        }
     }
 
     func testLegacyExportRestoresEpochWatchDateAndMovieRating() async throws {
@@ -188,5 +215,15 @@ final class TVTimeImportTests: XCTestCase {
             )
         }
         return try XCTUnwrap(archive.data)
+    }
+}
+
+private struct CancellingCatalog: CatalogProviding {
+    func search(_ query: MediaSearchQuery) async throws -> [MediaTitle] {
+        throw CancellationError()
+    }
+
+    func title(kind: MediaKind, catalogID: Int, region: StreamingRegion) async throws -> MediaTitle {
+        throw CancellationError()
     }
 }

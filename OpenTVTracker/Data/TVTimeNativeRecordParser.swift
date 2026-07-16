@@ -20,12 +20,14 @@ enum TVTimeNativeRecordParser {
             title: title ?? "",
             kind: .series
         )
+        let rewatchCount = max(TVTimeCSV.int(values, ["rewatch_count"]) ?? 0, 0)
         addWatch(
             TVTimeWatch(
                 season: TVTimeCSV.int(values, ["season", "episode_season_number", "season_number"]),
                 episode: TVTimeCSV.int(values, ["episode", "episode_number"]),
                 occurredAt: TVTimeCSV.date(values, ["watched_at", "ts", "created_at"]),
-                isRewatch: (TVTimeCSV.int(values, ["rewatch_count"]) ?? 0) > 0
+                isRewatch: rewatchCount > 0,
+                rewatchCount: rewatchCount
             ),
             to: &entities[identity, default: initial],
             duplicates: &duplicates

@@ -33,11 +33,13 @@ final class TVTimeImportCoordinator {
     func search(
         _ text: String,
         kind: MediaKind
-    ) async -> [MediaTitle] {
+    ) async throws -> [MediaTitle] {
         do {
             let results = try await session.search(text, kind: kind)
             errorMessage = nil
             return results
+        } catch is CancellationError {
+            throw CancellationError()
         } catch {
             errorMessage = error.localizedDescription
             return []

@@ -127,7 +127,9 @@ private struct TVTimeResolutionView: View {
         do {
             try await Task.sleep(for: .milliseconds(250))
             guard !Task.isCancelled else { return }
-            results = await coordinator.search(trimmed, kind: issue.kind)
+            let loaded = try await coordinator.search(trimmed, kind: issue.kind)
+            guard !Task.isCancelled else { return }
+            results = loaded
         } catch is CancellationError {
             return
         } catch {
