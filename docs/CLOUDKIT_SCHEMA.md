@@ -1,6 +1,6 @@
 # CloudKit schema
 
-OpenTV Tracker uses the `iCloud.dev.opentvtracker.app` container for invitation-only partner sharing. Personal tracking remains local and does not require iCloud.
+The official OpenTV Tracker app uses the `iCloud.dev.opentvtracker.app` container for invitation-only partner sharing. Personal tracking remains local and does not require iCloud. Forks must use their own CloudKit container, Team ID, bundle entitlements, and provisioning profile throughout this guide.
 
 The source-controlled schema is [`CloudKit/OpenTVTracker.ckdb`](../CloudKit/OpenTVTracker.ckdb). It defines only the custom application types:
 
@@ -17,13 +17,13 @@ CloudKit supplies system fields such as record ID and parent automatically. No p
 
 ## Import into Development
 
-1. Open CloudKit Console and select `iCloud.dev.opentvtracker.app`.
+1. Open CloudKit Console and select `iCloud.dev.opentvtracker.app` for the official app, or the fork's own configured container.
 2. Confirm the environment at the top is **Development**.
 3. Choose **Import Schema…**.
 4. Select `CloudKit/OpenTVTracker.ckdb`.
 5. Confirm `PartnerSpace` and `PartnerSpaceState` appear under **Schema → Record Types** with the fields listed above.
 
-The command-line equivalent requires a CloudKit management token:
+The command-line equivalent requires a CloudKit management token. The values below are for the official app; forks must replace both identifiers:
 
 ```sh
 xcrun cktool import-schema \
