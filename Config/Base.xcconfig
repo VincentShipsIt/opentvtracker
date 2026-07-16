@@ -1,7 +1,7 @@
 CATALOG_PROXY_BASE_URL =
-OPENROUTER_OAUTH_CALLBACK_URL = https:/$()/shipshit.dev/opentv/openrouter/callback
-OPENROUTER_ASSOCIATED_DOMAIN = applinks:shipshit.dev
+OPENROUTER_OAUTH_CALLBACK_URL = https:/$()/opentvtracker.dev/opentv/openrouter/callback
+OPENROUTER_ASSOCIATED_DOMAIN = applinks:opentvtracker.dev
 OPENROUTER_MODEL = openai/gpt-4o-mini
-OPENROUTER_SITE_URL = https:/$()/github.com/VincentShipsIt/opentvtracker
+OPENROUTER_SITE_URL = https:/$()/opentvtracker.dev
 APP_ATTEST_DEVELOPMENT_TOKEN =
 #include? "Secrets.xcconfig"

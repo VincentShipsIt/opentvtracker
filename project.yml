@@ -1,6 +1,6 @@
 name: OpenTVTracker
 options:
-  bundleIdPrefix: dev.shipshit
+  bundleIdPrefix: dev.opentvtracker
   deploymentTarget:
     iOS: "18.0"
   generateEmptyDirectories: true
