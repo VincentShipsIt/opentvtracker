@@ -49,7 +49,7 @@ The keyless build works with public TV sources. For a local proxy, copy `Config/
 
 OpenRouter OAuth requires an HTTPS callback domain associated with the app. Official defaults point to `opentvtracker.dev`; forks must change `OPENROUTER_OAUTH_CALLBACK_URL`, `OPENROUTER_ASSOCIATED_DOMAIN`, and `OPENROUTER_SITE_URL` in their own build configuration.
 
-To enable partner sharing on a physical device, configure your own CloudKit container and provisioning profile. Local tracking does not require iCloud.
+To enable partner sharing on a physical device, configure your own CloudKit container and provisioning profile. Local tracking does not require iCloud. The exact record types and deployment steps are documented in the [CloudKit schema guide](docs/CLOUDKIT_SCHEMA.md).
 
 See [PRIVACY.md](PRIVACY.md), [SECURITY.md](SECURITY.md), [CONTRIBUTING.md](CONTRIBUTING.md), and the [public release checklist](docs/PUBLIC_RELEASE_CHECKLIST.md).
 
