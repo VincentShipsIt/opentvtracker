@@ -11,7 +11,7 @@ protocol SecureCredentialStoring: Sendable {
 struct KeychainCredentialStore: SecureCredentialStoring {
     private let service: String
 
-    init(service: String = "dev.shipshit.opentvtracker.credentials") {
+    init(service: String = "dev.opentvtracker.app.credentials") {
         self.service = service
     }
 

@@ -37,7 +37,7 @@ final class NearbyPartnerPairingService {
     private(set) var partners: [NearbyPartner] = []
     private(set) var receivedInvitationURL: URL?
 
-    private let queue = DispatchQueue(label: "dev.shipshit.opentvtracker.nearby-pairing")
+    private let queue = DispatchQueue(label: "dev.opentvtracker.app.nearby-pairing")
     private var listener: NWListener?
     private var browser: NWBrowser?
     private var connection: NWConnection?

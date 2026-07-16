@@ -55,7 +55,7 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         CODE_SIGN_STYLE: Automatic
         CODE_SIGN_ENTITLEMENTS: Config/OpenTVTracker.entitlements
-        PRODUCT_BUNDLE_IDENTIFIER: dev.shipshit.opentvtracker
+        PRODUCT_BUNDLE_IDENTIFIER: dev.opentvtracker.app
         TARGETED_DEVICE_FAMILY: 1
       configs:
         Debug:
@@ -82,7 +82,7 @@ targets:
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
-        PRODUCT_BUNDLE_IDENTIFIER: dev.shipshit.opentvtracker.tests
+        PRODUCT_BUNDLE_IDENTIFIER: dev.opentvtracker.app.tests
     dependencies:
       - target: OpenTVTracker
       - package: ZIPFoundation
@@ -94,7 +94,7 @@ targets:
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
-        PRODUCT_BUNDLE_IDENTIFIER: dev.shipshit.opentvtracker.uitests
+        PRODUCT_BUNDLE_IDENTIFIER: dev.opentvtracker.app.uitests
     dependencies:
       - target: OpenTVTracker
 schemes:

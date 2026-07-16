@@ -17,7 +17,7 @@ Read the [product vision](docs/VISION.md), [architecture](docs/ARCHITECTURE.md),
 
 OpenTV works without an account or hosted service. Personal tracking and deterministic recommendations stay on the iPhone. TVmaze and official cinema pages provide public-source fallbacks.
 
-The official binary may use Vincent's hosted TMDB/cinema proxy. That service accepts only production App Attest keys for `C76R5DRH64.dev.shipshit.opentvtracker`; every protected request carries a fresh challenge and a payload-bound assertion. Unsupported devices fall back gracefully and do not receive an anonymous hosted-service bypass.
+The official binary may use Vincent's hosted TMDB/cinema proxy. That service accepts only production App Attest keys for `C76R5DRH64.dev.opentvtracker.app`; every protected request carries a fresh challenge and a payload-bound assertion. Unsupported devices fall back gracefully and do not receive an anonymous hosted-service bypass.
 
 Forks and self-built apps cannot use Vincent's hosted proxy. Configure and operate your own proxy, Apple App ID, provider key, state storage, OAuth callback, quotas, and edge controls. See [self-hosting](docs/SELF_HOSTING.md) and [provider operations](docs/PROVIDER_OPERATIONS.md).
 
