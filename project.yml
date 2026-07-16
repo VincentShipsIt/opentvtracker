@@ -36,6 +36,7 @@ targets:
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         CKSharingSupported: true
+        LSApplicationCategoryType: public.app-category.entertainment
         NSBonjourServices:
           - _opentv-pair._tcp
         NSLocalNetworkUsageDescription: OpenTV uses the local network only when you choose to pair with your partner's nearby iPhone.
