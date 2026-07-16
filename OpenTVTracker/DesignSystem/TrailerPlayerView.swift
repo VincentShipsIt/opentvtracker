@@ -1,4 +1,3 @@
-import SafariServices
 import SwiftUI
 import WebKit
 
@@ -15,14 +14,7 @@ struct TrailerPlayerView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                if #available(iOS 26, *) {
-                    WebView(url: trailer.url)
-                } else {
-                    SafariView(url: trailer.url)
-                        .ignoresSafeArea(edges: .bottom)
-                }
-            }
+            WebView(url: trailer.url)
             .navigationTitle("\(trailer.title) trailer")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -32,14 +24,4 @@ struct TrailerPlayerView: View {
             }
         }
     }
-}
-
-private struct SafariView: UIViewControllerRepresentable {
-    let url: URL
-
-    func makeUIViewController(context: Context) -> SFSafariViewController {
-        SFSafariViewController(url: url)
-    }
-
-    func updateUIViewController(_ viewController: SFSafariViewController, context: Context) { }
 }

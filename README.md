@@ -27,7 +27,7 @@ AI reranking never uses an operator OpenRouter key. The user authorizes OpenRout
 
 ## Current implementation
 
-- Swift 6, SwiftUI, and iOS 18+
+- Swift 6, SwiftUI, and iOS 26+
 - Local-only SwiftData with versioned import/export
 - Invitation-only CloudKit custom zones and durable sync outboxes
 - Secure nearby partner pairing over peer-to-peer networking, with an ephemeral TLS code and no invitation link to send

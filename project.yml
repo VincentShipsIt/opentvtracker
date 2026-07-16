@@ -2,7 +2,7 @@ name: OpenTVTracker
 options:
   bundleIdPrefix: dev.opentvtracker
   deploymentTarget:
-    iOS: "18.0"
+    iOS: "26.0"
   generateEmptyDirectories: true
   groupSortPosition: top
 settings:

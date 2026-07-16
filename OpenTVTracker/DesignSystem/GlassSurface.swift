@@ -25,7 +25,7 @@ struct GlassSurface<Content: View>: View {
                     RoundedRectangle(cornerRadius: cornerRadius)
                         .strokeBorder(.primary.opacity(contrast == .increased ? 0.34 : 0.14))
                 }
-        } else if #available(iOS 26, *) {
+        } else {
             if let tint {
                 content
                     .glassEffect(
@@ -36,13 +36,6 @@ struct GlassSurface<Content: View>: View {
                 content
                     .glassEffect(.regular, in: .rect(cornerRadius: cornerRadius))
             }
-        } else {
-            content
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: cornerRadius))
-                .overlay {
-                    RoundedRectangle(cornerRadius: cornerRadius)
-                        .strokeBorder(.white.opacity(0.12))
-                }
         }
     }
 }
@@ -52,16 +45,10 @@ struct GlassButtonModifier: ViewModifier {
 
     @ViewBuilder
     func body(content: Content) -> some View {
-        if #available(iOS 26, *) {
-            if prominent {
-                content.buttonStyle(.glassProminent)
-            } else {
-                content.buttonStyle(.glass)
-            }
-        } else if prominent {
-            content.buttonStyle(.borderedProminent)
+        if prominent {
+            content.buttonStyle(.glassProminent)
         } else {
-            content.buttonStyle(.bordered)
+            content.buttonStyle(.glass)
         }
     }
 }
