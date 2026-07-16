@@ -26,6 +26,17 @@ struct TodayView: View {
             .navigationDestination(for: MediaTitle.self) { title in
                 MediaDetailView(titleID: title.id)
             }
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink {
+                        UpcomingCalendarView()
+                    } label: {
+                        Label("Upcoming calendar", systemImage: "calendar")
+                    }
+                    .accessibilityHint("Shows upcoming episodes and movie releases")
+                    .accessibilityIdentifier("home.upcoming-calendar")
+                }
+            }
         }
     }
 

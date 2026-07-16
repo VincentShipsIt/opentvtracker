@@ -113,6 +113,14 @@ struct EpisodeSummary: Codable, Hashable, Identifiable, Sendable {
     var overview: String?
     var stillURL: URL?
     var rating: Double?
+    var releaseType: EpisodeReleaseType?
+    var airDateIsAllDay: Bool?
+}
+
+enum EpisodeReleaseType: String, Codable, Hashable, Sendable {
+    case standard
+    case midSeason = "mid_season"
+    case finale
 }
 
 struct SeasonSummary: Codable, Hashable, Identifiable, Sendable {
@@ -201,6 +209,7 @@ struct MediaTitle: Codable, Hashable, Identifiable, Sendable {
     var rewatchCount: Int? = nil
     var lastWatchedAt: Date? = nil
     var nextEpisodeAirDate: Date? = nil
+    var nextEpisodeAirDateIsAllDay: Bool? = nil
     var releaseDate: Date? = nil
     var isDismissed: Bool? = nil
     var isDisliked: Bool? = nil

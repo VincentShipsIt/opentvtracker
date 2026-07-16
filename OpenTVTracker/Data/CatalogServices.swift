@@ -131,6 +131,7 @@ private struct CatalogTitleDTO: Decodable {
     let reviews: [CommunityReview]?
     let releaseDate: Date?
     let nextEpisodeAirDate: Date?
+    let nextEpisodeAirDateIsAllDay: Bool?
     let seasons: [SeasonSummary]?
 
     var mediaTitle: MediaTitle {
@@ -156,6 +157,7 @@ private struct CatalogTitleDTO: Decodable {
             backdropURL: backdropURL,
             trailerURL: trailerURL,
             nextEpisodeAirDate: nextEpisodeAirDate,
+            nextEpisodeAirDateIsAllDay: nextEpisodeAirDateIsAllDay,
             releaseDate: releaseDate,
             personalWatchlist: false,
             seasons: seasons,

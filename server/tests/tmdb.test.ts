@@ -10,21 +10,25 @@ import {
 describe("mapReviews", () => {
   test("keeps complete TMDB review content and source metadata", () => {
     const content = "A".repeat(900);
-    expect(mapReviews({
-      results: [{
-        id: "review-id",
-        author: "Reviewer",
-        author_details: {
-          username: "reviewer-name",
-          avatar_path: "/avatar.jpg",
-          rating: 8,
-        },
-        content,
-        url: "https://www.themoviedb.org/review/review-id",
-        created_at: "2026-07-14T10:30:15.123Z",
-        updated_at: "2026-07-15T11:45:00.000Z",
-      }],
-    })[0]).toEqual({
+    expect(
+      mapReviews({
+        results: [
+          {
+            id: "review-id",
+            author: "Reviewer",
+            author_details: {
+              username: "reviewer-name",
+              avatar_path: "/avatar.jpg",
+              rating: 8,
+            },
+            content,
+            url: "https://www.themoviedb.org/review/review-id",
+            created_at: "2026-07-14T10:30:15.123Z",
+            updated_at: "2026-07-15T11:45:00.000Z",
+          },
+        ],
+      })[0],
+    ).toEqual({
       id: "tmdb-review-review-id",
       author: "Reviewer",
       excerpt: content,
@@ -53,6 +57,7 @@ describe("mapEpisodeSummary", () => {
           overview: "The team meets a mysterious visitor.",
           still_path: "/episode-still.jpg",
           vote_average: 8.4,
+          episode_type: "finale",
         },
         95396,
         1,
@@ -66,7 +71,25 @@ describe("mapEpisodeSummary", () => {
       overview: "The team meets a mysterious visitor.",
       stillURL: "https://image.tmdb.org/t/p/w500/episode-still.jpg",
       rating: 8.4,
+      releaseType: "finale",
+      airDateIsAllDay: true,
     });
+  });
+
+  test("does not infer a finale from malformed upstream metadata", () => {
+    expect(
+      mapEpisodeSummary(
+        {
+          id: 456,
+          episode_number: 8,
+          name: "Unknown type",
+          air_date: "2026-07-24",
+          episode_type: "season_finale",
+        },
+        95396,
+        2,
+      ).releaseType,
+    ).toBeNull();
   });
 });
 
