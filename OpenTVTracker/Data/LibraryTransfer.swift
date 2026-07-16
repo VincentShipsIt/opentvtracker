@@ -9,6 +9,9 @@ struct LibraryImportPreview: Sendable {
     let sourceName: String
     let watchedEpisodeCount: Int
     let watchEventCount: Int
+    let integrityCounts: [ImportCountComparison]
+    let resolutionIssues: [ImportResolutionIssue]
+    let warnings: [ImportWarning]
 
     init(
         snapshot: LibrarySnapshot,
@@ -18,7 +21,10 @@ struct LibraryImportPreview: Sendable {
         skippedCount: Int,
         sourceName: String = "OpenTV",
         watchedEpisodeCount: Int = 0,
-        watchEventCount: Int = 0
+        watchEventCount: Int = 0,
+        integrityCounts: [ImportCountComparison] = [],
+        resolutionIssues: [ImportResolutionIssue] = [],
+        warnings: [ImportWarning] = []
     ) {
         self.snapshot = snapshot
         self.matchedCount = matchedCount
@@ -28,6 +34,9 @@ struct LibraryImportPreview: Sendable {
         self.sourceName = sourceName
         self.watchedEpisodeCount = watchedEpisodeCount
         self.watchEventCount = watchEventCount
+        self.integrityCounts = integrityCounts
+        self.resolutionIssues = resolutionIssues
+        self.warnings = warnings
     }
 
     var summary: String {
@@ -109,6 +118,11 @@ extension LibraryTransferService {
 
         if let selectedProviderIDs = imported.selectedProviderIDs {
             merged.selectedProviderIDs = selectedProviderIDs
+        }
+        if let aliases = imported.importResolutionAliases {
+            var mergedAliases = merged.importResolutionAliases ?? [:]
+            mergedAliases.merge(aliases) { _, importedAlias in importedAlias }
+            merged.importResolutionAliases = mergedAliases
         }
 
         return LibraryImportPreview(

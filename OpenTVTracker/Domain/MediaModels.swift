@@ -324,6 +324,11 @@ struct SharedSpace: Codable, Hashable, Identifiable, Sendable {
 }
 // swiftlint:enable implicit_optional_initialization
 
+struct ImportResolutionAlias: Codable, Hashable, Sendable {
+    let kind: MediaKind
+    let catalogID: Int
+}
+
 struct LibrarySnapshot: Codable, Hashable, Sendable {
     var schemaVersion: Int?
     var titles: [MediaTitle]
@@ -331,6 +336,7 @@ struct LibrarySnapshot: Codable, Hashable, Sendable {
     var selectedProviderIDs: Set<StreamingProvider.ID>?
     var allowsAIReranking: Bool?
     var streamingRegionCode: String?
+    var importResolutionAliases: [String: ImportResolutionAlias]?
 
     init(
         titles: [MediaTitle],
@@ -338,7 +344,8 @@ struct LibrarySnapshot: Codable, Hashable, Sendable {
         selectedProviderIDs: Set<StreamingProvider.ID>? = nil,
         allowsAIReranking: Bool = false,
         streamingRegionCode: String? = nil,
-        schemaVersion: Int = 4
+        importResolutionAliases: [String: ImportResolutionAlias]? = nil,
+        schemaVersion: Int = 5
     ) {
         self.schemaVersion = schemaVersion
         self.titles = titles
@@ -346,6 +353,7 @@ struct LibrarySnapshot: Codable, Hashable, Sendable {
         self.selectedProviderIDs = selectedProviderIDs
         self.allowsAIReranking = allowsAIReranking
         self.streamingRegionCode = streamingRegionCode
+        self.importResolutionAliases = importResolutionAliases
     }
 }
 

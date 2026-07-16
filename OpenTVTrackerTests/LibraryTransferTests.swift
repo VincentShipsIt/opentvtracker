@@ -35,6 +35,9 @@ final class LibraryTransferTests: XCTestCase {
         snapshot.titles[index].notes = "Watch the elevator details."
         snapshot.titles[index].rewatchCount = 2
         snapshot.titles[index].personalWatchlist = true
+        snapshot.importResolutionAliases = [
+            "series:source:42": ImportResolutionAlias(kind: .series, catalogID: 95_396)
+        ]
 
         let data = try LibraryTransferService.exportJSON(snapshot)
         let preview = try LibraryTransferService.previewImport(data, into: .sample)
@@ -44,6 +47,10 @@ final class LibraryTransferTests: XCTestCase {
         XCTAssertEqual(imported.notes, "Watch the elevator details.")
         XCTAssertEqual(imported.completedRewatches, 2)
         XCTAssertTrue(imported.isOnPersonalWatchlist)
+        XCTAssertEqual(
+            preview.snapshot.importResolutionAliases?["series:source:42"],
+            ImportResolutionAlias(kind: .series, catalogID: 95_396)
+        )
         XCTAssertEqual(preview.matchedCount, snapshot.titles.count)
     }
 

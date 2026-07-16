@@ -15,6 +15,7 @@ final class AppModel {
     private(set) var selectedProviderIDs: Set<StreamingProvider.ID>
     private(set) var allowsAIReranking: Bool
     private(set) var streamingRegionOverride: StreamingRegion?
+    private(set) var importResolutionAliases: [String: ImportResolutionAlias]
     private(set) var hasLoaded = false
     var persistenceError: String?
     private(set) var remoteRankedRecommendations: [Recommendation] = []
@@ -50,6 +51,7 @@ final class AppModel {
         selectedProviderIDs = seed.selectedProviderIDs ?? Self.defaultProviderIDs
         allowsAIReranking = seed.allowsAIReranking ?? false
         streamingRegionOverride = seed.streamingRegionCode.flatMap(StreamingRegion.init(code:))
+        importResolutionAliases = seed.importResolutionAliases ?? [:]
     }
     var upNext: [MediaTitle] {
         titles
@@ -97,7 +99,8 @@ final class AppModel {
             sharedSpace: sharedSpace,
             selectedProviderIDs: selectedProviderIDs,
             allowsAIReranking: allowsAIReranking,
-            streamingRegionCode: streamingRegionOverride?.code
+            streamingRegionCode: streamingRegionOverride?.code,
+            importResolutionAliases: importResolutionAliases
         )
     }
 
@@ -124,6 +127,7 @@ final class AppModel {
                 selectedProviderIDs = snapshot.selectedProviderIDs ?? Self.defaultProviderIDs
                 allowsAIReranking = snapshot.allowsAIReranking ?? false
                 streamingRegionOverride = snapshot.streamingRegionCode.flatMap(StreamingRegion.init(code:))
+                importResolutionAliases = snapshot.importResolutionAliases ?? [:]
             }
         } catch {
             persistenceError = "Your saved library could not be opened. Your catalog and saved data remain separate."
@@ -258,6 +262,7 @@ extension AppModel {
         selectedProviderIDs = snapshot.selectedProviderIDs ?? Self.defaultProviderIDs
         allowsAIReranking = snapshot.allowsAIReranking ?? false
         streamingRegionOverride = snapshot.streamingRegionCode.flatMap(StreamingRegion.init(code:))
+        importResolutionAliases = snapshot.importResolutionAliases ?? [:]
         persist()
     }
 
