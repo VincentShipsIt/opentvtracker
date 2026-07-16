@@ -2,7 +2,7 @@ import CloudKit
 import Foundation
 
 struct CloudKitPartnerSharingService: PartnerSharingProviding {
-    static let containerIdentifier = "iCloud.dev.shipshit.opentvtracker"
+    static let containerIdentifier = "iCloud.dev.opentvtracker.app"
 
     private let container: CKContainer
 
@@ -41,7 +41,7 @@ struct CloudKitPartnerSharingService: PartnerSharingProviding {
 
         let share = CKShare(rootRecord: root)
         share[CKShare.SystemFieldKey.title] = "OpenTV partner space" as CKRecordValue
-        share[CKShare.SystemFieldKey.shareType] = "dev.shipshit.opentvtracker.partner-space" as CKRecordValue
+        share[CKShare.SystemFieldKey.shareType] = "dev.opentvtracker.app.partner-space" as CKRecordValue
         share.publicPermission = .none
 
         let result = try await database.modifyRecords(

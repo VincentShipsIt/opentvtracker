@@ -221,7 +221,7 @@ function testConfig(): ServerConfig {
     appAttest: {
       mode: "development",
       teamID: "C76R5DRH64",
-      bundleID: "dev.shipshit.opentvtracker",
+      bundleID: "dev.opentvtracker.app",
       tokenSecret: "test-token-secret-that-is-at-least-thirty-two-characters",
       statePath: "unused",
       challengeTTLSeconds: 60,

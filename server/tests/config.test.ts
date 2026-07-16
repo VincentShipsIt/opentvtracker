@@ -49,7 +49,7 @@ function productionEnvironment(): Record<string, string> {
   return {
     APP_ATTEST_MODE: "production",
     APP_ATTEST_TEAM_ID: "C76R5DRH64",
-    APP_ATTEST_BUNDLE_ID: "dev.shipshit.opentvtracker",
+    APP_ATTEST_BUNDLE_ID: "dev.opentvtracker.app",
     APP_ATTEST_TOKEN_SECRET:
       "test-token-secret-that-is-at-least-thirty-two-characters",
     TMDB_READ_ACCESS_TOKEN: "dedicated-test-read-token",
