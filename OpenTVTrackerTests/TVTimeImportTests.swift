@@ -102,6 +102,32 @@ final class TVTimeImportTests: XCTestCase {
         )
     }
 
+    func testSeriesRewatchMetricSumsEpisodesWithoutInflatingTitleCount() async throws {
+        let archive = try makeArchive([
+            "tvtime-series-episodes-2026.csv": """
+            series_tvdb_id,title,season,episode,is_watched,watched_at,rewatch_count
+            42,Severance,1,1,true,2025-02-14 20:30:00,1
+            42,Severance,1,2,true,2025-02-15 20:30:00,1
+            """
+        ])
+        let snapshot = snapshotWithSeveranceEpisodes()
+
+        let preview = try await TVTimeImportService.previewImport(
+            archive,
+            into: snapshot,
+            catalog: LocalCatalogService(titles: snapshot.titles),
+            region: .malta
+        )
+
+        let severance = try XCTUnwrap(preview.snapshot.titles.first(where: { $0.id == "severance" }))
+        XCTAssertEqual(severance.completedRewatches, 1)
+        XCTAssertEqual(preview.watchedEpisodeCount, 2)
+        XCTAssertEqual(
+            preview.integrityCounts.first(where: { $0.category == .rewatches }),
+            ImportCountComparison(category: .rewatches, sourceCount: 2, importedCount: 2)
+        )
+    }
+
     @MainActor
     func testCancelledResolutionSearchDoesNotSurfaceCatalogError() async throws {
         let session = TVTimeImportSession(

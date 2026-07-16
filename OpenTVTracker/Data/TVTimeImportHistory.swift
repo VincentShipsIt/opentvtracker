@@ -108,10 +108,8 @@ enum TVTimeHistoryApplier {
         title.state = !releasedEpisodeIDs.isEmpty && releasedEpisodeIDs.isSubset(of: watchedIDs)
             ? .completed : .watching
 
-        let importedRewatches = matchedWatches.reduce(0) {
-            $0 + $1.importedRewatchCount
-        }
-        title.rewatchCount = max(title.completedRewatches, importedRewatches)
+        let rewatchCounts = rewatchCounts(for: matchedWatches)
+        title.rewatchCount = max(title.completedRewatches, rewatchCounts.title)
         let events = TVTimeWatchEventFactory.make(
             matchedWatches,
             title: title,
@@ -121,8 +119,15 @@ enum TVTimeHistoryApplier {
         return TVTimeAppliedHistory(
             watchedEpisodes: matchedWatches.count,
             unmatchedEpisodes: unmatchedEpisodes,
-            rewatches: importedRewatches,
+            rewatches: rewatchCounts.episodes,
             watchEvents: events
+        )
+    }
+
+    private static func rewatchCounts(for watches: [TVTimeWatch]) -> (title: Int, episodes: Int) {
+        (
+            title: watches.map(\.importedRewatchCount).max() ?? 0,
+            episodes: watches.reduce(0) { $0 + $1.importedRewatchCount }
         )
     }
 
