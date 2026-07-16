@@ -35,6 +35,10 @@ final class LibraryTransferTests: XCTestCase {
         snapshot.titles[index].notes = "Watch the elevator details."
         snapshot.titles[index].rewatchCount = 2
         snapshot.titles[index].personalWatchlist = true
+        snapshot.titles[index].seriesLifecycle = .continuing
+        snapshot.titles[index].isUpNextPinned = true
+        snapshot.titles[index].upNextSnoozedUntil = Date(timeIntervalSince1970: 2_000_000_000)
+        snapshot.titles[index].upNextManualOrder = 3
 
         let data = try LibraryTransferService.exportJSON(snapshot)
         let preview = try LibraryTransferService.previewImport(data, into: .sample)
@@ -44,7 +48,47 @@ final class LibraryTransferTests: XCTestCase {
         XCTAssertEqual(imported.notes, "Watch the elevator details.")
         XCTAssertEqual(imported.completedRewatches, 2)
         XCTAssertTrue(imported.isOnPersonalWatchlist)
+        XCTAssertEqual(imported.seriesLifecycle, .continuing)
+        XCTAssertEqual(imported.isUpNextPinned, true)
+        XCTAssertEqual(imported.upNextSnoozedUntil, Date(timeIntervalSince1970: 2_000_000_000))
+        XCTAssertEqual(imported.upNextManualOrder, 3)
         XCTAssertEqual(preview.matchedCount, snapshot.titles.count)
+    }
+
+    func testCSVImportRestoresExpandedStateAndQueueIntent() throws {
+        let csv = """
+        catalog_id,title,year,state,series_lifecycle,is_up_next_pinned,up_next_snoozed_until,up_next_manual_order
+        95396,Severance,2022,caught_up,continuing,true,2033-05-18T03:33:20Z,7
+        """
+
+        let preview = try LibraryTransferService.previewImport(
+            try XCTUnwrap(csv.data(using: .utf8)),
+            into: .sample
+        )
+
+        let severance = try XCTUnwrap(preview.snapshot.titles.first(where: { $0.id == "severance" }))
+        XCTAssertEqual(severance.state, .caughtUp)
+        XCTAssertEqual(severance.seriesLifecycle, .continuing)
+        XCTAssertEqual(severance.isUpNextPinned, true)
+        XCTAssertEqual(severance.upNextSnoozedUntil, Date(timeIntervalSince1970: 2_000_000_000))
+        XCTAssertEqual(severance.upNextManualOrder, 7)
+    }
+
+    func testCSVImportRejectsCaughtUpForMovies() throws {
+        let csv = """
+        catalog_id,title,year,state
+        666277,Past Lives,2023,caught_up
+        """
+
+        let preview = try LibraryTransferService.previewImport(
+            try XCTUnwrap(csv.data(using: .utf8)),
+            into: .sample
+        )
+
+        XCTAssertEqual(
+            preview.snapshot.titles.first(where: { $0.id == "past-lives" })?.state,
+            .completed
+        )
     }
 
     func testCSVImportRestoresPersonalWatchlistWithoutChangingState() throws {
@@ -61,6 +105,22 @@ final class LibraryTransferTests: XCTestCase {
         let severance = try XCTUnwrap(preview.snapshot.titles.first(where: { $0.id == "severance" }))
         XCTAssertEqual(severance.state, .watching)
         XCTAssertTrue(severance.isOnPersonalWatchlist)
+    }
+
+    func testLegacyJSONImportMigratesContinuingSeriesToCaughtUp() throws {
+        var snapshot = LibrarySnapshot.sample
+        snapshot.schemaVersion = 4
+        let index = try XCTUnwrap(snapshot.titles.firstIndex(where: { $0.id == "severance" }))
+        snapshot.titles[index].state = .completed
+        snapshot.titles[index].seriesLifecycle = .continuing
+
+        let data = try LibraryTransferService.exportJSON(snapshot)
+        let preview = try LibraryTransferService.previewImport(data, into: .sample)
+
+        XCTAssertEqual(
+            preview.snapshot.titles.first(where: { $0.id == "severance" })?.state,
+            .caughtUp
+        )
     }
 
     func testCSVImportIsIdempotentAndReportsDuplicates() throws {

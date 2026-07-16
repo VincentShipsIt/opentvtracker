@@ -124,7 +124,16 @@ struct TogetherView: View {
 
     private func sharedTitleSubtitle(for title: MediaTitle) -> String {
         if title.kind == .movie { return "Shared movie" }
-        return title.state == .planned ? "Shared watchlist" : "Watching together"
+        switch title.state {
+        case .planned:
+            return "Shared watchlist"
+        case .caughtUp:
+            return "Caught up together"
+        case .dropped:
+            return "Paused together"
+        default:
+            return "Watching together"
+        }
     }
 
     @ViewBuilder

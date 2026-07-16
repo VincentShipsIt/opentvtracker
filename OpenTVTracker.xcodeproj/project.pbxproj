@@ -70,6 +70,9 @@
 		9C36553F5CAD9AFF1D02982F /* TogetherRoutes.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC075EAA6985B494E82C7BA2 /* TogetherRoutes.swift */; };
 		9C56B7143471BDF6AC187259 /* AppAttestClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 625AD0EEA5B826967E8AA51B /* AppAttestClientTests.swift */; };
 		9F5F136FE575F031BFABFD1D /* ActivityCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 894C207692BF083B85E0608C /* ActivityCard.swift */; };
+		A33B00000000000000000001 /* AppModel+UpNext.swift in Sources */ = {isa = PBXBuildFile; fileRef = A33A00000000000000000001 /* AppModel+UpNext.swift */; };
+		A33B00000000000000000002 /* TrackingState.swift in Sources */ = {isa = PBXBuildFile; fileRef = A33A00000000000000000002 /* TrackingState.swift */; };
+		A33B00000000000000000003 /* UpNextIntentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A33A00000000000000000003 /* UpNextIntentTests.swift */; };
 		A148312A7A5BDFD090CDF059 /* CreditsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E587E794892C46CA67E031BD /* CreditsView.swift */; };
 		A189A502FB1E724B1C743305 /* EpisodeDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1E154300D1D203FFB6846FC /* EpisodeDetailView.swift */; };
 		A8093A0120751277E97C4B0F /* MoreLikeThisView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4863EC48D5BCE1A5ED7573F5 /* MoreLikeThisView.swift */; };
@@ -172,6 +175,9 @@
 		9D87B5DE46CAFEDC6D1FAB29 /* ViewingAnalyticsShare.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewingAnalyticsShare.swift; sourceTree = "<group>"; };
 		9F09DB24B2B8B03248D14D55 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
 		9F421A0814951018D922E11F /* TrackingEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackingEditorView.swift; sourceTree = "<group>"; };
+		A33A00000000000000000001 /* AppModel+UpNext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+UpNext.swift"; sourceTree = "<group>"; };
+		A33A00000000000000000002 /* TrackingState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackingState.swift; sourceTree = "<group>"; };
+		A33A00000000000000000003 /* UpNextIntentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpNextIntentTests.swift; sourceTree = "<group>"; };
 		A1149FB539DE3092CD0E5999 /* BulkEpisodeTrackingUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BulkEpisodeTrackingUITests.swift; sourceTree = "<group>"; };
 		A55427CF53BBA4E379542E17 /* TVTimeImportMerger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVTimeImportMerger.swift; sourceTree = "<group>"; };
 		A6AC020D3628C2BC31EECC5A /* ViewingAnalytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewingAnalytics.swift; sourceTree = "<group>"; };
@@ -334,6 +340,7 @@
 				B9E8BB3ECB7093326FBEC443 /* AppModel+CloudSync.swift */,
 				1BB64E89979BCD5C0AE1B607 /* AppModel+Episodes.swift */,
 				DF2DEBBD5763C252BCF3F0B8 /* AppModel+Together.swift */,
+				A33A00000000000000000001 /* AppModel+UpNext.swift */,
 				466A1D7AE26DAA41250FE59E /* AppModel+WatchEvents.swift */,
 				38C95BD81EF63DE5AB21227D /* OpenTVTrackerApp.swift */,
 				37F5BE754C5B569E83074721 /* RootTabView.swift */,
@@ -451,6 +458,7 @@
 				9C4926F1D5F8E422DC0A8DD6 /* StreamingRegionTests.swift */,
 				4D071796CAD784E5EE144A4F /* TitleSimilarityTests.swift */,
 				8CABFCEF46F88DA76050D7FB /* TVTimeImportTests.swift */,
+				A33A00000000000000000003 /* UpNextIntentTests.swift */,
 				F823FF292350485AF96063E3 /* ViewingAnalyticsTests.swift */,
 			);
 			path = OpenTVTrackerTests;
@@ -474,6 +482,7 @@
 				F6959FA42B212427BC26E3C0 /* SampleData.swift */,
 				3D668E004FA427A34C7636F5 /* StreamingRegion.swift */,
 				859256F3B9EF0624D5110D5A /* TitleSimilarity.swift */,
+				A33A00000000000000000002 /* TrackingState.swift */,
 				A6AC020D3628C2BC31EECC5A /* ViewingAnalytics.swift */,
 			);
 			path = Domain;
@@ -620,6 +629,7 @@
 				2BA54E38F0F7D473489B06CF /* StreamingRegionTests.swift in Sources */,
 				4322EAD681A2387A362254F8 /* TVTimeImportTests.swift in Sources */,
 				F301BCF6258EEA4BF0731AC9 /* TitleSimilarityTests.swift in Sources */,
+				A33B00000000000000000003 /* UpNextIntentTests.swift in Sources */,
 				FBC0C7E9602AB3C29FF9711D /* ViewingAnalyticsTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -635,6 +645,7 @@
 				9BCCFB280C27497E504DC570 /* AppModel+CloudSync.swift in Sources */,
 				EB5DB02133407F5D22B3FE19 /* AppModel+Episodes.swift in Sources */,
 				876DD7650C59253101E9CBA9 /* AppModel+Together.swift in Sources */,
+				A33B00000000000000000001 /* AppModel+UpNext.swift in Sources */,
 				701B5D8F189DFA17DFF2C8B1 /* AppModel+WatchEvents.swift in Sources */,
 				2E71BB1853295CCE0C6A7247 /* AppModel.swift in Sources */,
 				6BA3F201062B359832573AF1 /* AppSettingsView.swift in Sources */,
@@ -692,6 +703,7 @@
 				E47EA8A432D01C6D85B2D40F /* TogetherView.swift in Sources */,
 				2C785B40A5CA8D10CAAD6F3C /* TrackingComponents.swift in Sources */,
 				26195544FE30B3982FD90DFE /* TrackingEditorView.swift in Sources */,
+				A33B00000000000000000002 /* TrackingState.swift in Sources */,
 				C5FA762B3F89AA82611D2239 /* TrailerPlayerView.swift in Sources */,
 				6DA3A8457E9EBE736E6AD9CF /* ViewingAnalytics.swift in Sources */,
 				5C39B165697D5731D9E0BEB7 /* ViewingAnalyticsPreviewCard.swift in Sources */,

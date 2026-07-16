@@ -2,29 +2,44 @@ import { describe, expect, test } from "bun:test";
 import {
   mapEpisodeSummary,
   mapReviews,
+  mapSeriesLifecycle,
   mapStreamingProvider,
   StreamingProviderID,
   TMDBProviderID,
 } from "../src/tmdb";
 
+describe("mapSeriesLifecycle", () => {
+  test("distinguishes ended series from continuing catalog entries", () => {
+    expect(mapSeriesLifecycle("Ended")).toBe("ended");
+    expect(mapSeriesLifecycle("Canceled")).toBe("ended");
+    expect(mapSeriesLifecycle("Returning Series")).toBe("continuing");
+    expect(mapSeriesLifecycle("In Production")).toBe("continuing");
+    expect(mapSeriesLifecycle(undefined)).toBe("unknown");
+  });
+});
+
 describe("mapReviews", () => {
   test("keeps complete TMDB review content and source metadata", () => {
     const content = "A".repeat(900);
-    expect(mapReviews({
-      results: [{
-        id: "review-id",
-        author: "Reviewer",
-        author_details: {
-          username: "reviewer-name",
-          avatar_path: "/avatar.jpg",
-          rating: 8,
-        },
-        content,
-        url: "https://www.themoviedb.org/review/review-id",
-        created_at: "2026-07-14T10:30:15.123Z",
-        updated_at: "2026-07-15T11:45:00.000Z",
-      }],
-    })[0]).toEqual({
+    expect(
+      mapReviews({
+        results: [
+          {
+            id: "review-id",
+            author: "Reviewer",
+            author_details: {
+              username: "reviewer-name",
+              avatar_path: "/avatar.jpg",
+              rating: 8,
+            },
+            content,
+            url: "https://www.themoviedb.org/review/review-id",
+            created_at: "2026-07-14T10:30:15.123Z",
+            updated_at: "2026-07-15T11:45:00.000Z",
+          },
+        ],
+      })[0],
+    ).toEqual({
       id: "tmdb-review-review-id",
       author: "Reviewer",
       excerpt: content,

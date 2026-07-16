@@ -89,7 +89,9 @@ extension AppModel {
         } else if var progress = titles[index].progress {
             progress.episode = min(progress.episode + 1, progress.totalEpisodes)
             titles[index].progress = progress
-            titles[index].state = progress.episode == progress.totalEpisodes ? .completed : .watching
+            titles[index].state = progress.episode == progress.totalEpisodes
+                ? finishedState(for: titles[index])
+                : .watching
         }
         titles[index].lastWatchedAt = .now
         for member in sharedSpace.members {
@@ -179,6 +181,9 @@ extension AppModel {
         metadata.isDisliked = nil
         metadata.personalWatchlist = false
         metadata.watchedEpisodeIDs = nil
+        metadata.isUpNextPinned = nil
+        metadata.upNextSnoozedUntil = nil
+        metadata.upNextManualOrder = nil
         return metadata
     }
 }

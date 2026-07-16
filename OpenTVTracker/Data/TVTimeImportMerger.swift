@@ -150,7 +150,7 @@ enum TVTimeImportMerger {
     ) -> AppliedHistory {
         title.userRating = entity.rating ?? title.userRating
         if entity.isArchived {
-            title.state = .paused
+            title.state = .dropped
             title.personalWatchlist = false
         } else if entity.isForLater || (entity.isFollowed && entity.watches.isEmpty) {
             title.personalWatchlist = true
@@ -242,7 +242,8 @@ enum TVTimeImportMerger {
             }
         })
         title.state = !releasedEpisodeIDs.isEmpty && releasedEpisodeIDs.isSubset(of: watchedIDs)
-            ? .completed : .watching
+            ? title.finishedWatchState
+            : .watching
 
         let events = TVTimeWatchEventFactory.make(
             episodeWatches,

@@ -16,7 +16,7 @@ struct LibraryView: View {
                             Text(state.label).tag(state)
                         }
                     }
-                    .pickerStyle(.segmented)
+                    .pickerStyle(.menu)
                     .padding(.horizontal, AppTheme.horizontalPadding)
 
                     Group {
@@ -78,7 +78,7 @@ private struct LibraryRow: View {
                 Text("\(title.year) · \(title.kind.label)")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                Label(title.progressLabel, systemImage: title.state == .completed ? "checkmark.circle.fill" : "play.circle.fill")
+                Label(title.progressLabel, systemImage: title.state.symbol)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(Color.accentColor)
                 if let progress = title.progress {

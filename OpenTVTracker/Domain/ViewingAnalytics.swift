@@ -166,7 +166,7 @@ private extension ViewingAnalyticsEngine {
                 expectedEpisodes = watchedEpisodeIDs.count
             } else if let progress = title.progress {
                 expectedEpisodes = progress.episode
-            } else if title.state == .completed {
+            } else if title.state.isCurrentViewingComplete {
                 expectedEpisodes = title.seasons?.reduce(0) { $0 + $1.episodes.count } ?? 0
             } else {
                 expectedEpisodes = 0

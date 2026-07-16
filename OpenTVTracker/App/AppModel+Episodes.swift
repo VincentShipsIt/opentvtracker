@@ -9,18 +9,16 @@ extension AppModel {
             )
         }
 
-        let seasons = (title.seasons ?? []).filter { $0.number > 0 }
-        let totalEpisodeCount = seasons.reduce(0) { $0 + $1.episodes.count }
+        let releasedEpisodeIDs = Set(releasedEpisodes(for: title).map(\.id))
+        let totalEpisodeCount = releasedEpisodeIDs.count
         guard totalEpisodeCount > 0 else {
             return MediaProgressSummary(
                 label: title.progress?.label ?? title.state.label,
-                fraction: title.state == .completed ? 1 : title.progress?.fraction ?? 0
+                fraction: title.state.isCurrentViewingComplete ? 1 : title.progress?.fraction ?? 0
             )
         }
 
-        let watchedCount = seasons.reduce(0) { count, season in
-            count + watchedEpisodeCount(titleID: title.id, season: season)
-        }
+        let watchedCount = releasedEpisodeIDs.intersection(resolvedWatchedEpisodeIDs(for: title)).count
         return MediaProgressSummary(
             label: "\(watchedCount) of \(totalEpisodeCount) episodes",
             fraction: Double(watchedCount) / Double(totalEpisodeCount)
@@ -45,7 +43,7 @@ extension AppModel {
             return "\(season):\(episode)"
         })
         guard totalEpisodeCount > 0, !watchedEpisodes.isEmpty else {
-            return MediaProgressSummary(label: "Watched together", fraction: title.state == .completed ? 1 : 0)
+            return MediaProgressSummary(label: "Watched together", fraction: title.state.isCurrentViewingComplete ? 1 : 0)
         }
         return MediaProgressSummary(
             label: "\(watchedEpisodes.count) of \(totalEpisodeCount) episodes together",
@@ -175,7 +173,10 @@ extension AppModel {
         let watchedIDs = resolvedWatchedEpisodeIDs(for: title)
         for season in regularSeasons(for: title) {
             if let episode = season.episodes.sorted(by: { $0.number < $1.number })
-                .first(where: { !watchedIDs.contains($0.id) }) {
+                .first(where: { episode in
+                    !watchedIDs.contains(episode.id)
+                        && (episode.airDate.map { $0 <= Date.now } ?? true)
+                }) {
                 return (season, episode)
             }
         }
@@ -275,8 +276,8 @@ private extension AppModel {
     func resolvedWatchedEpisodeIDs(for title: MediaTitle) -> Set<EpisodeSummary.ID> {
         if let watchedEpisodeIDs = title.watchedEpisodeIDs { return watchedEpisodeIDs }
         let seasons = regularSeasons(for: title)
-        if title.state == .completed {
-            return Set(seasons.flatMap(\.episodes).map(\.id))
+        if title.state.isCurrentViewingComplete {
+            return Set(releasedEpisodes(for: title).map(\.id))
         }
         guard let progress = title.progress else { return [] }
         let episodeIDs: [EpisodeSummary.ID] = seasons.flatMap { season -> [EpisodeSummary.ID] in
@@ -295,8 +296,6 @@ private extension AppModel {
 
     func updateEpisodeProgress(at index: Int, watchedIDs: Set<EpisodeSummary.ID>) {
         let seasons = regularSeasons(for: titles[index])
-        let regularEpisodes = seasons.flatMap(\.episodes)
-        let isComplete = !regularEpisodes.isEmpty && regularEpisodes.allSatisfy { watchedIDs.contains($0.id) }
 
         var latestSeason: SeasonSummary?
         var latestEpisode: EpisodeSummary?
@@ -331,11 +330,12 @@ private extension AppModel {
             titles[index].progress = nil
         }
 
-        if isComplete {
-            titles[index].state = .completed
-        } else if !watchedIDs.isEmpty {
-            titles[index].state = .watching
-        } else if titles[index].state == .watching || titles[index].state == .completed {
+        if !watchedIDs.isEmpty {
+            titles[index].state = trackingStateAfterEpisodeUpdate(
+                for: titles[index],
+                watchedIDs: watchedIDs
+            )
+        } else if titles[index].state == .watching || titles[index].state.isCurrentViewingComplete {
             titles[index].state = .planned
         }
     }

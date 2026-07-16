@@ -11,6 +11,10 @@ extension AppModel {
         titles(in: .watching).sorted(by: isMoreRecentlyWatched)
     }
 
+    var caughtUpTitlesByRecency: [MediaTitle] {
+        titles(in: .caughtUp).sorted(by: isMoreRecentlyWatched)
+    }
+
     var completedTitlesByRecency: [MediaTitle] {
         titles(in: .completed).sorted(by: isMoreRecentlyWatched)
     }
@@ -20,14 +24,26 @@ extension AppModel {
     }
 
     func markWatched(_ id: MediaTitle.ID) {
-        guard let index = trackableTitleIndex(for: id), titles[index].state != .completed else { return }
+        guard let index = trackableTitleIndex(for: id), !titles[index].state.isCurrentViewingComplete else { return }
 
         let regularSeasons = (titles[index].seasons ?? [])
             .filter { $0.number > 0 }
             .sorted { $0.number < $1.number }
         if titles[index].kind == .series, !regularSeasons.isEmpty {
-            titles[index].watchedEpisodeIDs = Set(regularSeasons.flatMap(\.episodes).map(\.id))
-            if let lastSeason = regularSeasons.last {
+            let releasedSeasons = regularSeasons.compactMap { season -> SeasonSummary? in
+                let episodes = season.episodes.filter { episode in
+                    episode.airDate.map { $0 <= Date.now } ?? true
+                }
+                guard !episodes.isEmpty else { return nil }
+                return SeasonSummary(
+                    id: season.id,
+                    number: season.number,
+                    title: season.title,
+                    episodes: episodes
+                )
+            }
+            titles[index].watchedEpisodeIDs = Set(releasedSeasons.flatMap(\.episodes).map(\.id))
+            if let lastSeason = releasedSeasons.last {
                 titles[index].progress = EpisodeProgress(
                     season: lastSeason.number,
                     episode: lastSeason.episodes.count,
@@ -36,7 +52,7 @@ extension AppModel {
             }
         }
 
-        titles[index].state = .completed
+        titles[index].state = finishedState(for: titles[index])
         titles[index].personalWatchlist = false
         titles[index].lastWatchedAt = .now
         appendWatchEvent(title: titles[index], kind: .watched)

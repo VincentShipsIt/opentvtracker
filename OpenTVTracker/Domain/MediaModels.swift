@@ -26,31 +26,6 @@ enum MetadataSource: String, Codable, Sendable {
     var displayName: String { rawValue }
 }
 
-enum WatchState: String, Codable, CaseIterable, Sendable {
-    case watching
-    case planned
-    case paused
-    case completed
-
-    var label: String {
-        switch self {
-        case .watching: "Watching"
-        case .planned: "Watchlist"
-        case .paused: "Paused"
-        case .completed: "Completed"
-        }
-    }
-
-    var symbol: String {
-        switch self {
-        case .watching: "play.circle.fill"
-        case .planned: "bookmark.fill"
-        case .paused: "pause.circle.fill"
-        case .completed: "checkmark.circle.fill"
-        }
-    }
-}
-
 enum Mood: String, Codable, CaseIterable, Identifiable, Sendable {
     case any
     case cozy
@@ -209,6 +184,10 @@ struct MediaTitle: Codable, Hashable, Identifiable, Sendable {
     var metadataSource: MetadataSource? = nil
     var sourceURL: URL? = nil
     var watchedEpisodeIDs: Set<EpisodeSummary.ID>? = nil
+    var seriesLifecycle: SeriesLifecycle? = nil
+    var isUpNextPinned: Bool? = nil
+    var upNextSnoozedUntil: Date? = nil
+    var upNextManualOrder: Int? = nil
 
     var progressLabel: String {
         switch kind {
@@ -226,7 +205,30 @@ struct MediaTitle: Codable, Hashable, Identifiable, Sendable {
     }
 
     var isRecommendationEligible: Bool {
-        state != .completed && isDismissed != true && isDisliked != true
+        !state.isCurrentViewingComplete
+            && state != .dropped
+            && isDismissed != true
+            && isDisliked != true
+    }
+
+    var resolvedSeriesLifecycle: SeriesLifecycle {
+        seriesLifecycle ?? .unknown
+    }
+
+    var finishedWatchState: WatchState {
+        guard kind == .series else { return .completed }
+        switch resolvedSeriesLifecycle {
+        case .continuing:
+            return .caughtUp
+        case .ended:
+            return .completed
+        case .unknown:
+            return nextEpisodeAirDate == nil ? .completed : .caughtUp
+        }
+    }
+
+    func isSnoozed(at date: Date) -> Bool {
+        upNextSnoozedUntil.map { $0 > date } ?? false
     }
 }
 
@@ -338,7 +340,7 @@ struct LibrarySnapshot: Codable, Hashable, Sendable {
         selectedProviderIDs: Set<StreamingProvider.ID>? = nil,
         allowsAIReranking: Bool = false,
         streamingRegionCode: String? = nil,
-        schemaVersion: Int = 4
+        schemaVersion: Int = 5
     ) {
         self.schemaVersion = schemaVersion
         self.titles = titles
