@@ -94,8 +94,8 @@ final class TVTimeImportIntegrityTests: XCTestCase {
             region: .malta
         )
 
-        XCTAssertFalse(preview.snapshot.titles[0].personalWatchlist)
-        XCTAssertTrue(preview.snapshot.titles[1].personalWatchlist)
+        XCTAssertEqual(preview.snapshot.titles[0].personalWatchlist, false)
+        XCTAssertEqual(preview.snapshot.titles[1].personalWatchlist, true)
     }
 
     func testManualResolutionPersistsAliasForSafeReimport() async throws {
