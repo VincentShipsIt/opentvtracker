@@ -187,13 +187,13 @@ struct UpcomingCalendarView: View {
     private var selectedRangeTitle: String {
         switch mode {
         case .day:
-            selectedRange.start.formatted(.dateTime.weekday(.wide).month(.wide).day())
+            return selectedRange.start.formatted(.dateTime.weekday(.wide).month(.wide).day())
         case .week:
             let finalDay = localCalendar.date(byAdding: .day, value: -1, to: selectedRange.end)
                 ?? selectedRange.end
             return "\(selectedRange.start.formatted(.dateTime.month(.abbreviated).day())) – \(finalDay.formatted(.dateTime.month(.abbreviated).day()))"
         case .agenda:
-            "Next 90 days"
+            return "Next 90 days"
         }
     }
 
