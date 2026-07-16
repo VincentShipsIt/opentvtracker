@@ -57,31 +57,33 @@ private struct OpenTVTabBar: View {
     ]
 
     var body: some View {
-        HStack(spacing: 8) {
-            GlassSurface(cornerRadius: 28) {
-                HStack(spacing: 0) {
-                    ForEach(primaryTabs, id: \.tab) { item in
-                        tabButton(item.tab, title: item.title, symbol: item.symbol)
+        GlassEffectContainer(spacing: 8) {
+            HStack(spacing: 8) {
+                GlassSurface(cornerRadius: 28) {
+                    HStack(spacing: 0) {
+                        ForEach(primaryTabs, id: \.tab) { item in
+                            tabButton(item.tab, title: item.title, symbol: item.symbol)
+                        }
                     }
+                    .padding(5)
                 }
-                .padding(5)
-            }
-            .frame(maxWidth: .infinity)
+                .frame(maxWidth: .infinity)
 
-            GlassSurface(cornerRadius: 28) {
-                HStack(spacing: 0) {
-                    tabButton(.discover, title: "Search", symbol: "magnifyingglass")
+                GlassSurface(cornerRadius: 28) {
+                    HStack(spacing: 0) {
+                        tabButton(.discover, title: "Search", symbol: "magnifyingglass")
 
-                    Button(action: onAskAI) {
-                        tabLabel(title: "AI", symbol: "sparkles", isSelected: false)
+                        Button(action: onAskAI) {
+                            tabLabel(title: "AI", symbol: "sparkles", isSelected: false)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityHint("Opens the OpenTV assistant")
+                        .accessibilityIdentifier("tab.ai")
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityHint("Opens the OpenTV assistant")
-                    .accessibilityIdentifier("tab.ai")
+                    .padding(5)
                 }
-                .padding(5)
+                .frame(width: 112)
             }
-            .frame(width: 112)
         }
         .padding(.horizontal, 12)
         .padding(.top, 8)

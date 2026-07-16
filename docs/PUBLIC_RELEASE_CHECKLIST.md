@@ -4,7 +4,7 @@
 - [ ] Confirm `.gitignore`, Docker context, GitHub secret scanning/push protection, Dependabot, and private vulnerability reporting.
 - [ ] Confirm MIT license and dependency inventory, including pinned `node-app-attest` and transitive cryptography packages.
 - [ ] Provision the production App ID with App Attest, Associated Domains, production entitlement, official Team ID/bundle ID, and the HTTPS OAuth callback association file.
-- [ ] Verify the callback domain serves a non-redirecting `apple-app-site-association` file containing the production Team ID, bundle ID, and callback path.
+- [ ] Verify `https://opentvtracker.dev/.well-known/apple-app-site-association` serves JSON without a redirect and authorizes `C76R5DRH64.dev.opentvtracker.app` for `/opentv/openrouter/callback`.
 - [ ] Verify a fork/self-built bundle is rejected by the official proxy and works only with its own proxy configuration.
 - [ ] Mount and back up a persistent single-writer App Attest state path; exercise atomic persistence and counter recovery.
 - [ ] Verify production refuses missing identity/token/provider configuration, development attestations, and any bypass token.

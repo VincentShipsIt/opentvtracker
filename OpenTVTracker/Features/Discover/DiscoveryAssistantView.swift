@@ -232,7 +232,7 @@ private struct AssistantComposer: View {
         .padding(.horizontal, AppTheme.horizontalPadding)
         .padding(.top, 10)
         .padding(.bottom, 8)
-        .background(.ultraThinMaterial)
+        .glassEffect(.regular, in: .rect)
     }
 }
 

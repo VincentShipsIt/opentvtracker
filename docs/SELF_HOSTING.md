@@ -15,6 +15,8 @@ Choose an HTTPS OpenRouter callback URL on a domain associated with your app. Pu
 
 The domain must serve `/.well-known/apple-app-site-association` as JSON without a redirect and include the application identifier `<TEAM_ID>.<BUNDLE_ID>` for the OAuth callback path. Verify the production file and entitlement together before release; an HTTPS URL alone is insufficient for `ASWebAuthenticationSession.Callback.https`.
 
+The official app uses `https://opentvtracker.dev/opentv/openrouter/callback` with the associated domain `applinks:opentvtracker.dev`.
+
 OpenRouter redirects the browser to the exact HTTPS callback and SwiftUI's web authentication session matches its host/path. The app exchanges the code with S256 PKCE and stores the resulting user key in Keychain.
 
 ## 2. Provider and server configuration

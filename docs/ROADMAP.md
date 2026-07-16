@@ -2,7 +2,7 @@
 
 ## MVP — implemented
 
-- Native SwiftUI tracker with Liquid Glass on iOS 26 and material fallbacks on iOS 18–25
+- Native SwiftUI tracker designed around Liquid Glass on iOS 26
 - Live TV discovery, search, artwork, trailers, seasons, and episodes from TVmaze
 - Operator-owned TMDB boundary for movie and TV metadata, Malta provider availability, trailers, and attributed reviews
 - Personal and shared watchlists, episode progress, ratings, notes, rewatches, and release-aware Up Next
