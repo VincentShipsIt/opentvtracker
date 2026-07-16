@@ -27,10 +27,8 @@ struct TVTimeMediaTitleLookup {
         byID[title.id] = byID[title.id] ?? index
         let titleKey = Self.titleKey(kind: title.kind, title: title.title)
         byKindAndTitle[titleKey] = byKindAndTitle[titleKey] ?? index
-        if let year = title.year {
-            let yearKey = Self.yearKey(titleKey, year: year)
-            byKindTitleAndYear[yearKey] = byKindTitleAndYear[yearKey] ?? index
-        }
+        let yearKey = Self.yearKey(titleKey, year: title.year)
+        byKindTitleAndYear[yearKey] = byKindTitleAndYear[yearKey] ?? index
     }
 
     func index(for title: MediaTitle, matching entity: TVTimeEntity) -> Int? {
