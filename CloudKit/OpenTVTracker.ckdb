@@ -1,0 +1,15 @@
+DEFINE SCHEMA
+
+// Root record for a private custom zone shared through CKShare.
+RECORD TYPE PartnerSpace (
+    spaceID STRING,
+    schemaVersion INT64,
+    createdAt TIMESTAMP
+);
+
+// Versioned shared-space snapshot. The CKRecord parent is a system field.
+RECORD TYPE PartnerSpaceState (
+    payload BYTES,
+    updatedAt TIMESTAMP,
+    schemaVersion INT64
+);
