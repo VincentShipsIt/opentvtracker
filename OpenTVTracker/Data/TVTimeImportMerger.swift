@@ -284,7 +284,7 @@ private enum TVTimeDiaryEntryFactory {
     ) -> [ViewingDiaryEntry] {
         let fallbackIndex = watches.firstIndex { $0.occurredAt != nil && !$0.isRewatch }
             ?? watches.firstIndex { $0.occurredAt != nil }
-        watches.enumerated().compactMap { index, watch in
+        return watches.enumerated().compactMap { index, watch -> ViewingDiaryEntry? in
             guard let watchedAt = watch.occurredAt else { return nil }
             let id = "diary:\(TVTimeWatchEventFactory.identifier(for: watch, titleID: title.id))"
             guard existingDiaryIDs.insert(id).inserted else { return nil }
