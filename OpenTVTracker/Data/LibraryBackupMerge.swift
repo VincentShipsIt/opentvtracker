@@ -13,7 +13,17 @@ enum LibraryBackupMerge {
         imported: SharedSpace,
         into current: SharedSpace
     ) -> SharedSpace {
-        guard current != LibrarySnapshot.empty.sharedSpace else { return imported }
+        if current == LibrarySnapshot.empty.sharedSpace {
+            var restored = imported
+            let conversation = SharedConversationReconciler.reconcile(
+                remote: imported,
+                local: current
+            )
+            restored.reactions = conversation.reactions
+            restored.notes = conversation.notes
+            restored.conversationDeletions = conversation.deletions
+            return restored
+        }
 
         var merged = current
         merged.members = mergeByID(imported: imported.members, into: current.members)
@@ -27,14 +37,13 @@ enum LibraryBackupMerge {
             imported: imported.tasteProfiles,
             into: current.tasteProfiles
         )
-        merged.reactions = mergeOptionalByID(
-            imported: imported.reactions,
-            into: current.reactions
+        let conversation = SharedConversationReconciler.reconcile(
+            remote: imported,
+            local: current
         )
-        merged.notes = mergeOptionalByID(
-            imported: imported.notes,
-            into: current.notes
-        )
+        merged.reactions = conversation.reactions
+        merged.notes = conversation.notes
+        merged.conversationDeletions = conversation.deletions
         merged.titleMetadata = mergeOptionalByID(
             imported: imported.titleMetadata,
             into: current.titleMetadata

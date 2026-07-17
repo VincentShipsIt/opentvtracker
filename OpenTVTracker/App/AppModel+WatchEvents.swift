@@ -44,6 +44,7 @@ extension AppModel {
         refreshRecommendationsSoon()
     }
 
+    @discardableResult
     func appendWatchEvent(
         title: MediaTitle,
         kind: WatchEventKind,
@@ -51,7 +52,7 @@ extension AppModel {
         season: Int? = nil,
         episode: Int? = nil,
         supersedesEventID: String? = nil
-    ) {
+    ) -> SharedWatchEvent {
         let resolvedMemberID = memberID ?? sharedSpace.members.first(where: \.isCurrentUser)?.id ?? "local-user"
         let event = SharedWatchEvent(
             id: UUID().uuidString,
@@ -66,6 +67,7 @@ extension AppModel {
         var events = sharedSpace.watchEvents ?? []
         events.append(event)
         sharedSpace.watchEvents = events
+        return event
     }
 
     private func isMoreRecentlyWatched(_ lhs: MediaTitle, _ rhs: MediaTitle) -> Bool {

@@ -5,6 +5,7 @@ import Observation
 final class AppModel {
     private let store: any LibraryPersisting
     private let recommendationService: any RecommendationProviding
+    let sharedConversationNotifier: any SharedConversationNotifying
     let catalogService: any CatalogProviding
     private let seed: LibrarySnapshot
     private var saveTask: Task<Void, Never>?
@@ -32,11 +33,13 @@ final class AppModel {
     init(
         store: any LibraryPersisting = LibraryStoreFactory.makeDefault(),
         recommendationService: any RecommendationProviding = ProviderNeutralRecommendationService(),
+        sharedConversationNotifier: any SharedConversationNotifying = SharedConversationNotificationService(),
         catalogService: (any CatalogProviding)? = nil,
         seed: LibrarySnapshot = .empty
     ) {
         self.store = store
         self.recommendationService = recommendationService
+        self.sharedConversationNotifier = sharedConversationNotifier
         if let catalogService {
             self.catalogService = catalogService
         } else if seed == .empty {

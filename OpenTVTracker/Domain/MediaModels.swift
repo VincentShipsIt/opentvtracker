@@ -242,6 +242,11 @@ struct SpaceMember: Codable, Hashable, Identifiable, Sendable {
     let isCurrentUser: Bool
 }
 
+enum SharedActivityKind: String, Codable, Sendable {
+    case general
+    case watchedTogether
+}
+
 struct SharedActivity: Codable, Hashable, Identifiable, Sendable {
     let id: String
     let memberID: String
@@ -249,6 +254,11 @@ struct SharedActivity: Codable, Hashable, Identifiable, Sendable {
     let relativeDate: String
     let symbol: String
     var titleID: MediaTitle.ID? = nil
+    var kind: SharedActivityKind? = nil
+    var occurredAt: Date? = nil
+    var watchEventID: SharedWatchEvent.ID? = nil
+    var season: Int? = nil
+    var episode: Int? = nil
 }
 
 enum SharedMembershipState: String, Codable, Sendable {
@@ -285,22 +295,6 @@ struct MemberTasteProfile: Codable, Hashable, Identifiable, Sendable {
     var maximumRuntimeMinutes: Int?
 }
 
-struct SharedReaction: Codable, Hashable, Identifiable, Sendable {
-    let id: String
-    let activityID: SharedActivity.ID
-    let memberID: SpaceMember.ID
-    let symbol: String
-    let occurredAt: Date
-}
-
-struct SharedNote: Codable, Hashable, Identifiable, Sendable {
-    let id: String
-    let titleID: MediaTitle.ID
-    let memberID: SpaceMember.ID
-    let text: String
-    let createdAt: Date
-}
-
 struct SharedSpace: Codable, Hashable, Identifiable, Sendable {
     let id: String
     var name: String
@@ -313,6 +307,7 @@ struct SharedSpace: Codable, Hashable, Identifiable, Sendable {
     var tasteProfiles: [MemberTasteProfile]? = nil
     var reactions: [SharedReaction]? = nil
     var notes: [SharedNote]? = nil
+    var conversationDeletions: [SharedConversationDeletion]? = nil
     var cloudZoneName: String? = nil
     var cloudOwnerName: String? = nil
     var isCurrentUserShareOwner: Bool? = nil
@@ -338,7 +333,7 @@ struct LibrarySnapshot: Codable, Hashable, Sendable {
         selectedProviderIDs: Set<StreamingProvider.ID>? = nil,
         allowsAIReranking: Bool = false,
         streamingRegionCode: String? = nil,
-        schemaVersion: Int = 4
+        schemaVersion: Int = 5
     ) {
         self.schemaVersion = schemaVersion
         self.titles = titles
@@ -366,6 +361,7 @@ extension LibrarySnapshot {
             tasteProfiles: [],
             reactions: [],
             notes: [],
+            conversationDeletions: [],
             isCurrentUserShareOwner: true
         )
     )

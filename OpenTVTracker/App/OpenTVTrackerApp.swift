@@ -1,13 +1,30 @@
 import CloudKit
 import SwiftUI
 import UIKit
+import UserNotifications
 
 struct PartnerShareLocation: Sendable {
     let zoneName: String
     let ownerName: String
 }
 
-final class OpenTVAppDelegate: NSObject, UIApplicationDelegate {
+final class OpenTVAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+    func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
+    ) -> Bool {
+        UNUserNotificationCenter.current().delegate = self
+        return true
+    }
+
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner, .list, .sound])
+    }
+
     func application(
         _ application: UIApplication,
         userDidAcceptCloudKitShareWith cloudKitShareMetadata: CKShare.Metadata
@@ -75,6 +92,9 @@ struct OpenTVTrackerApp: App {
                 }
                 .onReceive(NotificationCenter.default.publisher(for: .openTVPartnerShareAcceptanceFailed)) { notification in
                     model.persistenceError = notification.object as? String
+                }
+                .onReceive(NotificationCenter.default.publisher(for: .openTVCloudSharedStateChanged)) { _ in
+                    Task { await model.applyLatestCloudSharedState() }
                 }
                 .onChange(of: scenePhase) { _, phase in
                     guard phase == .active else { return }

@@ -12,6 +12,7 @@ struct LibraryDataView: View {
     @State private var pendingExportKind: LibraryExportKind?
     @State private var showsExporter = false
     @State private var showsImporter = false
+    @State private var showsConversationDeletionConfirmation = false
     @State private var isImporting = false
     @State private var importPreview: LibraryImportPreview?
     @State private var statusMessage: String?
@@ -35,6 +36,9 @@ struct LibraryDataView: View {
                     }
                     Button("Export watch events CSV", systemImage: "clock.arrow.trianglehead.counterclockwise.rotate.90") {
                         prepareExport(.eventsCSV)
+                    }
+                    Button("Export private conversations CSV", systemImage: "bubble.left.and.bubble.right") {
+                        prepareExport(.conversationsCSV)
                     }
                 }
 
@@ -85,6 +89,21 @@ struct LibraryDataView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+
+                if model.sharedSpace.isCurrentUserShareOwner != false,
+                   hasPrivateConversationData {
+                    Section {
+                        Button(
+                            "Delete private conversation data",
+                            systemImage: "bubble.left.and.exclamationmark.bubble.right",
+                            role: .destructive
+                        ) {
+                            showsConversationDeletionConfirmation = true
+                        }
+                    } footer: {
+                        Text("The shared-space owner can remove locally retained episode notes and reactions. Deletion syncs to invited members and does not remove watch history.")
+                    }
+                }
             }
             .navigationTitle("Your data")
             .navigationBarTitleDisplayMode(.inline)
@@ -120,6 +139,19 @@ struct LibraryDataView: View {
             ) { result in
                 importFile(result)
             }
+            .confirmationDialog(
+                "Delete private conversation data?",
+                isPresented: $showsConversationDeletionConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Delete conversations", role: .destructive) {
+                    model.deletePrivateConversationData()
+                    statusMessage = "Private conversation data deleted."
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This removes all episode notes and reactions from the private shared space on the next sync. Watch history stays intact.")
+            }
         }
     }
 
@@ -139,6 +171,10 @@ struct LibraryDataView: View {
                 data = LibraryTransferService.exportWatchEventsCSV(model.snapshot)
                 exportContentType = .commaSeparatedText
                 exportFilename = "OpenTV-watch-events.csv"
+            case .conversationsCSV:
+                data = LibraryTransferService.exportPrivateConversationsCSV(model.snapshot)
+                exportContentType = .commaSeparatedText
+                exportFilename = "OpenTV-private-conversations.csv"
             }
             exportDocument = LibraryExportDocument(data: data)
             pendingExportKind = kind
@@ -190,12 +226,18 @@ struct LibraryDataView: View {
             )
         )
     }
+
+    private var hasPrivateConversationData: Bool {
+        model.sharedSpace.notes?.isEmpty == false
+            || model.sharedSpace.reactions?.isEmpty == false
+    }
 }
 
 enum LibraryExportKind: Equatable {
     case json
     case titlesCSV
     case eventsCSV
+    case conversationsCSV
 
     var completesBackup: Bool {
         self == .json

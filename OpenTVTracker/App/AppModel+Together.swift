@@ -10,11 +10,17 @@ extension AppModel {
         }
     }
 
+    @discardableResult
     func addActivity(
         description: String,
         titleID: MediaTitle.ID? = nil,
-        symbol: String = "checkmark"
-    ) {
+        symbol: String = "checkmark",
+        kind: SharedActivityKind = .general,
+        occurredAt: Date = .now,
+        watchEventID: SharedWatchEvent.ID? = nil,
+        season: Int? = nil,
+        episode: Int? = nil
+    ) -> SharedActivity {
         let currentMember = sharedSpace.members.first(where: \.isCurrentUser)
         let activity = SharedActivity(
             id: UUID().uuidString,
@@ -22,9 +28,15 @@ extension AppModel {
             description: description.trimmingCharacters(in: .whitespaces),
             relativeDate: "Now",
             symbol: symbol,
-            titleID: titleID
+            titleID: titleID,
+            kind: kind,
+            occurredAt: occurredAt,
+            watchEventID: watchEventID,
+            season: season,
+            episode: episode
         )
         sharedSpace.activity.insert(activity, at: 0)
+        return activity
     }
 
     func toggleTogether(_ id: MediaTitle.ID) {
@@ -92,50 +104,24 @@ extension AppModel {
             titles[index].state = progress.episode == progress.totalEpisodes ? .completed : .watching
         }
         titles[index].lastWatchedAt = .now
+        let currentMemberID = sharedSpace.members.first(where: \.isCurrentUser)?.id
+        var conversationWatchEvent: SharedWatchEvent?
         for member in sharedSpace.members {
-            appendWatchEvent(title: titles[index], kind: .watchedTogether, memberID: member.id)
+            let event = appendWatchEvent(
+                title: titles[index],
+                kind: .watchedTogether,
+                memberID: member.id
+            )
+            if member.id == currentMemberID || conversationWatchEvent == nil {
+                conversationWatchEvent = event
+            }
         }
         addActivity(
             description: "watched \(titles[index].title) together",
-            titleID: titles[index].id
+            titleID: titles[index].id,
+            kind: .watchedTogether,
+            watchEventID: conversationWatchEvent?.id
         )
-        persist()
-        syncSharedStateSoon()
-    }
-
-    func react(to activityID: SharedActivity.ID, symbol: String) {
-        let memberID = sharedSpace.members.first(where: \.isCurrentUser)?.id ?? "local-user"
-        var reactions = sharedSpace.reactions ?? []
-        reactions.removeAll { $0.activityID == activityID && $0.memberID == memberID }
-        reactions.append(
-            SharedReaction(
-                id: UUID().uuidString,
-                activityID: activityID,
-                memberID: memberID,
-                symbol: symbol,
-                occurredAt: .now
-            )
-        )
-        sharedSpace.reactions = reactions
-        persist()
-        syncSharedStateSoon()
-    }
-
-    func addSharedNote(_ text: String, titleID: MediaTitle.ID) {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        let memberID = sharedSpace.members.first(where: \.isCurrentUser)?.id ?? "local-user"
-        var notes = sharedSpace.notes ?? []
-        notes.append(
-            SharedNote(
-                id: UUID().uuidString,
-                titleID: titleID,
-                memberID: memberID,
-                text: trimmed,
-                createdAt: .now
-            )
-        )
-        sharedSpace.notes = notes
         persist()
         syncSharedStateSoon()
     }
@@ -181,6 +167,7 @@ extension AppModel {
         metadata.watchedEpisodeIDs = nil
         return metadata
     }
+
 }
 
 private enum PartnerDeviceIdentity {

@@ -188,28 +188,46 @@ extension AppModel {
         episode: EpisodeSummary
     ) {
         guard let index = trackableTitleIndex(for: titleID) else { return }
-        var watchedIDs = resolvedWatchedEpisodeIDs(for: titles[index])
-        guard watchedIDs.insert(episode.id).inserted else { return }
+        let alreadyWatchedTogether = (sharedSpace.watchEvents ?? []).contains { event in
+            event.titleID == titleID
+                && event.kind == .watchedTogether
+                && event.season == season.number
+                && event.episode == episode.number
+        }
+        guard !alreadyWatchedTogether else { return }
 
-        titles[index].watchedEpisodeIDs = watchedIDs
-        updateEpisodeProgress(at: index, watchedIDs: watchedIDs)
+        var watchedIDs = resolvedWatchedEpisodeIDs(for: titles[index])
+        if watchedIDs.insert(episode.id).inserted {
+            titles[index].watchedEpisodeIDs = watchedIDs
+            updateEpisodeProgress(at: index, watchedIDs: watchedIDs)
+        }
         titles[index].lastWatchedAt = .now
+        let currentMemberID = sharedSpace.members.first(where: \.isCurrentUser)?.id
+        var conversationWatchEvent: SharedWatchEvent?
         for member in sharedSpace.members {
-            appendWatchEvent(
+            let event = appendWatchEvent(
                 title: titles[index],
                 kind: .watchedTogether,
                 memberID: member.id,
                 season: season.number,
                 episode: episode.number
             )
+            if member.id == currentMemberID || conversationWatchEvent == nil {
+                conversationWatchEvent = event
+            }
         }
         addActivity(
             description: "watched \(titles[index].title) S\(season.number) E\(episode.number) together",
-            titleID: titles[index].id
+            titleID: titles[index].id,
+            kind: .watchedTogether,
+            watchEventID: conversationWatchEvent?.id,
+            season: season.number,
+            episode: episode.number
         )
         persist()
         syncSharedStateSoon()
     }
+
 }
 
 private extension AppModel {
