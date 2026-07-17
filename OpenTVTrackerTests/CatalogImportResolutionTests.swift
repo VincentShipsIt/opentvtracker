@@ -376,6 +376,7 @@ private func makeTitle(
         reviews: [],
         posterURL: nil,
         backdropURL: nil,
-        trailerURL: nil
+        trailerURL: nil,
+        seasons: seasons
     )
 }
