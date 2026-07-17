@@ -331,6 +331,7 @@ struct LibrarySnapshot: Codable, Hashable, Sendable {
     var selectedProviderIDs: Set<StreamingProvider.ID>?
     var allowsAIReranking: Bool?
     var streamingRegionCode: String?
+    var reminderSettings: ReminderSettings?
 
     init(
         titles: [MediaTitle],
@@ -338,6 +339,7 @@ struct LibrarySnapshot: Codable, Hashable, Sendable {
         selectedProviderIDs: Set<StreamingProvider.ID>? = nil,
         allowsAIReranking: Bool = false,
         streamingRegionCode: String? = nil,
+        reminderSettings: ReminderSettings = ReminderSettings(),
         schemaVersion: Int = 4
     ) {
         self.schemaVersion = schemaVersion
@@ -346,6 +348,7 @@ struct LibrarySnapshot: Codable, Hashable, Sendable {
         self.selectedProviderIDs = selectedProviderIDs
         self.allowsAIReranking = allowsAIReranking
         self.streamingRegionCode = streamingRegionCode
+        self.reminderSettings = reminderSettings
     }
 }
 

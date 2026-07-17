@@ -3,18 +3,23 @@ import Observation
 @MainActor
 @Observable
 final class AppModel {
-    private let store: any LibraryPersisting
+    let store: any LibraryPersisting
     private let recommendationService: any RecommendationProviding
+    let reminderScheduler: any ReminderScheduling
     let catalogService: any CatalogProviding
     private let seed: LibrarySnapshot
-    private var saveTask: Task<Void, Never>?
-    private var persistenceRevision = 0
+    var saveTask: Task<Void, Never>?
+    var reminderTask: Task<Void, Never>?
+    var persistenceRevision = 0
 
     var titles: [MediaTitle]
     var sharedSpace: SharedSpace
     private(set) var selectedProviderIDs: Set<StreamingProvider.ID>
     private(set) var allowsAIReranking: Bool
     private(set) var streamingRegionOverride: StreamingRegion?
+    private(set) var reminderSettings: ReminderSettings
+    private(set) var reminderCapability = ReminderCapability.unknown
+    var reminderError: String?
     private(set) var hasLoaded = false
     var persistenceError: String?
     private(set) var remoteRankedRecommendations: [Recommendation] = []
@@ -32,11 +37,19 @@ final class AppModel {
     init(
         store: any LibraryPersisting = LibraryStoreFactory.makeDefault(),
         recommendationService: any RecommendationProviding = ProviderNeutralRecommendationService(),
+        reminderScheduler: (any ReminderScheduling)? = nil,
         catalogService: (any CatalogProviding)? = nil,
         seed: LibrarySnapshot = .empty
     ) {
         self.store = store
         self.recommendationService = recommendationService
+        if let reminderScheduler {
+            self.reminderScheduler = reminderScheduler
+        } else if seed == .empty {
+            self.reminderScheduler = LocalNotificationReminderService()
+        } else {
+            self.reminderScheduler = NoopReminderScheduler()
+        }
         if let catalogService {
             self.catalogService = catalogService
         } else if seed == .empty {
@@ -50,6 +63,7 @@ final class AppModel {
         selectedProviderIDs = seed.selectedProviderIDs ?? Self.defaultProviderIDs
         allowsAIReranking = seed.allowsAIReranking ?? false
         streamingRegionOverride = seed.streamingRegionCode.flatMap(StreamingRegion.init(code:))
+        reminderSettings = seed.reminderSettings ?? ReminderSettings()
     }
     var upNext: [MediaTitle] {
         titles
@@ -97,7 +111,8 @@ final class AppModel {
             sharedSpace: sharedSpace,
             selectedProviderIDs: selectedProviderIDs,
             allowsAIReranking: allowsAIReranking,
-            streamingRegionCode: streamingRegionOverride?.code
+            streamingRegionCode: streamingRegionOverride?.code,
+            reminderSettings: reminderSettings
         )
     }
 
@@ -124,12 +139,16 @@ final class AppModel {
                 selectedProviderIDs = snapshot.selectedProviderIDs ?? Self.defaultProviderIDs
                 allowsAIReranking = snapshot.allowsAIReranking ?? false
                 streamingRegionOverride = snapshot.streamingRegionCode.flatMap(StreamingRegion.init(code:))
+                reminderSettings = snapshot.reminderSettings ?? ReminderSettings()
             }
         } catch {
             persistenceError = "Your saved library could not be opened. Your catalog and saved data remain separate."
         }
         await refreshDiscoveryCatalog()
         await refreshRecommendations()
+        await refreshReminderCapability()
+        await refreshReminders()
+        publishWidgetSnapshot()
     }
 }
 
@@ -258,6 +277,7 @@ extension AppModel {
         selectedProviderIDs = snapshot.selectedProviderIDs ?? Self.defaultProviderIDs
         allowsAIReranking = snapshot.allowsAIReranking ?? false
         streamingRegionOverride = snapshot.streamingRegionCode.flatMap(StreamingRegion.init(code:))
+        reminderSettings = snapshot.reminderSettings ?? ReminderSettings()
         persist()
     }
 
@@ -289,6 +309,10 @@ extension AppModel {
         await saveTask?.value
     }
 
+    func flushPendingReminders() async {
+        await reminderTask?.value
+    }
+
     func refreshRecommendations() async {
         guard allowsAIReranking else {
             remoteRankedRecommendations = []
@@ -309,35 +333,6 @@ extension AppModel {
 }
 
 extension AppModel {
-    func persist() {
-        let snapshot = self.snapshot
-        let store = store
-        persistenceRevision += 1
-        let revision = persistenceRevision
-        saveTask?.cancel()
-
-        saveTask = Task {
-            do {
-                try await Task.sleep(for: .milliseconds(150))
-                guard !Task.isCancelled else { return }
-                try await store.save(snapshot)
-                if revision == persistenceRevision {
-                    persistenceError = nil
-                }
-            } catch is CancellationError {
-                return
-            } catch {
-                if revision == persistenceRevision {
-                    persistenceError = "Your latest change is visible but could not be saved."
-                }
-            }
-        }
-    }
-
-    func refreshRecommendationsSoon() {
-        Task { await refreshRecommendations() }
-    }
-
     func merging(savedTitles: [MediaTitle], catalogTitles: [MediaTitle]) -> [MediaTitle] {
         let savedByID = Dictionary(uniqueKeysWithValues: savedTitles.map { ($0.id, $0) })
         let catalogIDs = Set(catalogTitles.map(\.id))
