@@ -14,7 +14,8 @@ final class CustomListModelTests: XCTestCase {
         XCTAssertTrue(model.renameList(listID, to: "Weekend comfort"))
         await model.flushPendingPersistence()
 
-        let saved = try XCTUnwrap(try await store.load())
+        let loaded = try await store.load()
+        let saved = try XCTUnwrap(loaded)
         let list = try XCTUnwrap(saved.lists?.first(where: { $0.id == listID }))
         XCTAssertEqual(list.name, "Weekend comfort")
         XCTAssertEqual(list.titleIDs, ["past-lives", "severance"])
