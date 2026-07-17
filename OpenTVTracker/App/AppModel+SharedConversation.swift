@@ -193,6 +193,7 @@ extension AppModel {
         })
         sharedSpace.reactions = []
         sharedSpace.notes = []
+        sharedSpace.conversationDeletions = deletions
         sharedSpace.conversationDeletions = SharedConversationReconciler.reconcile(
             remote: sharedSpace,
             local: sharedSpace
