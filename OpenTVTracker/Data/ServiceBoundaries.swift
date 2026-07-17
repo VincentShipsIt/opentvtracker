@@ -92,6 +92,14 @@ protocol ReminderScheduling: Sendable {
     ) async throws
 }
 
+protocol PartnerActivityNotifying: Sendable {
+    func requestAuthorization() async
+    func notify(
+        about activities: [SharedActivity],
+        in space: SharedSpace
+    ) async
+}
+
 struct NoopReminderScheduler: ReminderScheduling {
     func requestAuthorization() async -> ReminderAuthorization {
         .denied

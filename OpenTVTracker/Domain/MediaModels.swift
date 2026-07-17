@@ -242,6 +242,11 @@ struct SpaceMember: Codable, Hashable, Identifiable, Sendable {
     let isCurrentUser: Bool
 }
 
+enum SharedActivityKind: String, Codable, Sendable {
+    case general
+    case watchedTogether
+}
+
 struct SharedActivity: Codable, Hashable, Identifiable, Sendable {
     let id: String
     let memberID: String
@@ -249,6 +254,8 @@ struct SharedActivity: Codable, Hashable, Identifiable, Sendable {
     let relativeDate: String
     let symbol: String
     var titleID: MediaTitle.ID? = nil
+    var kind: SharedActivityKind? = nil
+    var occurredAt: Date? = nil
 }
 
 enum SharedMembershipState: String, Codable, Sendable {

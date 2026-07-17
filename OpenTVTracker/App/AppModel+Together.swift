@@ -13,7 +13,8 @@ extension AppModel {
     func addActivity(
         description: String,
         titleID: MediaTitle.ID? = nil,
-        symbol: String = "checkmark"
+        symbol: String = "checkmark",
+        kind: SharedActivityKind = .general
     ) {
         let currentMember = sharedSpace.members.first(where: \.isCurrentUser)
         let activity = SharedActivity(
@@ -22,7 +23,9 @@ extension AppModel {
             description: description.trimmingCharacters(in: .whitespaces),
             relativeDate: "Now",
             symbol: symbol,
-            titleID: titleID
+            titleID: titleID,
+            kind: kind,
+            occurredAt: .now
         )
         sharedSpace.activity.insert(activity, at: 0)
     }
@@ -66,6 +69,7 @@ extension AppModel {
         sharedSpace.membershipState = .pending
         sharedSpace.isCloudSharingEnabled = true
         persist()
+        Task { await partnerActivityNotifier.requestAuthorization() }
     }
 
     func acceptPartnerShare(_ location: PartnerShareLocation) {
@@ -76,7 +80,10 @@ extension AppModel {
         sharedSpace.membershipState = .accepted
         sharedSpace.isCloudSharingEnabled = true
         persist()
-        Task { await startCloudSyncIfNeeded() }
+        Task {
+            await partnerActivityNotifier.requestAuthorization()
+            await startCloudSyncIfNeeded()
+        }
     }
 
     func markWatchedTogether(_ id: MediaTitle.ID) {
@@ -97,7 +104,8 @@ extension AppModel {
         }
         addActivity(
             description: "watched \(titles[index].title) together",
-            titleID: titles[index].id
+            titleID: titles[index].id,
+            kind: .watchedTogether
         )
         persist()
         syncSharedStateSoon()

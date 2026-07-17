@@ -6,6 +6,7 @@ final class AppModel {
     let store: any LibraryPersisting
     private let recommendationService: any RecommendationProviding
     let reminderScheduler: any ReminderScheduling
+    let partnerActivityNotifier: any PartnerActivityNotifying
     let catalogService: any CatalogProviding
     private let seed: LibrarySnapshot
     var saveTask: Task<Void, Never>?
@@ -38,6 +39,7 @@ final class AppModel {
         store: any LibraryPersisting = LibraryStoreFactory.makeDefault(),
         recommendationService: any RecommendationProviding = ProviderNeutralRecommendationService(),
         reminderScheduler: (any ReminderScheduling)? = nil,
+        partnerActivityNotifier: any PartnerActivityNotifying = PartnerActivityNotificationService(),
         catalogService: (any CatalogProviding)? = nil,
         seed: LibrarySnapshot = .empty
     ) {
@@ -50,6 +52,7 @@ final class AppModel {
         } else {
             self.reminderScheduler = NoopReminderScheduler()
         }
+        self.partnerActivityNotifier = partnerActivityNotifier
         if let catalogService {
             self.catalogService = catalogService
         } else if seed == .empty {

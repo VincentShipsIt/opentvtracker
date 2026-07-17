@@ -9,6 +9,11 @@ extension AppModel {
         await syncSharedState()
     }
 
+    func applyLatestCloudSharedState() async {
+        guard sharedSpace.isCloudSharingEnabled else { return }
+        await applyCachedSharedState()
+    }
+
     func syncSharedStateSoon() {
         guard sharedSpace.isCloudSharingEnabled else { return }
         Task { await syncSharedState() }
@@ -47,6 +52,8 @@ extension AppModel {
               ),
               var remoteSpace = try? JSONDecoder.openTV.decode(SharedSpace.self, from: payload) else { return }
         let currentMemberID = sharedSpace.members.first(where: \.isCurrentUser)?.id
+        let localActivityIDs = Set(sharedSpace.activity.map(\.id))
+        let newRemoteActivities = remoteSpace.activity.filter { !localActivityIDs.contains($0.id) }
         remoteSpace.members = mergingMembers(
             remote: remoteSpace.members,
             local: sharedSpace.members,
@@ -71,6 +78,10 @@ extension AppModel {
         remoteSpace.isCurrentUserShareOwner = sharedSpace.isCurrentUserShareOwner
         sharedSpace = remoteSpace
         persist()
+        await partnerActivityNotifier.notify(
+            about: newRemoteActivities,
+            in: remoteSpace
+        )
     }
 
     private func mergingMembers(

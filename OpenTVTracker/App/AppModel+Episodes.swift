@@ -205,7 +205,8 @@ extension AppModel {
         }
         addActivity(
             description: "watched \(titles[index].title) S\(season.number) E\(episode.number) together",
-            titleID: titles[index].id
+            titleID: titles[index].id,
+            kind: .watchedTogether
         )
         persist()
         syncSharedStateSoon()

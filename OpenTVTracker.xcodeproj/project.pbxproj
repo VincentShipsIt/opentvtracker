@@ -33,6 +33,7 @@
 		3E59E13E219DBAD767FB2AE7 /* NearbyPartnerPairingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F61F112D5E7C9F7AD8805316 /* NearbyPartnerPairingView.swift */; };
 		3F4157CE8772748A5842B1A9 /* AppModel+Persistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BED76A8A89A7AF50D08D689 /* AppModel+Persistence.swift */; };
 		4322EAD681A2387A362254F8 /* TVTimeImportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CABFCEF46F88DA76050D7FB /* TVTimeImportTests.swift */; };
+		437592405E000071951ABA60 /* PartnerActivityNotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACF36F728ADACA8C64E95822 /* PartnerActivityNotificationService.swift */; };
 		44F7965B8A09B4C6F469F0E8 /* EpisodeTrackingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A2D4801169B99AA39704399 /* EpisodeTrackingTests.swift */; };
 		4984F2EC86E19D24BC7C76B5 /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8E7E3F8A96168C055C72164 /* TodayView.swift */; };
 		506E74BACC939C49A1186BB9 /* OpenTVWidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26C95F6168D463F58164BA67 /* OpenTVWidgetSnapshot.swift */; };
@@ -92,6 +93,7 @@
 		D097061FA4BCFE65906D4922 /* TVTimeCSV.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7627BC8256E7005B514047AD /* TVTimeCSV.swift */; };
 		D0A992875FF9DADE49D281D7 /* SampleData.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6959FA42B212427BC26E3C0 /* SampleData.swift */; };
 		D40C0E60CC132F3D4F1FBB53 /* GlassSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85B0DEBE6FA007C4AD395D0A /* GlassSurface.swift */; };
+		D5252B6709B0096A0E0AD0F1 /* PartnerActivityNotificationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00637C04E8B4A58C1B5CDBB1 /* PartnerActivityNotificationTests.swift */; };
 		D7E64552B6F88B5EE7041842 /* OpenTVWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63627A451095F4406BD092F2 /* OpenTVWidgets.swift */; };
 		D8515D38157AB7E96DE964CD /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0E6165457A0D58BF9970351 /* LibraryView.swift */; };
 		D9CBA5DC591FF41978849D66 /* CloudKitPartnerSharingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64F135995FDD13BE45A3C6AA /* CloudKitPartnerSharingService.swift */; };
@@ -152,6 +154,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		00637C04E8B4A58C1B5CDBB1 /* PartnerActivityNotificationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PartnerActivityNotificationTests.swift; sourceTree = "<group>"; };
 		058FC17069CAF8CCDAB3F30F /* DiscoveryAssistantTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoveryAssistantTests.swift; sourceTree = "<group>"; };
 		09B7EE9649A0B910846E6685 /* LocalNotificationReminderService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalNotificationReminderService.swift; sourceTree = "<group>"; };
 		0A56CE007B21E5CD00CEA243 /* TVTimeImport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVTimeImport.swift; sourceTree = "<group>"; };
@@ -220,6 +223,7 @@
 		A55427CF53BBA4E379542E17 /* TVTimeImportMerger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVTimeImportMerger.swift; sourceTree = "<group>"; };
 		A6AC020D3628C2BC31EECC5A /* ViewingAnalytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewingAnalytics.swift; sourceTree = "<group>"; };
 		ABC74D06E46B01B3A7DF3712 /* Base.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Base.xcconfig; sourceTree = "<group>"; };
+		ACF36F728ADACA8C64E95822 /* PartnerActivityNotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PartnerActivityNotificationService.swift; sourceTree = "<group>"; };
 		B25783B9D6CF69BC074D6284 /* CloudSharingModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudSharingModelTests.swift; sourceTree = "<group>"; };
 		B65D49A99E1E6D70E15AA28A /* AppAttestClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppAttestClient.swift; sourceTree = "<group>"; };
 		B86F3C7F8062C768E588DC69 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
@@ -295,6 +299,7 @@
 				50667E3BA11AD73BD2DF5660 /* NearbyPartnerPairingService.swift */,
 				CC2BB18591F81E269CF6E89D /* OpenRouterOAuth.swift */,
 				BD2FDCE6515802061FAF0301 /* OpenRouterRecommendationService.swift */,
+				ACF36F728ADACA8C64E95822 /* PartnerActivityNotificationService.swift */,
 				CC818E6FA8B8249F3F7087FB /* RecommendationServices.swift */,
 				493F1A7537846757A044FDAE /* ServiceBoundaries.swift */,
 				0F570624616BB1EC10933521 /* TVMazeCatalogService.swift */,
@@ -505,6 +510,7 @@
 				CB86ECFE65B31D28B52695CC /* LibraryTransferTests.swift */,
 				2EABBCF99AF35E31BADA99A9 /* NearbyPartnerPairingTests.swift */,
 				72D3B828F5E37999D78BDC82 /* OpenRouterOAuthTests.swift */,
+				00637C04E8B4A58C1B5CDBB1 /* PartnerActivityNotificationTests.swift */,
 				1F15155D794E90782ECB43F7 /* RecommendationServiceTests.swift */,
 				6715F0AA874C33CDC851335B /* ReminderPlannerTests.swift */,
 				DE0F1C9FB65AADD9A652894A /* SecurityTestSupport.swift */,
@@ -650,7 +656,7 @@
 					96396D01C2F07D817EF2875C = {
 						DevelopmentTeam = C76R5DRH64;
 						ProvisioningStyle = Automatic;
-						SystemCapabilities = "[\"com.apple.iCloud\": [\"enabled\": 1], \"com.apple.DeviceCheck\": [\"enabled\": 1], \"com.apple.Push\": [\"enabled\": 1]]";
+						SystemCapabilities = "[\"com.apple.Push\": [\"enabled\": 1], \"com.apple.iCloud\": [\"enabled\": 1], \"com.apple.DeviceCheck\": [\"enabled\": 1]]";
 					};
 					B0AF29D3A827D293C2407B7B = {
 						DevelopmentTeam = C76R5DRH64;
@@ -727,6 +733,7 @@
 				94DD351F05C931C26FA450C1 /* LibraryTransferTests.swift in Sources */,
 				DE8C312423B5EA01F18239AC /* NearbyPartnerPairingTests.swift in Sources */,
 				354B9F99E8BC5F479432258D /* OpenRouterOAuthTests.swift in Sources */,
+				D5252B6709B0096A0E0AD0F1 /* PartnerActivityNotificationTests.swift in Sources */,
 				2B7C225B22689F41619D138B /* RecommendationServiceTests.swift in Sources */,
 				8D14CBB6F9CA3ACDF83F7409 /* ReminderPlannerTests.swift in Sources */,
 				ACF5AFE9033CB230A610ECE9 /* SecurityTestSupport.swift in Sources */,
@@ -790,6 +797,7 @@
 				9BF7B87BBB573EBDD2CB7BB5 /* OpenRouterRecommendationService.swift in Sources */,
 				28AA0BDC90F80CD826FD050F /* OpenTVTrackerApp.swift in Sources */,
 				EC8A748CE8C4B6F11A622A78 /* OpenTVWidgetSnapshot.swift in Sources */,
+				437592405E000071951ABA60 /* PartnerActivityNotificationService.swift in Sources */,
 				88127655816C90B84C533DFB /* PosterArtwork.swift in Sources */,
 				02D0334788C3B85C9DE8326C /* ProfileView.swift in Sources */,
 				976BC2E8EECFBADA02F49FF8 /* RecommendationServices.swift in Sources */,
