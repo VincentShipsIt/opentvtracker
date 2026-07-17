@@ -120,6 +120,24 @@ final class LibraryTransferTests: XCTestCase {
         XCTAssertTrue(preview.importNotice?.contains("AI reranking will be enabled") == true)
     }
 
+    func testLegacyJSONImportPreservesSettingsMissingFromBackup() throws {
+        let exported = try LibraryTransferService.exportJSON(.sample)
+        var object = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: exported) as? [String: Any]
+        )
+        object["schemaVersion"] = 3
+        let legacyArchive = try JSONSerialization.data(withJSONObject: object)
+
+        var current = LibrarySnapshot.sample
+        current.allowsAIReranking = true
+        current.streamingRegionCode = "MT"
+
+        let preview = try LibraryTransferService.previewImport(legacyArchive, into: current)
+
+        XCTAssertEqual(preview.snapshot.allowsAIReranking, true)
+        XCTAssertEqual(preview.snapshot.streamingRegionCode, "MT")
+    }
+
     func testJSONImportRestoresWatchedEpisodesForExistingCatalogTitle() throws {
         var snapshot = LibrarySnapshot.sample
         let index = try XCTUnwrap(snapshot.titles.firstIndex(where: { $0.id == "severance" }))

@@ -123,8 +123,12 @@ extension LibraryTransferService {
             imported: imported.sharedSpace,
             into: current.sharedSpace
         )
-        merged.allowsAIReranking = imported.allowsAIReranking
-        merged.streamingRegionCode = imported.streamingRegionCode
+        if let allowsAIReranking = imported.allowsAIReranking {
+            merged.allowsAIReranking = allowsAIReranking
+        }
+        if let streamingRegionCode = imported.streamingRegionCode {
+            merged.streamingRegionCode = streamingRegionCode
+        }
 
         return LibraryImportPreview(
             snapshot: merged,
