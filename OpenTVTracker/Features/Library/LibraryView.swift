@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct LibraryView: View {
-    @Environment(AppModel.self) private var model
+    @State private var section: LibrarySection = .titles
     @State private var filter: WatchState = .watching
     @State private var showsDataTools = false
 
@@ -11,35 +11,20 @@ struct LibraryView: View {
                 AmbientBackdrop()
 
                 VStack(spacing: 12) {
-                    Picker("Library section", selection: $filter) {
-                        ForEach(WatchState.allCases, id: \.self) { state in
-                            Text(state.label).tag(state)
+                    Picker("Library view", selection: $section) {
+                        ForEach(LibrarySection.allCases) { section in
+                            Text(section.label).tag(section)
                         }
                     }
                     .pickerStyle(.segmented)
                     .padding(.horizontal, AppTheme.horizontalPadding)
 
-                    Group {
-                        if filteredTitles.isEmpty {
-                            ContentUnavailableView(
-                                "Nothing \(filter.label.lowercased())",
-                                systemImage: "rectangle.stack.badge.plus",
-                                description: Text("Add something from Discover and it will appear here.")
-                            )
-                            .frame(maxHeight: .infinity)
-                        } else {
-                            List(filteredTitles) { title in
-                                NavigationLink(value: title) {
-                                    LibraryRow(title: title)
-                                }
-                                .listRowBackground(Color.clear)
-                                .listRowSeparator(.hidden)
-                            }
-                            .listStyle(.plain)
-                            .scrollContentBackground(.hidden)
-                        }
+                    switch section {
+                    case .titles:
+                        LibraryTitlesView(filter: $filter)
+                    case .lists:
+                        CustomListsView()
                     }
-                    .transaction { $0.disablesAnimations = true }
                 }
                 .padding(.top, 8)
             }
@@ -59,12 +44,50 @@ struct LibraryView: View {
         }
     }
 
+}
+
+private struct LibraryTitlesView: View {
+    @Environment(AppModel.self) private var model
+    @Binding var filter: WatchState
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Picker("Tracking state", selection: $filter) {
+                ForEach(WatchState.allCases, id: \.self) { state in
+                    Text(state.label).tag(state)
+                }
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal, AppTheme.horizontalPadding)
+
+            if filteredTitles.isEmpty {
+                ContentUnavailableView(
+                    "Nothing \(filter.label.lowercased())",
+                    systemImage: "rectangle.stack.badge.plus",
+                    description: Text("Add something from Discover and it will appear here.")
+                )
+                .frame(maxHeight: .infinity)
+            } else {
+                List(filteredTitles) { title in
+                    NavigationLink(value: title) {
+                        LibraryRow(title: title)
+                    }
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
+            }
+        }
+        .transaction { $0.disablesAnimations = true }
+    }
+
     private var filteredTitles: [MediaTitle] {
         model.titles(in: filter)
     }
 }
 
-private struct LibraryRow: View {
+struct LibraryRow: View {
     let title: MediaTitle
 
     var body: some View {
@@ -89,6 +112,20 @@ private struct LibraryRow: View {
         }
         .padding(.vertical, 4)
         .accessibilityElement(children: .combine)
+    }
+}
+
+private enum LibrarySection: String, CaseIterable, Identifiable {
+    case titles
+    case lists
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .titles: "Titles"
+        case .lists: "Lists"
+        }
     }
 }
 

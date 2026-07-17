@@ -301,6 +301,24 @@ struct SharedNote: Codable, Hashable, Identifiable, Sendable {
     let createdAt: Date
 }
 
+struct MediaList: Codable, Hashable, Identifiable, Sendable {
+    let id: String
+    var name: String
+    var titleIDs: [MediaTitle.ID]
+    var updatedAt: Date
+}
+
+struct SharedMediaList: Codable, Hashable, Identifiable, Sendable {
+    let id: MediaList.ID
+    var name: String
+    var titleIDs: [MediaTitle.ID]
+    let ownerMemberID: SpaceMember.ID
+    var updatedAt: Date
+    var deletedAt: Date? = nil
+
+    var isDeleted: Bool { deletedAt != nil }
+}
+
 struct SharedSpace: Codable, Hashable, Identifiable, Sendable {
     let id: String
     var name: String
@@ -317,6 +335,7 @@ struct SharedSpace: Codable, Hashable, Identifiable, Sendable {
     var cloudOwnerName: String? = nil
     var isCurrentUserShareOwner: Bool? = nil
     var titleMetadata: [MediaTitle]? = nil
+    var sharedLists: [SharedMediaList]? = nil
 
     var resolvedMembershipState: SharedMembershipState {
         membershipState ?? (isCloudSharingEnabled ? .accepted : .local)
@@ -331,6 +350,7 @@ struct LibrarySnapshot: Codable, Hashable, Sendable {
     var selectedProviderIDs: Set<StreamingProvider.ID>?
     var allowsAIReranking: Bool?
     var streamingRegionCode: String?
+    var lists: [MediaList]?
 
     init(
         titles: [MediaTitle],
@@ -338,6 +358,7 @@ struct LibrarySnapshot: Codable, Hashable, Sendable {
         selectedProviderIDs: Set<StreamingProvider.ID>? = nil,
         allowsAIReranking: Bool = false,
         streamingRegionCode: String? = nil,
+        lists: [MediaList] = [],
         schemaVersion: Int = 4
     ) {
         self.schemaVersion = schemaVersion
@@ -346,6 +367,7 @@ struct LibrarySnapshot: Codable, Hashable, Sendable {
         self.selectedProviderIDs = selectedProviderIDs
         self.allowsAIReranking = allowsAIReranking
         self.streamingRegionCode = streamingRegionCode
+        self.lists = lists
     }
 }
 

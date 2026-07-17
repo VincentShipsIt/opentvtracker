@@ -56,25 +56,21 @@ enum TVTimeImportMerger {
         resolved: [String: MediaTitle]
     ) -> LibraryImportPreview {
         var snapshot = current
-        var matchedCount = 0
-        var addedCount = 0
-        var skippedCount = 0
-        var watchedEpisodeCount = 0
-        var watchEventCount = 0
+        var counters = TVTimeImportCounters()
         let memberID = snapshot.sharedSpace.members.first(where: \.isCurrentUser)?.id ?? "local-user"
         var existingEventIDs = Set((snapshot.sharedSpace.watchEvents ?? []).map(\.id))
 
         for entity in archive.entities {
             guard var catalogTitle = resolved[entity.identity] else {
-                skippedCount += 1
+                counters.skipped += 1
                 continue
             }
             let existingIndex = snapshot.titles.firstIndex(where: { matches($0, entity) })
             if let existingIndex {
                 catalogTitle = snapshot.titles[existingIndex]
-                matchedCount += 1
+                counters.matched += 1
             } else {
-                addedCount += 1
+                counters.added += 1
             }
 
             let applied = apply(
@@ -83,9 +79,9 @@ enum TVTimeImportMerger {
                 memberID: memberID,
                 existingEventIDs: &existingEventIDs
             )
-            watchedEpisodeCount += applied.watchedEpisodes
-            watchEventCount += applied.watchEvents.count
-            skippedCount += applied.unmatchedEpisodes
+            counters.watchedEpisodes += applied.watchedEpisodes
+            counters.watchEvents += applied.watchEvents.count
+            counters.skipped += applied.unmatchedEpisodes
             snapshot.sharedSpace.watchEvents = (snapshot.sharedSpace.watchEvents ?? []) + applied.watchEvents
 
             if let existingIndex {
@@ -93,20 +89,37 @@ enum TVTimeImportMerger {
             } else {
                 snapshot.titles.append(catalogTitle)
             }
-            if !snapshot.sharedSpace.titleIDs.contains(catalogTitle.id) {
+            if !archive.containsListOnly(entity) && !snapshot.sharedSpace.titleIDs.contains(catalogTitle.id) {
                 snapshot.sharedSpace.titleIDs.append(catalogTitle.id)
             }
         }
+        let listMerge = TVTimeListMerger.merge(
+            archive.lists,
+            into: snapshot.lists ?? [],
+            resolved: resolved
+        )
+        snapshot.lists = listMerge.lists
+        counters.skipped += listMerge.skippedMemberships
+        return makePreview(snapshot: snapshot, archive: archive, counters: counters, listMerge: listMerge)
+    }
 
-        return LibraryImportPreview(
+    private static func makePreview(
+        snapshot: LibrarySnapshot,
+        archive: TVTimeArchive,
+        counters: TVTimeImportCounters,
+        listMerge: TVTimeListMergeResult
+    ) -> LibraryImportPreview {
+        LibraryImportPreview(
             snapshot: snapshot,
-            matchedCount: matchedCount,
-            addedCount: addedCount,
+            matchedCount: counters.matched,
+            addedCount: counters.added,
             duplicateCount: archive.duplicateCount,
-            skippedCount: skippedCount,
+            skippedCount: counters.skipped,
             sourceName: "TV Time",
-            watchedEpisodeCount: watchedEpisodeCount,
-            watchEventCount: watchEventCount
+            watchedEpisodeCount: counters.watchedEpisodes,
+            watchEventCount: counters.watchEvents,
+            listCount: archive.lists.count,
+            listMembershipCount: listMerge.importedMemberships
         )
     }
 
@@ -292,4 +305,12 @@ private struct AppliedHistory {
     var watchedEpisodes = 0
     var unmatchedEpisodes = 0
     var watchEvents: [SharedWatchEvent] = []
+}
+
+private struct TVTimeImportCounters {
+    var matched = 0
+    var added = 0
+    var skipped = 0
+    var watchedEpisodes = 0
+    var watchEvents = 0
 }

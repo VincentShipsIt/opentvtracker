@@ -4,6 +4,7 @@ struct MediaDetailView: View {
     @Environment(AppModel.self) private var model
     let titleID: MediaTitle.ID
     @State private var presentedTrailer: TrailerPresentation?
+    @State private var listPickerTitle: MediaTitle?
     @State private var showsTrackingEditor = false
     @State private var showsSharedNoteEditor = false
 
@@ -40,6 +41,9 @@ struct MediaDetailView: View {
         }
         .sheet(item: $presentedTrailer) { trailer in
             TrailerPlayerView(trailer: trailer)
+        }
+        .sheet(item: $listPickerTitle) { title in
+            AddToListsView(title: title)
         }
         .sheet(isPresented: $showsTrackingEditor) {
             if let title {
@@ -186,26 +190,6 @@ struct MediaDetailView: View {
         }
     }
 
-    private func recommendationAndTrackingActions(_ title: MediaTitle) -> some View {
-        VStack(spacing: 10) {
-            NavigationLink(value: MoreLikeThisRoute(sourceTitleID: title.id)) {
-                Label("More like this", systemImage: "sparkles")
-                    .frame(maxWidth: .infinity)
-            }
-            .controlSize(.large)
-            .adaptiveGlassButton()
-            .accessibilityHint("Finds similar unwatched titles on your selected streaming services")
-
-            Button {
-                showsTrackingEditor = true
-            } label: {
-                Label("Your activity", systemImage: "checkmark.rectangle.stack")
-                    .frame(maxWidth: .infinity)
-            }
-            .adaptiveGlassButton()
-        }
-    }
-
     private func story(_ title: MediaTitle) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             SectionHeading(title: "The story")
@@ -271,6 +255,36 @@ struct MediaDetailView: View {
                 }
                 .font(.footnote.weight(.semibold))
             }
+        }
+    }
+}
+
+private extension MediaDetailView {
+    func recommendationAndTrackingActions(_ title: MediaTitle) -> some View {
+        VStack(spacing: 10) {
+            NavigationLink(value: MoreLikeThisRoute(sourceTitleID: title.id)) {
+                Label("More like this", systemImage: "sparkles")
+                    .frame(maxWidth: .infinity)
+            }
+            .controlSize(.large)
+            .adaptiveGlassButton()
+            .accessibilityHint("Finds similar unwatched titles on your selected streaming services")
+
+            Button {
+                showsTrackingEditor = true
+            } label: {
+                Label("Your activity", systemImage: "checkmark.rectangle.stack")
+                    .frame(maxWidth: .infinity)
+            }
+            .adaptiveGlassButton()
+
+            Button {
+                listPickerTitle = title
+            } label: {
+                Label("Add to custom list", systemImage: "list.bullet.rectangle")
+                    .frame(maxWidth: .infinity)
+            }
+            .adaptiveGlassButton()
         }
     }
 }

@@ -26,6 +26,9 @@ struct LibraryDataView: View {
                     Button("Export watch events CSV", systemImage: "clock.arrow.trianglehead.counterclockwise.rotate.90") {
                         prepareExport(.eventsCSV)
                     }
+                    Button("Export custom lists CSV", systemImage: "list.bullet.rectangle") {
+                        prepareExport(.listsCSV)
+                    }
                 }
 
                 Section {
@@ -51,6 +54,10 @@ struct LibraryDataView: View {
                         }
                         if importPreview.watchEventCount > 0 {
                             LabeledContent("Dated watches", value: String(importPreview.watchEventCount))
+                        }
+                        if importPreview.listCount > 0 {
+                            LabeledContent("Custom lists", value: String(importPreview.listCount))
+                            LabeledContent("List memberships", value: String(importPreview.listMembershipCount))
                         }
                         LabeledContent("Duplicates", value: String(importPreview.duplicateCount))
                         LabeledContent("Skipped", value: String(importPreview.skippedCount))
@@ -112,6 +119,10 @@ struct LibraryDataView: View {
                 data = LibraryTransferService.exportWatchEventsCSV(model.snapshot)
                 exportContentType = .commaSeparatedText
                 exportFilename = "OpenTV-watch-events.csv"
+            case .listsCSV:
+                data = LibraryTransferService.exportListsCSV(model.snapshot)
+                exportContentType = .commaSeparatedText
+                exportFilename = "OpenTV-lists.csv"
             }
             exportDocument = LibraryExportDocument(data: data)
             showsExporter = true
@@ -160,6 +171,7 @@ private enum LibraryExportKind {
     case json
     case titlesCSV
     case eventsCSV
+    case listsCSV
 }
 
 struct LibraryExportDocument: FileDocument {

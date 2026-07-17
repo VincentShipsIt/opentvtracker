@@ -12,6 +12,7 @@ final class AppModel {
 
     var titles: [MediaTitle]
     var sharedSpace: SharedSpace
+    var lists: [MediaList]
     private(set) var selectedProviderIDs: Set<StreamingProvider.ID>
     private(set) var allowsAIReranking: Bool
     private(set) var streamingRegionOverride: StreamingRegion?
@@ -47,6 +48,7 @@ final class AppModel {
         self.seed = seed
         titles = seed.titles
         sharedSpace = seed.sharedSpace
+        lists = seed.lists ?? []
         selectedProviderIDs = seed.selectedProviderIDs ?? Self.defaultProviderIDs
         allowsAIReranking = seed.allowsAIReranking ?? false
         streamingRegionOverride = seed.streamingRegionCode.flatMap(StreamingRegion.init(code:))
@@ -97,7 +99,8 @@ final class AppModel {
             sharedSpace: sharedSpace,
             selectedProviderIDs: selectedProviderIDs,
             allowsAIReranking: allowsAIReranking,
-            streamingRegionCode: streamingRegionOverride?.code
+            streamingRegionCode: streamingRegionOverride?.code,
+            lists: lists
         )
     }
 
@@ -121,6 +124,7 @@ final class AppModel {
             if let snapshot = try await store.load() {
                 titles = merging(savedTitles: snapshot.titles, catalogTitles: seed.titles)
                 sharedSpace = snapshot.sharedSpace
+                lists = snapshot.lists ?? []
                 selectedProviderIDs = snapshot.selectedProviderIDs ?? Self.defaultProviderIDs
                 allowsAIReranking = snapshot.allowsAIReranking ?? false
                 streamingRegionOverride = snapshot.streamingRegionCode.flatMap(StreamingRegion.init(code:))
@@ -255,6 +259,7 @@ extension AppModel {
     func replaceLibrary(with snapshot: LibrarySnapshot) {
         titles = merging(savedTitles: snapshot.titles, catalogTitles: seed.titles)
         sharedSpace = snapshot.sharedSpace
+        lists = snapshot.lists ?? []
         selectedProviderIDs = snapshot.selectedProviderIDs ?? Self.defaultProviderIDs
         allowsAIReranking = snapshot.allowsAIReranking ?? false
         streamingRegionOverride = snapshot.streamingRegionCode.flatMap(StreamingRegion.init(code:))

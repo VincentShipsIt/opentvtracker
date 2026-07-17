@@ -64,7 +64,7 @@ extension AppModel {
             let index = trackableTitleIndex(for: id)
             if let index {
                 titles[index] = refreshed
-                if isShared(id) {
+                if isShared(id) || isTitleSharedViaList(id) {
                     prepareSharedTitleMetadataForSync()
                     syncSharedStateSoon()
                 }
@@ -150,14 +150,18 @@ extension AppModel {
     }
 
     private func clearUntrackedCatalogTitles() {
-        let sharedTitleIDs = Set(sharedSpace.titleIDs)
+        let listTitleIDs = lists.flatMap(\.titleIDs)
+        let sharedListTitleIDs = (sharedSpace.sharedLists ?? [])
+            .filter { !$0.isDeleted }
+            .flatMap(\.titleIDs)
+        let retainedTitleIDs = Set(sharedSpace.titleIDs + listTitleIDs + sharedListTitleIDs)
         titles.removeAll { title in
             title.state == .planned
                 && !title.isOnPersonalWatchlist
                 && title.userRating == nil
                 && title.notes == nil
                 && title.completedRewatches == 0
-                && !sharedTitleIDs.contains(title.id)
+                && !retainedTitleIDs.contains(title.id)
         }
     }
 

@@ -26,7 +26,15 @@ enum TVTimeImportService {
 
 struct TVTimeArchive: Sendable {
     var entities: [TVTimeEntity]
+    var lists: [TVTimeList]
     var duplicateCount: Int
+
+    func containsListOnly(_ entity: TVTimeEntity) -> Bool {
+        !entity.hasTrackingData
+            && lists.contains { list in
+                list.memberships.contains { $0.entityIdentity == entity.identity }
+            }
+    }
 }
 
 struct TVTimeEntity: Sendable {
@@ -43,11 +51,33 @@ struct TVTimeEntity: Sendable {
     var watches: [TVTimeWatch] = []
 }
 
+extension TVTimeEntity {
+    var hasTrackingData: Bool {
+        isFollowed
+            || isForLater
+            || isArchived
+            || rating != nil
+            || rewatchCount > 0
+            || !watches.isEmpty
+    }
+}
+
 struct TVTimeWatch: Hashable, Sendable {
     var season: Int?
     var episode: Int?
     var occurredAt: Date?
     var isRewatch: Bool
+}
+
+struct TVTimeList: Sendable {
+    let id: MediaList.ID
+    var name: String
+    var memberships: [TVTimeListMembership]
+}
+
+struct TVTimeListMembership: Hashable, Sendable {
+    let entityIdentity: String
+    let order: Int
 }
 
 private enum TVTimeArchiveParser {
@@ -57,6 +87,7 @@ private enum TVTimeArchiveParser {
 
     private static func parse(files: [String: Data]) throws -> TVTimeArchive {
         var entities: [String: TVTimeEntity] = [:]
+        var lists: [MediaList.ID: TVTimeList] = [:]
         var duplicateCount = 0
 
         for (path, data) in files.sorted(by: { filePriority($0.key) < filePriority($1.key) }) {
@@ -69,6 +100,7 @@ private enum TVTimeArchiveParser {
                 filename,
                 records: records,
                 entities: &entities,
+                lists: &lists,
                 duplicates: &duplicateCount
             )
         }
@@ -76,6 +108,7 @@ private enum TVTimeArchiveParser {
         guard !entities.isEmpty else { throw TVTimeImportError.noSupportedData }
         return TVTimeArchive(
             entities: entities.values.sorted { $0.identity < $1.identity },
+            lists: lists.values.sorted { $0.id < $1.id },
             duplicateCount: duplicateCount
         )
     }
@@ -84,6 +117,7 @@ private enum TVTimeArchiveParser {
         _ filename: String,
         records: [[String: String]],
         entities: inout [String: TVTimeEntity],
+        lists: inout [MediaList.ID: TVTimeList],
         duplicates: inout Int
     ) {
         if filename == "tracking-prod-records-v2.csv" {
@@ -106,12 +140,17 @@ private enum TVTimeArchiveParser {
             parseShowRatings(records, entities: &entities)
         } else if filename == "ratings-live-votes.csv" {
             parseRatingVotes(records, entities: &entities)
+        } else if filename == "lists-prod-lists.csv" {
+            TVTimeListParser.parseGDPR(records, lists: &lists)
+        } else if filename.contains("tvtime-lists-") {
+            TVTimeListParser.parseNative(records, entities: &entities, lists: &lists)
         }
     }
 
     private static func filePriority(_ path: String) -> Int {
         let filename = URL(fileURLWithPath: path).lastPathComponent.lowercased()
         if filename.contains("rating") || filename == "tv_show_rate.csv" { return 2 }
+        if filename == "lists-prod-lists.csv" || filename.contains("tvtime-lists-") { return 3 }
         if filename == "followed_tv_show.csv" || filename.contains("tvtime-series-") { return 1 }
         return 0
     }

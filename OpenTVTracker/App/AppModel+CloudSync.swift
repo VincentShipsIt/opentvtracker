@@ -57,6 +57,10 @@ extension AppModel {
         remoteSpace.watchEvents = merging(remoteSpace.watchEvents ?? [], sharedSpace.watchEvents ?? [])
         remoteSpace.reactions = merging(remoteSpace.reactions ?? [], sharedSpace.reactions ?? [])
         remoteSpace.notes = merging(remoteSpace.notes ?? [], sharedSpace.notes ?? [])
+        remoteSpace.sharedLists = mergingSharedLists(
+            remote: remoteSpace.sharedLists ?? [],
+            local: sharedSpace.sharedLists ?? []
+        )
         let remoteMetadata = remoteSpace.titleMetadata ?? []
         let localMetadata = sharedSpace.titleMetadata ?? []
         remoteSpace.titleMetadata = mergingTitleMetadata(remote: remoteMetadata, local: localMetadata)
@@ -106,6 +110,17 @@ extension AppModel {
         var valuesByID = Dictionary(uniqueKeysWithValues: local.map { ($0.id, $0) })
         for title in remote {
             valuesByID[title.id] = title
+        }
+        return valuesByID.values.sorted { $0.id < $1.id }
+    }
+
+    private func mergingSharedLists(
+        remote: [SharedMediaList],
+        local: [SharedMediaList]
+    ) -> [SharedMediaList] {
+        var valuesByID = Dictionary(uniqueKeysWithValues: local.map { ($0.id, $0) })
+        for list in remote where list.updatedAt > (valuesByID[list.id]?.updatedAt ?? .distantPast) {
+            valuesByID[list.id] = list
         }
         return valuesByID.values.sorted { $0.id < $1.id }
     }
