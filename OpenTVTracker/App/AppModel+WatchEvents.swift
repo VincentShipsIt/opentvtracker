@@ -57,11 +57,19 @@ extension AppModel {
     func markWatched(_ id: MediaTitle.ID) {
         guard let index = trackableTitleIndex(for: id), titles[index].state != .completed else { return }
         let watchedAt = Date.now
-        let previouslyWatchedEpisodeIDs = resolvedWatchedEpisodeIDs(for: titles[index])
 
         let regularSeasons = (titles[index].seasons ?? [])
             .filter { $0.number > 0 }
             .sorted { $0.number < $1.number }
+        let previouslyWatchedEpisodeIDs = Set(regularSeasons.flatMap { season in
+            season.episodes.filter { episode in
+                isEpisodeWatched(
+                    titleID: id,
+                    seasonNumber: season.number,
+                    episodeID: episode.id
+                )
+            }.map(\.id)
+        })
         if titles[index].kind == .series, !regularSeasons.isEmpty {
             titles[index].watchedEpisodeIDs = Set(regularSeasons.flatMap(\.episodes).map(\.id))
             if let lastSeason = regularSeasons.last {
