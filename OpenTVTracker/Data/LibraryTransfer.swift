@@ -9,6 +9,7 @@ struct LibraryImportPreview: Sendable {
     let sourceName: String
     let watchedEpisodeCount: Int
     let watchEventCount: Int
+    let importNotice: String?
 
     init(
         snapshot: LibrarySnapshot,
@@ -18,7 +19,8 @@ struct LibraryImportPreview: Sendable {
         skippedCount: Int,
         sourceName: String = "OpenTV",
         watchedEpisodeCount: Int = 0,
-        watchEventCount: Int = 0
+        watchEventCount: Int = 0,
+        importNotice: String? = nil
     ) {
         self.snapshot = snapshot
         self.matchedCount = matchedCount
@@ -28,6 +30,7 @@ struct LibraryImportPreview: Sendable {
         self.sourceName = sourceName
         self.watchedEpisodeCount = watchedEpisodeCount
         self.watchEventCount = watchEventCount
+        self.importNotice = importNotice
     }
 
     var summary: String {
@@ -70,8 +73,14 @@ enum LibraryTransferService {
     }
 
     static func previewImport(_ data: Data, into current: LibrarySnapshot) throws -> LibraryImportPreview {
-        if let imported = try? LibraryArchiveCodec.decode(data) {
-            return merge(imported: imported, into: current)
+        if LibraryBackupMerge.appearsToBeJSON(data) {
+            do {
+                return merge(imported: try LibraryArchiveCodec.decode(data), into: current)
+            } catch let error as LibraryArchiveError {
+                throw error
+            } catch {
+                throw LibraryTransferError.unreadableFile
+            }
         }
         guard let csv = String(data: data, encoding: .utf8) else {
             throw LibraryTransferError.unreadableFile
@@ -110,13 +119,25 @@ extension LibraryTransferService {
         if let selectedProviderIDs = imported.selectedProviderIDs {
             merged.selectedProviderIDs = selectedProviderIDs
         }
+        merged.sharedSpace = LibraryBackupMerge.sharedSpace(
+            imported: imported.sharedSpace,
+            into: current.sharedSpace
+        )
+        merged.allowsAIReranking = imported.allowsAIReranking
+        merged.streamingRegionCode = imported.streamingRegionCode
 
         return LibraryImportPreview(
             snapshot: merged,
             matchedCount: matched,
             addedCount: added,
             duplicateCount: duplicates,
-            skippedCount: 0
+            skippedCount: 0,
+            sourceName: "OpenTV backup",
+            watchedEpisodeCount: imported.titles.reduce(0) {
+                $0 + ($1.watchedEpisodeIDs?.count ?? 0)
+            },
+            watchEventCount: imported.sharedSpace.watchEvents?.count ?? 0,
+            importNotice: LibraryBackupMerge.importNotice(for: imported)
         )
     }
 
@@ -234,6 +255,7 @@ extension LibraryTransferService {
         result.isDismissed = imported.isDismissed
         result.isDisliked = imported.isDisliked
         result.personalWatchlist = imported.personalWatchlist
+        result.watchedEpisodeIDs = imported.watchedEpisodeIDs
         return result
     }
 }
