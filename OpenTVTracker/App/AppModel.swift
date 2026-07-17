@@ -17,8 +17,8 @@ final class AppModel {
     private(set) var selectedProviderIDs: Set<StreamingProvider.ID>
     private(set) var allowsAIReranking: Bool
     private(set) var streamingRegionOverride: StreamingRegion?
-    private(set) var reminderSettings: ReminderSettings
-    private(set) var reminderCapability = ReminderCapability.unknown
+    var reminderSettings: ReminderSettings
+    var reminderCapability = ReminderCapability.unknown
     var reminderError: String?
     private(set) var hasLoaded = false
     var persistenceError: String?
