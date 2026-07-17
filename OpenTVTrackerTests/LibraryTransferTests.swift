@@ -51,7 +51,7 @@ final class LibraryTransferTests: XCTestCase {
 
     func testDiaryCSVExportAndImportPreservesAllPrivateFields() throws {
         var snapshot = LibrarySnapshot.sample
-        snapshot.diaryEntries = [Self.diaryEntry]
+        snapshot.diaryEntries = [Self.diaryCSVEntry]
 
         let data = LibraryTransferService.exportDiaryCSV(snapshot)
         var destination = LibrarySnapshot.sample
@@ -60,7 +60,7 @@ final class LibraryTransferTests: XCTestCase {
 
         XCTAssertEqual(preview.sourceName, "OpenTV diary")
         XCTAssertEqual(preview.addedCount, 1)
-        XCTAssertEqual(preview.snapshot.diaryEntries, [Self.diaryEntry])
+        XCTAssertEqual(preview.snapshot.diaryEntries, [Self.diaryCSVEntry])
     }
 
     func testLegacyJSONImportBackfillsDiaryFromWatchEvents() throws {
@@ -70,7 +70,7 @@ final class LibraryTransferTests: XCTestCase {
             SharedWatchEvent(
                 id: "legacy-json-watch",
                 titleID: "severance",
-                memberID: "local-user",
+                memberID: "vincent",
                 kind: .watched,
                 season: nil,
                 episode: nil,
@@ -135,6 +135,21 @@ final class LibraryTransferTests: XCTestCase {
     }
 
     private static let diaryEntry = ViewingDiaryEntry(
+        id: "diary-entry",
+        titleID: "severance",
+        scope: .episode,
+        seasonNumber: 1,
+        episodeID: "severance-s1e1",
+        episodeNumber: 1,
+        watchedAt: Date(timeIntervalSince1970: 1_700_000_000),
+        rating: 9,
+        note: "That hallway, \"scene\".\nUnforgettable.",
+        isRewatch: true,
+        createdAt: Date(timeIntervalSince1970: 1_700_000_000),
+        updatedAt: Date(timeIntervalSince1970: 1_700_000_100)
+    )
+
+    private static let diaryCSVEntry = ViewingDiaryEntry(
         id: "diary-entry",
         titleID: "severance",
         scope: .episode,

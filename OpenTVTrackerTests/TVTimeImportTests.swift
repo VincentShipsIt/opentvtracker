@@ -86,7 +86,7 @@ final class TVTimeImportTests: XCTestCase {
             SharedWatchEvent(
                 id: eventID,
                 titleID: "severance",
-                memberID: "local-user",
+                memberID: "vincent",
                 kind: .watched,
                 season: 1,
                 episode: 1,
@@ -96,6 +96,8 @@ final class TVTimeImportTests: XCTestCase {
         ]
         snapshot.diaryEntries = nil
         let migratedSnapshot = AppModel(store: MemoryLibraryStore(), seed: snapshot).snapshot
+        let migratedEntryIDs = migratedSnapshot.diaryEntries?.map(\.id)
+        XCTAssertEqual(migratedEntryIDs, ["diary:\(eventID)"])
 
         let preview = try await TVTimeImportService.previewImport(
             archive,
@@ -105,6 +107,7 @@ final class TVTimeImportTests: XCTestCase {
         )
 
         XCTAssertEqual(preview.snapshot.diaryEntries?.count, 1)
+        XCTAssertEqual(preview.snapshot.diaryEntries?.map(\.id), migratedEntryIDs)
         XCTAssertEqual(preview.watchEventCount, 0)
     }
 

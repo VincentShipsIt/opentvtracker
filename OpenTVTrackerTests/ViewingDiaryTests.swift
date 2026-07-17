@@ -117,7 +117,7 @@ final class ViewingDiaryTests: XCTestCase {
             SharedWatchEvent(
                 id: "current-watch",
                 titleID: "severance",
-                memberID: "local-user",
+                memberID: "vincent",
                 kind: .watched,
                 season: 1,
                 episode: 1,
@@ -127,7 +127,7 @@ final class ViewingDiaryTests: XCTestCase {
             SharedWatchEvent(
                 id: "superseded-watch",
                 titleID: "severance",
-                memberID: "local-user",
+                memberID: "vincent",
                 kind: .watched,
                 season: 1,
                 episode: 2,
@@ -137,7 +137,7 @@ final class ViewingDiaryTests: XCTestCase {
             SharedWatchEvent(
                 id: "correction",
                 titleID: "severance",
-                memberID: "local-user",
+                memberID: "vincent",
                 kind: .correction,
                 season: 1,
                 episode: 2,
