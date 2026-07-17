@@ -141,7 +141,10 @@ extension LibraryTransferService {
                 $0 + ($1.watchedEpisodeIDs?.count ?? 0)
             },
             watchEventCount: imported.sharedSpace.watchEvents?.count ?? 0,
-            importNotice: LibraryBackupMerge.importNotice(for: imported)
+            importNotice: LibraryBackupMerge.importNotice(
+                for: imported,
+                current: current
+            )
         )
     }
 

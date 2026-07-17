@@ -42,11 +42,24 @@ enum LibraryBackupMerge {
         return merged
     }
 
-    static func importNotice(for snapshot: LibrarySnapshot) -> String {
-        let aiSetting = snapshot.allowsAIReranking == true
-            ? "Optional AI reranking will be enabled from this backup."
-            : "Optional AI reranking will be off."
-        return "Matching titles use archived tracking values. Together history merges without deleting newer shared entries. Streaming region restores from the backup; saved subscriptions restore when present. \(aiSetting)"
+    static func importNotice(
+        for snapshot: LibrarySnapshot,
+        current: LibrarySnapshot
+    ) -> String {
+        let regionSetting = snapshot.streamingRegionCode == nil
+            ? "Streaming region keeps its current setting."
+            : "Streaming region restores from the backup."
+        let aiSetting: String
+        if let allowsAIReranking = snapshot.allowsAIReranking {
+            aiSetting = allowsAIReranking
+                ? "Optional AI reranking will be enabled from this backup."
+                : "Optional AI reranking will be off."
+        } else {
+            aiSetting = current.allowsAIReranking == true
+                ? "Optional AI reranking keeps its current enabled setting."
+                : "Optional AI reranking keeps its current off setting."
+        }
+        return "Matching titles use archived tracking values. Together history merges without deleting newer shared entries. \(regionSetting) Saved subscriptions restore when present. \(aiSetting)"
     }
 
     private static func mergeByID<Element: Identifiable>(

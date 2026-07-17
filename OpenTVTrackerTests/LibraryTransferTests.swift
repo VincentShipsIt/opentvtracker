@@ -126,6 +126,10 @@ final class LibraryTransferTests: XCTestCase {
             JSONSerialization.jsonObject(with: exported) as? [String: Any]
         )
         object["schemaVersion"] = 3
+        var archivedSnapshot = try XCTUnwrap(object["snapshot"] as? [String: Any])
+        archivedSnapshot.removeValue(forKey: "allowsAIReranking")
+        archivedSnapshot.removeValue(forKey: "streamingRegionCode")
+        object["snapshot"] = archivedSnapshot
         let legacyArchive = try JSONSerialization.data(withJSONObject: object)
 
         var current = LibrarySnapshot.sample
@@ -136,6 +140,10 @@ final class LibraryTransferTests: XCTestCase {
 
         XCTAssertEqual(preview.snapshot.allowsAIReranking, true)
         XCTAssertEqual(preview.snapshot.streamingRegionCode, "MT")
+        XCTAssertTrue(preview.importNotice?.contains("Streaming region keeps its current setting") == true)
+        XCTAssertTrue(
+            preview.importNotice?.contains("AI reranking keeps its current enabled setting") == true
+        )
     }
 
     func testJSONImportRestoresWatchedEpisodesForExistingCatalogTitle() throws {
