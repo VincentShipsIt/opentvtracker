@@ -331,6 +331,7 @@ struct LibrarySnapshot: Codable, Hashable, Sendable {
     var selectedProviderIDs: Set<StreamingProvider.ID>?
     var allowsAIReranking: Bool?
     var streamingRegionCode: String?
+    var diaryEntries: [ViewingDiaryEntry]?
 
     init(
         titles: [MediaTitle],
@@ -338,7 +339,8 @@ struct LibrarySnapshot: Codable, Hashable, Sendable {
         selectedProviderIDs: Set<StreamingProvider.ID>? = nil,
         allowsAIReranking: Bool = false,
         streamingRegionCode: String? = nil,
-        schemaVersion: Int = 4
+        diaryEntries: [ViewingDiaryEntry]? = nil,
+        schemaVersion: Int = 5
     ) {
         self.schemaVersion = schemaVersion
         self.titles = titles
@@ -346,6 +348,7 @@ struct LibrarySnapshot: Codable, Hashable, Sendable {
         self.selectedProviderIDs = selectedProviderIDs
         self.allowsAIReranking = allowsAIReranking
         self.streamingRegionCode = streamingRegionCode
+        self.diaryEntries = diaryEntries
     }
 }
 
@@ -367,6 +370,7 @@ extension LibrarySnapshot {
             reactions: [],
             notes: [],
             isCurrentUserShareOwner: true
-        )
+        ),
+        diaryEntries: []
     )
 }

@@ -193,14 +193,23 @@ extension AppModel {
 
         titles[index].watchedEpisodeIDs = watchedIDs
         updateEpisodeProgress(at: index, watchedIDs: watchedIDs)
-        titles[index].lastWatchedAt = .now
+        let watchedAt = Date.now
+        titles[index].lastWatchedAt = watchedAt
+        appendDiaryWatch(
+            title: titles[index],
+            season: season,
+            episode: episode,
+            watchedAt: watchedAt,
+            isRewatch: false
+        )
         for member in sharedSpace.members {
             appendWatchEvent(
                 title: titles[index],
                 kind: .watchedTogether,
                 memberID: member.id,
                 season: season.number,
-                episode: episode.number
+                episode: episode.number,
+                occurredAt: watchedAt
             )
         }
         addActivity(
@@ -223,6 +232,7 @@ private extension AppModel {
         var watchedIDs = resolvedWatchedEpisodeIDs(for: titles[index])
         let changedEpisodes = episodes.filter { watchedIDs.contains($0.episode.id) != watched }
         guard !changedEpisodes.isEmpty else { return }
+        let watchedAt = Date.now
 
         for item in changedEpisodes {
             if watched {
@@ -231,7 +241,15 @@ private extension AppModel {
                     title: titles[index],
                     kind: .watched,
                     season: item.season.number,
-                    episode: item.episode.number
+                    episode: item.episode.number,
+                    occurredAt: watchedAt
+                )
+                appendDiaryWatch(
+                    title: titles[index],
+                    season: item.season,
+                    episode: item.episode,
+                    watchedAt: watchedAt,
+                    isRewatch: false
                 )
             } else {
                 watchedIDs.remove(item.episode.id)
@@ -240,13 +258,18 @@ private extension AppModel {
                     seasonNumber: item.season.number,
                     episodeNumber: item.episode.number
                 )
+                clearEpisodeDiaryHistory(
+                    titleID: titles[index].id,
+                    seasonNumber: item.season.number,
+                    episodeID: item.episode.id
+                )
             }
         }
 
         titles[index].watchedEpisodeIDs = watchedIDs
         updateEpisodeProgress(at: index, watchedIDs: watchedIDs)
         if watched {
-            titles[index].lastWatchedAt = .now
+            titles[index].lastWatchedAt = watchedAt
         }
         addActivity(
             description: activityDescription,

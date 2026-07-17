@@ -37,6 +37,9 @@ final class TVTimeImportTests: XCTestCase {
         XCTAssertEqual(preview.watchEventCount, 1)
         XCTAssertEqual(preview.snapshot.sharedSpace.watchEvents?.first?.season, 1)
         XCTAssertEqual(preview.snapshot.sharedSpace.watchEvents?.first?.episode, 1)
+        let diaryEntry = try XCTUnwrap(preview.snapshot.diaryEntries?.first)
+        XCTAssertEqual(diaryEntry.episodeID, "severance-s1e1")
+        XCTAssertEqual(diaryEntry.watchedAt, Date(timeIntervalSince1970: 1_739_565_000))
     }
 
     func testReimportDoesNotDuplicateDatedWatchEvents() async throws {
@@ -64,7 +67,45 @@ final class TVTimeImportTests: XCTestCase {
 
         XCTAssertEqual(first.snapshot.sharedSpace.watchEvents?.count, 1)
         XCTAssertEqual(second.snapshot.sharedSpace.watchEvents?.count, 1)
+        XCTAssertEqual(first.snapshot.diaryEntries?.count, 1)
+        XCTAssertEqual(second.snapshot.diaryEntries?.count, 1)
         XCTAssertEqual(second.watchEventCount, 0)
+    }
+
+    @MainActor
+    func testReimportAfterVersionFourMigrationDoesNotDuplicateWatch() async throws {
+        let archive = try makeArchive([
+            "tracking-prod-records-v2.csv": """
+            key,s_id,series_name,s_no,ep_no,created_at
+            watch-episode-101,42,Severance,1,1,2025-02-14T20:30:00Z
+            """
+        ])
+        var snapshot = snapshotWithSeveranceEpisodes()
+        let eventID = "tvtime:severance:1:1:1739565000:watched"
+        snapshot.sharedSpace.watchEvents = [
+            SharedWatchEvent(
+                id: eventID,
+                titleID: "severance",
+                memberID: "local-user",
+                kind: .watched,
+                season: 1,
+                episode: 1,
+                occurredAt: Date(timeIntervalSince1970: 1_739_565_000),
+                supersedesEventID: nil
+            )
+        ]
+        snapshot.diaryEntries = nil
+        let migratedSnapshot = AppModel(store: MemoryLibraryStore(), seed: snapshot).snapshot
+
+        let preview = try await TVTimeImportService.previewImport(
+            archive,
+            into: migratedSnapshot,
+            catalog: LocalCatalogService(titles: migratedSnapshot.titles),
+            region: .malta
+        )
+
+        XCTAssertEqual(preview.snapshot.diaryEntries?.count, 1)
+        XCTAssertEqual(preview.watchEventCount, 0)
     }
 
     func testNativeExportIgnoresUnwatchedEpisodesAndRestoresMovieRewatches() async throws {
@@ -122,6 +163,7 @@ final class TVTimeImportTests: XCTestCase {
         XCTAssertEqual(movie.userRating, 8)
         XCTAssertEqual(movie.lastWatchedAt, Date(timeIntervalSince1970: 1_740_862_800))
         XCTAssertEqual(preview.watchEventCount, 1)
+        XCTAssertEqual(preview.snapshot.diaryEntries?.first?.rating, 8)
     }
 
     func testZIPWithoutTVTimeTrackingDataIsRejected() async throws {

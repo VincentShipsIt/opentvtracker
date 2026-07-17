@@ -76,6 +76,11 @@ enum LibraryTransferService {
         guard let csv = String(data: data, encoding: .utf8) else {
             throw LibraryTransferError.unreadableFile
         }
+        let rows = parseCSV(csv)
+        if let header = rows.first?.map(normalizedHeaderName),
+           header.contains("entry_id"), header.contains("scope") {
+            return try mergeDiaryCSV(rows, into: current)
+        }
         return try mergeCSV(csv, into: current)
     }
 }
@@ -109,6 +114,12 @@ extension LibraryTransferService {
 
         if let selectedProviderIDs = imported.selectedProviderIDs {
             merged.selectedProviderIDs = selectedProviderIDs
+        }
+        if imported.diaryEntries != nil || imported.sharedSpace.watchEvents?.isEmpty == false {
+            merged.diaryEntries = mergedDiaryEntries(
+                current: merged.diaryEntries ?? [],
+                imported: ViewingDiaryMigration.resolvedEntries(from: imported)
+            )
         }
 
         return LibraryImportPreview(
@@ -151,7 +162,7 @@ extension LibraryTransferService {
         )
     }
 
-    private static func csvValues(header: [String], row: [String]) -> [String: String] {
+    static func csvValues(header: [String], row: [String]) -> [String: String] {
         let paddedRow = row + Array(repeating: "", count: max(0, header.count - row.count))
         return zip(header, paddedRow).reduce(into: [String: String]()) { result, pair in
             result[pair.0] = pair.1
@@ -234,6 +245,7 @@ extension LibraryTransferService {
         result.isDismissed = imported.isDismissed
         result.isDisliked = imported.isDisliked
         result.personalWatchlist = imported.personalWatchlist
+        result.watchedEpisodeIDs = imported.watchedEpisodeIDs
         return result
     }
 }
@@ -268,7 +280,7 @@ extension LibraryTransferService {
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private static func csvData(header: [String], rows: [[String]]) -> Data {
+    static func csvData(header: [String], rows: [[String]]) -> Data {
         ([header] + rows)
             .map { $0.map(escapedCSVField).joined(separator: ",") }
             .joined(separator: "\n")
@@ -277,7 +289,10 @@ extension LibraryTransferService {
     }
 
     private static func escapedCSVField(_ field: String) -> String {
-        guard field.contains(",") || field.contains("\"") || field.contains("\n") else { return field }
+        guard field.contains(",") || field.contains("\"")
+                || field.contains("\n") || field.contains("\r") else {
+            return field
+        }
         return "\"\(field.replacingOccurrences(of: "\"", with: "\"\""))\""
     }
 
@@ -319,25 +334,25 @@ extension LibraryTransferService {
         return rows
     }
 
-    private static func normalizedHeaderName(_ header: String) -> String {
+    static func normalizedHeaderName(_ header: String) -> String {
         header.trimmingCharacters(in: .whitespacesAndNewlines)
             .lowercased()
             .replacingOccurrences(of: " ", with: "_")
     }
 
-    private static func stringValue(in values: [String: String], keys: [String]) -> String? {
+    static func stringValue(in values: [String: String], keys: [String]) -> String? {
         keys.lazy.compactMap { values[$0] }.first { !$0.isEmpty }
     }
 
-    private static func intValue(in values: [String: String], keys: [String]) -> Int? {
+    static func intValue(in values: [String: String], keys: [String]) -> Int? {
         stringValue(in: values, keys: keys).flatMap(Int.init)
     }
 
-    private static func doubleValue(in values: [String: String], keys: [String]) -> Double? {
+    static func doubleValue(in values: [String: String], keys: [String]) -> Double? {
         stringValue(in: values, keys: keys).flatMap(Double.init)
     }
 
-    private static func boolValue(in values: [String: String], keys: [String]) -> Bool? {
+    static func boolValue(in values: [String: String], keys: [String]) -> Bool? {
         guard let value = stringValue(in: values, keys: keys)?.lowercased() else { return nil }
         switch value {
         case "true", "yes", "1": return true
@@ -346,13 +361,18 @@ extension LibraryTransferService {
         }
     }
 
-    private static func iso8601String(_ date: Date) -> String {
-        ISO8601DateFormatter().string(from: date)
+    static func iso8601String(_ date: Date) -> String {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter.string(from: date)
     }
 
-    private static func iso8601Date(_ value: String) -> Date? {
-        ISO8601DateFormatter().date(from: value)
+    static func iso8601Date(_ value: String) -> Date? {
+        let fractionalFormatter = ISO8601DateFormatter()
+        fractionalFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return fractionalFormatter.date(from: value) ?? ISO8601DateFormatter().date(from: value)
     }
+
 }
 
 private enum CSVRowResult {

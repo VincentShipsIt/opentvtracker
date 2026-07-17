@@ -47,6 +47,7 @@ struct TVTimeWatch: Hashable, Sendable {
     var season: Int?
     var episode: Int?
     var occurredAt: Date?
+    var rating: Double?
     var isRewatch: Bool
 }
 
@@ -147,6 +148,7 @@ private enum TVTimeArchiveParser {
                         season: season,
                         episode: episode,
                         occurredAt: TVTimeCSV.date(values, ["watch_date_range_key", "watched_at", "created_at"]),
+                        rating: TVTimeCSV.double(values, ["episode_rating", "rating", "rate"]),
                         isRewatch: key.contains("rewatch")
                     ),
                     to: &entity,
@@ -191,6 +193,7 @@ private enum TVTimeArchiveParser {
                         season: kind == .series ? TVTimeCSV.int(values, ["season_number", "season", "s_no"]) : nil,
                         episode: kind == .series ? TVTimeCSV.int(values, ["episode_number", "episode", "ep_no"]) : nil,
                         occurredAt: TVTimeCSV.date(values, ["watch_date_range_key", "watched_at", "created_at"]),
+                        rating: TVTimeCSV.double(values, ["episode_rating", "rating", "rate"]),
                         isRewatch: false
                     ),
                     to: &entity,

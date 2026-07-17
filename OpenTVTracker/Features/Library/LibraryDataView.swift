@@ -26,6 +26,9 @@ struct LibraryDataView: View {
                     Button("Export watch events CSV", systemImage: "clock.arrow.trianglehead.counterclockwise.rotate.90") {
                         prepareExport(.eventsCSV)
                     }
+                    Button("Export private diary CSV", systemImage: "calendar.badge.clock") {
+                        prepareExport(.diaryCSV)
+                    }
                 }
 
                 Section {
@@ -112,6 +115,10 @@ struct LibraryDataView: View {
                 data = LibraryTransferService.exportWatchEventsCSV(model.snapshot)
                 exportContentType = .commaSeparatedText
                 exportFilename = "OpenTV-watch-events.csv"
+            case .diaryCSV:
+                data = LibraryTransferService.exportDiaryCSV(model.snapshot)
+                exportContentType = .commaSeparatedText
+                exportFilename = "OpenTV-private-diary.csv"
             }
             exportDocument = LibraryExportDocument(data: data)
             showsExporter = true
@@ -160,6 +167,7 @@ private enum LibraryExportKind {
     case json
     case titlesCSV
     case eventsCSV
+    case diaryCSV
 }
 
 struct LibraryExportDocument: FileDocument {

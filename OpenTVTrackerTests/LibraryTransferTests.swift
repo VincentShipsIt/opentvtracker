@@ -35,6 +35,7 @@ final class LibraryTransferTests: XCTestCase {
         snapshot.titles[index].notes = "Watch the elevator details."
         snapshot.titles[index].rewatchCount = 2
         snapshot.titles[index].personalWatchlist = true
+        snapshot.diaryEntries = [Self.diaryEntry]
 
         let data = try LibraryTransferService.exportJSON(snapshot)
         let preview = try LibraryTransferService.previewImport(data, into: .sample)
@@ -44,7 +45,46 @@ final class LibraryTransferTests: XCTestCase {
         XCTAssertEqual(imported.notes, "Watch the elevator details.")
         XCTAssertEqual(imported.completedRewatches, 2)
         XCTAssertTrue(imported.isOnPersonalWatchlist)
+        XCTAssertEqual(preview.snapshot.diaryEntries, [Self.diaryEntry])
         XCTAssertEqual(preview.matchedCount, snapshot.titles.count)
+    }
+
+    func testDiaryCSVExportAndImportPreservesAllPrivateFields() throws {
+        var snapshot = LibrarySnapshot.sample
+        snapshot.diaryEntries = [Self.diaryEntry]
+
+        let data = LibraryTransferService.exportDiaryCSV(snapshot)
+        var destination = LibrarySnapshot.sample
+        destination.diaryEntries = []
+        let preview = try LibraryTransferService.previewImport(data, into: destination)
+
+        XCTAssertEqual(preview.sourceName, "OpenTV diary")
+        XCTAssertEqual(preview.addedCount, 1)
+        XCTAssertEqual(preview.snapshot.diaryEntries, [Self.diaryEntry])
+    }
+
+    func testLegacyJSONImportBackfillsDiaryFromWatchEvents() throws {
+        var imported = LibrarySnapshot.sample
+        imported.diaryEntries = nil
+        imported.sharedSpace.watchEvents = [
+            SharedWatchEvent(
+                id: "legacy-json-watch",
+                titleID: "severance",
+                memberID: "local-user",
+                kind: .watched,
+                season: nil,
+                episode: nil,
+                occurredAt: Date(timeIntervalSince1970: 1_700_000_000),
+                supersedesEventID: nil
+            )
+        ]
+        let data = try LibraryArchiveCodec.encode(imported, prettyPrinted: false)
+        var destination = LibrarySnapshot.sample
+        destination.diaryEntries = []
+
+        let preview = try LibraryTransferService.previewImport(data, into: destination)
+
+        XCTAssertEqual(preview.snapshot.diaryEntries?.map(\.id), ["diary:legacy-json-watch"])
     }
 
     func testCSVImportRestoresPersonalWatchlistWithoutChangingState() throws {
@@ -93,4 +133,19 @@ final class LibraryTransferTests: XCTestCase {
         XCTAssertEqual(loaded?.selectedProviderIDs, [StreamingProvider.appleTV.id])
         XCTAssertEqual(loaded?.schemaVersion, LibraryArchiveEnvelope.currentSchemaVersion)
     }
+
+    private static let diaryEntry = ViewingDiaryEntry(
+        id: "diary-entry",
+        titleID: "severance",
+        scope: .episode,
+        seasonNumber: 1,
+        episodeID: "severance-s1e1",
+        episodeNumber: 1,
+        watchedAt: Date(timeIntervalSince1970: 1_700_000_000),
+        rating: 9,
+        note: "That hallway, \"scene\".\nUnforgettable.",
+        isRewatch: true,
+        createdAt: Date(timeIntervalSince1970: 1_700_000_000.125),
+        updatedAt: Date(timeIntervalSince1970: 1_700_000_100)
+    )
 }

@@ -81,19 +81,32 @@ extension AppModel {
 
     func markWatchedTogether(_ id: MediaTitle.ID) {
         guard let index = trackableTitleIndex(for: id) else { return }
+        let watchedAt = Date.now
+        let isRewatch = titles[index].kind == .movie && titles[index].state == .completed
         if titles[index].kind == .movie {
             titles[index].state = .completed
         } else if let next = nextUnwatchedEpisode(for: titles[index]) {
             markEpisodeWatchedTogether(titleID: id, season: next.season, episode: next.episode)
             return
         } else if var progress = titles[index].progress {
+            guard progress.episode < progress.totalEpisodes else { return }
             progress.episode = min(progress.episode + 1, progress.totalEpisodes)
             titles[index].progress = progress
             titles[index].state = progress.episode == progress.totalEpisodes ? .completed : .watching
+        } else {
+            return
         }
-        titles[index].lastWatchedAt = .now
+        titles[index].lastWatchedAt = watchedAt
+        if titles[index].kind == .movie {
+            appendDiaryWatch(title: titles[index], watchedAt: watchedAt, isRewatch: isRewatch)
+        }
         for member in sharedSpace.members {
-            appendWatchEvent(title: titles[index], kind: .watchedTogether, memberID: member.id)
+            appendWatchEvent(
+                title: titles[index],
+                kind: .watchedTogether,
+                memberID: member.id,
+                occurredAt: watchedAt
+            )
         }
         addActivity(
             description: "watched \(titles[index].title) together",
