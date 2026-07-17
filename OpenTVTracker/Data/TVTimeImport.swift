@@ -11,13 +11,28 @@ enum TVTimeImportService {
         catalog: any CatalogProviding,
         region: StreamingRegion
     ) async throws -> LibraryImportPreview {
+        let session = try await prepareImport(
+            data,
+            into: current,
+            catalog: catalog,
+            region: region
+        )
+        return await session.preview()
+    }
+
+    static func prepareImport(
+        _ data: Data,
+        into current: LibrarySnapshot,
+        catalog: any CatalogProviding,
+        region: StreamingRegion
+    ) async throws -> TVTimeImportSession {
         let tvTimeArchive = try await Task.detached(priority: .userInitiated) {
             try TVTimeArchiveParser.parse(data)
         }.value
 
-        return await TVTimeImportMerger.merge(
-            tvTimeArchive,
-            into: current,
+        return TVTimeImportSession(
+            archive: tvTimeArchive,
+            current: current,
             catalog: catalog,
             region: region
         )
@@ -32,6 +47,7 @@ struct TVTimeArchive: Sendable {
 struct TVTimeEntity: Sendable {
     let identity: String
     var sourceID: String?
+    var source: ExternalCatalogSource?
     var title: String
     var year: Int?
     var kind: MediaKind
@@ -129,6 +145,7 @@ private enum TVTimeArchiveParser {
             var entity = entities[identity] ?? TVTimeEntity(
                 identity: identity,
                 sourceID: sourceID,
+                source: nil,
                 title: title ?? "",
                 year: TVTimeCSV.int(values, ["year", "release_year"]),
                 kind: .series
@@ -178,6 +195,7 @@ private enum TVTimeArchiveParser {
             var entity = entities[identity] ?? TVTimeEntity(
                 identity: identity,
                 sourceID: sourceID,
+                source: nil,
                 title: title ?? "",
                 year: TVTimeCSV.year(values),
                 kind: kind
@@ -212,6 +230,7 @@ private enum TVTimeArchiveParser {
             var entity = entities[identity] ?? TVTimeEntity(
                 identity: identity,
                 sourceID: sourceID,
+                source: nil,
                 title: title ?? "",
                 year: TVTimeCSV.year(values),
                 kind: .series
@@ -234,6 +253,7 @@ private enum TVTimeArchiveParser {
             var entity = entities[identity] ?? TVTimeEntity(
                 identity: identity,
                 sourceID: sourceID,
+                source: nil,
                 title: title ?? "",
                 year: TVTimeCSV.year(values),
                 kind: .series

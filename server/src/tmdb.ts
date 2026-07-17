@@ -39,6 +39,7 @@ export const TMDBProviderID = {
 export type CatalogTitle = {
   catalogID: number;
   title: string;
+  alternativeTitles: string[];
   year: number;
   kind: MediaKind;
   synopsis: string;
@@ -148,7 +149,7 @@ export class TMDBClient {
         const resolvedKind = mediaKind(item.media_type);
         const namespace = resolvedKind === "movie" ? "movie" : "tv";
         const details = await this.get<Record<string, unknown>>(
-          `/${namespace}/${item.id}?append_to_response=watch/providers&language=en-US`,
+          `/${namespace}/${item.id}?append_to_response=watch/providers,alternative_titles,translations&language=en-US`,
         );
         return mapDetails(details, resolvedKind, region, null);
       }),
@@ -165,10 +166,35 @@ export class TMDBClient {
   ): Promise<CatalogTitle> {
     const namespace = kind === "movie" ? "movie" : "tv";
     const details = await this.get<Record<string, unknown>>(
-      `/${namespace}/${id}?append_to_response=videos,watch/providers,reviews&language=en-US`,
+      `/${namespace}/${id}?append_to_response=videos,watch/providers,reviews,alternative_titles,translations&language=en-US`,
     );
     const seasons = kind === "series" ? await this.seasons(id, details) : null;
     return mapDetails(details, kind, region, seasons);
+  }
+
+  async resolveExternalID(
+    source: "tvdb",
+    id: number,
+    kind: MediaKind,
+    region: string,
+  ): Promise<CatalogTitle | null> {
+    const payload = await this.get<{
+      movie_results?: SearchItem[];
+      tv_results?: SearchItem[];
+    }>(`/find/${id}?external_source=${source}_id&language=en-US`);
+    const results =
+      kind === MediaKind.movie
+        ? (payload.movie_results ?? [])
+        : (payload.tv_results ?? []);
+    const matchingIDs = [
+      ...new Set(
+        results
+          .map((result) => result.id)
+          .filter((value): value is number => Number.isSafeInteger(value)),
+      ),
+    ];
+    if (matchingIDs.length !== 1) return null;
+    return this.title(kind, matchingIDs[0]!, region);
   }
 
   private async seasons(
@@ -268,6 +294,7 @@ function mapDetails(
     title:
       stringValue(kind === "movie" ? details.title : details.name) ??
       "Untitled",
+    alternativeTitles: mapAlternativeTitles(details, kind),
     year: yearFromDay(releaseDay),
     kind,
     synopsis:
@@ -286,6 +313,47 @@ function mapDetails(
     nextEpisodeAirDate: isoDay(stringValue(nextEpisode.air_date)),
     seasons,
   };
+}
+
+export function mapAlternativeTitles(
+  details: Record<string, unknown>,
+  kind: MediaKind,
+): string[] {
+  const values: unknown[] = [
+    kind === MediaKind.movie ? details.original_title : details.original_name,
+  ];
+  const alternatives = asRecord(details.alternative_titles);
+  const alternativeItems = Array.isArray(alternatives.titles)
+    ? alternatives.titles
+    : Array.isArray(alternatives.results)
+      ? alternatives.results
+      : [];
+  for (const item of alternativeItems) {
+    const value = asRecord(item);
+    values.push(value.title, value.name);
+  }
+  const translations = asRecord(details.translations);
+  for (const item of Array.isArray(translations.translations)
+    ? translations.translations
+    : []) {
+    const data = asRecord(asRecord(item).data);
+    values.push(data.title, data.name);
+  }
+
+  const primaryTitle = stringValue(
+    kind === MediaKind.movie ? details.title : details.name,
+  );
+  const seen = new Set(primaryTitle ? [normalizedTitle(primaryTitle)] : []);
+  return values
+    .flatMap((value) => {
+      const title = stringValue(value)?.replace(/\s+/g, " ").trim();
+      if (!title || title.length > 200) return [];
+      const normalized = normalizedTitle(title);
+      if (seen.has(normalized)) return [];
+      seen.add(normalized);
+      return [title];
+    })
+    .slice(0, 50);
 }
 
 function providersForRegion(
@@ -383,7 +451,9 @@ export function mapEpisodeSummary(
   };
 }
 
-export function mapReviews(payload: Record<string, unknown>): CommunityReview[] {
+export function mapReviews(
+  payload: Record<string, unknown>,
+): CommunityReview[] {
   return (Array.isArray(payload.results) ? payload.results : [])
     .slice(0, 8)
     .map((value, index): CommunityReview => {
@@ -434,7 +504,8 @@ function imageURL(
 
 function reviewAvatarURL(path: string | null): string | null {
   if (!path) return null;
-  if (path.startsWith("/https://") || path.startsWith("/http://")) return path.slice(1);
+  if (path.startsWith("/https://") || path.startsWith("/http://"))
+    return path.slice(1);
   return imageURL(path, "w185");
 }
 
@@ -474,4 +545,8 @@ function stringValue(value: unknown): string | null {
 
 function numberValue(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function normalizedTitle(value: string): string {
+  return value.normalize("NFKD").toLocaleLowerCase("en-US");
 }

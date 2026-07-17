@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   readJSONBody,
+  validateCatalogExternalID,
   validateCatalogSearch,
   validateCatalogTitle,
   validateCinemaShowings,
@@ -25,6 +26,21 @@ describe("request validation", () => {
       region: "MT",
     });
     expect(title).toEqual({ kind: "movie", id: 42, region: "US" });
+    expect(
+      validateCatalogExternalID(
+        "/v1/catalog/resolve/tvdb/371980".match(
+          /^\/v1\/catalog\/resolve\/(tvdb)\/(\d+)$/,
+        )!,
+        new URL(
+          "https://example.test/v1/catalog/resolve/tvdb/371980?kind=series&region=jp",
+        ),
+      ),
+    ).toEqual({
+      source: "tvdb",
+      id: 371980,
+      kind: "series",
+      region: "JP",
+    });
   });
 
   test("rejects unknown, oversized, and out-of-range catalog inputs", () => {
@@ -53,6 +69,16 @@ describe("request validation", () => {
         new URL("https://example.test/v1/catalog/search?region=MALTA"),
       ),
     ).toThrow("invalid_region");
+    expect(() =>
+      validateCatalogExternalID(
+        "/v1/catalog/resolve/tvdb/371980".match(
+          /^\/v1\/catalog\/resolve\/(tvdb)\/(\d+)$/,
+        )!,
+        new URL(
+          "https://example.test/v1/catalog/resolve/tvdb/371980?kind=person",
+        ),
+      ),
+    ).toThrow("invalid_kind");
   });
 
   test("bounds cinema dates and region", () => {

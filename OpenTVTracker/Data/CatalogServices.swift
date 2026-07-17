@@ -7,6 +7,9 @@ struct LocalCatalogService: CatalogProviding {
         titles.filter { title in
             (query.kind == nil || title.kind == query.kind)
                 && (title.title.localizedStandardContains(query.text)
+                    || (title.alternativeTitles ?? []).contains {
+                        $0.localizedStandardContains(query.text)
+                    }
                     || title.genres.contains { $0.localizedStandardContains(query.text) })
         }
     }
@@ -44,6 +47,14 @@ struct ServerCatalogService: CatalogProviding {
         return response.mediaTitle
     }
 
+    func resolve(
+        _ reference: ExternalCatalogReference,
+        region: StreamingRegion
+    ) async throws -> MediaTitle? {
+        let url = try resolveURL(reference, region: region)
+        return try await optionalRequest(url, as: CatalogTitleDTO.self)?.mediaTitle
+    }
+
     func searchURL(for query: MediaSearchQuery) throws -> URL {
         var components = URLComponents(
             url: baseURL.appending(path: "v1/catalog/search"),
@@ -69,6 +80,24 @@ struct ServerCatalogService: CatalogProviding {
         return url
     }
 
+    func resolveURL(
+        _ reference: ExternalCatalogReference,
+        region: StreamingRegion
+    ) throws -> URL {
+        var components = URLComponents(
+            url: baseURL.appending(
+                path: "v1/catalog/resolve/\(reference.source.rawValue)/\(reference.sourceID)"
+            ),
+            resolvingAgainstBaseURL: false
+        )
+        components?.queryItems = [
+            URLQueryItem(name: "kind", value: reference.kind.rawValue),
+            URLQueryItem(name: "region", value: region.code)
+        ]
+        guard let url = components?.url else { throw CatalogServiceError.invalidEndpoint }
+        return url
+    }
+
     private func request<Response: Decodable>(_ url: URL) async throws -> Response {
         var request = URLRequest(url: url)
         request.timeoutInterval = 8
@@ -76,6 +105,20 @@ struct ServerCatalogService: CatalogProviding {
         let (data, response) = try await appAttest.data(for: request)
         guard let response = response as? HTTPURLResponse else { throw CatalogServiceError.unavailable }
         if response.statusCode == 404 { throw CatalogServiceError.notFound }
+        guard 200..<300 ~= response.statusCode else { throw CatalogServiceError.unavailable }
+        return try JSONDecoder.openTV.decode(Response.self, from: data)
+    }
+
+    private func optionalRequest<Response: Decodable>(
+        _ url: URL,
+        as _: Response.Type
+    ) async throws -> Response? {
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 8
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        let (data, response) = try await appAttest.data(for: request)
+        guard let response = response as? HTTPURLResponse else { throw CatalogServiceError.unavailable }
+        if response.statusCode == 404 { return nil }
         guard 200..<300 ~= response.statusCode else { throw CatalogServiceError.unavailable }
         return try JSONDecoder.openTV.decode(Response.self, from: data)
     }
@@ -97,6 +140,17 @@ struct FallbackCatalogService: CatalogProviding {
         }
         return try await fallback.title(kind: kind, catalogID: catalogID, region: region)
     }
+
+    func resolve(
+        _ reference: ExternalCatalogReference,
+        region: StreamingRegion
+    ) async throws -> MediaTitle? {
+        if let primary,
+           let title = try? await primary.resolve(reference, region: region) {
+            return title
+        }
+        return try await fallback.resolve(reference, region: region)
+    }
 }
 
 enum CatalogServiceFactory {
@@ -117,6 +171,7 @@ private struct CatalogSearchResponse: Decodable {
 private struct CatalogTitleDTO: Decodable {
     let catalogID: Int
     let title: String
+    let alternativeTitles: [String]?
     let year: Int
     let kind: MediaKind
     let synopsis: String
@@ -138,6 +193,7 @@ private struct CatalogTitleDTO: Decodable {
             id: "\(kind.rawValue)-\(catalogID)",
             catalogID: catalogID,
             title: title,
+            alternativeTitles: alternativeTitles,
             year: year,
             kind: kind,
             synopsis: synopsis,

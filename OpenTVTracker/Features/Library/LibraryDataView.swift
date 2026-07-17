@@ -14,6 +14,7 @@ struct LibraryDataView: View {
     @State private var showsImporter = false
     @State private var isImporting = false
     @State private var importPreview: LibraryImportPreview?
+    @State private var importCoordinator: TVTimeImportCoordinator?
     @State private var statusMessage: String?
 
     var body: some View {
@@ -51,7 +52,7 @@ struct LibraryDataView: View {
                     Text("Choose an OpenTV JSON/CSV file or the ZIP from TV Time's data export. OpenTV previews every import before changing your library.")
                 }
 
-                if let importPreview {
+                if let importPreview = currentPreview {
                     Section("Import preview") {
                         LabeledContent("Source", value: importPreview.sourceName)
                         LabeledContent("Matched", value: String(importPreview.matchedCount))
@@ -70,12 +71,23 @@ struct LibraryDataView: View {
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
                         }
+                    }
 
+                    if let importCoordinator, !importPreview.resolutionIssues.isEmpty {
+                        ImportResolutionSection(
+                            issues: importPreview.resolutionIssues,
+                            coordinator: importCoordinator
+                        )
+                    }
+
+                    Section {
                         Button("Apply import", systemImage: "checkmark.circle.fill") {
                             model.replaceLibrary(with: importPreview.snapshot)
                             self.importPreview = nil
+                            importCoordinator = nil
                             statusMessage = "Import applied."
                         }
+                        .disabled(importCoordinator?.isRefreshing == true)
                     }
                 }
 
@@ -123,6 +135,10 @@ struct LibraryDataView: View {
         }
     }
 
+    private var currentPreview: LibraryImportPreview? {
+        importCoordinator?.preview ?? importPreview
+    }
+
     private func prepareExport(_ kind: LibraryExportKind) {
         do {
             let data: Data
@@ -158,27 +174,35 @@ struct LibraryDataView: View {
             let data = try Data(contentsOf: url)
             if TVTimeImportService.isZIPArchive(data) {
                 isImporting = true
+                importPreview = nil
+                importCoordinator = nil
                 Task {
                     defer { isImporting = false }
                     do {
-                        importPreview = try await TVTimeImportService.previewImport(
+                        let session = try await TVTimeImportService.prepareImport(
                             data,
                             into: model.snapshot,
                             catalog: model.catalogService,
                             region: model.streamingRegion
                         )
+                        let coordinator = TVTimeImportCoordinator(session: session)
+                        importCoordinator = coordinator
+                        await coordinator.refresh()
                         statusMessage = nil
                     } catch {
                         importPreview = nil
+                        importCoordinator = nil
                         statusMessage = error.localizedDescription
                     }
                 }
             } else {
+                importCoordinator = nil
                 importPreview = try LibraryTransferService.previewImport(data, into: model.snapshot)
                 statusMessage = nil
             }
         } catch {
             importPreview = nil
+            importCoordinator = nil
             statusMessage = error.localizedDescription
         }
     }

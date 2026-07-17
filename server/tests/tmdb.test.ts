@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  mapAlternativeTitles,
   mapEpisodeSummary,
   mapReviews,
   mapStreamingProvider,
@@ -7,24 +8,54 @@ import {
   TMDBProviderID,
 } from "../src/tmdb";
 
+describe("mapAlternativeTitles", () => {
+  test("deduplicates original and localized titles without returning the display title", () => {
+    expect(
+      mapAlternativeTitles(
+        {
+          name: "Attack on Titan",
+          original_name: "進撃の巨人",
+          alternative_titles: {
+            results: [
+              { title: "L'Attaque des Titans" },
+              { title: "Attack on Titan" },
+            ],
+          },
+          translations: {
+            translations: [
+              { data: { name: "Ataque a los Titanes" } },
+              { data: { name: "L'Attaque des Titans" } },
+            ],
+          },
+        },
+        "series",
+      ),
+    ).toEqual(["進撃の巨人", "L'Attaque des Titans", "Ataque a los Titanes"]);
+  });
+});
+
 describe("mapReviews", () => {
   test("keeps complete TMDB review content and source metadata", () => {
     const content = "A".repeat(900);
-    expect(mapReviews({
-      results: [{
-        id: "review-id",
-        author: "Reviewer",
-        author_details: {
-          username: "reviewer-name",
-          avatar_path: "/avatar.jpg",
-          rating: 8,
-        },
-        content,
-        url: "https://www.themoviedb.org/review/review-id",
-        created_at: "2026-07-14T10:30:15.123Z",
-        updated_at: "2026-07-15T11:45:00.000Z",
-      }],
-    })[0]).toEqual({
+    expect(
+      mapReviews({
+        results: [
+          {
+            id: "review-id",
+            author: "Reviewer",
+            author_details: {
+              username: "reviewer-name",
+              avatar_path: "/avatar.jpg",
+              rating: 8,
+            },
+            content,
+            url: "https://www.themoviedb.org/review/review-id",
+            created_at: "2026-07-14T10:30:15.123Z",
+            updated_at: "2026-07-15T11:45:00.000Z",
+          },
+        ],
+      })[0],
+    ).toEqual({
       id: "tmdb-review-review-id",
       author: "Reviewer",
       excerpt: content,

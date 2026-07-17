@@ -179,6 +179,7 @@ struct MediaTitle: Codable, Hashable, Identifiable, Sendable {
     let id: String
     let catalogID: Int
     var title: String
+    var alternativeTitles: [String]? = nil
     var year: Int
     var kind: MediaKind
     var synopsis: String
@@ -331,6 +332,8 @@ struct LibrarySnapshot: Codable, Hashable, Sendable {
     var selectedProviderIDs: Set<StreamingProvider.ID>?
     var allowsAIReranking: Bool?
     var streamingRegionCode: String?
+    var importResolutionAliases: [String: MediaTitle.ID]?
+    var importResolutionSeasonOverrides: [String: Int]?
 
     init(
         titles: [MediaTitle],
@@ -338,7 +341,9 @@ struct LibrarySnapshot: Codable, Hashable, Sendable {
         selectedProviderIDs: Set<StreamingProvider.ID>? = nil,
         allowsAIReranking: Bool = false,
         streamingRegionCode: String? = nil,
-        schemaVersion: Int = 4
+        importResolutionAliases: [String: MediaTitle.ID]? = nil,
+        importResolutionSeasonOverrides: [String: Int]? = nil,
+        schemaVersion: Int = 5
     ) {
         self.schemaVersion = schemaVersion
         self.titles = titles
@@ -346,6 +351,8 @@ struct LibrarySnapshot: Codable, Hashable, Sendable {
         self.selectedProviderIDs = selectedProviderIDs
         self.allowsAIReranking = allowsAIReranking
         self.streamingRegionCode = streamingRegionCode
+        self.importResolutionAliases = importResolutionAliases
+        self.importResolutionSeasonOverrides = importResolutionSeasonOverrides
     }
 }
 

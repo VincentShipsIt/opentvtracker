@@ -2,7 +2,9 @@ import { describe, expect, test } from "bun:test";
 import { createApp, type SafeLogEvent } from "../src/app";
 import type { ServerConfig } from "../src/config";
 import { AppAttestSecurity, MemoryDeviceStore } from "../src/security";
-import type { TMDBClient } from "../src/tmdb";
+import type { CatalogTitle, TMDBClient } from "../src/tmdb";
+
+type TestTMDB = Pick<TMDBClient, "search" | "title" | "resolveExternalID">;
 
 describe("server application", () => {
   test("health is generic and the anonymous paid reranking route is absent", async () => {
@@ -35,6 +37,10 @@ describe("server application", () => {
       title: async () => {
         providerCalls += 1;
         throw new Error("not expected");
+      },
+      resolveExternalID: async () => {
+        providerCalls += 1;
+        return null;
       },
     }).app;
 
@@ -78,6 +84,7 @@ describe("server application", () => {
       title: async () => {
         throw new Error("not expected");
       },
+      resolveExternalID: async () => null,
     });
 
     const invalid = await app.fetch(
@@ -100,6 +107,7 @@ describe("server application", () => {
       title: async () => {
         throw new Error("not expected");
       },
+      resolveExternalID: async () => null,
     });
 
     const url =
@@ -116,10 +124,57 @@ describe("server application", () => {
     expect(providerCalls).toBe(1);
   });
 
+  test("caches only confirmed external ID mappings after authentication", async () => {
+    let providerCalls = 0;
+    const resolved = catalogTitle();
+    const { app } = testApp(undefined, {
+      search: async () => [],
+      title: async () => resolved,
+      resolveExternalID: async () => {
+        providerCalls += 1;
+        return resolved;
+      },
+    });
+    const url =
+      "https://example.test/v1/catalog/resolve/tvdb/371980?kind=series&region=MT";
+
+    const unauthenticated = await app.fetch(new Request(url));
+    const first = await app.fetch(developmentRequest(url));
+    const second = await app.fetch(developmentRequest(url));
+
+    expect(unauthenticated.status).toBe(401);
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    expect(first.headers.get("Cache-Control")).toContain("max-age=604800");
+    expect(providerCalls).toBe(1);
+  });
+
+  test("does not cache unresolved external IDs", async () => {
+    let providerCalls = 0;
+    const { app } = testApp(undefined, {
+      search: async () => [],
+      title: async () => {
+        throw new Error("not expected");
+      },
+      resolveExternalID: async () => {
+        providerCalls += 1;
+        return null;
+      },
+    });
+    const url =
+      "https://example.test/v1/catalog/resolve/tvdb/999999?kind=series&region=MT";
+
+    const first = await app.fetch(developmentRequest(url));
+    const second = await app.fetch(developmentRequest(url));
+
+    expect(first.status).toBe(404);
+    expect(second.status).toBe(404);
+    expect(providerCalls).toBe(2);
+  });
+
   test("authenticated invalid requests count toward the development quota", async () => {
     const { app } = testApp();
-    const invalidURL =
-      "https://example.test/v1/catalog/search?q=Drama&page=0";
+    const invalidURL = "https://example.test/v1/catalog/search?q=Drama&page=0";
 
     const first = await app.fetch(developmentRequest(invalidURL));
     const second = await app.fetch(developmentRequest(invalidURL));
@@ -176,7 +231,7 @@ describe("server application", () => {
 
 function testApp(
   suppliedConfig?: ServerConfig,
-  tmdb?: Pick<TMDBClient, "search" | "title">,
+  tmdb?: TestTMDB,
   logger: (event: SafeLogEvent) => void = () => {},
 ) {
   const config = suppliedConfig ?? testConfig();
@@ -201,10 +256,34 @@ function testApp(
         title: async () => {
           throw new Error("not used");
         },
+        resolveExternalID: async () => null,
       },
       logger,
       now: () => Date.parse("2026-07-15T12:00:00Z"),
     }),
+  };
+}
+
+function catalogTitle(): CatalogTitle {
+  return {
+    catalogID: 95_396,
+    title: "Severance",
+    alternativeTitles: [],
+    year: 2022,
+    kind: "series",
+    synopsis: "",
+    genres: ["Drama"],
+    runtimeMinutes: 50,
+    rating: 8.7,
+    mood: "thoughtful",
+    posterURL: null,
+    backdropURL: null,
+    trailerURL: null,
+    providers: [],
+    reviews: [],
+    releaseDate: "2022-02-18T00:00:00Z",
+    nextEpisodeAirDate: null,
+    seasons: null,
   };
 }
 

@@ -7,9 +7,32 @@ struct MediaSearchQuery: Hashable, Sendable {
     var region: StreamingRegion
 }
 
+enum ExternalCatalogSource: String, Codable, Sendable {
+    case tvdb
+}
+
+struct ExternalCatalogReference: Hashable, Sendable {
+    let source: ExternalCatalogSource
+    let sourceID: Int
+    let kind: MediaKind
+}
+
 protocol CatalogProviding: Sendable {
     func search(_ query: MediaSearchQuery) async throws -> [MediaTitle]
     func title(kind: MediaKind, catalogID: Int, region: StreamingRegion) async throws -> MediaTitle
+    func resolve(
+        _ reference: ExternalCatalogReference,
+        region: StreamingRegion
+    ) async throws -> MediaTitle?
+}
+
+extension CatalogProviding {
+    func resolve(
+        _: ExternalCatalogReference,
+        region _: StreamingRegion
+    ) async throws -> MediaTitle? {
+        nil
+    }
 }
 
 struct RecommendationContext: Hashable, Sendable {
