@@ -5,16 +5,21 @@ import Observation
 final class AppModel {
     private let store: any LibraryPersisting
     private let recommendationService: any RecommendationProviding
+    let traktService: any TraktSyncProviding
     let catalogService: any CatalogProviding
     private let seed: LibrarySnapshot
     private var saveTask: Task<Void, Never>?
     private var persistenceRevision = 0
-
     var titles: [MediaTitle]
     var sharedSpace: SharedSpace
     private(set) var selectedProviderIDs: Set<StreamingProvider.ID>
     private(set) var allowsAIReranking: Bool
     private(set) var streamingRegionOverride: StreamingRegion?
+    var traktSyncState: TraktSyncState
+    var isTraktAuthorized = false
+    var isTraktSyncing = false
+    var traktSyncSummary: String?
+    var traktSyncError: String?
     private(set) var hasLoaded = false
     var persistenceError: String?
     private(set) var remoteRankedRecommendations: [Recommendation] = []
@@ -24,19 +29,19 @@ final class AppModel {
     var catalogSearchPage = 0
     var catalogSearchQuery = ""
     var hasMoreCatalogResults = false
-
     var selectedMood: Mood = .any {
         didSet { refreshRecommendationsSoon() }
     }
-
     init(
         store: any LibraryPersisting = LibraryStoreFactory.makeDefault(),
         recommendationService: any RecommendationProviding = ProviderNeutralRecommendationService(),
         catalogService: (any CatalogProviding)? = nil,
+        traktService: any TraktSyncProviding = TraktSyncServiceFactory.makeDefault(),
         seed: LibrarySnapshot = .empty
     ) {
         self.store = store
         self.recommendationService = recommendationService
+        self.traktService = traktService
         if let catalogService {
             self.catalogService = catalogService
         } else if seed == .empty {
@@ -50,6 +55,7 @@ final class AppModel {
         selectedProviderIDs = seed.selectedProviderIDs ?? Self.defaultProviderIDs
         allowsAIReranking = seed.allowsAIReranking ?? false
         streamingRegionOverride = seed.streamingRegionCode.flatMap(StreamingRegion.init(code:))
+        traktSyncState = seed.traktSyncState ?? .empty
     }
     var upNext: [MediaTitle] {
         titles
@@ -97,7 +103,8 @@ final class AppModel {
             sharedSpace: sharedSpace,
             selectedProviderIDs: selectedProviderIDs,
             allowsAIReranking: allowsAIReranking,
-            streamingRegionCode: streamingRegionOverride?.code
+            streamingRegionCode: streamingRegionOverride?.code,
+            traktSyncState: traktSyncState
         )
     }
 
@@ -124,12 +131,14 @@ final class AppModel {
                 selectedProviderIDs = snapshot.selectedProviderIDs ?? Self.defaultProviderIDs
                 allowsAIReranking = snapshot.allowsAIReranking ?? false
                 streamingRegionOverride = snapshot.streamingRegionCode.flatMap(StreamingRegion.init(code:))
+                traktSyncState = snapshot.traktSyncState ?? .empty
             }
         } catch {
             persistenceError = "Your saved library could not be opened. Your catalog and saved data remain separate."
         }
         await refreshDiscoveryCatalog()
         await refreshRecommendations()
+        isTraktAuthorized = await traktService.isAuthorized()
     }
 }
 
@@ -258,6 +267,7 @@ extension AppModel {
         selectedProviderIDs = snapshot.selectedProviderIDs ?? Self.defaultProviderIDs
         allowsAIReranking = snapshot.allowsAIReranking ?? false
         streamingRegionOverride = snapshot.streamingRegionCode.flatMap(StreamingRegion.init(code:))
+        traktSyncState = snapshot.traktSyncState ?? .empty
         persist()
     }
 

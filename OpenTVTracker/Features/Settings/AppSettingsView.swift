@@ -43,6 +43,18 @@ struct AppSettingsView: View {
                 }
 
                 Section {
+                    NavigationLink {
+                        TraktSettingsView()
+                    } label: {
+                        LabeledContent("Trakt", value: model.isTraktAuthorized ? "Connected" : "Optional")
+                    }
+                } header: {
+                    Text("Integrations")
+                } footer: {
+                    Text("OpenTV remains fully functional offline and without a Trakt account.")
+                }
+
+                Section {
                     Button("Credits & privacy", systemImage: "hand.raised.fill") {
                         showsCredits = true
                     }
