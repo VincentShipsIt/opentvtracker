@@ -241,7 +241,7 @@ final class ReminderPermissionFlowTests: XCTestCase {
         await model.flushPendingReminders()
 
         let requestCount = await scheduler.requestCount()
-        let storedSnapshot = await store.load()
+        let storedSnapshot = try await store.load()
         let saved = try XCTUnwrap(storedSnapshot)
         XCTAssertEqual(requestCount, 1)
         XCTAssertTrue(model.isReminderEnabled(for: "severance"))
