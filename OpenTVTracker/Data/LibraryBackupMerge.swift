@@ -19,9 +19,12 @@ enum LibraryBackupMerge {
                 remote: imported,
                 local: current
             )
-            restored.reactions = conversation.reactions
-            restored.notes = conversation.notes
-            restored.conversationDeletions = conversation.deletions
+            applyConversation(
+                conversation,
+                imported: imported,
+                current: current,
+                to: &restored
+            )
             return restored
         }
 
@@ -41,9 +44,12 @@ enum LibraryBackupMerge {
             remote: imported,
             local: current
         )
-        merged.reactions = conversation.reactions
-        merged.notes = conversation.notes
-        merged.conversationDeletions = conversation.deletions
+        applyConversation(
+            conversation,
+            imported: imported,
+            current: current,
+            to: &merged
+        )
         merged.titleMetadata = mergeOptionalByID(
             imported: imported.titleMetadata,
             into: current.titleMetadata
@@ -89,6 +95,38 @@ enum LibraryBackupMerge {
     ) -> [Element]? where Element.ID: Hashable {
         guard imported != nil || current != nil else { return nil }
         return mergeByID(imported: imported ?? [], into: current ?? [])
+    }
+
+    private static func applyConversation(
+        _ conversation: SharedConversationState,
+        imported: SharedSpace,
+        current: SharedSpace,
+        to merged: inout SharedSpace
+    ) {
+        merged.reactions = preserveOptionality(
+            conversation.reactions,
+            imported: imported.reactions,
+            current: current.reactions
+        )
+        merged.notes = preserveOptionality(
+            conversation.notes,
+            imported: imported.notes,
+            current: current.notes
+        )
+        merged.conversationDeletions = preserveOptionality(
+            conversation.deletions,
+            imported: imported.conversationDeletions,
+            current: current.conversationDeletions
+        )
+    }
+
+    private static func preserveOptionality<Element>(
+        _ merged: [Element],
+        imported: [Element]?,
+        current: [Element]?
+    ) -> [Element]? {
+        guard imported != nil || current != nil else { return nil }
+        return merged
     }
 
     private static func mergeValues<Value: Hashable>(
