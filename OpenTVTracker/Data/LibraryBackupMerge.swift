@@ -22,7 +22,7 @@ enum LibraryBackupMerge {
             applyConversation(
                 conversation,
                 imported: imported,
-                current: current,
+                current: nil,
                 to: &restored
             )
             return restored
@@ -100,23 +100,23 @@ enum LibraryBackupMerge {
     private static func applyConversation(
         _ conversation: SharedConversationState,
         imported: SharedSpace,
-        current: SharedSpace,
+        current: SharedSpace?,
         to merged: inout SharedSpace
     ) {
         merged.reactions = preserveOptionality(
             conversation.reactions,
             imported: imported.reactions,
-            current: current.reactions
+            current: current?.reactions
         )
         merged.notes = preserveOptionality(
             conversation.notes,
             imported: imported.notes,
-            current: current.notes
+            current: current?.notes
         )
         merged.conversationDeletions = preserveOptionality(
             conversation.deletions,
             imported: imported.conversationDeletions,
-            current: current.conversationDeletions
+            current: current?.conversationDeletions
         )
     }
 

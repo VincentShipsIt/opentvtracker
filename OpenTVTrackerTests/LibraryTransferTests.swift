@@ -68,6 +68,9 @@ final class LibraryTransferTests: XCTestCase {
         let data = try LibraryTransferService.exportJSON(snapshot)
         let preview = try LibraryTransferService.previewImport(data, into: .empty)
 
+        XCTAssertNil(preview.snapshot.sharedSpace.reactions)
+        XCTAssertNil(preview.snapshot.sharedSpace.notes)
+        XCTAssertNil(preview.snapshot.sharedSpace.conversationDeletions)
         XCTAssertEqual(preview.snapshot, snapshot)
     }
 
