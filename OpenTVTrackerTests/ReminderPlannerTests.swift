@@ -182,6 +182,38 @@ final class ReminderPlannerTests: XCTestCase {
         XCTAssertEqual(added.first?.titleID, title.id)
     }
 
+    func testConcurrentReconcileDoesNotResurrectDisabledReminder() async throws {
+        let center = ReminderNotificationCenterSpy(
+            authorization: .authorized,
+            pendingIdentifiers: [],
+            addDelay: .milliseconds(50)
+        )
+        let service = LocalNotificationReminderService(notificationCenter: center)
+        let title = series(airDate: now.addingTimeInterval(7_200))
+        var enabledSettings = ReminderSettings()
+        enabledSettings.isEnabled = true
+        enabledSettings.enabledTitleIDs = [title.id]
+
+        async let enabledReconcile: Void = service.reconcile(
+            titles: [title],
+            selectedProviderIDs: [],
+            settings: enabledSettings,
+            now: now
+        )
+        try? await Task.sleep(for: .milliseconds(5))
+        async let disabledReconcile: Void = service.reconcile(
+            titles: [title],
+            selectedProviderIDs: [],
+            settings: ReminderSettings(),
+            now: now
+        )
+        try await enabledReconcile
+        try await disabledReconcile
+
+        let pendingIdentifiers = await center.pendingIdentifiers()
+        XCTAssertFalse(pendingIdentifiers.contains { $0.hasPrefix("opentv.reminder.") })
+    }
+
     func testPlannerCapsEachSeriesAtThreeEpisodes() {
         var title = series(airDate: now.addingTimeInterval(7_200))
         title.seasons = [
@@ -248,16 +280,19 @@ final class ReminderPlannerTests: XCTestCase {
 
 private actor ReminderNotificationCenterSpy: ReminderNotificationCenterProviding {
     private var currentAuthorization: ReminderAuthorization
-    private let existingIdentifiers: [String]
+    private var currentPendingIdentifiers: [String]
+    private let addDelay: Duration?
     private var removed: [String] = []
     private var added: [ReminderNotificationRequest] = []
 
     init(
         authorization: ReminderAuthorization,
-        pendingIdentifiers: [String]
+        pendingIdentifiers: [String],
+        addDelay: Duration? = nil
     ) {
         currentAuthorization = authorization
-        existingIdentifiers = pendingIdentifiers
+        currentPendingIdentifiers = pendingIdentifiers
+        self.addDelay = addDelay
     }
 
     func authorization() async -> ReminderAuthorization {
@@ -270,14 +305,21 @@ private actor ReminderNotificationCenterSpy: ReminderNotificationCenterProviding
     }
 
     func pendingIdentifiers() async -> [String] {
-        existingIdentifiers
+        currentPendingIdentifiers
     }
 
     func removePendingRequests(withIdentifiers identifiers: [String]) async {
         removed = identifiers
+        let identifierSet = Set(identifiers)
+        currentPendingIdentifiers.removeAll { identifierSet.contains($0) }
     }
 
     func add(_ request: ReminderNotificationRequest) async throws {
+        if let addDelay {
+            try await Task.sleep(for: addDelay)
+        }
+        currentPendingIdentifiers.removeAll { $0 == request.identifier }
+        currentPendingIdentifiers.append(request.identifier)
         added.append(request)
     }
 

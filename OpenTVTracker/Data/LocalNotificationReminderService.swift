@@ -64,7 +64,7 @@ struct SystemReminderNotificationCenter: ReminderNotificationCenterProviding, @u
         content.threadIdentifier = request.threadIdentifier
         content.userInfo = ["titleID": request.titleID, "kind": request.kind.rawValue]
         var components = Calendar.current.dateComponents(
-            [.year, .month, .day, .hour, .minute],
+            [.year, .month, .day, .hour, .minute, .second],
             from: request.fireDate
         )
         components.timeZone = Calendar.current.timeZone
@@ -227,6 +227,7 @@ enum ReminderPlanner {
 
 actor LocalNotificationReminderService: ReminderScheduling {
     private let notificationCenter: any ReminderNotificationCenterProviding
+    private var reconciliationTask: Task<Void, Error>?
 
     init(
         notificationCenter: any ReminderNotificationCenterProviding = SystemReminderNotificationCenter()
@@ -252,6 +253,29 @@ actor LocalNotificationReminderService: ReminderScheduling {
     }
 
     func reconcile(
+        titles: [MediaTitle],
+        selectedProviderIDs: Set<StreamingProvider.ID>,
+        settings: ReminderSettings,
+        now: Date
+    ) async throws {
+        let previousTask = reconciliationTask
+        let task = Task { [weak self] in
+            if let previousTask {
+                _ = try? await previousTask.value
+            }
+            guard let self else { return }
+            try await self.performReconcile(
+                titles: titles,
+                selectedProviderIDs: selectedProviderIDs,
+                settings: settings,
+                now: now
+            )
+        }
+        reconciliationTask = task
+        try await task.value
+    }
+
+    private func performReconcile(
         titles: [MediaTitle],
         selectedProviderIDs: Set<StreamingProvider.ID>,
         settings: ReminderSettings,

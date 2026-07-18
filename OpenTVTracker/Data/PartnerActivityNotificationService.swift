@@ -107,10 +107,11 @@ actor PartnerActivityNotificationService: PartnerActivityNotifying {
             }
         }
         if !deliveredActivityIDs.isEmpty {
+            let currentSeenActivityIDs = defaults.stringArray(forKey: Self.seenActivityIDsKey) ?? []
             defaults.set(
                 PartnerActivitySeenState.appending(
                     deliveredActivityIDs,
-                    to: seenActivityIDs
+                    to: currentSeenActivityIDs
                 ),
                 forKey: Self.seenActivityIDsKey
             )

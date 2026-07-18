@@ -110,6 +110,7 @@
 		EB957279FF5081E3D3A2B8CA /* LibraryDataView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99D8913E76F6F19B3429126F /* LibraryDataView.swift */; };
 		EC8A748CE8C4B6F11A622A78 /* OpenTVWidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26C95F6168D463F58164BA67 /* OpenTVWidgetSnapshot.swift */; };
 		EE9071ACB9E793DACA6AEEA8 /* MediaDetailReminderActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 243B1FCC3BEA320928804B73 /* MediaDetailReminderActions.swift */; };
+		EEA1347EC61E6150665FF2A9 /* PartnerActivityConcurrencyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB18B074C4A3A84363C317A5 /* PartnerActivityConcurrencyTests.swift */; };
 		F174771646994C976737EF5F /* TVTimeZIPReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2F8946DC4EE1DAE49DC50DC /* TVTimeZIPReader.swift */; };
 		F2FDF5B2ACE328B3D76AA3EF /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = 8CA6FFEE4B4AF6A9653F654A /* ZIPFoundation */; };
 		F301BCF6258EEA4BF0731AC9 /* TitleSimilarityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D071796CAD784E5EE144A4F /* TitleSimilarityTests.swift */; };
@@ -269,6 +270,7 @@
 		F6959FA42B212427BC26E3C0 /* SampleData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleData.swift; sourceTree = "<group>"; };
 		F823FF292350485AF96063E3 /* ViewingAnalyticsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewingAnalyticsTests.swift; sourceTree = "<group>"; };
 		F97FF62C81618EBD20B3E0E7 /* OpenTVTrackerUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = OpenTVTrackerUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		FB18B074C4A3A84363C317A5 /* PartnerActivityConcurrencyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PartnerActivityConcurrencyTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -521,6 +523,7 @@
 				CB86ECFE65B31D28B52695CC /* LibraryTransferTests.swift */,
 				2EABBCF99AF35E31BADA99A9 /* NearbyPartnerPairingTests.swift */,
 				72D3B828F5E37999D78BDC82 /* OpenRouterOAuthTests.swift */,
+				FB18B074C4A3A84363C317A5 /* PartnerActivityConcurrencyTests.swift */,
 				00637C04E8B4A58C1B5CDBB1 /* PartnerActivityNotificationTests.swift */,
 				1F15155D794E90782ECB43F7 /* RecommendationServiceTests.swift */,
 				2261FD20E54F0B35947745AE /* ReminderPermissionFlowTests.swift */,
@@ -668,7 +671,7 @@
 					96396D01C2F07D817EF2875C = {
 						DevelopmentTeam = C76R5DRH64;
 						ProvisioningStyle = Automatic;
-						SystemCapabilities = "[\"com.apple.iCloud\": [\"enabled\": 1], \"com.apple.Push\": [\"enabled\": 1], \"com.apple.DeviceCheck\": [\"enabled\": 1]]";
+						SystemCapabilities = "[\"com.apple.DeviceCheck\": [\"enabled\": 1], \"com.apple.Push\": [\"enabled\": 1], \"com.apple.iCloud\": [\"enabled\": 1]]";
 					};
 					B0AF29D3A827D293C2407B7B = {
 						DevelopmentTeam = C76R5DRH64;
@@ -746,6 +749,7 @@
 				94DD351F05C931C26FA450C1 /* LibraryTransferTests.swift in Sources */,
 				DE8C312423B5EA01F18239AC /* NearbyPartnerPairingTests.swift in Sources */,
 				354B9F99E8BC5F479432258D /* OpenRouterOAuthTests.swift in Sources */,
+				EEA1347EC61E6150665FF2A9 /* PartnerActivityConcurrencyTests.swift in Sources */,
 				D5252B6709B0096A0E0AD0F1 /* PartnerActivityNotificationTests.swift in Sources */,
 				2B7C225B22689F41619D138B /* RecommendationServiceTests.swift in Sources */,
 				FC92AB0028405A426F1B8C9C /* ReminderPermissionFlowTests.swift in Sources */,
