@@ -109,7 +109,7 @@ final class ReminderPlannerTests: XCTestCase {
 
         XCTAssertTrue(excluded.isEmpty)
         XCTAssertEqual(included.first?.kind, .providerAvailability)
-        XCTAssertEqual(included.first?.fireDate, now.addingTimeInterval(86_400))
+        XCTAssertEqual(included.first?.fireDate, now.addingTimeInterval(172_800))
     }
 
     func testWidgetSnapshotContainsUpcomingPublicLabelsWithoutPrivateNotes() throws {
@@ -144,6 +144,42 @@ final class ReminderPlannerTests: XCTestCase {
         )
 
         XCTAssertEqual(Set(plans.map(\.titleID)), [enabled.id])
+    }
+
+    func testWidgetSnapshotContentIgnoresGenerationTime() {
+        let first = WidgetSnapshotFactory.make(upNext: [], titles: [], now: now)
+        let second = WidgetSnapshotFactory.make(
+            upNext: [],
+            titles: [],
+            now: now.addingTimeInterval(60)
+        )
+
+        XCTAssertTrue(first.hasSameContent(as: second))
+    }
+
+    func testReconcileRemovesOnlyReminderRequestsAndSchedulesPlans() async throws {
+        let center = ReminderNotificationCenterSpy(
+            authorization: .authorized,
+            pendingIdentifiers: ["opentv.reminder.old", "partner-activity-keep"]
+        )
+        let service = LocalNotificationReminderService(notificationCenter: center)
+        let title = series(airDate: now.addingTimeInterval(7_200))
+        var settings = ReminderSettings()
+        settings.isEnabled = true
+        settings.enabledTitleIDs = [title.id]
+
+        try await service.reconcile(
+            titles: [title],
+            selectedProviderIDs: [],
+            settings: settings,
+            now: now
+        )
+
+        let removed = await center.removedIdentifiers()
+        let added = await center.addedRequests()
+        XCTAssertEqual(removed, ["opentv.reminder.old"])
+        XCTAssertEqual(added.count, 1)
+        XCTAssertEqual(added.first?.titleID, title.id)
     }
 
     func testPlannerCapsEachSeriesAtThreeEpisodes() {
@@ -249,6 +285,24 @@ final class ReminderPermissionFlowTests: XCTestCase {
         XCTAssertEqual(model.reminderLeadTime(for: "severance"), .fifteenMinutes)
         XCTAssertTrue(saved.reminderSettings?.isEnabled == true)
     }
+
+    func testGlobalTogglePreservesPerTitleOnlyPreference() async {
+        let scheduler = ReminderSchedulerSpy()
+        let model = AppModel(
+            store: MemoryLibraryStore(),
+            reminderScheduler: scheduler,
+            seed: .sample
+        )
+        model.reminderSettings.isEnabled = true
+        model.reminderSettings.automaticallyRemindTrackedTitles = false
+        model.reminderSettings.enabledTitleIDs = ["severance"]
+
+        await model.setRemindersEnabled(false)
+        await model.setRemindersEnabled(true)
+
+        XCTAssertFalse(model.reminderSettings.automaticallyRemindTrackedTitles)
+        XCTAssertEqual(model.reminderSettings.enabledTitleIDs, ["severance"])
+    }
 }
 
 private actor ReminderSchedulerSpy: ReminderScheduling {
@@ -274,5 +328,49 @@ private actor ReminderSchedulerSpy: ReminderScheduling {
 
     func requestCount() -> Int {
         authorizationRequests
+    }
+}
+
+private actor ReminderNotificationCenterSpy: ReminderNotificationCenterProviding {
+    private var currentAuthorization: ReminderAuthorization
+    private let existingIdentifiers: [String]
+    private var removed: [String] = []
+    private var added: [ReminderNotificationRequest] = []
+
+    init(
+        authorization: ReminderAuthorization,
+        pendingIdentifiers: [String]
+    ) {
+        currentAuthorization = authorization
+        existingIdentifiers = pendingIdentifiers
+    }
+
+    func authorization() async -> ReminderAuthorization {
+        currentAuthorization
+    }
+
+    func requestAuthorization() async -> ReminderAuthorization {
+        currentAuthorization = .authorized
+        return currentAuthorization
+    }
+
+    func pendingIdentifiers() async -> [String] {
+        existingIdentifiers
+    }
+
+    func removePendingRequests(withIdentifiers identifiers: [String]) async {
+        removed = identifiers
+    }
+
+    func add(_ request: ReminderNotificationRequest) async throws {
+        added.append(request)
+    }
+
+    func removedIdentifiers() -> [String] {
+        removed
+    }
+
+    func addedRequests() -> [ReminderNotificationRequest] {
+        added
     }
 }
