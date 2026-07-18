@@ -14,7 +14,6 @@ extension AppModel {
         }
 
         reminderSettings.isEnabled = enabled
-        reminderSettings.automaticallyRemindTrackedTitles = enabled
         reminderError = nil
         persist()
         if !enabled {
@@ -130,6 +129,10 @@ extension AppModel {
     func publishWidgetSnapshot() {
         let snapshot = WidgetSnapshotFactory.make(upNext: upNext, titles: titles, now: .now)
         do {
+            if let existing = OpenTVWidgetSnapshotStore.load(),
+               existing.hasSameContent(as: snapshot) {
+                return
+            }
             try OpenTVWidgetSnapshotStore.save(snapshot)
             WidgetCenter.shared.reloadAllTimelines()
         } catch {

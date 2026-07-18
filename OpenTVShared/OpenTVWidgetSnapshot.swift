@@ -20,6 +20,10 @@ struct OpenTVWidgetSnapshot: Codable, Hashable, Sendable {
             upcoming: []
         )
     }
+
+    func hasSameContent(as other: OpenTVWidgetSnapshot) -> Bool {
+        upNext == other.upNext && upcoming == other.upcoming
+    }
 }
 
 enum OpenTVWidgetSnapshotStore {

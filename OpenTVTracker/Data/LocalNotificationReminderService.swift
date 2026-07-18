@@ -17,6 +17,66 @@ struct ReminderPlan: Equatable, Identifiable, Sendable {
     let fireDate: Date
 }
 
+struct ReminderNotificationRequest: Equatable, Sendable {
+    let identifier: String
+    let title: String
+    let body: String
+    let threadIdentifier: String
+    let titleID: MediaTitle.ID
+    let kind: ReminderPlan.Kind
+    let fireDate: Date
+}
+
+protocol ReminderNotificationCenterProviding: Sendable {
+    func authorization() async -> ReminderAuthorization
+    func requestAuthorization() async -> ReminderAuthorization
+    func pendingIdentifiers() async -> [String]
+    func removePendingRequests(withIdentifiers identifiers: [String]) async
+    func add(_ request: ReminderNotificationRequest) async throws
+}
+
+struct SystemReminderNotificationCenter: ReminderNotificationCenterProviding, @unchecked Sendable {
+    private let center = UNUserNotificationCenter.current()
+
+    func authorization() async -> ReminderAuthorization {
+        ReminderAuthorization(await center.notificationSettings().authorizationStatus)
+    }
+
+    func requestAuthorization() async -> ReminderAuthorization {
+        let granted = (try? await center.requestAuthorization(options: [.alert, .sound, .badge])) ?? false
+        guard granted else { return .denied }
+        return await authorization()
+    }
+
+    func pendingIdentifiers() async -> [String] {
+        await center.pendingNotificationRequests().map(\.identifier)
+    }
+
+    func removePendingRequests(withIdentifiers identifiers: [String]) async {
+        center.removePendingNotificationRequests(withIdentifiers: identifiers)
+    }
+
+    func add(_ request: ReminderNotificationRequest) async throws {
+        let content = UNMutableNotificationContent()
+        content.title = request.title
+        content.body = request.body
+        content.sound = .default
+        content.threadIdentifier = request.threadIdentifier
+        content.userInfo = ["titleID": request.titleID, "kind": request.kind.rawValue]
+        var components = Calendar.current.dateComponents(
+            [.year, .month, .day, .hour, .minute],
+            from: request.fireDate
+        )
+        components.timeZone = Calendar.current.timeZone
+        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+        try await center.add(UNNotificationRequest(
+            identifier: request.identifier,
+            content: content,
+            trigger: trigger
+        ))
+    }
+}
+
 enum ReminderPlanner {
     static func plans(
         titles: [MediaTitle],
@@ -63,7 +123,6 @@ enum ReminderPlanner {
             for: title,
             selectedProviderIDs: selectedProviderIDs,
             settings: settings,
-            leadTime: leadTime,
             now: now
         ) {
             return [providerPlan]
@@ -140,7 +199,6 @@ enum ReminderPlanner {
         for title: MediaTitle,
         selectedProviderIDs: Set<StreamingProvider.ID>,
         settings: ReminderSettings,
-        leadTime: ReminderLeadTime,
         now: Date
     ) -> ReminderPlan? {
         guard settings.providerAvailabilityEnabled,
@@ -150,7 +208,7 @@ enum ReminderPlanner {
               let releaseDate = title.releaseDate else {
             return nil
         }
-        let fireDate = releaseDate.addingTimeInterval(-Double(leadTime.rawValue * 60))
+        let fireDate = releaseDate
         guard fireDate > now else { return nil }
         return ReminderPlan(
             id: identifier(titleID: title.id, eventID: "provider-availability"),
@@ -168,20 +226,22 @@ enum ReminderPlanner {
 }
 
 actor LocalNotificationReminderService: ReminderScheduling {
-    func requestAuthorization() async -> ReminderAuthorization {
-        let center = UNUserNotificationCenter.current()
-        let current = Self.authorization(from: await center.notificationSettings().authorizationStatus)
-        guard current == .notDetermined else { return current }
+    private let notificationCenter: any ReminderNotificationCenterProviding
 
-        let granted = (try? await center.requestAuthorization(options: [.alert, .sound, .badge])) ?? false
-        guard granted else { return .denied }
-        return Self.authorization(from: await center.notificationSettings().authorizationStatus)
+    init(
+        notificationCenter: any ReminderNotificationCenterProviding = SystemReminderNotificationCenter()
+    ) {
+        self.notificationCenter = notificationCenter
+    }
+
+    func requestAuthorization() async -> ReminderAuthorization {
+        let current = await notificationCenter.authorization()
+        guard current == .notDetermined else { return current }
+        return await notificationCenter.requestAuthorization()
     }
 
     func capability() async -> ReminderCapability {
-        let authorization = Self.authorization(
-            from: await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
-        )
+        let authorization = await notificationCenter.authorization()
         let backgroundRefreshAvailable = await MainActor.run {
             UIApplication.shared.backgroundRefreshStatus == .available
         }
@@ -197,12 +257,11 @@ actor LocalNotificationReminderService: ReminderScheduling {
         settings: ReminderSettings,
         now: Date
     ) async throws {
-        let center = UNUserNotificationCenter.current()
-        let pending = await center.pendingNotificationRequests()
-        let reminderIDs = pending.map(\.identifier).filter { $0.hasPrefix("opentv.reminder.") }
-        center.removePendingNotificationRequests(withIdentifiers: reminderIDs)
+        let reminderIDs = await notificationCenter.pendingIdentifiers()
+            .filter { $0.hasPrefix("opentv.reminder.") }
+        await notificationCenter.removePendingRequests(withIdentifiers: reminderIDs)
 
-        let authorization = Self.authorization(from: await center.notificationSettings().authorizationStatus)
+        let authorization = await notificationCenter.authorization()
         guard settings.isEnabled, authorization.allowsScheduling else { return }
 
         var failureCount = 0
@@ -212,23 +271,15 @@ actor LocalNotificationReminderService: ReminderScheduling {
             settings: settings,
             now: now
         ) {
-            let content = UNMutableNotificationContent()
-            content.title = plan.title
-            content.body = plan.body
-            content.sound = .default
-            content.threadIdentifier = "opentv.\(plan.titleID)"
-            content.userInfo = ["titleID": plan.titleID, "kind": plan.kind.rawValue]
-            var components = Calendar.current.dateComponents(
-                [.year, .month, .day, .hour, .minute],
-                from: plan.fireDate
-            )
-            components.timeZone = Calendar.current.timeZone
-            let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
             do {
-                try await center.add(UNNotificationRequest(
+                try await notificationCenter.add(ReminderNotificationRequest(
                     identifier: plan.id,
-                    content: content,
-                    trigger: trigger
+                    title: plan.title,
+                    body: plan.body,
+                    threadIdentifier: "opentv.\(plan.titleID)",
+                    titleID: plan.titleID,
+                    kind: plan.kind,
+                    fireDate: plan.fireDate
                 ))
             } catch {
                 failureCount += 1
@@ -238,15 +289,17 @@ actor LocalNotificationReminderService: ReminderScheduling {
             throw ReminderSchedulingError.partialFailure(failureCount)
         }
     }
+}
 
-    private static func authorization(from status: UNAuthorizationStatus) -> ReminderAuthorization {
+private extension ReminderAuthorization {
+    init(_ status: UNAuthorizationStatus) {
         switch status {
-        case .notDetermined: .notDetermined
-        case .denied: .denied
-        case .authorized: .authorized
-        case .provisional: .provisional
-        case .ephemeral: .ephemeral
-        @unknown default: .denied
+        case .notDetermined: self = .notDetermined
+        case .denied: self = .denied
+        case .authorized: self = .authorized
+        case .provisional: self = .provisional
+        case .ephemeral: self = .ephemeral
+        @unknown default: self = .denied
         }
     }
 }
