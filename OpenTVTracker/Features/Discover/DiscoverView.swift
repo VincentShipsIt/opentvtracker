@@ -13,12 +13,8 @@ struct DiscoverView: View {
 
                 ScrollView {
                     LazyVStack(spacing: AppTheme.sectionSpacing) {
-                        CatalogSearchBar(
-                            searchText: $searchText,
-                            presentedSheet: $presentedSheet
-                        )
-
-                        if searchText.isEmpty {
+                        if trimmedSearchText.isEmpty {
+                            serviceManagerControl
                             featuredRecommendation
                             DiscoverCategoryCarousel(sections: categorySections)
                             CinemaDiscoveryCard()
@@ -34,6 +30,13 @@ struct DiscoverView: View {
                     .padding(.bottom, 36)
                 }
             }
+            .navigationTitle("Discover")
+            .navigationBarTitleDisplayMode(.large)
+            .searchable(
+                text: $searchText,
+                placement: .navigationBarDrawer(displayMode: .always),
+                prompt: "Shows, movies, genres"
+            )
             .task(id: searchText) {
                 await model.searchCatalog(text: searchText)
             }
@@ -55,6 +58,12 @@ struct DiscoverView: View {
                     TrailerPlayerView(trailer: trailer)
                 }
             }
+        }
+    }
+
+    private var serviceManagerControl: some View {
+        ServiceManagerControl {
+            presentedSheet = .services
         }
     }
 
@@ -132,22 +141,29 @@ struct DiscoverView: View {
         VStack(alignment: .leading, spacing: 14) {
             SectionHeading(
                 title: "Catalog results",
-                subtitle: "\(filteredTitles.count) matches · service availability shown separately"
+                subtitle: searchStatus
             )
 
-            if filteredTitles.isEmpty {
-                if model.isSearchingCatalog {
-                    ProgressView("Searching the catalog…")
+            if model.catalogSearchResults.isEmpty {
+                if let error = model.catalogSearchError, !model.isSearchingCatalog {
+                    VStack(spacing: 16) {
+                        ContentUnavailableView(
+                            "Catalog unavailable",
+                            systemImage: "wifi.exclamationmark",
+                            description: Text(error)
+                        )
+
+                        Button("Try again", systemImage: "arrow.clockwise") {
+                            Task { await model.searchCatalog(text: searchText) }
+                        }
+                        .adaptiveGlassButton(prominent: true)
+                    }
+                } else if model.isSearchingCatalog {
+                    ProgressView("Searching for “\(trimmedSearchText)”…")
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 24)
-                } else if let error = model.catalogSearchError {
-                    ContentUnavailableView(
-                        "Catalog unavailable",
-                        systemImage: "wifi.exclamationmark",
-                        description: Text(error)
-                    )
                 } else {
-                    ContentUnavailableView.search(text: searchText)
+                    ContentUnavailableView.search(text: trimmedSearchText)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 24)
                 }
@@ -159,14 +175,26 @@ struct DiscoverView: View {
                     ],
                     spacing: 18
                 ) {
-                    ForEach(filteredTitles) { title in
+                    ForEach(model.catalogSearchResults) { title in
                         CatalogSearchCard(result: title)
                             .task {
-                                if title.id == filteredTitles.last?.id {
+                                if title.id == model.catalogSearchResults.last?.id {
                                     await model.loadMoreCatalogResults(text: searchText)
                                 }
                             }
                     }
+                }
+
+                if model.isSearchingCatalog {
+                    ProgressView("Loading more results…")
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                } else if let error = model.catalogSearchError {
+                    ContentUnavailableView(
+                        "Catalog unavailable",
+                        systemImage: "wifi.exclamationmark",
+                        description: Text(error)
+                    )
                 }
             }
         }
@@ -195,11 +223,18 @@ struct DiscoverView: View {
         return Array(titles[offset...]) + Array(titles[..<offset])
     }
 
-    private var filteredTitles: [MediaTitle] {
-        model.catalogSearchResults.filter { title in
-            title.title.localizedStandardContains(searchText)
-                || title.genres.contains(where: { $0.localizedStandardContains(searchText) })
+    private var trimmedSearchText: String {
+        searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var searchStatus: String {
+        if model.isSearchingCatalog {
+            return "Searching for “\(trimmedSearchText)”…"
         }
+        if model.catalogSearchError != nil {
+            return "Search for “\(trimmedSearchText)” failed"
+        }
+        return "\(model.catalogSearchResults.count) matches for “\(trimmedSearchText)” · availability shown separately"
     }
 
     private func titles(for provider: StreamingProvider) -> [MediaTitle] {
@@ -218,49 +253,40 @@ struct DiscoverView: View {
     }
 }
 
-private struct CatalogSearchBar: View {
-    @Binding var searchText: String
-    @Binding var presentedSheet: DiscoverSheet?
-    @FocusState private var isSearchFocused: Bool
+private struct ServiceManagerControl: View {
+    let action: () -> Void
 
     var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(.secondary)
-                .accessibilityHidden(true)
+        Button(action: action) {
+            GlassSurface(cornerRadius: AppTheme.compactRadius) {
+                HStack(spacing: 12) {
+                    Image(systemName: "play.tv.fill")
+                        .font(.title3)
+                        .frame(width: 40, height: 40)
+                        .background(Color.accentColor.opacity(0.14), in: Circle())
 
-            TextField("Shows, movies, genres", text: $searchText)
-                .focused($isSearchFocused)
-                .submitLabel(.search)
-                .autocorrectionDisabled()
-                .accessibilityLabel("Search the full catalog")
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Manage streaming services")
+                            .font(.headline)
+                        Text("Personalize recommendations and highlight availability")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.leading)
+                    }
 
-            if !searchText.isEmpty {
-                Button("Clear search", systemImage: "xmark.circle.fill") {
-                    searchText = ""
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.secondary)
                 }
-                .labelStyle(.iconOnly)
-                .foregroundStyle(.secondary)
+                .padding(14)
             }
-
-            Divider()
-                .frame(height: 24)
-
-            Button("Manage services", systemImage: "slider.horizontal.3") {
-                presentedSheet = .services
-            }
-            .labelStyle(.iconOnly)
-            .frame(width: 44, height: 44)
-            .foregroundStyle(Color.accentColor)
-            .accessibilityHint("Filters recommendations and availability, not catalog search")
-            .accessibilityIdentifier("discover.manage-services")
         }
-        .padding(.leading, 14)
-        .padding(.trailing, 7)
-        .frame(minHeight: 50)
-        .background(Color(.secondarySystemBackground), in: Capsule())
-        .overlay { Capsule().strokeBorder(.primary.opacity(0.08)) }
+        .buttonStyle(.plain)
         .padding(.horizontal, AppTheme.horizontalPadding)
+        .accessibilityHint("Changes recommendations and availability labels, not catalog search results")
+        .accessibilityIdentifier("discover.manage-services")
     }
 }
 

@@ -24,6 +24,7 @@ final class AppModel {
     var catalogSearchPage = 0
     var catalogSearchQuery = ""
     var hasMoreCatalogResults = false
+    var catalogSearchRequestID = UUID()
 
     var selectedMood: Mood = .any {
         didSet { refreshRecommendationsSoon() }
