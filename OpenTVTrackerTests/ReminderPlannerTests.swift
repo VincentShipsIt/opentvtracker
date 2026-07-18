@@ -193,19 +193,20 @@ final class ReminderPlannerTests: XCTestCase {
         var enabledSettings = ReminderSettings()
         enabledSettings.isEnabled = true
         enabledSettings.enabledTitleIDs = [title.id]
+        let reconciliationNow = now
 
         async let enabledReconcile: Void = service.reconcile(
             titles: [title],
             selectedProviderIDs: [],
             settings: enabledSettings,
-            now: now
+            now: reconciliationNow
         )
         try? await Task.sleep(for: .milliseconds(5))
         async let disabledReconcile: Void = service.reconcile(
             titles: [title],
             selectedProviderIDs: [],
             settings: ReminderSettings(),
-            now: now
+            now: reconciliationNow
         )
         try await enabledReconcile
         try await disabledReconcile
