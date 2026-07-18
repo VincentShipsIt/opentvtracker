@@ -119,13 +119,11 @@ extension AppModel {
         reminderTask = Task {
             do {
                 try await Task.sleep(for: .milliseconds(200))
-                guard !Task.isCancelled else { return }
-                await refreshReminders()
-            } catch is CancellationError {
-                return
             } catch {
-                reminderError = "OpenTV could not refresh reminders. It will try again when the app becomes active."
+                return
             }
+            guard !Task.isCancelled else { return }
+            await refreshReminders()
         }
     }
 

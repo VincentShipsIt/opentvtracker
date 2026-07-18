@@ -237,7 +237,7 @@ final class PartnerActivityNotificationTests: XCTestCase {
         XCTAssertEqual(notification.memberName, "Your partner")
     }
 
-    private static func space(activities: [SharedActivity]) -> SharedSpace {
+    fileprivate static func space(activities: [SharedActivity]) -> SharedSpace {
         SharedSpace(
             id: "space",
             name: "Our space",
@@ -252,7 +252,7 @@ final class PartnerActivityNotificationTests: XCTestCase {
         )
     }
 
-    private static func activity(
+    fileprivate static func activity(
         id: String,
         memberID: String,
         kind: SharedActivityKind,
@@ -268,6 +268,38 @@ final class PartnerActivityNotificationTests: XCTestCase {
             kind: kind,
             occurredAt: occurredAt
         )
+    }
+}
+
+final class PartnerActivityConcurrencyTests: XCTestCase {
+    func testConcurrentReconciliationDoesNotRedeliverInFlightActivity() async throws {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let center = PartnerNotificationCenterSpy(
+            authorization: .authorized,
+            deliveryDelay: .milliseconds(50)
+        )
+        let suiteName = "partner-notifications-concurrent-\(UUID())"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let service = PartnerActivityNotificationService(
+            notificationCenter: center,
+            defaults: defaults,
+            now: { now }
+        )
+        let activity = PartnerActivityNotificationTests.activity(
+            id: "deliver-once-concurrently",
+            memberID: "partner",
+            kind: .watchedTogether,
+            occurredAt: now
+        )
+        let space = PartnerActivityNotificationTests.space(activities: [activity])
+
+        async let first: Void = service.notify(about: space.activity, in: space)
+        async let second: Void = service.notify(about: space.activity, in: space)
+        _ = await (first, second)
+
+        let requests = await center.successfulRequests()
+        XCTAssertEqual(requests.map(\.identifier), ["partner-activity-deliver-once-concurrently"])
     }
 }
 
@@ -317,14 +349,17 @@ private actor PartnerActivityNotifierSpy: PartnerActivityNotifying {
 private actor PartnerNotificationCenterSpy: PartnerNotificationCenterProviding {
     private var currentAuthorization: ReminderAuthorization
     private var shouldFail: Bool
+    private let deliveryDelay: Duration?
     private var deliveredRequests: [PartnerActivityNotificationRequest] = []
 
     init(
         authorization: ReminderAuthorization,
-        shouldFail: Bool = false
+        shouldFail: Bool = false,
+        deliveryDelay: Duration? = nil
     ) {
         currentAuthorization = authorization
         self.shouldFail = shouldFail
+        self.deliveryDelay = deliveryDelay
     }
 
     func authorization() async -> ReminderAuthorization {
@@ -336,6 +371,9 @@ private actor PartnerNotificationCenterSpy: PartnerNotificationCenterProviding {
     }
 
     func add(_ request: PartnerActivityNotificationRequest) async throws {
+        if let deliveryDelay {
+            try await Task.sleep(for: deliveryDelay)
+        }
         if shouldFail {
             throw PartnerNotificationCenterSpyError.deliveryFailed
         }

@@ -116,12 +116,17 @@ final class AppModelTests: XCTestCase {
     }
 
     func testConcurrentPersistedLoadsReadStoreOnce() async {
-        let store = CountingLibraryStore(snapshot: .sample)
+        var storedSnapshot = LibrarySnapshot.sample
+        storedSnapshot.sharedSpace.name = "Loaded partner space"
+        let store = CountingLibraryStore(snapshot: storedSnapshot)
         let model = AppModel(store: store, seed: .sample)
 
         async let first: Void = model.loadPersistedState()
-        async let second: Void = model.loadPersistedState()
-        _ = await (first, second)
+        try? await Task.sleep(for: .milliseconds(5))
+        await model.loadPersistedState()
+
+        XCTAssertEqual(model.sharedSpace.name, "Loaded partner space")
+        _ = await first
 
         let loadCount = await store.loadCount()
         XCTAssertEqual(loadCount, 1)

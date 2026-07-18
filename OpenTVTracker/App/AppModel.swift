@@ -23,7 +23,7 @@ final class AppModel {
     var reminderError: String?
     private(set) var hasLoaded = false
     private var isLoading = false
-    private var hasLoadedPersistedState = false
+    private var persistedStateLoad: Task<Void, Never>?
     var persistenceError: String?
     private(set) var remoteRankedRecommendations: [Recommendation] = []
     var catalogSearchResults: [MediaTitle] = []
@@ -133,11 +133,6 @@ final class AppModel {
         }
     }
 
-    func moreLikeThis(_ id: MediaTitle.ID, limit: Int = 12) -> [SimilarTitleMatch] {
-        guard let source = titles.first(where: { $0.id == id }) else { return [] }
-        return TitleSimilarity.matches(for: source, among: titlesOnSelectedProviders, limit: limit)
-    }
-
     func load() async {
         guard !hasLoaded, !isLoading else { return }
         isLoading = true
@@ -157,9 +152,19 @@ final class AppModel {
         publishWidgetSnapshot()
     }
     func loadPersistedState() async {
-        guard !hasLoadedPersistedState else { return }
-        hasLoadedPersistedState = true
+        if let persistedStateLoad {
+            await persistedStateLoad.value
+            return
+        }
+        let task = Task { @MainActor [weak self] in
+            guard let self else { return }
+            await self.performPersistedStateLoad()
+        }
+        persistedStateLoad = task
+        await task.value
+    }
 
+    private func performPersistedStateLoad() async {
         do {
             if let snapshot = try await store.load() {
                 titles = merging(savedTitles: snapshot.titles, catalogTitles: seed.titles)
@@ -318,14 +323,6 @@ extension AppModel {
         }
         persist()
         refreshRecommendationsSoon()
-    }
-
-    func isProviderSelected(_ id: StreamingProvider.ID) -> Bool {
-        selectedProviderIDs.contains(id)
-    }
-
-    func isAvailableOnSelectedProviders(_ title: MediaTitle) -> Bool {
-        !selectedProviderIDs.isDisjoint(with: Set(title.providers.map(\.id)))
     }
 
     func refreshRecommendations() async {

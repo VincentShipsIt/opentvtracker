@@ -55,6 +55,7 @@ actor PartnerActivityNotificationService: PartnerActivityNotifying {
     private let notificationCenter: any PartnerNotificationCenterProviding
     private let defaults: UserDefaults
     private let now: @Sendable () -> Date
+    private var inFlightActivityIDs: Set<SharedActivity.ID> = []
 
     init(
         notificationCenter: any PartnerNotificationCenterProviding = SystemPartnerNotificationCenter(),
@@ -81,10 +82,14 @@ actor PartnerActivityNotificationService: PartnerActivityNotifying {
         let notifications = PartnerActivityNotificationPlanner.notifications(
             for: activities,
             in: space,
-            excluding: Set(seenActivityIDs),
+            excluding: Set(seenActivityIDs).union(inFlightActivityIDs),
             now: now()
         )
+        guard !notifications.isEmpty else { return }
 
+        let plannedActivityIDs = Set(notifications.map(\.id))
+        inFlightActivityIDs.formUnion(plannedActivityIDs)
+        defer { inFlightActivityIDs.subtract(plannedActivityIDs) }
         guard (await notificationCenter.authorization()).allowsScheduling else { return }
 
         var deliveredActivityIDs: [SharedActivity.ID] = []

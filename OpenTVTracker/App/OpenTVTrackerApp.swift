@@ -81,6 +81,7 @@ final class OpenTVAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificati
             }
             let result = await model.startCloudSyncIfNeeded()
             await model.flushPendingPersistence()
+            await model.flushPendingReminders()
             switch result {
             case .newData:
                 completionHandler(.newData)

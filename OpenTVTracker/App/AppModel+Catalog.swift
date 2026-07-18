@@ -13,6 +13,19 @@ extension AppModel {
         streamingRegionOverride ?? .deviceDefault()
     }
 
+    func moreLikeThis(_ id: MediaTitle.ID, limit: Int = 12) -> [SimilarTitleMatch] {
+        guard let source = titles.first(where: { $0.id == id }) else { return [] }
+        return TitleSimilarity.matches(for: source, among: titlesOnSelectedProviders, limit: limit)
+    }
+
+    func isProviderSelected(_ id: StreamingProvider.ID) -> Bool {
+        selectedProviderIDs.contains(id)
+    }
+
+    func isAvailableOnSelectedProviders(_ title: MediaTitle) -> Bool {
+        !selectedProviderIDs.isDisjoint(with: Set(title.providers.map(\.id)))
+    }
+
     func trackableTitleIndex(for id: MediaTitle.ID) -> Int? {
         if let index = titles.firstIndex(where: { $0.id == id }) { return index }
         guard let catalogTitle = catalogSearchResults.first(where: { $0.id == id }) else { return nil }
