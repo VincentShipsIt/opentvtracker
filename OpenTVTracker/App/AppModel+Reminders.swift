@@ -2,6 +2,10 @@ import Foundation
 import WidgetKit
 
 extension AppModel {
+    func flushPendingReminders() async {
+        await reminderTask?.value
+    }
+
     func setRemindersEnabled(_ enabled: Bool) async {
         if enabled {
             let authorization = await reminderScheduler.requestAuthorization()
@@ -43,7 +47,6 @@ extension AppModel {
     func disableReminder(for titleID: MediaTitle.ID) {
         reminderSettings.enabledTitleIDs.remove(titleID)
         reminderSettings.mutedTitleIDs.insert(titleID)
-        reminderSettings.titleLeadTimes.removeValue(forKey: titleID)
         if !reminderSettings.automaticallyRemindTrackedTitles,
            reminderSettings.enabledTitleIDs.isEmpty {
             reminderSettings.isEnabled = false

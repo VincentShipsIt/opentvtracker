@@ -35,9 +35,17 @@ actor CloudKitSyncCoordinator {
         sharedWorker = CloudKitSyncWorker(database: container.sharedCloudDatabase, scope: .sharedDatabase)
     }
 
-    func start() async {
-        await privateWorker.start()
-        await sharedWorker.start()
+    func start(scope: CloudDatabaseScope? = nil) async -> Bool {
+        switch scope {
+        case .privateDatabase:
+            return await privateWorker.start()
+        case .sharedDatabase:
+            return await sharedWorker.start()
+        case nil:
+            let privateSucceeded = await privateWorker.start()
+            let sharedSucceeded = await sharedWorker.start()
+            return privateSucceeded && sharedSucceeded
+        }
     }
 
     func enqueue(
@@ -116,12 +124,14 @@ private final class CloudKitSyncWorker: CKSyncEngineDelegate, @unchecked Sendabl
         store = CloudKitSyncStore(scope: scope)
     }
 
-    func start() async {
+    func start() async -> Bool {
         do {
             try await engine.fetchChanges()
             try await engine.sendChanges()
+            return true
         } catch {
             await store.recordRecoverableError(error.localizedDescription)
+            return false
         }
     }
 

@@ -278,6 +278,40 @@ final class PartnerActivityNotifierInjectionTests: XCTestCase {
 
         XCTAssertTrue(model.partnerActivityNotifier is NoopPartnerActivityNotifier)
     }
+
+    func testLoadingExistingSharedSpaceRequestsNotificationAuthorization() async {
+        var storedSnapshot = LibrarySnapshot.sample
+        storedSnapshot.sharedSpace.isCloudSharingEnabled = true
+        storedSnapshot.sharedSpace.membershipState = .accepted
+        let notifier = PartnerActivityNotifierSpy()
+        let model = AppModel(
+            store: MemoryLibraryStore(snapshot: storedSnapshot),
+            partnerActivityNotifier: notifier,
+            seed: .sample
+        )
+
+        await model.load()
+
+        let authorizationRequests = await notifier.authorizationRequestCount()
+        XCTAssertEqual(authorizationRequests, 1)
+    }
+}
+
+private actor PartnerActivityNotifierSpy: PartnerActivityNotifying {
+    private var authorizationRequests = 0
+
+    func requestAuthorization() async {
+        authorizationRequests += 1
+    }
+
+    func notify(
+        about activities: [SharedActivity],
+        in space: SharedSpace
+    ) async {}
+
+    func authorizationRequestCount() -> Int {
+        authorizationRequests
+    }
 }
 
 private actor PartnerNotificationCenterSpy: PartnerNotificationCenterProviding {

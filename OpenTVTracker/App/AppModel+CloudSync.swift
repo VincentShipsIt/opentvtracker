@@ -1,14 +1,24 @@
 import CloudKit
 import Foundation
 
+enum SharedStateSyncResult: Sendable {
+    case noData
+    case newData
+    case failed
+}
+
 extension AppModel {
     @discardableResult
-    func startCloudSyncIfNeeded() async -> Bool {
-        guard sharedSpace.isCloudSharingEnabled else { return false }
-        await CloudKitSyncCoordinator.shared.start()
+    func startCloudSyncIfNeeded() async -> SharedStateSyncResult {
+        guard sharedSpace.isCloudSharingEnabled else { return .noData }
+        let syncSucceeded = await CloudKitSyncCoordinator.shared.start(scope: cloudSyncContext.scope)
+        guard syncSucceeded else { return .failed }
         let receivedChanges = await applyCachedSharedState()
-        await syncSharedState()
-        return receivedChanges
+        let sendSucceeded = await syncSharedState(fetchChanges: false)
+        if receivedChanges {
+            return .newData
+        }
+        return sendSucceeded ? .noData : .failed
     }
 
     func applyLatestCloudSharedState() async {
@@ -18,21 +28,25 @@ extension AppModel {
 
     func syncSharedStateSoon() {
         guard sharedSpace.isCloudSharingEnabled else { return }
-        Task { await syncSharedState() }
+        Task { _ = await syncSharedState() }
     }
 
     func flushSharedState() async {
-        await syncSharedState()
+        _ = await syncSharedState()
     }
 
-    private func syncSharedState() async {
-        guard sharedSpace.isCloudSharingEnabled else { return }
+    private func syncSharedState(fetchChanges: Bool = true) async -> Bool {
+        guard sharedSpace.isCloudSharingEnabled else { return true }
         let context = cloudSyncContext
         do {
-            await CloudKitSyncCoordinator.shared.start()
-            _ = await applyCachedSharedState()
+            if fetchChanges {
+                guard await CloudKitSyncCoordinator.shared.start(scope: context.scope) else {
+                    return false
+                }
+                _ = await applyCachedSharedState()
+            }
             prepareSharedTitleMetadataForSync()
-            guard let payload = try? JSONEncoder.openTV.encode(sharedSpace) else { return }
+            guard let payload = try? JSONEncoder.openTV.encode(sharedSpace) else { return false }
             try await CloudKitSyncCoordinator.shared.enqueue(
                 payload: payload,
                 recordType: "PartnerSpaceState",
@@ -41,8 +55,10 @@ extension AppModel {
                 parentStableID: "space-root",
                 scope: context.scope
             )
+            return true
         } catch {
             persistenceError = "Your shared changes are saved locally and will retry with iCloud."
+            return false
         }
     }
 

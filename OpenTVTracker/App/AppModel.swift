@@ -22,6 +22,7 @@ final class AppModel {
     var reminderCapability = ReminderCapability.unknown
     var reminderError: String?
     private(set) var hasLoaded = false
+    private var isLoading = false
     private var hasLoadedPersistedState = false
     var persistenceError: String?
     private(set) var remoteRankedRecommendations: [Recommendation] = []
@@ -35,7 +36,6 @@ final class AppModel {
     var selectedMood: Mood = .any {
         didSet { refreshRecommendationsSoon() }
     }
-
     init(
         store: any LibraryPersisting = LibraryStoreFactory.makeDefault(),
         recommendationService: any RecommendationProviding = ProviderNeutralRecommendationService(),
@@ -139,9 +139,16 @@ final class AppModel {
     }
 
     func load() async {
-        guard !hasLoaded else { return }
+        guard !hasLoaded, !isLoading else { return }
+        isLoading = true
+        defer {
+            isLoading = false
+            hasLoaded = true
+        }
         await loadPersistedState()
-        defer { hasLoaded = true }
+        if sharedSpace.isCloudSharingEnabled {
+            await partnerActivityNotifier.requestAuthorization()
+        }
 
         await refreshDiscoveryCatalog()
         await refreshRecommendations()
@@ -151,7 +158,7 @@ final class AppModel {
     }
     func loadPersistedState() async {
         guard !hasLoadedPersistedState else { return }
-        defer { hasLoadedPersistedState = true }
+        hasLoadedPersistedState = true
 
         do {
             if let snapshot = try await store.load() {
@@ -292,8 +299,9 @@ extension AppModel {
         selectedProviderIDs = snapshot.selectedProviderIDs ?? Self.defaultProviderIDs
         allowsAIReranking = snapshot.allowsAIReranking ?? false
         streamingRegionOverride = snapshot.streamingRegionCode.flatMap(StreamingRegion.init(code:))
-        reminderSettings = snapshot.reminderSettings ?? ReminderSettings()
+        reminderSettings = snapshot.reminderSettings ?? reminderSettings
         persist()
+        refreshRemindersSoon()
     }
 
     func toggleWatchlist(_ id: MediaTitle.ID) {
@@ -318,14 +326,6 @@ extension AppModel {
 
     func isAvailableOnSelectedProviders(_ title: MediaTitle) -> Bool {
         !selectedProviderIDs.isDisjoint(with: Set(title.providers.map(\.id)))
-    }
-
-    func flushPendingPersistence() async {
-        await saveTask?.value
-    }
-
-    func flushPendingReminders() async {
-        await reminderTask?.value
     }
 
     func refreshRecommendations() async {

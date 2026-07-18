@@ -1,6 +1,10 @@
 import Foundation
 
 extension AppModel {
+    func flushPendingPersistence() async {
+        await saveTask?.value
+    }
+
     func persist() {
         let snapshot = self.snapshot
         let store = store

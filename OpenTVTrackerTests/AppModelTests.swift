@@ -115,6 +115,18 @@ final class AppModelTests: XCTestCase {
         XCTAssertTrue(model.titles.contains(where: { $0.id == "fallout" }))
     }
 
+    func testConcurrentPersistedLoadsReadStoreOnce() async {
+        let store = CountingLibraryStore(snapshot: .sample)
+        let model = AppModel(store: store, seed: .sample)
+
+        async let first: Void = model.loadPersistedState()
+        async let second: Void = model.loadPersistedState()
+        _ = await (first, second)
+
+        let loadCount = await store.loadCount()
+        XCTAssertEqual(loadCount, 1)
+    }
+
     func testRefreshingCatalogDetailsPreservesTrackingAndLoadsEpisodes() async throws {
         var liveSnapshot = LibrarySnapshot.sample
         let liveIndex = try XCTUnwrap(liveSnapshot.titles.firstIndex(where: { $0.id == "severance" }))
@@ -282,4 +294,25 @@ final class AppModelTests: XCTestCase {
             ]
         )
     ]
+}
+
+private actor CountingLibraryStore: LibraryPersisting {
+    private let snapshot: LibrarySnapshot
+    private var loads = 0
+
+    init(snapshot: LibrarySnapshot) {
+        self.snapshot = snapshot
+    }
+
+    func load() async throws -> LibrarySnapshot? {
+        loads += 1
+        try await Task.sleep(for: .milliseconds(50))
+        return snapshot
+    }
+
+    func save(_ snapshot: LibrarySnapshot) async throws {}
+
+    func loadCount() -> Int {
+        loads
+    }
 }

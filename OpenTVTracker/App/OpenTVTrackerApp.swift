@@ -8,10 +8,11 @@ struct PartnerShareLocation: Sendable {
     let ownerName: String
 }
 
+@MainActor
 final class OpenTVAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
-    private var appModel: AppModel?
+    private static var appModel: AppModel?
 
-    func attach(model: AppModel) {
+    static func attach(model: AppModel) {
         appModel = model
     }
 
@@ -20,6 +21,7 @@ final class OpenTVAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificati
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         UNUserNotificationCenter.current().delegate = self
+        application.registerForRemoteNotifications()
         return true
     }
 
@@ -70,14 +72,23 @@ final class OpenTVAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificati
         }
 
         Task { @MainActor in
-            let model = appModel ?? AppModel()
+            let model = Self.appModel ?? AppModel()
+            Self.appModel = model
             await model.loadPersistedState()
             guard model.sharedSpace.isCloudSharingEnabled else {
                 completionHandler(.noData)
                 return
             }
-            let receivedChanges = await model.startCloudSyncIfNeeded()
-            completionHandler(receivedChanges ? .newData : .noData)
+            let result = await model.startCloudSyncIfNeeded()
+            await model.flushPendingPersistence()
+            switch result {
+            case .newData:
+                completionHandler(.newData)
+            case .noData:
+                completionHandler(.noData)
+            case .failed:
+                completionHandler(.failed)
+            }
         }
     }
 }
@@ -96,12 +107,18 @@ struct OpenTVTrackerApp: App {
     init() {
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("-ui-testing-bulk-watch") {
-            _model = State(initialValue: AppModel(store: MemoryLibraryStore(), seed: .bulkWatchUITest))
+            let initialModel = AppModel(store: MemoryLibraryStore(), seed: .bulkWatchUITest)
+            _model = State(initialValue: initialModel)
+            OpenTVAppDelegate.attach(model: initialModel)
         } else {
-            _model = State(initialValue: AppModel())
+            let initialModel = AppModel()
+            _model = State(initialValue: initialModel)
+            OpenTVAppDelegate.attach(model: initialModel)
         }
         #else
-        _model = State(initialValue: AppModel())
+        let initialModel = AppModel()
+        _model = State(initialValue: initialModel)
+        OpenTVAppDelegate.attach(model: initialModel)
         #endif
     }
 
@@ -110,7 +127,6 @@ struct OpenTVTrackerApp: App {
             RootTabView()
                 .environment(model)
                 .task {
-                    appDelegate.attach(model: model)
                     await model.load()
                     await model.startCloudSyncIfNeeded()
                 }
@@ -126,7 +142,7 @@ struct OpenTVTrackerApp: App {
                     Task { await model.applyLatestCloudSharedState() }
                 }
                 .onChange(of: scenePhase) { _, phase in
-                    guard phase == .active else { return }
+                    guard phase == .active, model.hasLoaded else { return }
                     Task {
                         await model.startCloudSyncIfNeeded()
                         await model.refreshReminderCapability()
