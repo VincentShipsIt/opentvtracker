@@ -29,8 +29,15 @@ struct FeaturedMediaCard: View {
                         .lineLimit(2)
 
                     HStack(spacing: 10) {
-                        if title.trailerURL != nil {
+                        if let sourceURL = title.trailerURL,
+                           TrailerPresentation(title: title.title, sourceURL: sourceURL) != nil {
                             Button("Trailer", systemImage: "play.fill", action: onTrailer)
+                                .buttonStyle(.borderedProminent)
+                                .tint(.white)
+                                .foregroundStyle(.black)
+                        } else if let sourceURL = title.trailerURL,
+                                  let externalURL = TrailerURLNormalizer.safeExternalURL(sourceURL) {
+                            Link("Open trailer", systemImage: "arrow.up.right.square", destination: externalURL)
                                 .buttonStyle(.borderedProminent)
                                 .tint(.white)
                                 .foregroundStyle(.black)

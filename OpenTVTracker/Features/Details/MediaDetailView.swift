@@ -56,11 +56,12 @@ struct MediaDetailView: View {
             SeasonEpisodesView(route: route)
         }
         .navigationDestination(for: CommunityReview.self) { CommunityReviewDetailView(review: $0) }
+        .navigationDestination(for: CommunityReviewsRoute.self) { route in
+            CommunityReviewsView(titleID: route.titleID)
+        }
     }
 
-    private var title: MediaTitle? {
-        model.mediaTitle(withID: titleID)
-    }
+    private var title: MediaTitle? { model.mediaTitle(withID: titleID) }
 
     private func hero(_ title: MediaTitle) -> some View {
         ZStack(alignment: .bottomLeading) {
@@ -108,15 +109,8 @@ struct MediaDetailView: View {
 
     private func actions(_ title: MediaTitle) -> some View {
         VStack(spacing: 10) {
-            if let trailerURL = title.trailerURL {
-                Button {
-                    presentedTrailer = TrailerPresentation(title: title.title, url: trailerURL)
-                } label: {
-                    Label("Watch trailer", systemImage: "play.fill")
-                        .frame(maxWidth: .infinity)
-                }
-                .controlSize(.large)
-                .adaptiveGlassButton(prominent: true)
+            TrailerActionView(title: title) { trailer in
+                presentedTrailer = trailer
             }
 
             Button {
@@ -256,9 +250,17 @@ struct MediaDetailView: View {
         if !title.reviews.isEmpty {
             VStack(alignment: .leading, spacing: 12) {
                 SectionHeading(title: "Community notes", subtitle: "Spoilers stay hidden unless you ask")
-                ForEach(title.reviews) { review in
+                ForEach(Array(title.reviews.prefix(3))) { review in
                     ReviewCard(review: review)
                 }
+
+                NavigationLink(value: CommunityReviewsRoute(titleID: title.id)) {
+                    Label("See all reviews", systemImage: "text.bubble")
+                        .frame(maxWidth: .infinity)
+                }
+                .controlSize(.large)
+                .adaptiveGlassButton()
+                .accessibilityHint("Loads more source-attributed community reviews in OpenTV")
 
                 HStack {
                     if let sourceURL = SourceLinks.catalog(for: title) {

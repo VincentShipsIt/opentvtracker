@@ -213,8 +213,11 @@ struct DiscoverView: View {
     }
 
     private func presentTrailer(for title: MediaTitle) {
-        guard let url = title.trailerURL else { return }
-        presentedSheet = .trailer(TrailerPresentation(title: title.title, url: url))
+        guard let sourceURL = title.trailerURL,
+              let trailer = TrailerPresentation(title: title.title, sourceURL: sourceURL) else {
+            return
+        }
+        presentedSheet = .trailer(trailer)
     }
 }
 

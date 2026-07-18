@@ -36,6 +36,10 @@ describe("server application", () => {
         providerCalls += 1;
         throw new Error("not expected");
       },
+      reviews: async () => {
+        providerCalls += 1;
+        return { page: 1, totalPages: 1, results: [] };
+      },
     }).app;
 
     const result = await app.fetch(
@@ -78,6 +82,7 @@ describe("server application", () => {
       title: async () => {
         throw new Error("not expected");
       },
+      reviews: async () => ({ page: 1, totalPages: 1, results: [] }),
     });
 
     const invalid = await app.fetch(
@@ -100,6 +105,7 @@ describe("server application", () => {
       title: async () => {
         throw new Error("not expected");
       },
+      reviews: async () => ({ page: 1, totalPages: 1, results: [] }),
     });
 
     const url =
@@ -113,6 +119,30 @@ describe("server application", () => {
     expect(second.status).toBe(200);
     expect(first.headers.get("Cache-Control")).toContain("max-age=300");
     expect(first.headers.get("CDN-Cache-Control")).toBe("no-store");
+    expect(providerCalls).toBe(1);
+  });
+
+  test("returns protected, cached review pages from the bounded route", async () => {
+    let providerCalls = 0;
+    const { app } = testApp(undefined, {
+      search: async () => [],
+      title: async () => {
+        throw new Error("not expected");
+      },
+      reviews: async (_kind, _id, page) => {
+        providerCalls += 1;
+        return { page, totalPages: 3, results: [] };
+      },
+    });
+    const url =
+      "https://example.test/v1/catalog/series/95396/reviews?page=2";
+
+    const first = await app.fetch(developmentRequest(url));
+    const second = await app.fetch(developmentRequest(url));
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    expect(await first.json()).toMatchObject({ page: 2, totalPages: 3 });
     expect(providerCalls).toBe(1);
   });
 
@@ -176,7 +206,7 @@ describe("server application", () => {
 
 function testApp(
   suppliedConfig?: ServerConfig,
-  tmdb?: Pick<TMDBClient, "search" | "title">,
+  tmdb?: Pick<TMDBClient, "search" | "title" | "reviews">,
   logger: (event: SafeLogEvent) => void = () => {},
 ) {
   const config = suppliedConfig ?? testConfig();
@@ -201,6 +231,7 @@ function testApp(
         title: async () => {
           throw new Error("not used");
         },
+        reviews: async () => ({ page: 1, totalPages: 1, results: [] }),
       },
       logger,
       now: () => Date.parse("2026-07-15T12:00:00Z"),

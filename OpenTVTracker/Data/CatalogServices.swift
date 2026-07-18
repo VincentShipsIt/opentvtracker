@@ -17,6 +17,17 @@ struct LocalCatalogService: CatalogProviding {
         }
         return title
     }
+
+    func reviews(kind: MediaKind, catalogID: Int, page: Int) async throws -> CommunityReviewPage {
+        guard let title = titles.first(where: { $0.kind == kind && $0.catalogID == catalogID }) else {
+            throw CatalogServiceError.notFound
+        }
+        return CommunityReviewPage(
+            page: max(page, 1),
+            totalPages: 1,
+            results: page <= 1 ? title.reviews : []
+        )
+    }
 }
 
 struct ServerCatalogService: CatalogProviding {
@@ -44,6 +55,12 @@ struct ServerCatalogService: CatalogProviding {
         return response.mediaTitle
     }
 
+    func reviews(kind: MediaKind, catalogID: Int, page: Int) async throws -> CommunityReviewPage {
+        let url = try reviewsURL(kind: kind, catalogID: catalogID, page: page)
+        let response: CommunityReviewPageDTO = try await request(url)
+        return response.reviewPage
+    }
+
     func searchURL(for query: MediaSearchQuery) throws -> URL {
         var components = URLComponents(
             url: baseURL.appending(path: "v1/catalog/search"),
@@ -65,6 +82,16 @@ struct ServerCatalogService: CatalogProviding {
             resolvingAgainstBaseURL: false
         )
         components?.queryItems = [URLQueryItem(name: "region", value: region.code)]
+        guard let url = components?.url else { throw CatalogServiceError.invalidEndpoint }
+        return url
+    }
+
+    func reviewsURL(kind: MediaKind, catalogID: Int, page: Int) throws -> URL {
+        var components = URLComponents(
+            url: baseURL.appending(path: "v1/catalog/\(kind.rawValue)/\(catalogID)/reviews"),
+            resolvingAgainstBaseURL: false
+        )
+        components?.queryItems = [URLQueryItem(name: "page", value: String(max(page, 1)))]
         guard let url = components?.url else { throw CatalogServiceError.invalidEndpoint }
         return url
     }
@@ -97,6 +124,13 @@ struct FallbackCatalogService: CatalogProviding {
         }
         return try await fallback.title(kind: kind, catalogID: catalogID, region: region)
     }
+
+    func reviews(kind: MediaKind, catalogID: Int, page: Int) async throws -> CommunityReviewPage {
+        if let primary {
+            return try await primary.reviews(kind: kind, catalogID: catalogID, page: page)
+        }
+        return try await fallback.reviews(kind: kind, catalogID: catalogID, page: page)
+    }
 }
 
 enum CatalogServiceFactory {
@@ -112,6 +146,20 @@ enum CatalogServiceFactory {
 
 private struct CatalogSearchResponse: Decodable {
     let results: [CatalogTitleDTO]
+}
+
+private struct CommunityReviewPageDTO: Decodable {
+    let page: Int
+    let totalPages: Int
+    let results: [CommunityReview]
+
+    var reviewPage: CommunityReviewPage {
+        CommunityReviewPage(
+            page: page,
+            totalPages: totalPages,
+            results: results
+        )
+    }
 }
 
 private struct CatalogTitleDTO: Decodable {
