@@ -173,8 +173,8 @@ extension AppModel {
         await sharedConversationNotifier.requestAuthorization()
     }
 
-    func deletePrivateConversationData() {
-        guard sharedSpace.isCurrentUserShareOwner != false else { return }
+    func deletePrivateConversationData() async {
+        guard sharedSpace.isCurrentUserShareOwner == true else { return }
         let deletedAt = Date.now
         var deletions = sharedSpace.conversationDeletions ?? []
         deletions.append(contentsOf: (sharedSpace.reactions ?? []).map {
@@ -198,6 +198,7 @@ extension AppModel {
             remote: sharedSpace,
             local: sharedSpace
         ).deletions
+        await sharedConversationNotifier.purge()
         persist()
         syncSharedStateSoon()
     }

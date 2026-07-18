@@ -49,9 +49,15 @@ extension LibraryTransferService {
     }
 
     private static func escapedConversationCSVField(_ field: String) -> String {
-        guard field.contains(",") || field.contains("\"") || field.contains("\n") else {
-            return field
+        let sanitized = field.first.map { "=+-@".contains($0) } == true
+            ? "'\(field)"
+            : field
+        guard sanitized.contains(",")
+                || sanitized.contains("\"")
+                || sanitized.contains("\n")
+                || sanitized.contains("\r") else {
+            return sanitized
         }
-        return "\"\(field.replacingOccurrences(of: "\"", with: "\"\""))\""
+        return "\"\(sanitized.replacingOccurrences(of: "\"", with: "\"\""))\""
     }
 }

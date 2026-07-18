@@ -116,6 +116,14 @@ enum SharedConversationReconciler {
             date: \.occurredAt
         )
         .filter { reaction in
+            guard reaction.watchEventID != nil else { return true }
+            guard let assetKind = reaction.assetKind,
+                  let assetID = reaction.assetID else {
+                return false
+            }
+            return SharedReactionAssetPolicy.asset(kind: assetKind, id: assetID) != nil
+        }
+        .filter { reaction in
             guard let deletion = deletionByID["reaction:\(reaction.id)"] else { return true }
             return reaction.occurredAt > deletion.deletedAt
         }
@@ -271,6 +279,7 @@ protocol SharedConversationNotifying: Sendable {
         about events: [SharedConversationNotificationEvent],
         in space: SharedSpace
     ) async
+    func purge() async
 }
 
 actor SharedConversationNotificationService: SharedConversationNotifying {
@@ -340,6 +349,38 @@ actor SharedConversationNotificationService: SharedConversationNotifying {
             )
             try? await center.add(request)
         }
+    }
+
+    func purge() async {
+        defaults.removeObject(forKey: Self.seenEventIDsKey)
+
+        let pendingIdentifiers = await center.pendingNotificationRequests()
+            .filter {
+                Self.isConversationNotification(
+                    identifier: $0.identifier,
+                    userInfo: $0.content.userInfo
+                )
+            }
+            .map(\.identifier)
+        center.removePendingNotificationRequests(withIdentifiers: pendingIdentifiers)
+
+        let deliveredIdentifiers = await center.deliveredNotifications()
+            .filter {
+                Self.isConversationNotification(
+                    identifier: $0.request.identifier,
+                    userInfo: $0.request.content.userInfo
+                )
+            }
+            .map(\.request.identifier)
+        center.removeDeliveredNotifications(withIdentifiers: deliveredIdentifiers)
+    }
+
+    static func isConversationNotification(
+        identifier: String,
+        userInfo: [AnyHashable: Any]
+    ) -> Bool {
+        identifier.hasPrefix("shared-conversation-")
+            || (userInfo["titleID"] != nil && userInfo["watchEventID"] != nil)
     }
 
     private static func isAuthorized(_ status: UNAuthorizationStatus) -> Bool {

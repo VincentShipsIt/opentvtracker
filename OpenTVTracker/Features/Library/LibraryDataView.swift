@@ -90,7 +90,7 @@ struct LibraryDataView: View {
                     }
                 }
 
-                if model.sharedSpace.isCurrentUserShareOwner != false,
+                if model.sharedSpace.isCurrentUserShareOwner == true,
                    hasPrivateConversationData {
                     Section {
                         Button(
@@ -145,8 +145,10 @@ struct LibraryDataView: View {
                 titleVisibility: .visible
             ) {
                 Button("Delete conversations", role: .destructive) {
-                    model.deletePrivateConversationData()
-                    statusMessage = "Private conversation data deleted."
+                    Task {
+                        await model.deletePrivateConversationData()
+                        statusMessage = "Private conversation data deleted."
+                    }
                 }
                 Button("Cancel", role: .cancel) {}
             } message: {

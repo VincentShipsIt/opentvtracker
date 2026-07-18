@@ -125,6 +125,7 @@ struct EpisodeConversationView: View {
 }
 
 private struct EpisodeConversationContent: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let watchEvent: SharedWatchEvent
     let notes: [SharedNote]
     let reactions: [SharedReaction]
@@ -193,7 +194,8 @@ private struct EpisodeConversationContent: View {
                                 if let resourceName = asset.resourceName {
                                     AnimatedReactionGIF(
                                         resourceName: resourceName,
-                                        accessibilityLabel: asset.label
+                                        accessibilityLabel: asset.label,
+                                        animates: !reduceMotion
                                     )
                                     .frame(width: 112, height: 68)
                                 }
@@ -345,6 +347,13 @@ private struct SharedNoteRow: View {
 }
 
 private struct AnimatedReactionGIF: UIViewRepresentable {
+    @MainActor
+    private static let imageCache: NSCache<NSString, UIImage> = {
+        let cache = NSCache<NSString, UIImage>()
+        cache.countLimit = SharedReactionAssetPolicy.gifAssets.count * 2
+        return cache
+    }()
+
     let resourceName: String
     let accessibilityLabel: String
     var animates = true
@@ -364,7 +373,12 @@ private struct AnimatedReactionGIF: UIViewRepresentable {
         imageView.accessibilityLabel = accessibilityLabel
     }
 
+    @MainActor
     private static func image(resourceName: String, animates: Bool) -> UIImage? {
+        let cacheKey = "\(resourceName)|\(animates ? "animated" : "static")" as NSString
+        if let cachedImage = imageCache.object(forKey: cacheKey) {
+            return cachedImage
+        }
         guard let url = Bundle.main.url(forResource: resourceName, withExtension: "gif"),
               let source = CGImageSourceCreateWithURL(url as CFURL, nil),
               CGImageSourceGetCount(source) > 0 else {
@@ -374,7 +388,12 @@ private struct AnimatedReactionGIF: UIViewRepresentable {
             CGImageSourceCreateImageAtIndex(source, index, nil).map { UIImage(cgImage: $0) }
         }
         guard let firstFrame = frames.first else { return nil }
-        guard animates, frames.count > 1 else { return firstFrame }
-        return UIImage.animatedImage(with: frames, duration: Double(frames.count) / 8)
+        let image = animates && frames.count > 1
+            ? UIImage.animatedImage(with: frames, duration: Double(frames.count) / 8)
+            : firstFrame
+        if let image {
+            imageCache.setObject(image, forKey: cacheKey)
+        }
+        return image
     }
 }

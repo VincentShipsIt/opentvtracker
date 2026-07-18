@@ -113,6 +113,26 @@ final class SharedEpisodeConversationTests: XCTestCase {
         XCTAssertEqual(result.reactions.first?.assetID, "wow")
     }
 
+    func testReconciliationDropsUnsupportedEpisodeReactionAssets() {
+        let event = Self.watchEvent
+        var remote = Self.space(watchEvent: event)
+        remote.reactions = [
+            Self.reaction(
+                id: "unsupported",
+                watchEventID: event.id,
+                occurredAt: Date(timeIntervalSince1970: 10),
+                assetID: "https://tracker.example/reaction.gif"
+            )
+        ]
+
+        let result = SharedConversationReconciler.reconcile(
+            remote: remote,
+            local: Self.space(watchEvent: event)
+        )
+
+        XCTAssertTrue(result.reactions.isEmpty)
+    }
+
     func testDeletionWinsUntilAReactionIsRecreatedLater() {
         let event = Self.watchEvent
         let deletion = SharedConversationDeletion(
@@ -188,10 +208,34 @@ extension SharedEpisodeConversationTests {
         XCTAssertTrue(notification.body.contains("after you watch"))
     }
 
+    func testNotificationPurgeClassificationUsesIdentifierOrConversationMetadata() {
+        XCTAssertTrue(
+            SharedConversationNotificationService.isConversationNotification(
+                identifier: "shared-conversation-note:1", userInfo: [:])
+        )
+        XCTAssertTrue(
+            SharedConversationNotificationService.isConversationNotification(
+                identifier: "legacy", userInfo: ["titleID": "show", "watchEventID": "event"])
+        )
+        XCTAssertFalse(
+            SharedConversationNotificationService.isConversationNotification(
+                identifier: "episode-reminder", userInfo: ["titleID": "show"])
+        )
+    }
+
     func testConversationCSVAndCompleteJSONIncludePrivateEntries() throws {
         var snapshot = Self.makeSnapshot()
         snapshot.sharedSpace.notes = [
-            Self.note(id: "note", watchEventID: Self.watchEvent.id)
+            SharedNote(
+                id: "note",
+                titleID: "severance",
+                memberID: "partner",
+                text: "=HYPERLINK(\"https://tracker.example\")\rPrivate note",
+                createdAt: Date(timeIntervalSince1970: 10),
+                watchEventID: Self.watchEvent.id,
+                season: 1,
+                episode: 1
+            )
         ]
         snapshot.sharedSpace.reactions = [
             Self.reaction(
@@ -214,11 +258,12 @@ extension SharedEpisodeConversationTests {
 
         XCTAssertTrue(csv.contains("reaction,reaction,\(Self.watchEvent.id)"))
         XCTAssertTrue(csv.contains("note,note,\(Self.watchEvent.id)"))
+        XCTAssertTrue(csv.contains("\"'=HYPERLINK(\"\"https://tracker.example\"\")\rPrivate note\""))
         XCTAssertEqual(decoded.sharedSpace.notes?.first?.id, "note")
         XCTAssertEqual(decoded.sharedSpace.reactions?.first?.id, "reaction")
     }
 
-    func testSharedSpaceOwnerCanDeleteConversationWithoutDeletingWatchHistory() throws {
+    func testSharedSpaceOwnerCanDeleteConversationWithoutDeletingWatchHistory() async throws {
         let model = makeModel()
         let title = try XCTUnwrap(model.mediaTitle(withID: "severance"))
         let season = try XCTUnwrap(title.seasons?.first)
@@ -232,12 +277,24 @@ extension SharedEpisodeConversationTests {
         model.addSharedEpisodeNote("Private note", watchEventID: event.id)
         let watchEventCount = model.sharedSpace.watchEvents?.count
 
-        model.deletePrivateConversationData()
+        await model.deletePrivateConversationData()
 
         XCTAssertEqual(model.sharedSpace.reactions, [])
         XCTAssertEqual(model.sharedSpace.notes, [])
         XCTAssertEqual(model.sharedSpace.conversationDeletions?.count, 2)
         XCTAssertEqual(model.sharedSpace.watchEvents?.count, watchEventCount)
+    }
+
+    func testUnknownSharedSpaceOwnershipCannotDeleteConversationData() async {
+        var snapshot = Self.makeSnapshot()
+        snapshot.sharedSpace.isCurrentUserShareOwner = nil
+        snapshot.sharedSpace.notes = [Self.note(id: "note", watchEventID: Self.watchEvent.id)]
+        let model = AppModel(store: MemoryLibraryStore(), seed: snapshot)
+
+        await model.deletePrivateConversationData()
+
+        XCTAssertEqual(model.sharedSpace.notes?.map(\.id), ["note"])
+        XCTAssertEqual(model.sharedSpace.conversationDeletions, [])
     }
 
     private func makeModel() -> AppModel {
