@@ -10,7 +10,7 @@ final class PartnerActivityConcurrencyTests: XCTestCase {
         )
         let suiteName = "partner-notifications-concurrent-\(UUID())"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
+        defer { UserDefaults(suiteName: suiteName)?.removePersistentDomain(forName: suiteName) }
         let service = PartnerActivityNotificationService(
             notificationCenter: center,
             defaults: defaults,
@@ -40,7 +40,7 @@ final class PartnerActivityConcurrencyTests: XCTestCase {
         )
         let suiteName = "partner-notifications-seen-merge-\(UUID())"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
+        defer { UserDefaults(suiteName: suiteName)?.removePersistentDomain(forName: suiteName) }
         let service = PartnerActivityNotificationService(
             notificationCenter: center,
             defaults: defaults,

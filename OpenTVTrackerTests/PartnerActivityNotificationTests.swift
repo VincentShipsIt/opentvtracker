@@ -93,7 +93,7 @@ final class PartnerActivityNotificationTests: XCTestCase {
         let center = PartnerNotificationCenterSpy(authorization: .denied)
         let suiteName = "partner-notifications-unauthorized-\(UUID())"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
+        defer { UserDefaults(suiteName: suiteName)?.removePersistentDomain(forName: suiteName) }
         let service = PartnerActivityNotificationService(
             notificationCenter: center,
             defaults: defaults,
@@ -120,7 +120,7 @@ final class PartnerActivityNotificationTests: XCTestCase {
         let center = PartnerNotificationCenterSpy(authorization: .authorized)
         let suiteName = "partner-notifications-repeat-\(UUID())"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
+        defer { UserDefaults(suiteName: suiteName)?.removePersistentDomain(forName: suiteName) }
         let service = PartnerActivityNotificationService(
             notificationCenter: center,
             defaults: defaults,
@@ -146,7 +146,7 @@ final class PartnerActivityNotificationTests: XCTestCase {
         let center = PartnerNotificationCenterSpy(authorization: .authorized, shouldFail: true)
         let suiteName = "partner-notifications-failure-\(UUID())"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
-        defer { defaults.removePersistentDomain(forName: suiteName) }
+        defer { UserDefaults(suiteName: suiteName)?.removePersistentDomain(forName: suiteName) }
         let service = PartnerActivityNotificationService(
             notificationCenter: center,
             defaults: defaults,
