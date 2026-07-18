@@ -9,6 +9,12 @@ struct PartnerShareLocation: Sendable {
 }
 
 final class OpenTVAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+    private var appModel: AppModel?
+
+    func attach(model: AppModel) {
+        appModel = model
+    }
+
     func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
@@ -52,6 +58,28 @@ final class OpenTVAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificati
             }
         }
     }
+
+    func application(
+        _ application: UIApplication,
+        didReceiveRemoteNotification userInfo: [AnyHashable: Any],
+        fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void
+    ) {
+        guard CKNotification(fromRemoteNotificationDictionary: userInfo) != nil else {
+            completionHandler(.noData)
+            return
+        }
+
+        Task { @MainActor in
+            let model = appModel ?? AppModel()
+            await model.loadPersistedState()
+            guard model.sharedSpace.isCloudSharingEnabled else {
+                completionHandler(.noData)
+                return
+            }
+            let receivedChanges = await model.startCloudSyncIfNeeded()
+            completionHandler(receivedChanges ? .newData : .noData)
+        }
+    }
 }
 
 extension Notification.Name {
@@ -82,6 +110,7 @@ struct OpenTVTrackerApp: App {
             RootTabView()
                 .environment(model)
                 .task {
+                    appDelegate.attach(model: model)
                     await model.load()
                     await model.startCloudSyncIfNeeded()
                 }

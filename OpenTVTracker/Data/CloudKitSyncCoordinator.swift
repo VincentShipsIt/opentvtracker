@@ -151,7 +151,9 @@ private final class CloudKitSyncWorker: CKSyncEngineDelegate, @unchecked Sendabl
             for modification in changes.modifications {
                 await store.cache(modification.record)
                 if modification.record.recordID.recordName == "space-state" {
-                    NotificationCenter.default.post(name: .openTVCloudSharedStateChanged, object: nil)
+                    await MainActor.run {
+                        NotificationCenter.default.post(name: .openTVCloudSharedStateChanged, object: nil)
+                    }
                 }
             }
             for deletion in changes.deletions {

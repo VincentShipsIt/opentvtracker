@@ -2,16 +2,18 @@ import CloudKit
 import Foundation
 
 extension AppModel {
-    func startCloudSyncIfNeeded() async {
-        guard sharedSpace.isCloudSharingEnabled else { return }
+    @discardableResult
+    func startCloudSyncIfNeeded() async -> Bool {
+        guard sharedSpace.isCloudSharingEnabled else { return false }
         await CloudKitSyncCoordinator.shared.start()
-        await applyCachedSharedState()
+        let receivedChanges = await applyCachedSharedState()
         await syncSharedState()
+        return receivedChanges
     }
 
     func applyLatestCloudSharedState() async {
         guard sharedSpace.isCloudSharingEnabled else { return }
-        await applyCachedSharedState()
+        _ = await applyCachedSharedState()
     }
 
     func syncSharedStateSoon() {
@@ -28,7 +30,7 @@ extension AppModel {
         let context = cloudSyncContext
         do {
             await CloudKitSyncCoordinator.shared.start()
-            await applyCachedSharedState()
+            _ = await applyCachedSharedState()
             prepareSharedTitleMetadataForSync()
             guard let payload = try? JSONEncoder.openTV.encode(sharedSpace) else { return }
             try await CloudKitSyncCoordinator.shared.enqueue(
@@ -44,16 +46,14 @@ extension AppModel {
         }
     }
 
-    private func applyCachedSharedState() async {
+    private func applyCachedSharedState() async -> Bool {
         let context = cloudSyncContext
         guard let payload = await CloudKitSyncCoordinator.shared.cachedPayload(
                 stableID: "space-state",
                 scope: context.scope
               ),
-              var remoteSpace = try? JSONDecoder.openTV.decode(SharedSpace.self, from: payload) else { return }
+              var remoteSpace = try? JSONDecoder.openTV.decode(SharedSpace.self, from: payload) else { return false }
         let currentMemberID = sharedSpace.members.first(where: \.isCurrentUser)?.id
-        let localActivityIDs = Set(sharedSpace.activity.map(\.id))
-        let newRemoteActivities = remoteSpace.activity.filter { !localActivityIDs.contains($0.id) }
         remoteSpace.members = mergingMembers(
             remote: remoteSpace.members,
             local: sharedSpace.members,
@@ -76,12 +76,14 @@ extension AppModel {
         remoteSpace.cloudZoneName = context.zoneID.zoneName
         remoteSpace.cloudOwnerName = context.zoneID.ownerName
         remoteSpace.isCurrentUserShareOwner = sharedSpace.isCurrentUserShareOwner
+        let receivedChanges = remoteSpace != sharedSpace
         sharedSpace = remoteSpace
         persist()
         await partnerActivityNotifier.notify(
-            about: newRemoteActivities,
+            about: remoteSpace.activity,
             in: remoteSpace
         )
+        return receivedChanges
     }
 
     private func mergingMembers(

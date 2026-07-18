@@ -1,27 +1,74 @@
 import Foundation
 import UserNotifications
 
+struct PartnerActivityNotificationRequest: Equatable, Sendable {
+    let identifier: String
+    let title: String
+    let body: String
+    let titleID: MediaTitle.ID?
+}
+
+protocol PartnerNotificationCenterProviding: Sendable {
+    func authorization() async -> ReminderAuthorization
+    func requestAuthorization() async
+    func add(_ request: PartnerActivityNotificationRequest) async throws
+}
+
+struct SystemPartnerNotificationCenter: PartnerNotificationCenterProviding, @unchecked Sendable {
+    private let center = UNUserNotificationCenter.current()
+
+    func authorization() async -> ReminderAuthorization {
+        switch await center.notificationSettings().authorizationStatus {
+        case .notDetermined: .notDetermined
+        case .denied: .denied
+        case .authorized: .authorized
+        case .provisional: .provisional
+        case .ephemeral: .ephemeral
+        @unknown default: .denied
+        }
+    }
+
+    func requestAuthorization() async {
+        _ = try? await center.requestAuthorization(options: [.alert, .sound])
+    }
+
+    func add(_ request: PartnerActivityNotificationRequest) async throws {
+        let content = UNMutableNotificationContent()
+        content.title = request.title
+        content.body = request.body
+        content.sound = .default
+        content.interruptionLevel = .active
+        if let titleID = request.titleID {
+            content.userInfo["titleID"] = titleID
+        }
+        try await center.add(UNNotificationRequest(
+            identifier: request.identifier,
+            content: content,
+            trigger: nil
+        ))
+    }
+}
+
 actor PartnerActivityNotificationService: PartnerActivityNotifying {
     private static let seenActivityIDsKey = "opentv.partner-notifications.seen-activity-ids"
 
-    private let center: UNUserNotificationCenter
+    private let notificationCenter: any PartnerNotificationCenterProviding
     private let defaults: UserDefaults
     private let now: @Sendable () -> Date
 
     init(
-        center: UNUserNotificationCenter = .current(),
+        notificationCenter: any PartnerNotificationCenterProviding = SystemPartnerNotificationCenter(),
         defaults: UserDefaults = .standard,
         now: @escaping @Sendable () -> Date = { .now }
     ) {
-        self.center = center
+        self.notificationCenter = notificationCenter
         self.defaults = defaults
         self.now = now
     }
 
     func requestAuthorization() async {
-        let settings = await center.notificationSettings()
-        guard settings.authorizationStatus == .notDetermined else { return }
-        _ = try? await center.requestAuthorization(options: [.alert, .sound])
+        guard await notificationCenter.authorization() == .notDetermined else { return }
+        await notificationCenter.requestAuthorization()
     }
 
     func notify(
@@ -30,42 +77,50 @@ actor PartnerActivityNotificationService: PartnerActivityNotifying {
     ) async {
         guard !activities.isEmpty else { return }
 
-        var seenActivityIDs = Set(defaults.stringArray(forKey: Self.seenActivityIDsKey) ?? [])
+        let seenActivityIDs = defaults.stringArray(forKey: Self.seenActivityIDsKey) ?? []
         let notifications = PartnerActivityNotificationPlanner.notifications(
             for: activities,
             in: space,
-            excluding: seenActivityIDs,
+            excluding: Set(seenActivityIDs),
             now: now()
         )
 
-        seenActivityIDs.formUnion(activities.map(\.id))
-        let retainedActivityIDs = Array(Array(seenActivityIDs).sorted().suffix(500))
-        defaults.set(retainedActivityIDs, forKey: Self.seenActivityIDsKey)
+        guard (await notificationCenter.authorization()).allowsScheduling else { return }
 
-        let settings = await center.notificationSettings()
-        guard settings.authorizationStatus == .authorized
-                || settings.authorizationStatus == .provisional
-                || settings.authorizationStatus == .ephemeral else {
-            return
-        }
-
+        var deliveredActivityIDs: [SharedActivity.ID] = []
         for notification in notifications {
-            let content = UNMutableNotificationContent()
-            content.title = "\(notification.memberName) watched with you"
-            content.body = notification.activityDescription
-            content.sound = .default
-            content.interruptionLevel = .active
-            if let titleID = notification.titleID {
-                content.userInfo["titleID"] = titleID
+            do {
+                try await notificationCenter.add(PartnerActivityNotificationRequest(
+                    identifier: "partner-activity-\(notification.id)",
+                    title: "\(notification.memberName) watched with you",
+                    body: notification.activityDescription,
+                    titleID: notification.titleID
+                ))
+                deliveredActivityIDs.append(notification.id)
+            } catch {
+                continue
             }
-
-            let request = UNNotificationRequest(
-                identifier: "partner-activity-\(notification.id)",
-                content: content,
-                trigger: nil
-            )
-            try? await center.add(request)
         }
+        if !deliveredActivityIDs.isEmpty {
+            defaults.set(
+                PartnerActivitySeenState.appending(
+                    deliveredActivityIDs,
+                    to: seenActivityIDs
+                ),
+                forKey: Self.seenActivityIDsKey
+            )
+        }
+    }
+}
+
+enum PartnerActivitySeenState {
+    static func appending(
+        _ newIDs: [SharedActivity.ID],
+        to existingIDs: [SharedActivity.ID],
+        limit: Int = 500
+    ) -> [SharedActivity.ID] {
+        let newIDSet = Set(newIDs)
+        return Array((existingIDs.filter { !newIDSet.contains($0) } + newIDs).suffix(limit))
     }
 }
 
@@ -106,9 +161,14 @@ enum PartnerActivityNotificationPlanner {
             }
             .suffix(maximumNotificationsPerSync)
             .map { activity in
-                PartnerActivityNotification(
+                let member = membersByID[activity.memberID]
+                let memberName = member?.id == "local-user"
+                    || member?.name.localizedCaseInsensitiveCompare("You") == .orderedSame
+                    ? "Your partner"
+                    : member?.name ?? "Your partner"
+                return PartnerActivityNotification(
                     id: activity.id,
-                    memberName: membersByID[activity.memberID]?.name ?? "Your partner",
+                    memberName: memberName,
                     activityDescription: activity.description.prefix(1).uppercased()
                         + String(activity.description.dropFirst()),
                     titleID: activity.titleID

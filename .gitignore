@@ -50,6 +50,3 @@ server/data/
 node_modules/
 *.xcresult
 artifacts/
-
-# Local Claude tooling configuration.
-.claude/

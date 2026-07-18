@@ -22,6 +22,7 @@ final class AppModel {
     var reminderCapability = ReminderCapability.unknown
     var reminderError: String?
     private(set) var hasLoaded = false
+    private var hasLoadedPersistedState = false
     var persistenceError: String?
     private(set) var remoteRankedRecommendations: [Recommendation] = []
     var catalogSearchResults: [MediaTitle] = []
@@ -39,7 +40,7 @@ final class AppModel {
         store: any LibraryPersisting = LibraryStoreFactory.makeDefault(),
         recommendationService: any RecommendationProviding = ProviderNeutralRecommendationService(),
         reminderScheduler: (any ReminderScheduling)? = nil,
-        partnerActivityNotifier: any PartnerActivityNotifying = PartnerActivityNotificationService(),
+        partnerActivityNotifier: (any PartnerActivityNotifying)? = nil,
         catalogService: (any CatalogProviding)? = nil,
         seed: LibrarySnapshot = .empty
     ) {
@@ -52,7 +53,13 @@ final class AppModel {
         } else {
             self.reminderScheduler = NoopReminderScheduler()
         }
-        self.partnerActivityNotifier = partnerActivityNotifier
+        if let partnerActivityNotifier {
+            self.partnerActivityNotifier = partnerActivityNotifier
+        } else if seed == .empty {
+            self.partnerActivityNotifier = PartnerActivityNotificationService()
+        } else {
+            self.partnerActivityNotifier = NoopPartnerActivityNotifier()
+        }
         if let catalogService {
             self.catalogService = catalogService
         } else if seed == .empty {
@@ -133,7 +140,18 @@ final class AppModel {
 
     func load() async {
         guard !hasLoaded else { return }
+        await loadPersistedState()
         defer { hasLoaded = true }
+
+        await refreshDiscoveryCatalog()
+        await refreshRecommendations()
+        await refreshReminderCapability()
+        await refreshReminders()
+        publishWidgetSnapshot()
+    }
+    func loadPersistedState() async {
+        guard !hasLoadedPersistedState else { return }
+        defer { hasLoadedPersistedState = true }
 
         do {
             if let snapshot = try await store.load() {
@@ -147,14 +165,8 @@ final class AppModel {
         } catch {
             persistenceError = "Your saved library could not be opened. Your catalog and saved data remain separate."
         }
-        await refreshDiscoveryCatalog()
-        await refreshRecommendations()
-        await refreshReminderCapability()
-        await refreshReminders()
-        publishWidgetSnapshot()
     }
 }
-
 extension AppModel {
     func markNextWatched(_ id: MediaTitle.ID) {
         guard let index = trackableTitleIndex(for: id) else { return }

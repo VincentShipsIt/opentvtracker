@@ -100,6 +100,15 @@ protocol PartnerActivityNotifying: Sendable {
     ) async
 }
 
+struct NoopPartnerActivityNotifier: PartnerActivityNotifying {
+    func requestAuthorization() async {}
+
+    func notify(
+        about activities: [SharedActivity],
+        in space: SharedSpace
+    ) async {}
+}
+
 struct NoopReminderScheduler: ReminderScheduling {
     func requestAuthorization() async -> ReminderAuthorization {
         .denied
@@ -134,12 +143,18 @@ enum PartnerSharingError: LocalizedError {
     case notConfigured
     case accountRequired
     case shareUnavailable
+    case acceptanceUnavailable
+    case revokeUnavailable
+    case leaveUnavailable
 
     var errorDescription: String? {
         switch self {
         case .notConfigured: "CloudKit sharing is not configured for this build."
         case .accountRequired: "Sign in to iCloud on this iPhone to invite your partner."
         case .shareUnavailable: "OpenTV could not create the private invitation. Try again."
+        case .acceptanceUnavailable: "OpenTV could not accept the private invitation. Try again."
+        case .revokeUnavailable: "OpenTV could not revoke the private invitation. Try again."
+        case .leaveUnavailable: "OpenTV could not leave the shared space. Try again."
         }
     }
 }

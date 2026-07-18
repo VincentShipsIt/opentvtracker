@@ -13,7 +13,8 @@
 - [ ] Create a dedicated least-privilege TMDB token, enable monitoring/alerts, and rehearse rotation plus provider kill switch.
 - [ ] Confirm the server has no OpenRouter key or reranking route. Connect/revoke a user OAuth key, set a daily/monthly spend cap, and verify deterministic fallback.
 - [ ] Validate `PrivacyInfo.xcprivacy`, App Store privacy answers, privacy/deletion language, and secret-free structured logs.
-- [ ] Import and promote the source-controlled [CloudKit schema](CLOUDKIT_SCHEMA.md), then test invite, accept, decline, revoke, leave, offline retry, and Apple ID switch on two devices.
+- [ ] Import the source-controlled [CloudKit schema](CLOUDKIT_SCHEMA.md), create a Development invitation to seed `cloudkit.share`, promote all sharing changes, and verify `PartnerSpace`, `PartnerSpaceState`, and `cloudkit.share` in Production.
+- [ ] On two devices, test invite, accept, watched-together partner notification, denied-then-enabled notification permission, decline, revoke, leave, offline retry, relaunch persistence, and Apple ID switch.
 - [ ] Test JSON/CSV export/import rollback, VoiceOver, Dynamic Type, contrast, reduced motion/transparency, and button shapes.
 - [ ] Verify TMDB/JustWatch/TVmaze attribution and official cinema links.
 - [ ] Require green iOS, server, and secret-scan CI on the release commit; create the archive with release signing outside source control.
