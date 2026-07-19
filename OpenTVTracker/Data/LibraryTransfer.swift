@@ -108,6 +108,11 @@ extension LibraryTransferService {
         into merged: inout LibrarySnapshot
     ) {
         merged.selectedProviderIDs = imported.selectedProviderIDs ?? merged.selectedProviderIDs
+        if let aliases = imported.importResolutionAliases {
+            var mergedAliases = merged.importResolutionAliases ?? [:]
+            mergedAliases.merge(aliases) { _, importedAlias in importedAlias }
+            merged.importResolutionAliases = mergedAliases
+        }
         merged.sharedSpace = LibraryBackupMerge.sharedSpace(
             imported: imported.sharedSpace,
             into: current.sharedSpace

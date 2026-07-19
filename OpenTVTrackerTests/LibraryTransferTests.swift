@@ -39,6 +39,9 @@ final class LibraryTransferTests: XCTestCase {
         snapshot.titles[index].isUpNextPinned = true
         snapshot.titles[index].upNextSnoozedUntil = Date(timeIntervalSince1970: 2_000_000_000)
         snapshot.titles[index].upNextManualOrder = 3
+        snapshot.importResolutionAliases = [
+            "series:source:42": ImportResolutionAlias(kind: .series, catalogID: 95_396)
+        ]
 
         let data = try LibraryTransferService.exportJSON(snapshot)
         let preview = try LibraryTransferService.previewImport(data, into: .sample)
@@ -52,6 +55,10 @@ final class LibraryTransferTests: XCTestCase {
         XCTAssertEqual(imported.isUpNextPinned, true)
         XCTAssertEqual(imported.upNextSnoozedUntil, Date(timeIntervalSince1970: 2_000_000_000))
         XCTAssertEqual(imported.upNextManualOrder, 3)
+        XCTAssertEqual(
+            preview.snapshot.importResolutionAliases?["series:source:42"],
+            ImportResolutionAlias(kind: .series, catalogID: 95_396)
+        )
         XCTAssertEqual(preview.matchedCount, snapshot.titles.count)
     }
 

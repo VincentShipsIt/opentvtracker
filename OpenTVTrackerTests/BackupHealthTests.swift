@@ -43,5 +43,10 @@ final class BackupHealthTests: XCTestCase {
         XCTAssertTrue(LibraryExportKind.json.completesBackup)
         XCTAssertFalse(LibraryExportKind.titlesCSV.completesBackup)
         XCTAssertFalse(LibraryExportKind.eventsCSV.completesBackup)
+        XCTAssertFalse(LibraryExportKind.preImportRollback.completesBackup)
+        XCTAssertEqual(
+            LibraryExportKind.preImportRollback.successMessage,
+            "Rollback backup saved. Export complete JSON to protect your updated library."
+        )
     }
 }
