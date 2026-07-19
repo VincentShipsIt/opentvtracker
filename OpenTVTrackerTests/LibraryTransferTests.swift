@@ -91,6 +91,138 @@ final class LibraryTransferTests: XCTestCase {
         )
     }
 
+    func testCompleteJSONExportPreservesCurrentLocalSnapshot() throws {
+        var snapshot = LibrarySnapshot.sample
+        snapshot.selectedProviderIDs = [StreamingProvider.appleTV.id]
+        snapshot.allowsAIReranking = true
+        snapshot.streamingRegionCode = "MT"
+
+        let data = try LibraryTransferService.exportJSON(snapshot)
+        let decoded = try LibraryArchiveCodec.decode(data)
+
+        XCTAssertEqual(decoded, snapshot)
+    }
+
+    func testCompleteJSONImportRestoresCurrentLocalSnapshotIntoEmptyLibrary() throws {
+        var snapshot = LibrarySnapshot.sample
+        snapshot.selectedProviderIDs = [StreamingProvider.appleTV.id]
+        snapshot.allowsAIReranking = true
+        snapshot.streamingRegionCode = "MT"
+
+        let data = try LibraryTransferService.exportJSON(snapshot)
+        let preview = try LibraryTransferService.previewImport(data, into: .empty)
+
+        XCTAssertEqual(preview.snapshot, snapshot)
+    }
+
+    func testCompleteJSONImportMergesSharedHistoryWithoutDeletingNewerLocalData() throws {
+        var backup = LibrarySnapshot.sample
+        let archivedEvent = SharedWatchEvent(
+            id: "archived-event",
+            titleID: "severance",
+            memberID: "vincent",
+            kind: .watched,
+            season: 1,
+            episode: 1,
+            occurredAt: Date(timeIntervalSince1970: 1_000),
+            supersedesEventID: nil
+        )
+        backup.sharedSpace.watchEvents = [archivedEvent]
+
+        var current = LibrarySnapshot.sample
+        let currentEvent = SharedWatchEvent(
+            id: "current-event",
+            titleID: "severance",
+            memberID: "vincent",
+            kind: .watched,
+            season: 1,
+            episode: 2,
+            occurredAt: Date(timeIntervalSince1970: 2_000),
+            supersedesEventID: nil
+        )
+        current.sharedSpace.watchEvents = [currentEvent]
+
+        let data = try LibraryTransferService.exportJSON(backup)
+        let preview = try LibraryTransferService.previewImport(data, into: current)
+
+        XCTAssertEqual(
+            Set(preview.snapshot.sharedSpace.watchEvents?.map(\.id) ?? []),
+            Set(["archived-event", "current-event"])
+        )
+        XCTAssertEqual(preview.watchEventCount, 1)
+        XCTAssertEqual(preview.sourceName, "OpenTV backup")
+    }
+
+    func testCompleteJSONImportPreviewsRestoredAISetting() throws {
+        var snapshot = LibrarySnapshot.sample
+        snapshot.allowsAIReranking = true
+
+        let data = try LibraryTransferService.exportJSON(snapshot)
+        let preview = try LibraryTransferService.previewImport(data, into: .empty)
+
+        XCTAssertEqual(preview.snapshot.allowsAIReranking, true)
+        XCTAssertTrue(preview.importNotice?.contains("AI reranking will be enabled") == true)
+    }
+
+    func testLegacyJSONImportPreservesSettingsMissingFromBackup() throws {
+        let exported = try LibraryTransferService.exportJSON(.sample)
+        var object = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: exported) as? [String: Any]
+        )
+        object["schemaVersion"] = 3
+        var archivedSnapshot = try XCTUnwrap(object["snapshot"] as? [String: Any])
+        archivedSnapshot.removeValue(forKey: "allowsAIReranking")
+        archivedSnapshot.removeValue(forKey: "streamingRegionCode")
+        object["snapshot"] = archivedSnapshot
+        let legacyArchive = try JSONSerialization.data(withJSONObject: object)
+
+        var current = LibrarySnapshot.sample
+        current.allowsAIReranking = true
+        current.streamingRegionCode = "MT"
+
+        let preview = try LibraryTransferService.previewImport(legacyArchive, into: current)
+
+        XCTAssertEqual(preview.snapshot.allowsAIReranking, true)
+        XCTAssertEqual(preview.snapshot.streamingRegionCode, "MT")
+        XCTAssertTrue(preview.importNotice?.contains("Streaming region keeps its current setting") == true)
+        XCTAssertTrue(
+            preview.importNotice?.contains("AI reranking keeps its current enabled setting") == true
+        )
+    }
+
+    func testJSONImportRestoresWatchedEpisodesForExistingCatalogTitle() throws {
+        var snapshot = LibrarySnapshot.sample
+        let index = try XCTUnwrap(snapshot.titles.firstIndex(where: { $0.id == "severance" }))
+        snapshot.titles[index].watchedEpisodeIDs = ["severance-s1e1"]
+
+        let data = try LibraryTransferService.exportJSON(snapshot)
+        let preview = try LibraryTransferService.previewImport(data, into: .sample)
+        let restored = try XCTUnwrap(
+            preview.snapshot.titles.first(where: { $0.id == "severance" })
+        )
+
+        XCTAssertEqual(restored.watchedEpisodeIDs, Set(["severance-s1e1"]))
+    }
+
+    func testJSONImportRejectsUnsupportedFutureSchema() throws {
+        let exported = try LibraryTransferService.exportJSON(.sample)
+        var object = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: exported) as? [String: Any]
+        )
+        object["schemaVersion"] = LibraryArchiveEnvelope.currentSchemaVersion + 1
+        let futureArchive = try JSONSerialization.data(withJSONObject: object)
+
+        XCTAssertThrowsError(
+            try LibraryTransferService.previewImport(futureArchive, into: .empty)
+        ) { error in
+            guard let archiveError = error as? LibraryArchiveError,
+                  case .unsupportedSchema(let version) = archiveError else {
+                return XCTFail("Expected an unsupported schema error, got \(error)")
+            }
+            XCTAssertEqual(version, LibraryArchiveEnvelope.currentSchemaVersion + 1)
+        }
+    }
+
     func testCSVImportRestoresPersonalWatchlistWithoutChangingState() throws {
         let csv = """
         catalog_id,title,year,state,personal_watchlist
