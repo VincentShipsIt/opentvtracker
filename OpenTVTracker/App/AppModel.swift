@@ -20,6 +20,7 @@ final class AppModel {
     var reminderSettings: ReminderSettings
     var reminderCapability = ReminderCapability.unknown
     var reminderError: String?
+    private(set) var importResolutionAliases: [String: ImportResolutionAlias]
     private(set) var hasLoaded = false
     var persistenceError: String?
     private(set) var remoteRankedRecommendations: [Recommendation] = []
@@ -64,6 +65,7 @@ final class AppModel {
         allowsAIReranking = seed.allowsAIReranking ?? false
         streamingRegionOverride = seed.streamingRegionCode.flatMap(StreamingRegion.init(code:))
         reminderSettings = seed.reminderSettings ?? ReminderSettings()
+        importResolutionAliases = seed.importResolutionAliases ?? [:]
     }
     var upNext: [MediaTitle] {
         titles
@@ -112,7 +114,8 @@ final class AppModel {
             selectedProviderIDs: selectedProviderIDs,
             allowsAIReranking: allowsAIReranking,
             streamingRegionCode: streamingRegionOverride?.code,
-            reminderSettings: reminderSettings
+            reminderSettings: reminderSettings,
+            importResolutionAliases: importResolutionAliases
         )
     }
 
@@ -140,6 +143,7 @@ final class AppModel {
                 allowsAIReranking = snapshot.allowsAIReranking ?? false
                 streamingRegionOverride = snapshot.streamingRegionCode.flatMap(StreamingRegion.init(code:))
                 reminderSettings = snapshot.reminderSettings ?? ReminderSettings()
+                importResolutionAliases = snapshot.importResolutionAliases ?? [:]
             }
         } catch {
             persistenceError = "Your saved library could not be opened. Your catalog and saved data remain separate."
@@ -278,6 +282,7 @@ extension AppModel {
         allowsAIReranking = snapshot.allowsAIReranking ?? false
         streamingRegionOverride = snapshot.streamingRegionCode.flatMap(StreamingRegion.init(code:))
         reminderSettings = snapshot.reminderSettings ?? ReminderSettings()
+        importResolutionAliases = snapshot.importResolutionAliases ?? [:]
         persist()
     }
 
