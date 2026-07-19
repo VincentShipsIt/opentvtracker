@@ -37,10 +37,12 @@ struct FeaturedMediaCard: View {
                                 .foregroundStyle(.black)
                         } else if let sourceURL = title.trailerURL,
                                   let externalURL = TrailerURLNormalizer.safeExternalURL(sourceURL) {
-                            Link("Open trailer", systemImage: "arrow.up.right.square", destination: externalURL)
-                                .buttonStyle(.borderedProminent)
-                                .tint(.white)
-                                .foregroundStyle(.black)
+                            Link(destination: externalURL) {
+                                Label("Open trailer", systemImage: "arrow.up.right.square")
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(.white)
+                            .foregroundStyle(.black)
                         }
 
                         NavigationLink(value: title) {
