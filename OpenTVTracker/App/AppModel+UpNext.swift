@@ -123,14 +123,8 @@ extension AppModel {
 
     private func inferredWatchedEpisodeIDs(for title: MediaTitle, at date: Date) -> Set<EpisodeSummary.ID> {
         if let watchedEpisodeIDs = title.watchedEpisodeIDs { return watchedEpisodeIDs }
-        if let progress = title.progress {
-            let episodes = (title.seasons ?? []).flatMap { season in
-                season.episodes.filter { episode in
-                    season.number < progress.season
-                        || (season.number == progress.season && episode.number <= progress.episode)
-                }
-            }
-            return Set(episodes.map(\.id))
+        if title.progress != nil {
+            return episodeIDsThroughProgress(for: title)
         }
         return title.state.isCurrentViewingComplete
             ? Set(releasedEpisodes(for: title, at: date).map(\.id))

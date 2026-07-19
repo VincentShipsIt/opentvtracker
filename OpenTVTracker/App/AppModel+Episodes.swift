@@ -275,12 +275,15 @@ private extension AppModel {
 
     func resolvedWatchedEpisodeIDs(for title: MediaTitle) -> Set<EpisodeSummary.ID> {
         if let watchedEpisodeIDs = title.watchedEpisodeIDs { return watchedEpisodeIDs }
-        let seasons = regularSeasons(for: title)
         if title.state.isCurrentViewingComplete {
             return Set(releasedEpisodes(for: title).map(\.id))
         }
+        return episodeIDsThroughProgress(for: title)
+    }
+
+    func episodeIDsThroughProgress(for title: MediaTitle) -> Set<EpisodeSummary.ID> {
         guard let progress = title.progress else { return [] }
-        let episodeIDs: [EpisodeSummary.ID] = seasons.flatMap { season -> [EpisodeSummary.ID] in
+        let episodeIDs: [EpisodeSummary.ID] = regularSeasons(for: title).flatMap { season -> [EpisodeSummary.ID] in
             guard season.number <= progress.season else { return [] }
             if season.number < progress.season { return season.episodes.map(\.id) }
             return season.episodes.filter { $0.number <= progress.episode }.map(\.id)
