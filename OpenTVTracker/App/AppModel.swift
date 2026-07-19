@@ -51,8 +51,8 @@ final class AppModel {
         selectedProviderIDs = seed.selectedProviderIDs ?? Self.defaultProviderIDs
         allowsAIReranking = seed.allowsAIReranking ?? false
         streamingRegionOverride = seed.streamingRegionCode.flatMap(StreamingRegion.init(code:))
-        titles = migratedTrackingTitles(titles, fromSchemaVersion: seed.schemaVersion)
         importResolutionAliases = seed.importResolutionAliases ?? [:]
+        titles = migratedTrackingTitles(titles, fromSchemaVersion: seed.schemaVersion)
     }
 
     var recommendations: [MediaTitle] {
