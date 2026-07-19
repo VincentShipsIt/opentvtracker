@@ -78,19 +78,7 @@ extension LibraryTransferService {
             }
         }
 
-        if let selectedProviderIDs = imported.selectedProviderIDs {
-            merged.selectedProviderIDs = selectedProviderIDs
-        }
-        merged.sharedSpace = LibraryBackupMerge.sharedSpace(
-            imported: imported.sharedSpace,
-            into: current.sharedSpace
-        )
-        if let allowsAIReranking = imported.allowsAIReranking {
-            merged.allowsAIReranking = allowsAIReranking
-        }
-        if let streamingRegionCode = imported.streamingRegionCode {
-            merged.streamingRegionCode = streamingRegionCode
-        }
+        mergeLibraryMetadata(imported: imported, current: current, into: &merged)
 
         return LibraryImportPreview(
             snapshot: merged,
@@ -108,6 +96,25 @@ extension LibraryTransferService {
                 current: current
             )
         )
+    }
+
+    private static func mergeLibraryMetadata(
+        imported: LibrarySnapshot,
+        current: LibrarySnapshot,
+        into merged: inout LibrarySnapshot
+    ) {
+        merged.selectedProviderIDs = imported.selectedProviderIDs ?? merged.selectedProviderIDs
+        if let aliases = imported.importResolutionAliases {
+            var mergedAliases = merged.importResolutionAliases ?? [:]
+            mergedAliases.merge(aliases) { _, importedAlias in importedAlias }
+            merged.importResolutionAliases = mergedAliases
+        }
+        merged.sharedSpace = LibraryBackupMerge.sharedSpace(
+            imported: imported.sharedSpace,
+            into: current.sharedSpace
+        )
+        merged.allowsAIReranking = imported.allowsAIReranking ?? merged.allowsAIReranking
+        merged.streamingRegionCode = imported.streamingRegionCode ?? merged.streamingRegionCode
     }
 
     private static func mergeCSV(
