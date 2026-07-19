@@ -143,6 +143,19 @@ struct TVTimeEntity: Sendable {
     var rewatchCount = 0
     var watches: [TVTimeWatch] = []
     var watchKeys: Set<TVTimeWatch> = []
+
+    var importedRewatchCount: Int {
+        if kind == .movie {
+            return [
+                rewatchCount,
+                max(watches.count - 1, 0),
+                watches.filter(\.isRewatch).count
+            ].max() ?? 0
+        }
+        return watches.reduce(0) {
+            $0 + $1.importedRewatchCount
+        }
+    }
 }
 
 struct TVTimeWatch: Hashable, Sendable {

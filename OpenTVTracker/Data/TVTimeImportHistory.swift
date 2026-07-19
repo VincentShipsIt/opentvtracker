@@ -22,7 +22,7 @@ enum TVTimeHistoryApplier {
         if title.kind == .movie {
             applied = applyMovieHistory(
                 entity.watches,
-                rewatchCount: entity.rewatchCount,
+                importedRewatchCount: entity.importedRewatchCount,
                 to: &title,
                 memberID: memberID,
                 existingEventIDs: &existingEventIDs
@@ -41,19 +41,14 @@ enum TVTimeHistoryApplier {
 
     private static func applyMovieHistory(
         _ watches: [TVTimeWatch],
-        rewatchCount: Int,
+        importedRewatchCount: Int,
         to title: inout MediaTitle,
         memberID: String,
         existingEventIDs: inout Set<String>
     ) -> TVTimeAppliedHistory {
         guard !watches.isEmpty else { return TVTimeAppliedHistory() }
         title.state = .completed
-        let importedRewatches = [
-            rewatchCount,
-            watches.count - 1,
-            watches.filter(\.isRewatch).count
-        ].max() ?? 0
-        title.rewatchCount = max(title.completedRewatches, importedRewatches)
+        title.rewatchCount = max(title.completedRewatches, importedRewatchCount)
         title.lastWatchedAt = watches.compactMap(\.occurredAt).max() ?? title.lastWatchedAt
         let events = TVTimeWatchEventFactory.make(
             watches,
@@ -61,7 +56,7 @@ enum TVTimeHistoryApplier {
             memberID: memberID,
             existingEventIDs: &existingEventIDs
         )
-        return TVTimeAppliedHistory(rewatches: importedRewatches, watchEvents: events)
+        return TVTimeAppliedHistory(rewatches: importedRewatchCount, watchEvents: events)
     }
 
     private static func applyEpisodeHistory(

@@ -14,7 +14,7 @@ struct TVTimeMergeState {
 
 struct TVTimeMediaTitleLookup {
     private var byID: [MediaTitle.ID: Int] = [:]
-    private var byKindAndTitle: [String: Int] = [:]
+    private var byKindAndTitle: [String: [Int]] = [:]
     private var byKindTitleAndYear: [String: Int] = [:]
 
     init(_ titles: [MediaTitle]) {
@@ -26,7 +26,9 @@ struct TVTimeMediaTitleLookup {
     mutating func insert(_ title: MediaTitle, at index: Int) {
         byID[title.id] = byID[title.id] ?? index
         let titleKey = Self.titleKey(kind: title.kind, title: title.title)
-        byKindAndTitle[titleKey] = byKindAndTitle[titleKey] ?? index
+        if byKindAndTitle[titleKey]?.contains(index) != true {
+            byKindAndTitle[titleKey, default: []].append(index)
+        }
         let yearKey = Self.yearKey(titleKey, year: title.year)
         byKindTitleAndYear[yearKey] = byKindTitleAndYear[yearKey] ?? index
     }
@@ -40,7 +42,8 @@ struct TVTimeMediaTitleLookup {
         if let year = entity.year {
             return byKindTitleAndYear[Self.yearKey(titleKey, year: year)]
         }
-        return byKindAndTitle[titleKey]
+        guard let indexes = byKindAndTitle[titleKey], indexes.count == 1 else { return nil }
+        return indexes[0]
     }
 
     private static func titleKey(kind: MediaKind, title: String) -> String {

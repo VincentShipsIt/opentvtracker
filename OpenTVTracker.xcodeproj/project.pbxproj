@@ -80,6 +80,7 @@
 		9BF7B87BBB573EBDD2CB7BB5 /* OpenRouterRecommendationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD2FDCE6515802061FAF0301 /* OpenRouterRecommendationService.swift */; };
 		9C36553F5CAD9AFF1D02982F /* TogetherRoutes.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC075EAA6985B494E82C7BA2 /* TogetherRoutes.swift */; };
 		9C56B7143471BDF6AC187259 /* AppAttestClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 625AD0EEA5B826967E8AA51B /* AppAttestClientTests.swift */; };
+		9C5D3B4C0597D25043207DFC /* TVTimeImportAliasResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15807A2758E73381DC00E0F7 /* TVTimeImportAliasResolver.swift */; };
 		9F5F136FE575F031BFABFD1D /* ActivityCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 894C207692BF083B85E0608C /* ActivityCard.swift */; };
 		A148312A7A5BDFD090CDF059 /* CreditsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E587E794892C46CA67E031BD /* CreditsView.swift */; };
 		A189A502FB1E724B1C743305 /* EpisodeDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1E154300D1D203FFB6846FC /* EpisodeDetailView.swift */; };
@@ -138,6 +139,7 @@
 		0F570624616BB1EC10933521 /* TVMazeCatalogService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVMazeCatalogService.swift; sourceTree = "<group>"; };
 		109429EDBAD271EBC45D4701 /* OpenTVTracker.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = OpenTVTracker.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		111F7857D63324A855494D83 /* SourceLinksTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SourceLinksTests.swift; sourceTree = "<group>"; };
+		15807A2758E73381DC00E0F7 /* TVTimeImportAliasResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVTimeImportAliasResolver.swift; sourceTree = "<group>"; };
 		1BB64E89979BCD5C0AE1B607 /* AppModel+Episodes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+Episodes.swift"; sourceTree = "<group>"; };
 		1F15155D794E90782ECB43F7 /* RecommendationServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecommendationServiceTests.swift; sourceTree = "<group>"; };
 		2388B7AA52A21C97D472D208 /* NearbyPartnerInvitationCodec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NearbyPartnerInvitationCodec.swift; sourceTree = "<group>"; };
@@ -284,6 +286,7 @@
 				BDD546B456C2DAA443D784DC /* TVTimeArchiveParser.swift */,
 				7627BC8256E7005B514047AD /* TVTimeCSV.swift */,
 				0A56CE007B21E5CD00CEA243 /* TVTimeImport.swift */,
+				15807A2758E73381DC00E0F7 /* TVTimeImportAliasResolver.swift */,
 				33F80C64BADB7EE52B8202AA /* TVTimeImportHistory.swift */,
 				2BFEE70843A3C191437E0346 /* TVTimeImportLookup.swift */,
 				A55427CF53BBA4E379542E17 /* TVTimeImportMerger.swift */,
@@ -725,6 +728,7 @@
 				6018D9CD68BFC02FFD53870C /* TVTimeArchiveParser.swift in Sources */,
 				D097061FA4BCFE65906D4922 /* TVTimeCSV.swift in Sources */,
 				BE9F209079D5435AA17C33DB /* TVTimeImport.swift in Sources */,
+				9C5D3B4C0597D25043207DFC /* TVTimeImportAliasResolver.swift in Sources */,
 				11D9435EE6C26A979D113B42 /* TVTimeImportCoordinator.swift in Sources */,
 				944FDBDD69D79B7583D13278 /* TVTimeImportHistory.swift in Sources */,
 				81EDC08796376507FE80A8D0 /* TVTimeImportLookup.swift in Sources */,

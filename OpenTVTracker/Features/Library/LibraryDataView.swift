@@ -10,6 +10,7 @@ struct LibraryDataView: View {
     @State private var exportContentType: UTType = .json
     @State private var exportFilename = "OpenTV-library"
     @State private var pendingExportKind: LibraryExportKind?
+    @State private var pendingImportSnapshot: LibrarySnapshot?
     @State private var showsExporter = false
     @State private var showsImporter = false
     @State private var isImporting = false
@@ -121,13 +122,26 @@ struct LibraryDataView: View {
                 defer { pendingExportKind = nil }
                 switch result {
                 case .success:
+                    if pendingExportKind == .preImportRollback,
+                       let pendingImportSnapshot {
+                        model.replaceLibrary(with: pendingImportSnapshot)
+                        importPreview = nil
+                        importCoordinator = nil
+                        self.pendingImportSnapshot = nil
+                        statusMessage = "Rollback backup saved and import applied."
+                    }
                     if pendingExportKind?.completesBackup == true {
                         lastSuccessfulBackupTimestamp = Date.now.timeIntervalSince1970
                     }
-                    statusMessage = pendingExportKind?.successMessage
+                    if pendingExportKind != .preImportRollback {
+                        statusMessage = pendingExportKind?.successMessage
+                    }
                 case .failure(let error):
+                    pendingImportSnapshot = nil
                     if (error as? CocoaError)?.code != .userCancelled {
                         statusMessage = error.localizedDescription
+                    } else if pendingExportKind == .preImportRollback {
+                        statusMessage = "Import canceled. Your library was not changed."
                     }
                 }
             }
@@ -216,14 +230,12 @@ struct LibraryDataView: View {
     private func applyImport(_ preview: LibraryImportPreview) {
         do {
             let backup = try LibraryTransferService.exportJSON(model.snapshot)
-            model.replaceLibrary(with: preview.snapshot)
-            importPreview = nil
-            importCoordinator = nil
+            pendingImportSnapshot = preview.snapshot
             exportDocument = LibraryExportDocument(data: backup)
             exportContentType = .json
             exportFilename = "OpenTV-pre-import-backup.json"
             pendingExportKind = .preImportRollback
-            statusMessage = "Import applied. Save this rollback backup somewhere you control."
+            statusMessage = "Save the rollback backup to apply this import."
             showsExporter = true
         } catch {
             statusMessage = error.localizedDescription

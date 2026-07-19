@@ -6,6 +6,8 @@ import Observation
 final class TVTimeImportCoordinator {
     private let session: TVTimeImportSession
     private var manualResolutions: [ImportResolutionIssue.ID: MediaTitle] = [:]
+    private var resolutionTail: Task<Void, Never>?
+    private var pendingResolutionCount = 0
 
     private(set) var preview: LibraryImportPreview?
     private(set) var isRefreshing = false
@@ -26,8 +28,22 @@ final class TVTimeImportCoordinator {
         _ issue: ImportResolutionIssue,
         with title: MediaTitle
     ) async {
-        manualResolutions[issue.id] = await session.detailedTitle(title)
-        await refresh()
+        let previous = resolutionTail
+        pendingResolutionCount += 1
+        isRefreshing = true
+        let task = Task { @MainActor in
+            await previous?.value
+            self.manualResolutions[issue.id] = await self.session.detailedTitle(title)
+            self.preview = await self.session.preview(manualResolutions: self.manualResolutions)
+            self.errorMessage = nil
+            self.pendingResolutionCount -= 1
+            if self.pendingResolutionCount == 0 {
+                self.isRefreshing = false
+                self.resolutionTail = nil
+            }
+        }
+        resolutionTail = task
+        await task.value
     }
 
     func search(

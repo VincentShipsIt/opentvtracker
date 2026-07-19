@@ -149,6 +149,51 @@ final class TVTimeImportTests: XCTestCase {
             XCTAssertNil(coordinator.errorMessage)
         }
     }
+}
+
+extension TVTimeImportTests {
+    @MainActor
+    func testConcurrentManualResolutionsAreSerialized() async throws {
+        let candidates = Array(LibrarySnapshot.sample.titles.prefix(2))
+        let first = try XCTUnwrap(candidates.first)
+        let second = try XCTUnwrap(candidates.dropFirst().first)
+        let catalog = ControlledResolutionCatalog(titles: candidates)
+        let session = TVTimeImportSession(
+            archive: TVTimeArchive(
+                entities: [],
+                duplicateCount: 0,
+                diagnostics: TVTimeImportDiagnostics()
+            ),
+            current: .empty,
+            catalog: catalog,
+            region: .malta
+        )
+        let coordinator = TVTimeImportCoordinator(session: session)
+        let firstIssue = Self.resolutionIssue(id: "first", title: first)
+        let secondIssue = Self.resolutionIssue(id: "second", title: second)
+
+        let firstResolution = Task {
+            await coordinator.resolve(firstIssue, with: first)
+        }
+        await catalog.waitUntilRequested(catalogID: first.catalogID)
+        let secondResolution = Task {
+            await coordinator.resolve(secondIssue, with: second)
+        }
+        await Task.yield()
+
+        let requestedSecondEarly = await catalog.hasRequested(catalogID: second.catalogID)
+        XCTAssertFalse(requestedSecondEarly)
+
+        await catalog.release(catalogID: first.catalogID)
+        await catalog.waitUntilRequested(catalogID: second.catalogID)
+        await catalog.release(catalogID: second.catalogID)
+        await firstResolution.value
+        await secondResolution.value
+
+        let requestOrder = await catalog.requestedCatalogIDs
+        XCTAssertEqual(requestOrder, [first.catalogID, second.catalogID])
+        XCTAssertFalse(coordinator.isRefreshing)
+    }
 
     func testLegacyExportRestoresEpochWatchDateAndMovieRating() async throws {
         let archive = try makeArchive([
@@ -226,6 +271,21 @@ final class TVTimeImportTests: XCTestCase {
         return snapshot
     }
 
+    private static func resolutionIssue(
+        id: String,
+        title: MediaTitle
+    ) -> ImportResolutionIssue {
+        ImportResolutionIssue(
+            id: id,
+            sourceID: id,
+            title: title.title,
+            year: title.year,
+            kind: title.kind,
+            reason: .ambiguousCatalogMatch,
+            detail: "Choose a title."
+        )
+    }
+
     private func makeArchive(_ files: [String: String]) throws -> Data {
         let archive = try Archive(accessMode: .create)
         for (path, contents) in files.sorted(by: { $0.key < $1.key }) {
@@ -251,5 +311,51 @@ private struct CancellingCatalog: CatalogProviding {
 
     func title(kind: MediaKind, catalogID: Int, region: StreamingRegion) async throws -> MediaTitle {
         throw CancellationError()
+    }
+}
+
+private actor ControlledResolutionCatalog: CatalogProviding {
+    let titles: [MediaTitle]
+    private(set) var requestedCatalogIDs: [Int] = []
+    private var releasedCatalogIDs: Set<Int> = []
+
+    init(titles: [MediaTitle]) {
+        self.titles = titles
+    }
+
+    func search(_: MediaSearchQuery) async throws -> [MediaTitle] {
+        []
+    }
+
+    func title(
+        kind: MediaKind,
+        catalogID: Int,
+        region _: StreamingRegion
+    ) async throws -> MediaTitle {
+        requestedCatalogIDs.append(catalogID)
+        while !releasedCatalogIDs.contains(catalogID) {
+            try Task.checkCancellation()
+            await Task.yield()
+        }
+        guard let title = titles.first(where: {
+            $0.kind == kind && $0.catalogID == catalogID
+        }) else {
+            throw CatalogServiceError.notFound
+        }
+        return title
+    }
+
+    func waitUntilRequested(catalogID: Int) async {
+        while !requestedCatalogIDs.contains(catalogID) {
+            await Task.yield()
+        }
+    }
+
+    func hasRequested(catalogID: Int) -> Bool {
+        requestedCatalogIDs.contains(catalogID)
+    }
+
+    func release(catalogID: Int) {
+        releasedCatalogIDs.insert(catalogID)
     }
 }

@@ -29,7 +29,9 @@ enum TVTimeArchiveParser {
             }
         }
 
-        guard !entities.isEmpty else { throw TVTimeImportError.noSupportedData }
+        guard !entities.isEmpty || diagnostics.hasReportableFailures else {
+            throw TVTimeImportError.noSupportedData
+        }
         return TVTimeArchive(
             entities: entities.values.sorted { $0.identity < $1.identity },
             duplicateCount: duplicateCount,
@@ -92,6 +94,15 @@ enum TVTimeArchiveParser {
         if filename.contains("rating") || filename == "tv_show_rate.csv" { return 2 }
         if filename == "followed_tv_show.csv" || filename.contains("tvtime-series-") { return 1 }
         return 0
+    }
+}
+
+private extension TVTimeImportDiagnostics {
+    var hasReportableFailures: Bool {
+        missingIdentityCount > 0
+            || unsupportedRecordCount > 0
+            || unsupportedEpisodeRatingCount > 0
+            || unreadableFileCount > 0
     }
 }
 

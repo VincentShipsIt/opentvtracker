@@ -29,23 +29,16 @@ enum TVTimeImportMerger {
         var unresolved: [TVTimeEntity] = []
         let currentTitles = TVTimeMediaTitleLookup(current.titles)
 
+        let aliasResolution = await TVTimeImportAliasResolver.resolve(
+            entities,
+            aliases: current.importResolutionAliases ?? [:],
+            catalog: catalog,
+            region: region
+        )
+        resolved = aliasResolution.resolved
+        warnings = aliasResolution.warnings
+
         for entity in entities {
-            if let alias = current.importResolutionAliases?[entity.identity] {
-                do {
-                    resolved[entity.identity] = try await catalog.title(
-                        kind: alias.kind,
-                        catalogID: alias.catalogID,
-                        region: region
-                    )
-                } catch {
-                    warnings.append(
-                        ImportWarning(
-                            id: "stale-alias-\(entity.identity)",
-                            message: "A saved match for \(entityDisplayName(entity)) is no longer available. OpenTV searched the catalog again."
-                        )
-                    )
-                }
-            }
             if resolved[entity.identity] != nil {
                 continue
             }
@@ -90,7 +83,7 @@ enum TVTimeImportMerger {
             automaticResolution.warnings,
             diagnostics: archive.diagnostics,
             resolutionIssueCount: resolutionIssues.count,
-            skippedCount: totals.skippedCount
+            unmatchedEpisodeCount: totals.unmatchedEpisodeCount
         )
         let sourceCounts = TVTimeImportReportBuilder.sourceCounts(for: archive)
         return LibraryImportPreview(
@@ -210,6 +203,7 @@ private extension TVTimeImportMerger {
             watchedEpisodeCount: applied.watchedEpisodes,
             watchEventCount: applied.watchEvents.count,
             skippedCount: applied.unmatchedEpisodes,
+            unmatchedEpisodeCount: applied.unmatchedEpisodes,
             destinationCounts: destinationCounts,
             watchEvents: applied.watchEvents
         )
@@ -300,12 +294,6 @@ private extension TVTimeImportMerger {
         )
     }
 
-    private static func entityDisplayName(_ entity: TVTimeEntity) -> String {
-        if !entity.title.isEmpty { return entity.title }
-        return entity.sourceID.map { "\(entity.kind.label) source ID \($0)" }
-            ?? "an unnamed \(entity.kind.label.lowercased())"
-    }
-
     private static func selectCandidate(
         for entity: TVTimeEntity,
         from results: [MediaTitle]
@@ -320,7 +308,7 @@ private extension TVTimeImportMerger {
         if candidates.count == 1, let candidate = candidates.first {
             return .candidate(candidate)
         }
-        if candidates.count > 1 || (entity.year == nil && exactTitles.count > 1) {
+        if candidates.count > 1 {
             return .issue(
                 .ambiguousCatalogMatch,
                 "The catalog returned several exact title matches. Choose the correct release."
@@ -347,6 +335,7 @@ private struct PreviewMergeTotals {
     var addedCount = 0
     var watchedEpisodeCount = 0
     var watchEventCount = 0
+    var unmatchedEpisodeCount = 0
     var skippedCount: Int
     var destinationCounts = Dictionary(
         uniqueKeysWithValues: ImportMetricCategory.allCases.map { ($0, 0) }
@@ -357,6 +346,7 @@ private struct PreviewMergeTotals {
         addedCount += result.addedCount
         watchedEpisodeCount += result.watchedEpisodeCount
         watchEventCount += result.watchEventCount
+        unmatchedEpisodeCount += result.unmatchedEpisodeCount
         skippedCount += result.skippedCount
         for (category, count) in result.destinationCounts {
             destinationCounts[category, default: 0] += count
@@ -370,6 +360,7 @@ private struct EntityMergeResult {
     let watchedEpisodeCount: Int
     let watchEventCount: Int
     let skippedCount: Int
+    let unmatchedEpisodeCount: Int
     let destinationCounts: [ImportMetricCategory: Int]
     let watchEvents: [SharedWatchEvent]
 }

@@ -5,7 +5,7 @@ enum TVTimeImportReportBuilder {
         _ initial: [ImportWarning],
         diagnostics: TVTimeImportDiagnostics,
         resolutionIssueCount: Int,
-        skippedCount: Int
+        unmatchedEpisodeCount: Int
     ) -> [ImportWarning] {
         var warnings = initial
         appendDiagnosticWarnings(diagnostics, to: &warnings)
@@ -17,15 +17,11 @@ enum TVTimeImportReportBuilder {
                 )
             )
         }
-        let unmatchedEpisodes = skippedCount
-            - diagnostics.missingIdentityCount
-            - diagnostics.unsupportedRecordCount
-            - resolutionIssueCount
-        if unmatchedEpisodes > 0 {
+        if unmatchedEpisodeCount > 0 {
             warnings.append(
                 ImportWarning(
-                    id: "unmatched-episodes-\(unmatchedEpisodes)",
-                    message: "\(unmatchedEpisodes) watched episode \(unmatchedEpisodes == 1 ? "was" : "were") not present in current catalog metadata."
+                    id: "unmatched-episodes-\(unmatchedEpisodeCount)",
+                    message: "\(unmatchedEpisodeCount) watched episode \(unmatchedEpisodeCount == 1 ? "was" : "were") not present in current catalog metadata."
                 )
             )
         }
@@ -43,7 +39,7 @@ enum TVTimeImportReportBuilder {
             counts[.episodes, default: 0] += entity.watches.filter {
                 entity.kind == .series && $0.season != nil && $0.episode != nil
             }.count
-            counts[.rewatches, default: 0] += importedRewatchCount(for: entity)
+            counts[.rewatches, default: 0] += entity.importedRewatchCount
             if entity.rating != nil {
                 counts[.ratings, default: 0] += 1
             }
@@ -93,19 +89,6 @@ enum TVTimeImportReportBuilder {
                     message: "\(diagnostics.unreadableFileCount) CSV \(diagnostics.unreadableFileCount == 1 ? "file was" : "files were") not valid UTF-8."
                 )
             )
-        }
-    }
-
-    private static func importedRewatchCount(for entity: TVTimeEntity) -> Int {
-        if entity.kind == .movie {
-            return [
-                entity.rewatchCount,
-                max(entity.watches.count - 1, 0),
-                entity.watches.filter(\.isRewatch).count
-            ].max() ?? 0
-        }
-        return entity.watches.reduce(0) {
-            $0 + $1.importedRewatchCount
         }
     }
 }

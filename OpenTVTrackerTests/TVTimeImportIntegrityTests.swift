@@ -64,6 +64,38 @@ final class TVTimeImportIntegrityTests: XCTestCase {
         XCTAssertEqual(metric(.shows, in: preview)?.sourceCount, 1)
         XCTAssertEqual(metric(.shows, in: preview)?.importedCount, 0)
     }
+}
+
+extension TVTimeImportIntegrityTests {
+    func testAmbiguousLocalTitlesWithoutYearRequireManualResolution() async throws {
+        var first = try XCTUnwrap(LibrarySnapshot.sample.titles.first(where: { $0.kind == .series }))
+        first.title = "The Office"
+        first.year = 2001
+        var second = try XCTUnwrap(
+            LibrarySnapshot.sample.titles.dropFirst().first(where: { $0.kind == .series })
+        )
+        second.title = "The Office"
+        second.year = 2005
+        let archive = try makeArchive([
+            "followed_tv_show.csv": """
+            tv_show_id,tv_show_name,is_followed
+            office-source,The Office,true
+            """
+        ])
+        var snapshot = LibrarySnapshot.empty
+        snapshot.titles = [first, second]
+
+        let preview = try await TVTimeImportService.previewImport(
+            archive,
+            into: snapshot,
+            catalog: LocalCatalogService(titles: []),
+            region: .malta
+        )
+
+        XCTAssertEqual(preview.resolutionIssues.count, 1)
+        XCTAssertEqual(preview.resolutionIssues.first?.reason, .noCatalogMatch)
+        XCTAssertEqual(preview.snapshot.titles.count, 2)
+    }
 
     func testSavedAliasWinsOverAmbiguousLocalTitleMatch() async throws {
         var first = try XCTUnwrap(LibrarySnapshot.sample.titles.first(where: { $0.kind == .series }))
@@ -140,6 +172,7 @@ final class TVTimeImportIntegrityTests: XCTestCase {
             "tracking-prod-records.csv": """
             uuid,type,entity_type,movie_name,series_name,s_id,season_number,episode_number
             ,watch,series,,Severance,42,1,1
+            ,watch,series,,Severance,42,1,99
             ,reaction,series,,Severance,42,1,1
             ,watch,series,,,,1,2
             """
@@ -155,6 +188,26 @@ final class TVTimeImportIntegrityTests: XCTestCase {
 
         XCTAssertTrue(preview.warnings.contains { $0.id.hasPrefix("unsupported-records-1") })
         XCTAssertTrue(preview.warnings.contains { $0.id.hasPrefix("missing-identities-1") })
+        XCTAssertTrue(preview.warnings.contains { $0.id == "unmatched-episodes-1" })
+    }
+
+    func testDiagnosticsOnlyArchiveReturnsAReportablePreview() async throws {
+        let archive = try makeArchive([
+            "tracking-prod-records.csv": """
+            uuid,type,entity_type,movie_name,series_name,s_id
+            ,watch,series,,,
+            """
+        ])
+
+        let preview = try await TVTimeImportService.previewImport(
+            archive,
+            into: .empty,
+            catalog: LocalCatalogService(titles: []),
+            region: .malta
+        )
+
+        XCTAssertEqual(preview.skippedCount, 1)
+        XCTAssertTrue(preview.warnings.contains { $0.id == "missing-identities-1" })
     }
 
     func testHundredThousandRowsRemainIdempotent() async throws {
