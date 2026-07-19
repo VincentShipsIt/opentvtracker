@@ -9,7 +9,6 @@ final class AppModel {
     private let seed: LibrarySnapshot
     private var saveTask: Task<Void, Never>?
     private var persistenceRevision = 0
-
     var titles: [MediaTitle]
     var sharedSpace: SharedSpace
     private(set) var selectedProviderIDs: Set<StreamingProvider.ID>
@@ -26,11 +25,9 @@ final class AppModel {
     var catalogSearchPage = 0
     var catalogSearchQuery = ""
     var hasMoreCatalogResults = false
-
     var selectedMood: Mood = .any {
         didSet { refreshRecommendationsSoon() }
     }
-
     init(
         store: any LibraryPersisting = LibraryStoreFactory.makeDefault(),
         recommendationService: any RecommendationProviding = ProviderNeutralRecommendationService(),
@@ -94,7 +91,6 @@ final class AppModel {
         let sharedIDs = Set(sharedSpace.titleIDs)
         return titles.filter { sharedIDs.contains($0.id) }
     }
-
     var snapshot: LibrarySnapshot {
         LibrarySnapshot(
             titles: titles,
@@ -260,6 +256,11 @@ extension AppModel {
         streamingRegionOverride = region
     }
 
+    func completeFirstRun() {
+        guard !hasCompletedFirstRun else { return }
+        hasCompletedFirstRun = true
+        persist()
+    }
     func replaceLibrary(with snapshot: LibrarySnapshot) {
         titles = merging(savedTitles: snapshot.titles, catalogTitles: seed.titles)
         sharedSpace = snapshot.sharedSpace
@@ -315,7 +316,6 @@ extension AppModel {
             context: context
         )) ?? []
     }
-
 }
 
 extension AppModel {
