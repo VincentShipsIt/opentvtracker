@@ -4,9 +4,12 @@ import UniformTypeIdentifiers
 struct LibraryDataView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
+    @AppStorage(BackupHealth.lastSuccessfulExportTimestampKey)
+    private var lastSuccessfulBackupTimestamp = 0.0
     @State private var exportDocument: LibraryExportDocument?
     @State private var exportContentType: UTType = .json
     @State private var exportFilename = "OpenTV-library"
+    @State private var pendingExportKind: LibraryExportKind?
     @State private var showsExporter = false
     @State private var showsImporter = false
     @State private var isImporting = false
@@ -17,6 +20,13 @@ struct LibraryDataView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Section("Backup health") {
+                    Label(backupHealth.label, systemImage: backupHealth.systemImage)
+                    Text(backupHealth.reminder)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+
                 Section("Portable backup") {
                     Button("Export complete JSON", systemImage: "square.and.arrow.up") {
                         prepareExport(.json)
@@ -55,6 +65,12 @@ struct LibraryDataView: View {
                         }
                         LabeledContent("Duplicates", value: String(importPreview.duplicateCount))
                         LabeledContent("Skipped", value: String(importPreview.skippedCount))
+
+                        if let importNotice = importPreview.importNotice {
+                            Text(importNotice)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
                     }
 
                     if !importPreview.integrityCounts.isEmpty {
@@ -102,8 +118,19 @@ struct LibraryDataView: View {
                 contentType: exportContentType,
                 defaultFilename: exportFilename
             ) { result in
-                if case .failure(let error) = result {
-                    statusMessage = error.localizedDescription
+                defer { pendingExportKind = nil }
+                switch result {
+                case .success:
+                    if pendingExportKind?.completesBackup == true {
+                        lastSuccessfulBackupTimestamp = Date.now.timeIntervalSince1970
+                        statusMessage = "Complete backup exported."
+                    } else {
+                        statusMessage = "CSV exported. Complete JSON is the restorable backup."
+                    }
+                case .failure(let error):
+                    if (error as? CocoaError)?.code != .userCancelled {
+                        statusMessage = error.localizedDescription
+                    }
                 }
             }
             .fileImporter(
@@ -137,6 +164,7 @@ struct LibraryDataView: View {
                 exportFilename = "OpenTV-watch-events.csv"
             }
             exportDocument = LibraryExportDocument(data: data)
+            pendingExportKind = kind
             showsExporter = true
         } catch {
             statusMessage = error.localizedDescription
@@ -194,11 +222,20 @@ struct LibraryDataView: View {
             exportDocument = LibraryExportDocument(data: backup)
             exportContentType = .json
             exportFilename = "OpenTV-pre-import-backup.json"
+            pendingExportKind = .json
             statusMessage = "Import applied. Save this rollback backup somewhere you control."
             showsExporter = true
         } catch {
             statusMessage = error.localizedDescription
         }
+    }
+
+    private var backupHealth: BackupHealthState {
+        BackupHealth.state(
+            lastSuccessfulExportAt: BackupHealth.lastSuccessfulExportAt(
+                from: lastSuccessfulBackupTimestamp
+            )
+        )
     }
 }
 
@@ -239,10 +276,14 @@ private struct ImportWarningsSection: View {
     }
 }
 
-private enum LibraryExportKind {
+enum LibraryExportKind: Equatable {
     case json
     case titlesCSV
     case eventsCSV
+
+    var completesBackup: Bool {
+        self == .json
+    }
 }
 
 struct LibraryExportDocument: FileDocument {
