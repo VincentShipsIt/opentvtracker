@@ -123,10 +123,8 @@ struct LibraryDataView: View {
                 case .success:
                     if pendingExportKind?.completesBackup == true {
                         lastSuccessfulBackupTimestamp = Date.now.timeIntervalSince1970
-                        statusMessage = "Complete backup exported."
-                    } else {
-                        statusMessage = "CSV exported. Complete JSON is the restorable backup."
                     }
+                    statusMessage = pendingExportKind?.successMessage
                 case .failure(let error):
                     if (error as? CocoaError)?.code != .userCancelled {
                         statusMessage = error.localizedDescription
@@ -150,10 +148,12 @@ struct LibraryDataView: View {
         do {
             let data: Data
             switch kind {
-            case .json:
+            case .json, .preImportRollback:
                 data = try LibraryTransferService.exportJSON(model.snapshot)
                 exportContentType = .json
-                exportFilename = "OpenTV-library.json"
+                exportFilename = kind == .json
+                    ? "OpenTV-library.json"
+                    : "OpenTV-pre-import-backup.json"
             case .titlesCSV:
                 data = LibraryTransferService.exportTitlesCSV(model.snapshot)
                 exportContentType = .commaSeparatedText
@@ -222,7 +222,7 @@ struct LibraryDataView: View {
             exportDocument = LibraryExportDocument(data: backup)
             exportContentType = .json
             exportFilename = "OpenTV-pre-import-backup.json"
-            pendingExportKind = .json
+            pendingExportKind = .preImportRollback
             statusMessage = "Import applied. Save this rollback backup somewhere you control."
             showsExporter = true
         } catch {
@@ -280,9 +280,21 @@ enum LibraryExportKind: Equatable {
     case json
     case titlesCSV
     case eventsCSV
+    case preImportRollback
 
     var completesBackup: Bool {
         self == .json
+    }
+
+    var successMessage: String {
+        switch self {
+        case .json:
+            "Complete backup exported."
+        case .titlesCSV, .eventsCSV:
+            "CSV exported. Complete JSON is the restorable backup."
+        case .preImportRollback:
+            "Rollback backup saved. Export complete JSON to protect your updated library."
+        }
     }
 }
 
