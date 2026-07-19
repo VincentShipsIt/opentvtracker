@@ -123,6 +123,7 @@ enum ReminderPlanner {
             for: title,
             selectedProviderIDs: selectedProviderIDs,
             settings: settings,
+            leadTime: leadTime,
             now: now
         ) {
             return [providerPlan]
@@ -197,15 +198,22 @@ enum ReminderPlanner {
         for title: MediaTitle,
         selectedProviderIDs: Set<StreamingProvider.ID>,
         settings: ReminderSettings,
+        leadTime: ReminderLeadTime,
         now: Date
     ) -> ReminderPlan? {
-        guard settings.providerAvailabilityEnabled,
-              title.kind == .movie,
-              !selectedProviderIDs.isDisjoint(with: Set(title.providers.map(\.id))),
+        guard title.kind == .movie,
               let releaseDate = title.releaseDate else {
             return nil
         }
-        let fireDate = releaseDate
+        let isExplicitlyEnabled = settings.enabledTitleIDs.contains(title.id)
+        guard isExplicitlyEnabled
+            || (settings.providerAvailabilityEnabled
+                && !selectedProviderIDs.isDisjoint(with: Set(title.providers.map(\.id)))) else {
+            return nil
+        }
+        let fireDate = isExplicitlyEnabled
+            ? releaseDate.addingTimeInterval(-Double(leadTime.rawValue * 60))
+            : releaseDate
         guard fireDate > now else { return nil }
         return ReminderPlan(
             id: identifier(titleID: title.id, eventID: "provider-availability"),

@@ -134,6 +134,7 @@ final class AppModel {
     func load() async {
         guard !hasLoaded else { return }
         defer { hasLoaded = true }
+        var canReconcileReminders = true
 
         do {
             if let snapshot = try await store.load() {
@@ -147,11 +148,14 @@ final class AppModel {
             }
         } catch {
             persistenceError = "Your saved library could not be opened. Your catalog and saved data remain separate."
+            canReconcileReminders = false
         }
         await refreshDiscoveryCatalog()
         await refreshRecommendations()
         await refreshReminderCapability()
-        await refreshReminders()
+        if canReconcileReminders {
+            await refreshReminders()
+        }
         publishWidgetSnapshot()
     }
 }

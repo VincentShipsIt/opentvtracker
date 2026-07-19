@@ -38,6 +38,43 @@ final class ReminderPlannerBoundsTests: XCTestCase {
         ).isEmpty)
     }
 
+    func testExplicitMovieReminderIgnoresAutomaticProviderFilterAndUsesLeadTime() throws {
+        var movie = try XCTUnwrap(LibrarySnapshot.sample.titles.first { $0.kind == .movie })
+        movie.personalWatchlist = true
+        movie.providers = [.netflix]
+        movie.releaseDate = now.addingTimeInterval(7_200)
+        var settings = ReminderSettings()
+        settings.isEnabled = true
+        settings.providerAvailabilityEnabled = false
+        settings.enabledTitleIDs = [movie.id]
+        settings.titleLeadTimes[movie.id] = .oneHour
+
+        let plan = try XCTUnwrap(ReminderPlanner.plans(
+            titles: [movie],
+            selectedProviderIDs: [.appleTV],
+            settings: settings,
+            now: now
+        ).first)
+
+        XCTAssertEqual(plan.kind, .providerAvailability)
+        XCTAssertEqual(plan.fireDate, now.addingTimeInterval(3_600))
+    }
+
+    @MainActor
+    func testLoadFailureDoesNotReconcilePendingReminders() async {
+        let scheduler = ReconcileCountingReminderScheduler()
+        let model = AppModel(
+            store: FailingReminderLibraryStore(),
+            reminderScheduler: scheduler,
+            seed: .sample
+        )
+
+        await model.load()
+        let count = await scheduler.reconcileCount()
+
+        XCTAssertEqual(count, 0)
+    }
+
     private func eligibleSeries(id: String = "severance", hourOffset: Int = 0) -> MediaTitle {
         var title = MediaTitle(
             id: id,
@@ -77,5 +114,40 @@ final class ReminderPlannerBoundsTests: XCTestCase {
             )
         ]
         return title
+    }
+}
+
+private struct FailingReminderLibraryStore: LibraryPersisting {
+    struct LoadFailure: Error {}
+
+    func load() async throws -> LibrarySnapshot? {
+        throw LoadFailure()
+    }
+
+    func save(_: LibrarySnapshot) async throws {}
+}
+
+private actor ReconcileCountingReminderScheduler: ReminderScheduling {
+    private var reconciliations = 0
+
+    func requestAuthorization() async -> ReminderAuthorization {
+        .authorized
+    }
+
+    func capability() async -> ReminderCapability {
+        ReminderCapability(authorization: .authorized, backgroundRefreshAvailable: true)
+    }
+
+    func reconcile(
+        titles _: [MediaTitle],
+        selectedProviderIDs _: Set<StreamingProvider.ID>,
+        settings _: ReminderSettings,
+        now _: Date
+    ) async throws {
+        reconciliations += 1
+    }
+
+    func reconcileCount() -> Int {
+        reconciliations
     }
 }
