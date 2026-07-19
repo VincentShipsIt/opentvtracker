@@ -43,7 +43,6 @@ extension AppModel {
     func disableReminder(for titleID: MediaTitle.ID) {
         reminderSettings.enabledTitleIDs.remove(titleID)
         reminderSettings.mutedTitleIDs.insert(titleID)
-        reminderSettings.titleLeadTimes.removeValue(forKey: titleID)
         if !reminderSettings.automaticallyRemindTrackedTitles,
            reminderSettings.enabledTitleIDs.isEmpty {
             reminderSettings.isEnabled = false
@@ -168,10 +167,9 @@ enum WidgetSnapshotFactory {
     }
 
     private static func upcomingItem(for title: MediaTitle, now: Date) -> OpenTVWidgetItem? {
-        guard title.state != .completed else { return nil }
+        guard title.isReminderEligible else { return nil }
 
         if title.kind == .series,
-           title.state == .watching || title.isOnPersonalWatchlist,
            let date = nextUnwatchedEpisodeDate(for: title, now: now) ?? title.nextEpisodeAirDate,
            date > now {
             return OpenTVWidgetItem(
@@ -184,7 +182,6 @@ enum WidgetSnapshotFactory {
         }
 
         if title.kind == .movie,
-           title.isOnPersonalWatchlist,
            let date = title.releaseDate,
            date > now {
             return OpenTVWidgetItem(

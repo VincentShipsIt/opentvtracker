@@ -104,10 +104,7 @@ struct ReminderSettingsView: View {
 
     private var reminderTitles: [MediaTitle] {
         model.titles
-            .filter { title in
-                title.state != .completed
-                    && (title.kind == .series || title.isOnPersonalWatchlist)
-            }
+            .filter(\.isReminderEligible)
             .sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
     }
 

@@ -51,6 +51,7 @@ struct MediaDetailReminderAction: View {
             .frame(maxWidth: .infinity)
         }
         .adaptiveGlassButton()
+        .disabled(!title.isReminderEligible)
         .accessibilityValue(model.isReminderEnabled(for: title.id) ? "Enabled" : "Disabled")
         .accessibilityHint("Configures a spoiler-safe local notification for this title")
     }

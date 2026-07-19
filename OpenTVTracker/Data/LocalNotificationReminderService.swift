@@ -64,7 +64,7 @@ struct SystemReminderNotificationCenter: ReminderNotificationCenterProviding, @u
         content.threadIdentifier = request.threadIdentifier
         content.userInfo = ["titleID": request.titleID, "kind": request.kind.rawValue]
         var components = Calendar.current.dateComponents(
-            [.year, .month, .day, .hour, .minute],
+            [.year, .month, .day, .hour, .minute, .second],
             from: request.fireDate
         )
         components.timeZone = Calendar.current.timeZone
@@ -110,7 +110,7 @@ enum ReminderPlanner {
         settings: ReminderSettings,
         now: Date
     ) -> [ReminderPlan] {
-        guard settings.includes(title.id), title.state != .completed else { return [] }
+        guard settings.includes(title.id), title.isReminderEligible else { return [] }
 
         let leadTime = settings.leadTime(for: title.id)
         let episodePlans = episodePlans(for: title, leadTime: leadTime, now: now)
@@ -136,7 +136,6 @@ enum ReminderPlanner {
         now: Date
     ) -> [ReminderPlan] {
         guard title.kind == .series,
-              title.state == .watching || title.isOnPersonalWatchlist,
               let seasons = title.seasons else {
             return []
         }
@@ -179,7 +178,6 @@ enum ReminderPlanner {
         now: Date
     ) -> ReminderPlan? {
         guard title.kind == .series,
-              title.state == .watching || title.isOnPersonalWatchlist,
               let airDate = title.nextEpisodeAirDate else {
             return nil
         }
@@ -203,7 +201,6 @@ enum ReminderPlanner {
     ) -> ReminderPlan? {
         guard settings.providerAvailabilityEnabled,
               title.kind == .movie,
-              title.isOnPersonalWatchlist,
               !selectedProviderIDs.isDisjoint(with: Set(title.providers.map(\.id))),
               let releaseDate = title.releaseDate else {
             return nil

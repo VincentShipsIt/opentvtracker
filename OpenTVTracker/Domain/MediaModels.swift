@@ -346,7 +346,6 @@ struct LibrarySnapshot: Codable, Hashable, Sendable {
         allowsAIReranking: Bool = false,
         streamingRegionCode: String? = nil,
         reminderSettings: ReminderSettings = ReminderSettings(),
-        reminderSettings: ReminderSettings = ReminderSettings(),
         importResolutionAliases: [String: ImportResolutionAlias]? = nil,
         schemaVersion: Int = 5
     ) {

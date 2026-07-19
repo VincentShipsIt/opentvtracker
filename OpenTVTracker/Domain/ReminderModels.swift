@@ -37,3 +37,11 @@ struct ReminderSettings: Codable, Hashable, Sendable {
             && (automaticallyRemindTrackedTitles || enabledTitleIDs.contains(titleID))
     }
 }
+
+extension MediaTitle {
+    var isReminderEligible: Bool {
+        guard state != .completed else { return false }
+        if kind == .movie { return isOnPersonalWatchlist }
+        return state == .watching || isOnPersonalWatchlist
+    }
+}

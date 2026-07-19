@@ -54,6 +54,7 @@
 		6471C9F834149DE581476A06 /* DiscoverCategories.swift in Sources */ = {isa = PBXBuildFile; fileRef = 501FED03C2874DB05BB539BC /* DiscoverCategories.swift */; };
 		67881818BFB9471905BCAAD6 /* DiscoverSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43A5A29CDA89F73110A5959A /* DiscoverSheets.swift */; };
 		68E4B69D3E7B9138E9717AEF /* OpenTVWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 58964B57794656BA8DCB04FD /* OpenTVWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		68FEBB59BAC756AD903E50F8 /* ReminderPlannerBoundsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 837B100C8B46F5CDF28CBCA3 /* ReminderPlannerBoundsTests.swift */; };
 		6BA3F201062B359832573AF1 /* AppSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 551FEB854030799661E281CB /* AppSettingsView.swift */; };
 		6C23A077E09AB48DE921D418 /* CinemaView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C70A44589B6D06A644B3F044 /* CinemaView.swift */; };
 		6C8298EC3BD14486455E94FC /* LibraryBackupMerge.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA83FAF884475B05BED6D49E /* LibraryBackupMerge.swift */; };
@@ -223,6 +224,7 @@
 		7B01B66031A7491BB62CBCC2 /* ReminderSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderSettingsView.swift; sourceTree = "<group>"; };
 		7C6625EEC34FF7E5EDF691B6 /* VoiceSearchTranscriber.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceSearchTranscriber.swift; sourceTree = "<group>"; };
 		8153EDA09ACF660FCCC5731E /* TVTimeNativeRecordParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVTimeNativeRecordParser.swift; sourceTree = "<group>"; };
+		837B100C8B46F5CDF28CBCA3 /* ReminderPlannerBoundsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderPlannerBoundsTests.swift; sourceTree = "<group>"; };
 		859256F3B9EF0624D5110D5A /* TitleSimilarity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TitleSimilarity.swift; sourceTree = "<group>"; };
 		85B0DEBE6FA007C4AD395D0A /* GlassSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassSurface.swift; sourceTree = "<group>"; };
 		879988888008BA4352E75285 /* DiscoverCategory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverCategory.swift; sourceTree = "<group>"; };
@@ -544,6 +546,7 @@
 				2EABBCF99AF35E31BADA99A9 /* NearbyPartnerPairingTests.swift */,
 				72D3B828F5E37999D78BDC82 /* OpenRouterOAuthTests.swift */,
 				1F15155D794E90782ECB43F7 /* RecommendationServiceTests.swift */,
+				837B100C8B46F5CDF28CBCA3 /* ReminderPlannerBoundsTests.swift */,
 				6715F0AA874C33CDC851335B /* ReminderPlannerTests.swift */,
 				DE0F1C9FB65AADD9A652894A /* SecurityTestSupport.swift */,
 				111F7857D63324A855494D83 /* SourceLinksTests.swift */,
@@ -768,6 +771,7 @@
 				DE8C312423B5EA01F18239AC /* NearbyPartnerPairingTests.swift in Sources */,
 				354B9F99E8BC5F479432258D /* OpenRouterOAuthTests.swift in Sources */,
 				2B7C225B22689F41619D138B /* RecommendationServiceTests.swift in Sources */,
+				68FEBB59BAC756AD903E50F8 /* ReminderPlannerBoundsTests.swift in Sources */,
 				8D14CBB6F9CA3ACDF83F7409 /* ReminderPlannerTests.swift in Sources */,
 				ACF5AFE9033CB230A610ECE9 /* SecurityTestSupport.swift in Sources */,
 				8FBE1948CCC94D6165FFCE6A /* SourceLinksTests.swift in Sources */,
