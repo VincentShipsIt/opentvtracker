@@ -80,8 +80,9 @@ struct UpcomingCalendarStatusBanner: View {
     }
 
     private var detail: String {
-        if let errorMessage { return errorMessage }
         let location = "Region \(regionCode) · \(timeZoneIdentifier)"
+        if isRefreshing { return "\(location) · Checking for schedule changes." }
+        if let errorMessage { return errorMessage }
         guard let lastRefreshedAt else {
             return "\(location) · Refresh to check for changes."
         }
@@ -89,12 +90,14 @@ struct UpcomingCalendarStatusBanner: View {
     }
 
     private var symbol: String {
+        if isRefreshing { return "arrow.clockwise" }
         if errorMessage != nil { return hasItems ? "wifi.slash" : "exclamationmark.triangle.fill" }
         if lastRefreshedAt != nil { return "checkmark.circle.fill" }
         return "externaldrive.fill.badge.checkmark"
     }
 
     private var tint: Color {
+        if isRefreshing { return .blue }
         if errorMessage != nil { return hasItems ? .orange : .red }
         return lastRefreshedAt != nil ? .green : .blue
     }

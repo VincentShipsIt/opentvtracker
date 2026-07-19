@@ -36,7 +36,6 @@ struct UpcomingCalendarItem: Hashable, Identifiable, Sendable {
     let isAllDay: Bool
     let kind: UpcomingCalendarEventKind
     let watchState: WatchState
-    let providerIDs: Set<StreamingProvider.ID>
     let seasonID: SeasonSummary.ID?
     let seasonNumber: Int?
     let episodeID: EpisodeSummary.ID?
@@ -70,7 +69,7 @@ enum UpcomingCalendarEngine {
 
         return titles
             .filter { title in
-                isTracked(title)
+                title.isUpcomingCalendarTracked
                     && includedStates.contains(title.state)
                     && matchesProviderFilter(title, providerIDs: providerIDs)
             }
@@ -89,11 +88,13 @@ enum UpcomingCalendarEngine {
     }
 }
 
-private extension UpcomingCalendarEngine {
-    static func isTracked(_ title: MediaTitle) -> Bool {
-        title.state != .planned || title.isOnPersonalWatchlist
+extension MediaTitle {
+    var isUpcomingCalendarTracked: Bool {
+        state != .planned || isOnPersonalWatchlist
     }
+}
 
+private extension UpcomingCalendarEngine {
     static func matchesProviderFilter(
         _ title: MediaTitle,
         providerIDs: Set<StreamingProvider.ID>?
@@ -124,7 +125,6 @@ private extension UpcomingCalendarEngine {
                     isAllDay: true,
                     kind: .movieRelease,
                     watchState: title.state,
-                    providerIDs: Set(title.providers.map(\.id)),
                     seasonID: nil,
                     seasonNumber: nil,
                     episodeID: nil,
@@ -151,7 +151,6 @@ private extension UpcomingCalendarEngine {
         let seasons = (title.seasons ?? [])
             .filter { $0.number > 0 }
             .sorted { $0.number < $1.number }
-        let providerIDs = Set(title.providers.map(\.id))
         let window = UpcomingCalendarWindow(
             start: start,
             endExclusive: endExclusive,
@@ -162,7 +161,6 @@ private extension UpcomingCalendarEngine {
             episodeEvents(
                 for: title,
                 season: season,
-                providerIDs: providerIDs,
                 window: window
             )
         }
@@ -189,7 +187,6 @@ private extension UpcomingCalendarEngine {
                 isAllDay: fallbackIsAllDay,
                 kind: .episode,
                 watchState: title.state,
-                providerIDs: providerIDs,
                 seasonID: nil,
                 seasonNumber: nil,
                 episodeID: nil,
@@ -202,7 +199,6 @@ private extension UpcomingCalendarEngine {
     static func episodeEvents(
         for title: MediaTitle,
         season: SeasonSummary,
-        providerIDs: Set<StreamingProvider.ID>,
         window: UpcomingCalendarWindow
     ) -> [UpcomingCalendarItem] {
         let episodes = season.episodes.sorted { $0.number < $1.number }
@@ -226,10 +222,10 @@ private extension UpcomingCalendarEngine {
             }
 
             let kind: UpcomingCalendarEventKind
-            if episode.id == firstEpisode.id, episode.number == 1 {
-                kind = season.number == 1 ? .seriesPremiere : .returningSeason
-            } else if episode.releaseType == .finale {
+            if episode.releaseType == .finale {
                 kind = .seasonFinale
+            } else if episode.id == firstEpisode.id, episode.number == 1 {
+                kind = season.number == 1 ? .seriesPremiere : .returningSeason
             } else {
                 kind = .episode
             }
@@ -242,7 +238,6 @@ private extension UpcomingCalendarEngine {
                 isAllDay: isAllDay,
                 kind: kind,
                 watchState: title.state,
-                providerIDs: providerIDs,
                 seasonID: season.id,
                 seasonNumber: season.number,
                 episodeID: episode.id,

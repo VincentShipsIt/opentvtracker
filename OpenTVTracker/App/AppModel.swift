@@ -28,6 +28,8 @@ final class AppModel {
     var upcomingCalendarLastRefreshedAt: Date?
     var upcomingCalendarLastAttemptedAt: Date?
     var upcomingCalendarRefreshError: String?
+    var upcomingCalendarRefreshRevision = 0
+    var hasQueuedUpcomingCalendarRefresh = false
 
     var selectedMood: Mood = .any {
         didSet { refreshRecommendationsSoon() }

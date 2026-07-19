@@ -137,9 +137,7 @@ extension AppModel {
         persist()
 
         guard streamingRegion != previousRegion else { return }
-        upcomingCalendarLastAttemptedAt = nil
-        upcomingCalendarLastRefreshedAt = nil
-        upcomingCalendarRefreshError = nil
+        invalidateUpcomingCalendarRefresh()
         clearUntrackedCatalogTitles()
         catalogSearchResults = []
         catalogSearchPage = 0

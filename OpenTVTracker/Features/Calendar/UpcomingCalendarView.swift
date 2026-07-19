@@ -76,6 +76,7 @@ struct UpcomingCalendarView: View {
         .onChange(of: selectedServicesOnly) { updateSchedule() }
         .onChange(of: model.selectedProviderIDs) { updateSchedule() }
         .onChange(of: model.titles) { updateSchedule() }
+        .onChange(of: timeZone.identifier) { updateSchedule() }
     }
 
     private var controls: some View {

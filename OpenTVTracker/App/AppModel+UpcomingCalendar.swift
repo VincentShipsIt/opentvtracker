@@ -2,19 +2,52 @@ import Foundation
 
 extension AppModel {
     func refreshUpcomingCalendar(force: Bool = false) async {
-        guard !shouldSkipUpcomingCalendarRefresh(force: force) else { return }
-        isRefreshingUpcomingCalendar = true
-        upcomingCalendarLastAttemptedAt = .now
-        defer { isRefreshingUpcomingCalendar = false }
-
-        let candidates = upcomingCalendarCandidates
-        guard !candidates.isEmpty else {
-            upcomingCalendarRefreshError = nil
+        if isRefreshingUpcomingCalendar {
+            if force { queueUpcomingCalendarRefresh() }
             return
         }
+        guard !shouldSkipUpcomingCalendarRefresh(force: force) else { return }
+        isRefreshingUpcomingCalendar = true
+        defer { isRefreshingUpcomingCalendar = false }
 
-        let results = await loadUpcomingCalendarDetails(candidates)
-        applyUpcomingCalendarRefresh(results)
+        repeat {
+            hasQueuedUpcomingCalendarRefresh = false
+            let revision = upcomingCalendarRefreshRevision
+            let region = streamingRegion
+            upcomingCalendarLastAttemptedAt = .now
+
+            let candidates = upcomingCalendarCandidates
+            guard !candidates.isEmpty else {
+                upcomingCalendarRefreshError = nil
+                return
+            }
+
+            let results: [UpcomingCalendarTitleRefresh]
+            do {
+                results = try await loadUpcomingCalendarDetails(candidates, region: region)
+            } catch is CancellationError {
+                if revision == upcomingCalendarRefreshRevision {
+                    upcomingCalendarLastAttemptedAt = nil
+                }
+                return
+            } catch {
+                upcomingCalendarRefreshError = "The schedule could not be refreshed. Showing saved metadata when available."
+                return
+            }
+            guard revision == upcomingCalendarRefreshRevision,
+                  region == streamingRegion else {
+                continue
+            }
+            applyUpcomingCalendarRefresh(results)
+        } while hasQueuedUpcomingCalendarRefresh
+    }
+
+    func invalidateUpcomingCalendarRefresh() {
+        upcomingCalendarRefreshRevision += 1
+        hasQueuedUpcomingCalendarRefresh = false
+        upcomingCalendarLastAttemptedAt = nil
+        upcomingCalendarLastRefreshedAt = nil
+        upcomingCalendarRefreshError = nil
     }
 }
 
@@ -22,41 +55,50 @@ private extension AppModel {
     var upcomingCalendarCandidates: [MediaTitle] {
         titles.filter { title in
             title.state != .completed
-                && (title.state != .planned || title.isOnPersonalWatchlist)
+                && title.isUpcomingCalendarTracked
+                && (title.kind == .series || supportsUpcomingCalendarMovieRefresh)
         }
     }
 
+    var supportsUpcomingCalendarMovieRefresh: Bool {
+        !(catalogService is TVMazeCatalogService)
+    }
+
     func shouldSkipUpcomingCalendarRefresh(force: Bool) -> Bool {
-        if isRefreshingUpcomingCalendar { return true }
         guard !force, let attemptedAt = upcomingCalendarLastAttemptedAt else { return false }
         return attemptedAt > Date.now.addingTimeInterval(-15 * 60)
     }
 
     func loadUpcomingCalendarDetails(
-        _ candidates: [MediaTitle]
-    ) async -> [UpcomingCalendarTitleRefresh] {
+        _ candidates: [MediaTitle],
+        region: StreamingRegion
+    ) async throws -> [UpcomingCalendarTitleRefresh] {
         let service = catalogService
-        let region = streamingRegion
-        return await withTaskGroup(
+        return try await withThrowingTaskGroup(
             of: UpcomingCalendarTitleRefresh.self,
             returning: [UpcomingCalendarTitleRefresh].self
         ) { group in
             var remaining = candidates.makeIterator()
             for _ in 0..<min(candidates.count, 4) {
                 if let title = remaining.next() {
-                    group.addTask { await refreshCalendarTitle(title, service: service, region: region) }
+                    group.addTask { try await refreshCalendarTitle(title, service: service, region: region) }
                 }
             }
 
             var values: [UpcomingCalendarTitleRefresh] = []
-            while let value = await group.next() {
+            while let value = try await group.next() {
                 values.append(value)
                 if let title = remaining.next() {
-                    group.addTask { await refreshCalendarTitle(title, service: service, region: region) }
+                    group.addTask { try await refreshCalendarTitle(title, service: service, region: region) }
                 }
             }
             return values
         }
+    }
+
+    func queueUpcomingCalendarRefresh() {
+        upcomingCalendarRefreshRevision += 1
+        hasQueuedUpcomingCalendarRefresh = true
     }
 
     func applyUpcomingCalendarRefresh(_ results: [UpcomingCalendarTitleRefresh]) {
@@ -91,7 +133,7 @@ private func refreshCalendarTitle(
     _ title: MediaTitle,
     service: any CatalogProviding,
     region: StreamingRegion
-) async -> UpcomingCalendarTitleRefresh {
+) async throws -> UpcomingCalendarTitleRefresh {
     do {
         let details = try await service.title(
             kind: title.kind,
@@ -99,6 +141,8 @@ private func refreshCalendarTitle(
             region: region
         )
         return UpcomingCalendarTitleRefresh(titleID: title.id, details: details)
+    } catch is CancellationError {
+        throw CancellationError()
     } catch {
         return UpcomingCalendarTitleRefresh(titleID: title.id, details: nil)
     }

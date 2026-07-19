@@ -261,6 +261,43 @@ final class UpcomingCalendarEngineTests: XCTestCase {
     }
 }
 
+extension UpcomingCalendarEngineTests {
+    func testExplicitFinaleWinsForSingleEpisodeSeason() throws {
+        let calendar = Self.calendar()
+        let airDate = try Self.date(2026, 7, 21, calendar: calendar)
+        var title = try XCTUnwrap(
+            LibrarySnapshot.sample.titles.first(where: { $0.id == "severance" })
+        )
+        title.seasons = [
+            SeasonSummary(
+                id: "single-episode-season",
+                number: 1,
+                title: "Season 1",
+                episodes: [
+                    EpisodeSummary(
+                        id: "only-episode",
+                        number: 1,
+                        title: "Finale",
+                        airDate: airDate,
+                        runtimeMinutes: 50,
+                        releaseType: .finale
+                    )
+                ]
+            )
+        ]
+
+        let items = UpcomingCalendarEngine.items(
+            from: [title],
+            in: airDate...airDate,
+            includedStates: [.watching],
+            providerIDs: nil,
+            calendar: calendar
+        )
+
+        XCTAssertEqual(items.map(\.kind), [.seasonFinale])
+    }
+}
+
 @MainActor
 final class UpcomingCalendarRefreshTests: XCTestCase {
     func testRefreshLoadsScheduleDetailsWithoutChangingTrackingState() async throws {

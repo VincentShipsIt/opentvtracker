@@ -10,6 +10,7 @@
 		011F2EF0233A70A49BF7501E /* DiscoveryAssistantTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 058FC17069CAF8CCDAB3F30F /* DiscoveryAssistantTests.swift */; };
 		02D0334788C3B85C9DE8326C /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F09DB24B2B8B03248D14D55 /* ProfileView.swift */; };
 		0781F3B135F9685059F3FD1A /* TitleSimilarity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 859256F3B9EF0624D5110D5A /* TitleSimilarity.swift */; };
+		0870DCBDE7BC77101CD92701 /* UpcomingCalendarRefreshRaceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 199780E291927A7CEFFAC015 /* UpcomingCalendarRefreshRaceTests.swift */; };
 		0B70093E423593321E3D848B /* MediaDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5656C1D6DE5BAA4A9047ED7E /* MediaDetailView.swift */; };
 		0F09B8104018CFCEC46A5FA6 /* LibraryImportPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = D980B7DD092EF62EB15B3CCF /* LibraryImportPreview.swift */; };
 		168B0502FD1D3AECAA4BBAF3 /* BackupHealthTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C3F72180ACFB3BF46E562EB /* BackupHealthTests.swift */; };
@@ -134,6 +135,7 @@
 		0F570624616BB1EC10933521 /* TVMazeCatalogService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVMazeCatalogService.swift; sourceTree = "<group>"; };
 		109429EDBAD271EBC45D4701 /* OpenTVTracker.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = OpenTVTracker.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		111F7857D63324A855494D83 /* SourceLinksTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SourceLinksTests.swift; sourceTree = "<group>"; };
+		199780E291927A7CEFFAC015 /* UpcomingCalendarRefreshRaceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpcomingCalendarRefreshRaceTests.swift; sourceTree = "<group>"; };
 		1BB64E89979BCD5C0AE1B607 /* AppModel+Episodes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+Episodes.swift"; sourceTree = "<group>"; };
 		1F15155D794E90782ECB43F7 /* RecommendationServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecommendationServiceTests.swift; sourceTree = "<group>"; };
 		2388B7AA52A21C97D472D208 /* NearbyPartnerInvitationCodec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NearbyPartnerInvitationCodec.swift; sourceTree = "<group>"; };
@@ -484,6 +486,7 @@
 				9C4926F1D5F8E422DC0A8DD6 /* StreamingRegionTests.swift */,
 				4D071796CAD784E5EE144A4F /* TitleSimilarityTests.swift */,
 				8CABFCEF46F88DA76050D7FB /* TVTimeImportTests.swift */,
+				199780E291927A7CEFFAC015 /* UpcomingCalendarRefreshRaceTests.swift */,
 				D5E72C0D4CFE180F2C92027F /* UpcomingCalendarTests.swift */,
 				F823FF292350485AF96063E3 /* ViewingAnalyticsTests.swift */,
 			);
@@ -656,6 +659,7 @@
 				2BA54E38F0F7D473489B06CF /* StreamingRegionTests.swift in Sources */,
 				4322EAD681A2387A362254F8 /* TVTimeImportTests.swift in Sources */,
 				F301BCF6258EEA4BF0731AC9 /* TitleSimilarityTests.swift in Sources */,
+				0870DCBDE7BC77101CD92701 /* UpcomingCalendarRefreshRaceTests.swift in Sources */,
 				CB6E9DAA44CE634A6FF7507B /* UpcomingCalendarTests.swift in Sources */,
 				FBC0C7E9602AB3C29FF9711D /* ViewingAnalyticsTests.swift in Sources */,
 			);
