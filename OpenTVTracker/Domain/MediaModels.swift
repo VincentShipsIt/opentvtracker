@@ -347,7 +347,7 @@ struct LibrarySnapshot: Codable, Hashable, Sendable {
         allowsAIReranking: Bool = false,
         streamingRegionCode: String? = nil,
         importResolutionAliases: [String: ImportResolutionAlias]? = nil,
-        schemaVersion: Int = 5
+        schemaVersion: Int = 6
     ) {
         self.schemaVersion = schemaVersion
         self.titles = titles

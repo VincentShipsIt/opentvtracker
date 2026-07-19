@@ -3,12 +3,12 @@ import XCTest
 
 @MainActor
 final class UpNextIntentTests: XCTestCase {
-    func testLegacyCompletedContinuingSeriesMigratesToCaughtUp() throws {
+    func testSchemaFiveCompletedContinuingSeriesMigratesToCaughtUp() throws {
         var snapshot = LibrarySnapshot.sample
         let index = try XCTUnwrap(snapshot.titles.firstIndex(where: { $0.id == "severance" }))
         snapshot.titles[index].state = .completed
         snapshot.titles[index].seriesLifecycle = .continuing
-        snapshot.schemaVersion = 4
+        snapshot.schemaVersion = 5
 
         let model = AppModel(store: MemoryLibraryStore(), seed: snapshot)
 

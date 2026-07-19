@@ -56,7 +56,7 @@ enum WatchState: String, Codable, CaseIterable, Sendable {
 
 extension MediaTitle {
     func migratedTrackingState(fromSchemaVersion schemaVersion: Int?) -> MediaTitle {
-        guard (schemaVersion ?? 1) < 5,
+        guard (schemaVersion ?? 1) < 6,
               kind == .series,
               state == .completed,
               resolvedSeriesLifecycle == .continuing || nextEpisodeAirDate != nil else {
