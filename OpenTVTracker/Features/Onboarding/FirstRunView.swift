@@ -147,7 +147,7 @@ struct FirstRunView: View {
                     ForEach(model.catalogSearchResults.prefix(12)) { result in
                         FirstRunTitleRow(
                             title: model.mediaTitle(withID: result.id) ?? result,
-                            isSelected: model.mediaTitle(withID: result.id)?.isOnPersonalWatchlist == true
+                            isSelected: model.mediaTitle(withID: result.id)?.personalWatchlist == true
                         ) {
                             model.toggleFirstRunTitle(result.id)
                         }
@@ -196,7 +196,7 @@ struct FirstRunView: View {
     }
 
     private var selectedTitles: [MediaTitle] {
-        model.titles.filter(\.isOnPersonalWatchlist)
+        model.titles.filter { $0.personalWatchlist == true }
     }
 
     private func moveBack() {
