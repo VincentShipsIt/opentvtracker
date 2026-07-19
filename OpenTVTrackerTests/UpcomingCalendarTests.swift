@@ -99,6 +99,7 @@ final class UpcomingCalendarEngineTests: XCTestCase {
         var title = try XCTUnwrap(LibrarySnapshot.sample.titles.first(where: { $0.id == "severance" }))
         title.seasons = nil
         title.nextEpisodeAirDate = lateUTC
+        title.nextEpisodeAirDateIsAllDay = false
 
         let items = UpcomingCalendarEngine.items(
             from: [title],
@@ -131,6 +132,27 @@ final class UpcomingCalendarEngineTests: XCTestCase {
         )
 
         XCTAssertEqual(items.count, 1)
+        XCTAssertEqual(items.first?.date, localDay)
+        XCTAssertEqual(items.first?.isAllDay, true)
+    }
+
+    func testLegacyReleaseWithoutPrecisionDefaultsToAllDay() throws {
+        var calendar = Self.calendar()
+        calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "America/Los_Angeles"))
+        let sourceDay = try Self.date(2026, 7, 21, calendar: Self.calendar())
+        let localDay = try Self.date(2026, 7, 21, calendar: calendar)
+        var title = try XCTUnwrap(LibrarySnapshot.sample.titles.first(where: { $0.id == "severance" }))
+        title.seasons = nil
+        title.nextEpisodeAirDate = sourceDay
+        title.nextEpisodeAirDateIsAllDay = nil
+        let items = UpcomingCalendarEngine.items(
+            from: [title],
+            in: localDay...localDay,
+            includedStates: [.watching],
+            providerIDs: nil,
+            calendar: calendar
+        )
+
         XCTAssertEqual(items.first?.date, localDay)
         XCTAssertEqual(items.first?.isAllDay, true)
     }

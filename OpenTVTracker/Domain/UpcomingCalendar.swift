@@ -165,7 +165,7 @@ private extension UpcomingCalendarEngine {
             )
         }
 
-        let fallbackIsAllDay = title.nextEpisodeAirDateIsAllDay ?? (title.metadataSource == .tmdb)
+        let fallbackIsAllDay = title.nextEpisodeAirDateIsAllDay ?? true
 
         guard scheduled.isEmpty,
               let fallbackDate = title.nextEpisodeAirDate,
@@ -205,7 +205,7 @@ private extension UpcomingCalendarEngine {
         guard let firstEpisode = episodes.first else { return [] }
 
         return episodes.compactMap { episode in
-            let isAllDay = episode.airDateIsAllDay ?? (title.metadataSource == .tmdb)
+            let isAllDay = episode.airDateIsAllDay ?? true
             guard let airDate = episode.airDate,
                   let displayDate = displayDate(
                       for: airDate,
