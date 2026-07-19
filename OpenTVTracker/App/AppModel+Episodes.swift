@@ -1,5 +1,19 @@
 import Foundation
 
+extension MediaTitle {
+    var episodeIDsThroughProgress: Set<EpisodeSummary.ID> {
+        guard let progress else { return [] }
+        let episodeIDs: [EpisodeSummary.ID] = (seasons ?? [])
+            .filter { $0.number > 0 }
+            .flatMap { season -> [EpisodeSummary.ID] in
+                guard season.number <= progress.season else { return [] }
+                if season.number < progress.season { return season.episodes.map(\.id) }
+                return season.episodes.filter { $0.number <= progress.episode }.map(\.id)
+            }
+        return Set(episodeIDs)
+    }
+}
+
 extension AppModel {
     func progressSummary(for title: MediaTitle) -> MediaProgressSummary {
         guard title.kind == .series else {
@@ -278,17 +292,7 @@ private extension AppModel {
         if title.state.isCurrentViewingComplete {
             return Set(releasedEpisodes(for: title).map(\.id))
         }
-        return episodeIDsThroughProgress(for: title)
-    }
-
-    func episodeIDsThroughProgress(for title: MediaTitle) -> Set<EpisodeSummary.ID> {
-        guard let progress = title.progress else { return [] }
-        let episodeIDs: [EpisodeSummary.ID] = regularSeasons(for: title).flatMap { season -> [EpisodeSummary.ID] in
-            guard season.number <= progress.season else { return [] }
-            if season.number < progress.season { return season.episodes.map(\.id) }
-            return season.episodes.filter { $0.number <= progress.episode }.map(\.id)
-        }
-        return Set(episodeIDs)
+        return title.episodeIDsThroughProgress
     }
 
     func regularSeasons(for title: MediaTitle) -> [SeasonSummary] {
