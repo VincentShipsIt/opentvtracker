@@ -115,6 +115,7 @@ extension LibraryTransferService {
         )
         merged.allowsAIReranking = imported.allowsAIReranking ?? merged.allowsAIReranking
         merged.streamingRegionCode = imported.streamingRegionCode ?? merged.streamingRegionCode
+        merged.hasCompletedFirstRun = imported.hasCompletedFirstRun ?? merged.hasCompletedFirstRun
     }
 
     private static func mergeCSV(

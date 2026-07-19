@@ -153,7 +153,7 @@ struct TogetherView: View {
     }
 }
 
-private struct PartnerInvitationView: View {
+struct PartnerInvitationView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
     let space: SharedSpace

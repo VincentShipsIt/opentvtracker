@@ -9,14 +9,16 @@ enum AppTab: Hashable {
 }
 
 struct RootTabView: View {
+    @Environment(AppModel.self) private var model
     @State private var selection: AppTab = .today
     @State private var presentsAssistant = false
+    @State private var presentsFirstRun = false
 
     var body: some View {
         Group {
             switch selection {
             case .today:
-                TodayView()
+                TodayView(selectedTab: $selection)
                     .accessibilityIdentifier("tab.today")
             case .discover:
                 DiscoverView()
@@ -40,6 +42,13 @@ struct RootTabView: View {
         }
         .fullScreenCover(isPresented: $presentsAssistant) {
             DiscoveryAssistantView()
+        }
+        .fullScreenCover(isPresented: $presentsFirstRun) {
+            FirstRunView()
+        }
+        .task(id: model.hasLoaded) {
+            guard model.hasLoaded, !model.hasCompletedFirstRun else { return }
+            presentsFirstRun = true
         }
         .preferredColorScheme(.dark)
     }

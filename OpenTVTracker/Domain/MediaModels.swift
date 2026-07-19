@@ -337,6 +337,7 @@ struct LibrarySnapshot: Codable, Hashable, Sendable {
     var allowsAIReranking: Bool?
     var streamingRegionCode: String?
     var importResolutionAliases: [String: ImportResolutionAlias]?
+    var hasCompletedFirstRun: Bool?
 
     init(
         titles: [MediaTitle],
@@ -345,6 +346,7 @@ struct LibrarySnapshot: Codable, Hashable, Sendable {
         allowsAIReranking: Bool = false,
         streamingRegionCode: String? = nil,
         importResolutionAliases: [String: ImportResolutionAlias]? = nil,
+        hasCompletedFirstRun: Bool? = nil,
         schemaVersion: Int = 5
     ) {
         self.schemaVersion = schemaVersion
@@ -354,6 +356,7 @@ struct LibrarySnapshot: Codable, Hashable, Sendable {
         self.allowsAIReranking = allowsAIReranking
         self.streamingRegionCode = streamingRegionCode
         self.importResolutionAliases = importResolutionAliases
+        self.hasCompletedFirstRun = hasCompletedFirstRun
     }
 }
 

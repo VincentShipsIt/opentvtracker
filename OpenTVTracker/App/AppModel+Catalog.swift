@@ -9,6 +9,19 @@ extension AppModel {
         StreamingProvider.supportedSubscriptions.filter { selectedProviderIDs.contains($0.id) }
     }
 
+    func newReleasesOnSelectedProviders(referenceDate: Date = .now) -> [MediaTitle] {
+        let cutoff = referenceDate.addingTimeInterval(-14 * 24 * 60 * 60)
+        return titlesOnSelectedProviders
+            .filter { title in
+                guard let releaseDate = title.nextEpisodeAirDate ?? title.releaseDate else { return false }
+                return releaseDate >= cutoff && releaseDate <= referenceDate
+            }
+            .sorted {
+                ($0.nextEpisodeAirDate ?? $0.releaseDate ?? .distantPast)
+                    > ($1.nextEpisodeAirDate ?? $1.releaseDate ?? .distantPast)
+            }
+    }
+
     var streamingRegion: StreamingRegion {
         streamingRegionOverride ?? .deviceDefault()
     }
