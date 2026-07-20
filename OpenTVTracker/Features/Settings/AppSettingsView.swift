@@ -25,6 +25,15 @@ struct AppSettingsView: View {
                     } label: {
                         LabeledContent("Subscriptions", value: subscriptionSummary)
                     }
+
+                    NavigationLink {
+                        ReminderSettingsView()
+                    } label: {
+                        LabeledContent(
+                            "Reminders & widgets",
+                            value: model.reminderSettings.isEnabled ? "On" : "Off"
+                        )
+                    }
                 } header: {
                     Text("Availability")
                 } footer: {
