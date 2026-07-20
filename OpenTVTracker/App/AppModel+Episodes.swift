@@ -185,11 +185,11 @@ extension AppModel {
         for title: MediaTitle
     ) -> (season: SeasonSummary, episode: EpisodeSummary)? {
         let watchedIDs = resolvedWatchedEpisodeIDs(for: title)
+        let releasedIDs = Set(releasedEpisodes(for: title).map(\.id))
         for season in regularSeasons(for: title) {
             if let episode = season.episodes.sorted(by: { $0.number < $1.number })
                 .first(where: { episode in
-                    !watchedIDs.contains(episode.id)
-                        && (episode.airDate.map { $0 <= Date.now } ?? true)
+                    releasedIDs.contains(episode.id) && !watchedIDs.contains(episode.id)
                 }) {
                 return (season, episode)
             }

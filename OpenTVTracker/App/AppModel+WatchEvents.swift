@@ -26,14 +26,11 @@ extension AppModel {
     func markWatched(_ id: MediaTitle.ID) {
         guard let index = trackableTitleIndex(for: id), !titles[index].state.isCurrentViewingComplete else { return }
 
-        let regularSeasons = (titles[index].seasons ?? [])
-            .filter { $0.number > 0 }
-            .sorted { $0.number < $1.number }
+        let regularSeasons = regularSeasons(for: titles[index])
         if titles[index].kind == .series, !regularSeasons.isEmpty {
+            let releasedIDs = Set(releasedEpisodes(for: titles[index]).map(\.id))
             let releasedSeasons = regularSeasons.compactMap { season -> SeasonSummary? in
-                let episodes = season.episodes.filter { episode in
-                    episode.airDate.map { $0 <= Date.now } ?? true
-                }
+                let episodes = season.episodes.filter { releasedIDs.contains($0.id) }
                 guard !episodes.isEmpty else { return nil }
                 return SeasonSummary(
                     id: season.id,

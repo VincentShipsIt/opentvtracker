@@ -130,7 +130,7 @@ enum TVTimeHistoryApplier {
         Set((title.seasons ?? []).flatMap { season in
             guard season.number > 0 else { return [EpisodeSummary.ID]() }
             return season.episodes.compactMap { episode in
-                guard let airDate = episode.airDate, airDate <= Date() else { return nil }
+                guard episode.airDate.map({ $0 <= Date() }) ?? true else { return nil }
                 return episode.id
             }
         })

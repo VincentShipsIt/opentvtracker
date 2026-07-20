@@ -129,8 +129,8 @@ struct TogetherView: View {
             return "Shared watchlist"
         case .caughtUp:
             return "Caught up together"
-        case .dropped:
-            return "Paused together"
+        case .paused, .dropped:
+            return title.state == .paused ? "Paused together" : "Dropped together"
         default:
             return "Watching together"
         }

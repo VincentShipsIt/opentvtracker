@@ -145,6 +145,30 @@ final class UpNextIntentTests: XCTestCase {
         XCTAssertEqual(title.upNextSnoozedUntil, Date(timeIntervalSince1970: 2_000_000_000))
     }
 
+    func testCaughtUpStateTakesPrecedenceOverStaleProgressWhenEpisodeIDsAreMissing() throws {
+        var snapshot = LibrarySnapshot.sample
+        let index = try XCTUnwrap(snapshot.titles.firstIndex(where: { $0.id == "severance" }))
+        snapshot.titles = [snapshot.titles[index]]
+        snapshot.titles[0].state = .caughtUp
+        snapshot.titles[0].seriesLifecycle = .continuing
+        snapshot.titles[0].watchedEpisodeIDs = nil
+        snapshot.titles[0].progress = EpisodeProgress(season: 1, episode: 0, totalEpisodes: 1)
+        snapshot.titles[0].seasons = [
+            SeasonSummary(
+                id: "season-1",
+                number: 1,
+                title: "Season 1",
+                episodes: [
+                    EpisodeSummary(id: "s1e1", number: 1, title: "Episode 1", airDate: nil, runtimeMinutes: 50)
+                ]
+            )
+        ]
+
+        let model = AppModel(store: MemoryLibraryStore(), seed: snapshot)
+
+        XCTAssertEqual(model.mediaTitle(withID: "severance")?.state, .caughtUp)
+    }
+
     func testPinSnoozeAndMoveLowerDeterministicallyReorderQueue() throws {
         var snapshot = LibrarySnapshot.sample
         snapshot.titles = snapshot.titles.filter { ["severance", "the-bear"].contains($0.id) }
@@ -193,6 +217,20 @@ final class UpNextIntentTests: XCTestCase {
         let model = AppModel(store: MemoryLibraryStore(), seed: snapshot)
 
         XCTAssertEqual(model.staleUpNext(at: now).map(\.id), ["severance"])
+    }
+
+    func testStaleQueueIncludesWatchingTitlesWithoutWatchDates() throws {
+        var snapshot = LibrarySnapshot.sample
+        let index = try XCTUnwrap(snapshot.titles.firstIndex(where: { $0.id == "severance" }))
+        snapshot.titles = [snapshot.titles[index]]
+        snapshot.titles[0].state = .watching
+        snapshot.titles[0].lastWatchedAt = nil
+        let model = AppModel(store: MemoryLibraryStore(), seed: snapshot)
+
+        XCTAssertEqual(
+            model.staleUpNext(at: Date(timeIntervalSince1970: 2_000_000_000)).map(\.id),
+            ["severance"]
+        )
     }
 
     private func modelWithSingleEpisode(lifecycle: SeriesLifecycle) throws -> AppModel {

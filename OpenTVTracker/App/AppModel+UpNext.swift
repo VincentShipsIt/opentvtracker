@@ -25,7 +25,7 @@ extension AppModel {
         return upNextTitles(at: date).filter { title in
             title.state == .watching
                 && title.isUpNextPinned != true
-                && title.lastWatchedAt.map { $0 < cutoff } == true
+                && (title.lastWatchedAt ?? .distantPast) < cutoff
         }
     }
 
@@ -123,12 +123,13 @@ extension AppModel {
 
     private func inferredWatchedEpisodeIDs(for title: MediaTitle, at date: Date) -> Set<EpisodeSummary.ID> {
         if let watchedEpisodeIDs = title.watchedEpisodeIDs { return watchedEpisodeIDs }
+        if title.state.isCurrentViewingComplete {
+            return Set(releasedEpisodes(for: title, at: date).map(\.id))
+        }
         if title.progress != nil {
             return title.episodeIDsThroughProgress
         }
-        return title.state.isCurrentViewingComplete
-            ? Set(releasedEpisodes(for: title, at: date).map(\.id))
-            : []
+        return []
     }
 
     private func isHigherUpNextPriority(_ lhs: MediaTitle, _ rhs: MediaTitle) -> Bool {
