@@ -181,6 +181,12 @@ extension AppModel {
         }
     }
 
+    func regularSeasons(for title: MediaTitle) -> [SeasonSummary] {
+        (title.seasons ?? [])
+            .filter { $0.number > 0 }
+            .sorted { $0.number < $1.number }
+    }
+
     func nextUnwatchedEpisode(
         for title: MediaTitle
     ) -> (season: SeasonSummary, episode: EpisodeSummary)? {
@@ -293,12 +299,6 @@ private extension AppModel {
             return Set(releasedEpisodes(for: title).map(\.id))
         }
         return title.episodeIDsThroughProgress
-    }
-
-    func regularSeasons(for title: MediaTitle) -> [SeasonSummary] {
-        (title.seasons ?? [])
-            .filter { $0.number > 0 }
-            .sorted { $0.number < $1.number }
     }
 
     func updateEpisodeProgress(at index: Int, watchedIDs: Set<EpisodeSummary.ID>) {
