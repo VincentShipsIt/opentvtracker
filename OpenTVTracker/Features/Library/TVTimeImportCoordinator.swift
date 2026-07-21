@@ -22,9 +22,20 @@ final class TVTimeImportCoordinator {
         errorMessage = nil
     }
 
-    func resolve(_ issue: ImportResolutionIssue, with title: MediaTitle) async {
-        manualResolutions[issue.id] = await session.detailedTitle(title)
-        await refresh()
+    func resolve(_ issue: ImportResolutionIssue, with title: MediaTitle) async -> Bool {
+        guard !isRefreshing else { return false }
+        isRefreshing = true
+        defer { isRefreshing = false }
+        do {
+            let detailedTitle = try await session.detailedTitle(title)
+            manualResolutions[issue.id] = detailedTitle
+            preview = await session.preview(manualResolutions: manualResolutions)
+            errorMessage = nil
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            return false
+        }
     }
 
     func search(_ text: String, kind: MediaKind) async -> [MediaTitle] {

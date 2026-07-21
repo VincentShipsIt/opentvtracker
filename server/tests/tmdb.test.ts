@@ -30,7 +30,28 @@ describe("mapAlternativeTitles", () => {
         },
         "series",
       ),
-    ).toEqual(["進撃の巨人", "L'Attaque des Titans", "Ataque a los Titanes"]);
+    ).toEqual(["進撃の巨人", "Ataque a los Titanes", "L'Attaque des Titans"]);
+  });
+
+  test("keeps translations when alternative titles exceed the response cap", () => {
+    const alternativeTitles = Array.from({ length: 60 }, (_, index) => ({
+      title: `Alternative ${index}`,
+    }));
+
+    const titles = mapAlternativeTitles(
+      {
+        name: "Display title",
+        original_name: "Original title",
+        alternative_titles: { results: alternativeTitles },
+        translations: {
+          translations: [{ data: { name: "Localized title" } }],
+        },
+      },
+      "series",
+    );
+
+    expect(titles).toHaveLength(50);
+    expect(titles).toContain("Localized title");
   });
 });
 

@@ -63,6 +63,7 @@
 		88127655816C90B84C533DFB /* PosterArtwork.swift in Sources */ = {isa = PBXBuildFile; fileRef = F32E6282CA61620FE165F866 /* PosterArtwork.swift */; };
 		895769957993BD0773F03855 /* DiscoverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51E06636334ABB672B302FEB /* DiscoverView.swift */; };
 		89DDDB84085CD719FA204B15 /* ServiceBoundaries.swift in Sources */ = {isa = PBXBuildFile; fileRef = 493F1A7537846757A044FDAE /* ServiceBoundaries.swift */; };
+		8A48D3E61C7B95B35148DAFA /* CatalogImportSafetyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 309363E80A6210E762537FF3 /* CatalogImportSafetyTests.swift */; };
 		8EE3472510D428E5214CA56C /* AppModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A04FC826C098F98A35D87E6 /* AppModelTests.swift */; };
 		8FBE1948CCC94D6165FFCE6A /* SourceLinksTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111F7857D63324A855494D83 /* SourceLinksTests.swift */; };
 		92476DC2E86235C32D93D296 /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = B85FBD5E091BD631BD82201B /* ZIPFoundation */; };
@@ -140,6 +141,7 @@
 		2388B7AA52A21C97D472D208 /* NearbyPartnerInvitationCodec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NearbyPartnerInvitationCodec.swift; sourceTree = "<group>"; };
 		2AAFCABC14F1C5AE4F0169C7 /* TogetherView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TogetherView.swift; sourceTree = "<group>"; };
 		2EABBCF99AF35E31BADA99A9 /* NearbyPartnerPairingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NearbyPartnerPairingTests.swift; sourceTree = "<group>"; };
+		309363E80A6210E762537FF3 /* CatalogImportSafetyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CatalogImportSafetyTests.swift; sourceTree = "<group>"; };
 		330E034A8A29729FC90B66CD /* MediaModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaModels.swift; sourceTree = "<group>"; };
 		37F5BE754C5B569E83074721 /* RootTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabView.swift; sourceTree = "<group>"; };
 		38C95BD81EF63DE5AB21227D /* OpenTVTrackerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenTVTrackerApp.swift; sourceTree = "<group>"; };
@@ -467,6 +469,7 @@
 				3A04FC826C098F98A35D87E6 /* AppModelTests.swift */,
 				4C3F72180ACFB3BF46E562EB /* BackupHealthTests.swift */,
 				EDCC6E021A77D2874816A3C9 /* CatalogImportResolutionTests.swift */,
+				309363E80A6210E762537FF3 /* CatalogImportSafetyTests.swift */,
 				B25783B9D6CF69BC074D6284 /* CloudSharingModelTests.swift */,
 				8DD57852932292E08916026E /* DiscoverCategoryTests.swift */,
 				058FC17069CAF8CCDAB3F30F /* DiscoveryAssistantTests.swift */,
@@ -585,7 +588,7 @@
 					96396D01C2F07D817EF2875C = {
 						DevelopmentTeam = C76R5DRH64;
 						ProvisioningStyle = Automatic;
-						SystemCapabilities = "[\"com.apple.iCloud\": [\"enabled\": 1], \"com.apple.Push\": [\"enabled\": 1], \"com.apple.DeviceCheck\": [\"enabled\": 1]]";
+						SystemCapabilities = "[\"com.apple.DeviceCheck\": [\"enabled\": 1], \"com.apple.iCloud\": [\"enabled\": 1], \"com.apple.Push\": [\"enabled\": 1]]";
 					};
 					B0AF29D3A827D293C2407B7B = {
 						DevelopmentTeam = C76R5DRH64;
@@ -638,6 +641,7 @@
 				8EE3472510D428E5214CA56C /* AppModelTests.swift in Sources */,
 				168B0502FD1D3AECAA4BBAF3 /* BackupHealthTests.swift in Sources */,
 				3876A423DE47A4ABD42D783E /* CatalogImportResolutionTests.swift in Sources */,
+				8A48D3E61C7B95B35148DAFA /* CatalogImportSafetyTests.swift in Sources */,
 				B74DEAEC1F08BBF6B9A49C63 /* CloudSharingModelTests.swift in Sources */,
 				DC9197084E45B33D3448722D /* DiscoverCategoryTests.swift in Sources */,
 				011F2EF0233A70A49BF7501E /* DiscoveryAssistantTests.swift in Sources */,

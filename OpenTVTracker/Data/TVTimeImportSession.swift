@@ -42,12 +42,12 @@ actor TVTimeImportSession {
         return results.filter { $0.kind == kind && seen.insert($0.id).inserted }
     }
 
-    func detailedTitle(_ candidate: MediaTitle) async -> MediaTitle {
-        (try? await catalog.title(
+    func detailedTitle(_ candidate: MediaTitle) async throws -> MediaTitle {
+        try await catalog.title(
             kind: candidate.kind,
             catalogID: candidate.catalogID,
             region: region
-        )) ?? candidate
+        )
     }
 
     private func resolvedTitles() async -> TVTimeTitleResolution {

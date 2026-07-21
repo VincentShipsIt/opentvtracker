@@ -322,6 +322,13 @@ export function mapAlternativeTitles(
   const values: unknown[] = [
     kind === MediaKind.movie ? details.original_title : details.original_name,
   ];
+  const translations = asRecord(details.translations);
+  for (const item of Array.isArray(translations.translations)
+    ? translations.translations
+    : []) {
+    const data = asRecord(asRecord(item).data);
+    values.push(data.title, data.name);
+  }
   const alternatives = asRecord(details.alternative_titles);
   const alternativeItems = Array.isArray(alternatives.titles)
     ? alternatives.titles
@@ -331,13 +338,6 @@ export function mapAlternativeTitles(
   for (const item of alternativeItems) {
     const value = asRecord(item);
     values.push(value.title, value.name);
-  }
-  const translations = asRecord(details.translations);
-  for (const item of Array.isArray(translations.translations)
-    ? translations.translations
-    : []) {
-    const data = asRecord(asRecord(item).data);
-    values.push(data.title, data.name);
   }
 
   const primaryTitle = stringValue(

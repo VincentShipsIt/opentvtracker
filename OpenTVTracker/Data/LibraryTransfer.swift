@@ -61,24 +61,35 @@ extension LibraryTransferService {
         var added = 0
         var duplicates = 0
         var seen = Set<String>()
+        var retainedTitleIDs: [MediaTitle.ID: MediaTitle.ID] = [:]
 
         for importedTitle in imported.titles {
             let identity = identityKey(for: importedTitle)
             guard seen.insert(identity).inserted else {
+                if let retained = merged.titles.first(where: { titlesMatch($0, importedTitle) }) {
+                    retainedTitleIDs[importedTitle.id] = retained.id
+                }
                 duplicates += 1
                 continue
             }
 
             if let index = merged.titles.firstIndex(where: { titlesMatch($0, importedTitle) }) {
+                retainedTitleIDs[importedTitle.id] = merged.titles[index].id
                 merged.titles[index] = mergingTracking(from: importedTitle, into: merged.titles[index])
                 matched += 1
             } else {
+                retainedTitleIDs[importedTitle.id] = importedTitle.id
                 merged.titles.append(importedTitle)
                 added += 1
             }
         }
 
-        applyPortableSettings(imported, to: &merged, current: current)
+        applyPortableSettings(
+            imported,
+            to: &merged,
+            current: current,
+            retainedTitleIDs: retainedTitleIDs
+        )
 
         return LibraryImportPreview(
             snapshot: merged,
@@ -101,7 +112,8 @@ extension LibraryTransferService {
     private static func applyPortableSettings(
         _ imported: LibrarySnapshot,
         to merged: inout LibrarySnapshot,
-        current: LibrarySnapshot
+        current: LibrarySnapshot,
+        retainedTitleIDs: [MediaTitle.ID: MediaTitle.ID]
     ) {
         if let selectedProviderIDs = imported.selectedProviderIDs {
             merged.selectedProviderIDs = selectedProviderIDs
@@ -118,7 +130,12 @@ extension LibraryTransferService {
         }
         if let aliases = imported.importResolutionAliases {
             var mergedAliases = merged.importResolutionAliases ?? [:]
-            mergedAliases.merge(aliases) { _, importedAlias in importedAlias }
+            let availableTitleIDs = Set(merged.titles.map(\.id))
+            let remappedAliases = aliases.compactMapValues { importedTitleID in
+                retainedTitleIDs[importedTitleID]
+                    ?? (availableTitleIDs.contains(importedTitleID) ? importedTitleID : nil)
+            }
+            mergedAliases.merge(remappedAliases) { _, importedAlias in importedAlias }
             merged.importResolutionAliases = mergedAliases
         }
         if let overrides = imported.importResolutionSeasonOverrides {

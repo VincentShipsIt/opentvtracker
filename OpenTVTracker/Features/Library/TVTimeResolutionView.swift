@@ -65,7 +65,8 @@ private struct TVTimeResolutionView: View {
             Section("Catalog matches") {
                 if isSearching {
                     ProgressView("Searching catalog…")
-                } else if let errorMessage = coordinator.errorMessage {
+                } else if !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                          let errorMessage = coordinator.errorMessage {
                     ContentUnavailableView(
                         "Catalog unavailable",
                         systemImage: "wifi.exclamationmark",
@@ -77,8 +78,9 @@ private struct TVTimeResolutionView: View {
                     ForEach(results) { title in
                         Button {
                             Task {
-                                await coordinator.resolve(issue, with: title)
-                                dismiss()
+                                if await coordinator.resolve(issue, with: title) {
+                                    dismiss()
+                                }
                             }
                         } label: {
                             HStack(spacing: 12) {
@@ -118,7 +120,9 @@ private struct TVTimeResolutionView: View {
         do {
             try await Task.sleep(for: .milliseconds(250))
             guard !Task.isCancelled else { return }
-            results = await coordinator.search(trimmed, kind: issue.kind)
+            let newResults = await coordinator.search(trimmed, kind: issue.kind)
+            guard !Task.isCancelled else { return }
+            results = newResults
         } catch is CancellationError {
             return
         } catch {

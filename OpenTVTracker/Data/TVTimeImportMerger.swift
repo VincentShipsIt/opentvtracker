@@ -108,7 +108,11 @@ enum TVTimeImportMerger {
         manualResolutions: [ImportResolutionIssue.ID: MediaTitle]
     ) -> CatalogResolvedTitle? {
         if let manual = manualResolutions[entity.identity] {
-            return CatalogResolvedTitle(title: manual, seasonNumberOverride: nil)
+            let seasonNumber = CatalogImportMatcher.safeAnimeSeasonNumber(in: entity.title)
+            let safeOverride = seasonNumber.flatMap { number in
+                manual.seasons?.contains(where: { $0.number == number }) == true ? number : nil
+            }
+            return CatalogResolvedTitle(title: manual, seasonNumberOverride: safeOverride)
         }
         return automaticResolution.resolved[entity.identity]
     }

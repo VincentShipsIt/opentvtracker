@@ -188,6 +188,16 @@ enum TVTimeCatalogResolver {
             catalogID: resolved.title.catalogID,
             region: region
         )) ?? resolved.title
+        if let seasonNumber = resolved.seasonNumberOverride,
+           detailed.seasons?.contains(where: { $0.number == seasonNumber }) != true {
+            return .issue(
+                issue(
+                    entity,
+                    reason: .unsafeAnimeRelation,
+                    detail: "The selected catalog title does not contain Season \(seasonNumber). Choose the intended release."
+                )
+            )
+        }
         return .resolved(
             entity.identity,
             CatalogResolvedTitle(

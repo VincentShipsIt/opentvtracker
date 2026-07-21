@@ -107,6 +107,11 @@ enum CatalogImportMatcher {
             && (entity.year == nil || title.year == entity.year)
     }
 
+    static func safeAnimeSeasonNumber(in title: String) -> Int? {
+        guard let relation = animeRelation(in: title), relation.isSafeSeason else { return nil }
+        return relation.seasonNumber
+    }
+
     private static func uniqueCandidate(
         _ candidates: [MediaTitle],
         expectedYear: Int?,
