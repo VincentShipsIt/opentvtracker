@@ -26,31 +26,6 @@ enum MetadataSource: String, Codable, Sendable {
     var displayName: String { rawValue }
 }
 
-enum WatchState: String, Codable, CaseIterable, Sendable {
-    case watching
-    case planned
-    case paused
-    case completed
-
-    var label: String {
-        switch self {
-        case .watching: "Watching"
-        case .planned: "Watchlist"
-        case .paused: "Paused"
-        case .completed: "Completed"
-        }
-    }
-
-    var symbol: String {
-        switch self {
-        case .watching: "play.circle.fill"
-        case .planned: "bookmark.fill"
-        case .paused: "pause.circle.fill"
-        case .completed: "checkmark.circle.fill"
-        }
-    }
-}
-
 enum Mood: String, Codable, CaseIterable, Identifiable, Sendable {
     case any
     case cozy
@@ -113,6 +88,14 @@ struct EpisodeSummary: Codable, Hashable, Identifiable, Sendable {
     var overview: String?
     var stillURL: URL?
     var rating: Double?
+    var releaseType: EpisodeReleaseType?
+    var airDateIsAllDay: Bool?
+}
+
+enum EpisodeReleaseType: String, Codable, Hashable, Sendable {
+    case standard
+    case midSeason = "mid_season"
+    case finale
 }
 
 struct SeasonSummary: Codable, Hashable, Identifiable, Sendable {
@@ -201,6 +184,7 @@ struct MediaTitle: Codable, Hashable, Identifiable, Sendable {
     var rewatchCount: Int? = nil
     var lastWatchedAt: Date? = nil
     var nextEpisodeAirDate: Date? = nil
+    var nextEpisodeAirDateIsAllDay: Bool? = nil
     var releaseDate: Date? = nil
     var isDismissed: Bool? = nil
     var isDisliked: Bool? = nil
@@ -209,6 +193,10 @@ struct MediaTitle: Codable, Hashable, Identifiable, Sendable {
     var metadataSource: MetadataSource? = nil
     var sourceURL: URL? = nil
     var watchedEpisodeIDs: Set<EpisodeSummary.ID>? = nil
+    var seriesLifecycle: SeriesLifecycle? = nil
+    var isUpNextPinned: Bool? = nil
+    var upNextSnoozedUntil: Date? = nil
+    var upNextManualOrder: Int? = nil
 
     var progressLabel: String {
         switch kind {
@@ -226,7 +214,30 @@ struct MediaTitle: Codable, Hashable, Identifiable, Sendable {
     }
 
     var isRecommendationEligible: Bool {
-        state != .completed && isDismissed != true && isDisliked != true
+        !state.isCurrentViewingComplete
+            && state != .dropped
+            && isDismissed != true
+            && isDisliked != true
+    }
+
+    var resolvedSeriesLifecycle: SeriesLifecycle {
+        seriesLifecycle ?? .unknown
+    }
+
+    var finishedWatchState: WatchState {
+        guard kind == .series else { return .completed }
+        switch resolvedSeriesLifecycle {
+        case .continuing:
+            return .caughtUp
+        case .ended:
+            return .completed
+        case .unknown:
+            return nextEpisodeAirDate == nil ? .completed : .caughtUp
+        }
+    }
+
+    func isSnoozed(at date: Date) -> Bool {
+        upNextSnoozedUntil.map { $0 > date } ?? false
     }
 }
 
@@ -349,7 +360,7 @@ struct LibrarySnapshot: Codable, Hashable, Sendable {
         reminderSettings: ReminderSettings = ReminderSettings(),
         importResolutionAliases: [String: ImportResolutionAlias]? = nil,
         hasCompletedFirstRun: Bool? = nil,
-        schemaVersion: Int = 5
+        schemaVersion: Int = 6
     ) {
         self.schemaVersion = schemaVersion
         self.titles = titles

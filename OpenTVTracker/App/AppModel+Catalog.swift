@@ -171,6 +171,7 @@ extension AppModel {
         persist()
 
         guard streamingRegion != previousRegion else { return }
+        invalidateUpcomingCalendarRefresh()
         clearUntrackedCatalogTitles()
         catalogSearchRequestID = UUID()
         catalogSearchResults = []
@@ -182,6 +183,7 @@ extension AppModel {
 
         Task {
             await refreshDiscoveryCatalog()
+            await refreshUpcomingCalendar(force: true)
             await refreshRecommendations()
         }
     }
@@ -194,11 +196,14 @@ extension AppModel {
                 && title.userRating == nil
                 && title.notes == nil
                 && title.completedRewatches == 0
+                && title.isUpNextPinned != true
+                && title.upNextSnoozedUntil == nil
+                && title.upNextManualOrder == nil
                 && !sharedTitleIDs.contains(title.id)
         }
     }
 
-    private func mergingCatalogDetails(_ details: MediaTitle, into existing: MediaTitle) -> MediaTitle {
+    func mergingCatalogDetails(_ details: MediaTitle, into existing: MediaTitle) -> MediaTitle {
         var result = existing
         result.title = details.title
         result.year = details.year
@@ -217,8 +222,10 @@ extension AppModel {
         result.backdropURL = details.backdropURL
         result.trailerURL = details.trailerURL
         result.nextEpisodeAirDate = details.nextEpisodeAirDate
+        result.nextEpisodeAirDateIsAllDay = details.nextEpisodeAirDateIsAllDay
         result.releaseDate = details.releaseDate
         result.seasons = details.seasons
-        return result
+        result.seriesLifecycle = details.seriesLifecycle ?? existing.seriesLifecycle
+        return refreshedTrackingTitle(result)
     }
 }

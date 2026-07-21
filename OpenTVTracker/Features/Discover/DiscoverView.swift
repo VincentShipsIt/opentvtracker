@@ -326,12 +326,12 @@ private struct CatalogSearchCard: View {
                 .foregroundStyle(availabilityColor)
                 .lineLimit(1)
 
-            if title.state == .completed {
-                Label("Watched", systemImage: "checkmark.circle.fill")
+            if title.state.isCurrentViewingComplete {
+                Label(title.state == .completed ? "Watched" : "Caught up", systemImage: title.state.symbol)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.green)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .accessibilityLabel("Already watched")
+                    .accessibilityLabel(title.state == .completed ? "Already watched" : "Currently caught up")
             } else {
                 Button("Mark watched", systemImage: "checkmark.circle") {
                     model.markWatched(title.id)

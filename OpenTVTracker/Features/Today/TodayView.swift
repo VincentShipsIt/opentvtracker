@@ -18,7 +18,7 @@ struct TodayView: View {
                             onOpenProfile: { presentedSheet = .profile }
                         )
 
-                        if let first = model.upNext.first {
+                        if let first = model.activeUpNext.first {
                             UpNextHero(title: first)
                         } else if let recommendation = model.recommendations.first {
                             TodayRecommendationCard(
@@ -38,6 +38,7 @@ struct TodayView: View {
                         }
 
                         remainingQueue
+                        staleQueue
                         newReleases
                         partnerActivity
                     }
@@ -48,7 +49,15 @@ struct TodayView: View {
                 MediaDetailView(titleID: title.id)
             }
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    NavigationLink {
+                        UpcomingCalendarView()
+                    } label: {
+                        Label("Upcoming calendar", systemImage: "calendar")
+                    }
+                    .accessibilityHint("Shows upcoming episodes and movie releases")
+                    .accessibilityIdentifier("home.upcoming-calendar")
+
                     Button("Ask OpenTV", systemImage: "sparkles") {
                         presentsAssistant = true
                     }
@@ -72,7 +81,7 @@ struct TodayView: View {
 
     @ViewBuilder
     private var remainingQueue: some View {
-        let remaining = Array(model.upNext.dropFirst())
+        let remaining = Array(model.activeUpNext.dropFirst())
         if !remaining.isEmpty {
             VStack(alignment: .leading, spacing: 14) {
                 SectionHeading(title: "Also up next", subtitle: "Small commitments, ready when you are")
@@ -81,15 +90,36 @@ struct TodayView: View {
                 ScrollView(.horizontal) {
                     LazyHStack(spacing: 14) {
                         ForEach(remaining) { title in
-                            NavigationLink(value: title) {
-                                MediaProgressPosterCard(
-                                    title: title,
-                                    summary: model.progressSummary(for: title),
-                                    subtitle: title.nextReleaseDescription
-                                )
-                                .frame(width: 144)
-                            }
-                            .buttonStyle(.plain)
+                            UpNextPosterCard(title: title)
+                        }
+                    }
+                    .padding(.horizontal, AppTheme.horizontalPadding)
+                    .padding(.bottom, 4)
+                }
+                .scrollIndicators(.hidden)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var staleQueue: some View {
+        if !model.staleUpNext.isEmpty {
+            VStack(alignment: .leading, spacing: 14) {
+                SectionHeading(
+                    title: "Haven't watched in a while",
+                    subtitle: "Resume, snooze, or drop these without losing your place"
+                )
+                .padding(.horizontal, AppTheme.horizontalPadding)
+
+                ScrollView(.horizontal) {
+                    LazyHStack(spacing: 14) {
+                        ForEach(model.staleUpNext) { title in
+                            UpNextPosterCard(
+                                title: title,
+                                subtitle: title.lastWatchedAt.map {
+                                    "Last watched \($0.formatted(.relative(presentation: .named)))"
+                                } ?? "Ready when you are"
+                            )
                         }
                     }
                     .padding(.horizontal, AppTheme.horizontalPadding)
@@ -161,133 +191,6 @@ private enum TodaySheet: Hashable, Identifiable {
     var id: Self { self }
 }
 
-private struct TodayHeader: View {
-    let memberName: String
-    let onOpenProfile: () -> Void
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 16) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(greeting)
-                    .font(.largeTitle.weight(.bold))
-                Text(.now, format: .dateTime.weekday(.wide).month(.wide).day())
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 0)
-            Button(action: onOpenProfile) {
-                Label("Open profile", systemImage: "person.crop.circle.fill")
-                    .labelStyle(.iconOnly)
-                    .font(.system(size: 34))
-            }
-            .accessibilityHint("Opens your private profile and settings")
-            .accessibilityIdentifier("today.profile")
-        }
-        .padding(.horizontal, AppTheme.horizontalPadding)
-        .padding(.top, 12)
-    }
-
-    private var greeting: String {
-        let name = memberName == "You" ? nil : memberName
-        let prefix: String
-        switch Calendar.current.component(.hour, from: .now) {
-        case 5..<12: prefix = "Good morning"
-        case 12..<18: prefix = "Good afternoon"
-        default: prefix = "Good evening"
-        }
-        return name.map { "\(prefix), \($0)" } ?? prefix
-    }
-}
-
-private struct TodayRecommendationCard: View {
-    let title: MediaTitle
-    let onAdd: () -> Void
-    let onOpenDiscover: () -> Void
-
-    var body: some View {
-        GlassSurface(tint: .indigo) {
-            VStack(alignment: .leading, spacing: 14) {
-                Label("A pick for tonight", systemImage: "sparkles")
-                    .font(.headline)
-                    .foregroundStyle(.indigo)
-
-                NavigationLink(value: title) {
-                    HStack(spacing: 14) {
-                        PosterArtwork(title: title, cornerRadius: 10)
-                            .frame(width: 72, height: 108)
-                        VStack(alignment: .leading, spacing: 7) {
-                            Text(title.title)
-                                .font(.title2.weight(.bold))
-                                .foregroundStyle(.primary)
-                            Text(title.recommendationReason ?? "A strong match on one of your selected services.")
-                                .foregroundStyle(.secondary)
-                                .multilineTextAlignment(.leading)
-                        }
-                    }
-                }
-                .buttonStyle(.plain)
-
-                HStack {
-                    Button("Add to watchlist", systemImage: "plus") {
-                        onAdd()
-                    }
-                    .adaptiveGlassButton(prominent: true)
-
-                    Button("Explore Discover", systemImage: "magnifyingglass") {
-                        onOpenDiscover()
-                    }
-                    .adaptiveGlassButton()
-                }
-            }
-            .padding(18)
-        }
-        .accessibilityIdentifier("today.recommendation")
-    }
-}
-
-private struct TodayRecoveryCard: View {
-    let hasSelectedServices: Bool
-    let catalogError: String?
-    let onManageServices: () -> Void
-    let onOpenDiscover: () -> Void
-
-    var body: some View {
-        GlassSurface(tint: .orange) {
-            VStack(spacing: 14) {
-                ContentUnavailableView(
-                    title,
-                    systemImage: "sparkles.tv",
-                    description: Text(description)
-                )
-
-                HStack {
-                    Button("Manage services", systemImage: "slider.horizontal.3", action: onManageServices)
-                        .adaptiveGlassButton(prominent: !hasSelectedServices)
-                    Button("Open Discover", systemImage: "magnifyingglass", action: onOpenDiscover)
-                        .adaptiveGlassButton(prominent: hasSelectedServices)
-                }
-            }
-            .padding(.vertical, 20)
-        }
-    }
-
-    private var title: String {
-        if !hasSelectedServices { return "Choose your streaming services" }
-        if catalogError != nil { return "Catalog temporarily unavailable" }
-        return "Find something for tonight"
-    }
-
-    private var description: String {
-        if !hasSelectedServices {
-            return "Add subscriptions you already have, then OpenTV can explain recommendations that are available to you."
-        }
-        if catalogError != nil {
-            return "Your local library still works. Retry in Discover or choose something already saved."
-        }
-        return "Search the catalog or add a recommendation to build your Up Next queue."
-    }
-}
-
 private struct UpNextHero: View {
     @Environment(AppModel.self) private var model
     let title: MediaTitle
@@ -338,18 +241,25 @@ private struct UpNextHero: View {
                             .accessibilityLabel("Viewing progress")
                             .accessibilityValue(progressSummary.label)
 
-                        Button {
-                            model.markNextWatched(title.id)
-                            progressTrigger += 1
-                        } label: {
-                            Label(watchedActionTitle, systemImage: "checkmark.circle.fill")
-                                .frame(maxWidth: .infinity)
+                        HStack(spacing: 10) {
+                            Button {
+                                model.markNextWatched(title.id)
+                                progressTrigger += 1
+                            } label: {
+                                Label(watchedActionTitle, systemImage: "checkmark.circle.fill")
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .controlSize(.large)
+                            .buttonStyle(.borderedProminent)
+                            .tint(.white)
+                            .foregroundStyle(.black)
+                            .sensoryFeedback(.success, trigger: progressTrigger)
+
+                            QueueActionsMenu(title: title)
+                                .controlSize(.large)
+                                .buttonStyle(.bordered)
+                                .tint(.white)
                         }
-                        .controlSize(.large)
-                        .buttonStyle(.borderedProminent)
-                        .tint(.white)
-                        .foregroundStyle(.black)
-                        .sensoryFeedback(.success, trigger: progressTrigger)
                     }
                     .frame(width: max(geometry.size.width - (AppTheme.horizontalPadding * 2), 0))
                     .padding(.horizontal, AppTheme.horizontalPadding)
@@ -364,6 +274,83 @@ private struct UpNextHero: View {
 
     private var watchedActionTitle: String {
         title.kind == .movie ? "Mark watched" : "Mark next episode watched"
+    }
+}
+
+private struct UpNextPosterCard: View {
+    @Environment(AppModel.self) private var model
+    let title: MediaTitle
+    var subtitle: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            NavigationLink(value: title) {
+                MediaProgressPosterCard(
+                    title: title,
+                    summary: model.progressSummary(for: title),
+                    subtitle: subtitle ?? title.nextReleaseDescription
+                )
+            }
+            .buttonStyle(.plain)
+
+            QueueActionsMenu(title: title)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+        .frame(width: 144)
+    }
+}
+
+private struct QueueActionsMenu: View {
+    @Environment(AppModel.self) private var model
+    let title: MediaTitle
+
+    var body: some View {
+        Menu {
+            Button {
+                model.setUpNextPinned(title.isUpNextPinned != true, for: title.id)
+            } label: {
+                Label(
+                    title.isUpNextPinned == true ? "Unpin" : "Pin to top",
+                    systemImage: title.isUpNextPinned == true ? "pin.slash" : "pin"
+                )
+            }
+
+            if title.isSnoozed(at: .now) {
+                Button {
+                    model.snoozeUpNext(title.id, until: nil)
+                } label: {
+                    Label("Bring back now", systemImage: "arrow.uturn.backward")
+                }
+            } else {
+                Button {
+                    model.snoozeUpNext(title.id, until: snoozeDate)
+                } label: {
+                    Label("Snooze for one week", systemImage: "clock.badge")
+                }
+            }
+
+            Button {
+                model.moveUpNextLower(title.id)
+            } label: {
+                Label("Move lower", systemImage: "arrow.down")
+            }
+
+            if title.kind == .series {
+                Button {
+                    model.setWatchState(.dropped, for: title.id)
+                } label: {
+                    Label("Mark dropped", systemImage: "xmark.circle")
+                }
+            }
+        } label: {
+            Label("Queue actions", systemImage: "ellipsis.circle")
+                .labelStyle(.iconOnly)
+        }
+        .accessibilityLabel("Queue actions for \(title.title)")
+    }
+
+    private var snoozeDate: Date {
+        Calendar.current.date(byAdding: .day, value: 7, to: .now) ?? .now
     }
 }
 

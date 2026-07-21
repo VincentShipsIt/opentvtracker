@@ -5,6 +5,8 @@ export const MediaKind = {
 
 export type MediaKind = (typeof MediaKind)[keyof typeof MediaKind];
 
+export type SeriesLifecycle = "continuing" | "ended" | "unknown";
+
 export const StreamingProviderID = {
   netflix: "netflix",
   primeVideo: "prime-video",
@@ -53,7 +55,9 @@ export type CatalogTitle = {
   reviews: CommunityReview[];
   releaseDate: string | null;
   nextEpisodeAirDate: string | null;
+  nextEpisodeAirDateIsAllDay: boolean | null;
   seasons: SeasonSummary[] | null;
+  seriesLifecycle: SeriesLifecycle | null;
 };
 
 type StreamingProvider = {
@@ -86,6 +90,8 @@ export type EpisodeSummary = {
   overview: string | null;
   stillURL: string | null;
   rating: number | null;
+  releaseType: "standard" | "mid_season" | "finale" | null;
+  airDateIsAllDay: boolean;
 };
 
 type SeasonSummary = {
@@ -284,8 +290,27 @@ function mapDetails(
     reviews: mapReviews(reviewsPayload),
     releaseDate: isoDay(releaseDay),
     nextEpisodeAirDate: isoDay(stringValue(nextEpisode.air_date)),
+    nextEpisodeAirDateIsAllDay: stringValue(nextEpisode.air_date) !== null,
     seasons,
+    seriesLifecycle:
+      kind === MediaKind.series ? mapSeriesLifecycle(details.status) : null,
   };
+}
+
+export function mapSeriesLifecycle(status: unknown): SeriesLifecycle {
+  if (typeof status !== "string") return "unknown";
+  switch (status.toLowerCase()) {
+    case "ended":
+    case "canceled":
+      return "ended";
+    case "returning series":
+    case "in production":
+    case "planned":
+    case "pilot":
+      return "continuing";
+    default:
+      return "unknown";
+  }
 }
 
 function providersForRegion(
@@ -380,10 +405,23 @@ export function mapEpisodeSummary(
     overview: stringValue(episode.overview)?.trim() || null,
     stillURL: imageURL(stringValue(episode.still_path), "w500"),
     rating: numberValue(episode.vote_average),
+    releaseType: episodeReleaseType(episode.episode_type),
+    airDateIsAllDay: true,
   };
 }
 
-export function mapReviews(payload: Record<string, unknown>): CommunityReview[] {
+function episodeReleaseType(
+  value: unknown,
+): "standard" | "mid_season" | "finale" | null {
+  if (value === "standard" || value === "mid_season" || value === "finale") {
+    return value;
+  }
+  return null;
+}
+
+export function mapReviews(
+  payload: Record<string, unknown>,
+): CommunityReview[] {
   return (Array.isArray(payload.results) ? payload.results : [])
     .slice(0, 8)
     .map((value, index): CommunityReview => {
@@ -434,7 +472,8 @@ function imageURL(
 
 function reviewAvatarURL(path: string | null): string | null {
   if (!path) return null;
-  if (path.startsWith("/https://") || path.startsWith("/http://")) return path.slice(1);
+  if (path.startsWith("/https://") || path.startsWith("/http://"))
+    return path.slice(1);
   return imageURL(path, "w185");
 }
 

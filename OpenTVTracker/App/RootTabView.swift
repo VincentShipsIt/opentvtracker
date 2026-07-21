@@ -11,6 +11,7 @@ struct RootTabView: View {
     @Environment(AppModel.self) private var model
     @State private var selection: AppTab = .today
     @State private var presentsFirstRun = false
+    let partnerSharingService: any PartnerSharingProviding
 
     var body: some View {
         TabView(selection: $selection) {
@@ -30,7 +31,7 @@ struct RootTabView: View {
             }
 
             Tab("Together", systemImage: "person.2.fill", value: .together) {
-                TogetherView()
+                TogetherView(sharingService: partnerSharingService)
                     .accessibilityIdentifier("tab.together")
             }
 
@@ -52,7 +53,7 @@ struct RootTabView: View {
 }
 
 #Preview {
-    RootTabView()
+    RootTabView(partnerSharingService: PreviewPartnerSharingService())
         .environment(AppModel(store: MemoryLibraryStore(), seed: .sample))
         .environment(\.allowsRemoteArtwork, false)
 }

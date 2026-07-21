@@ -5,6 +5,11 @@ import XCTest
 final class CloudSharingModelTests: XCTestCase {
     func testTogetherToggleStoresSanitizedMetadataAndIsReversible() {
         let model = AppModel(store: MemoryLibraryStore(), seed: .sample)
+        if let titleIndex = model.titles.firstIndex(where: { $0.id == "past-lives" }) {
+            model.titles[titleIndex].isUpNextPinned = true
+            model.titles[titleIndex].upNextSnoozedUntil = .now
+            model.titles[titleIndex].upNextManualOrder = 3
+        }
         XCTAssertTrue(model.isShared("past-lives"))
 
         model.toggleTogether("past-lives")
@@ -18,6 +23,9 @@ final class CloudSharingModelTests: XCTestCase {
         XCTAssertNil(sharedTitle?.userRating)
         XCTAssertNil(sharedTitle?.notes)
         XCTAssertNil(sharedTitle?.watchedEpisodeIDs)
+        XCTAssertNil(sharedTitle?.isUpNextPinned)
+        XCTAssertNil(sharedTitle?.upNextSnoozedUntil)
+        XCTAssertNil(sharedTitle?.upNextManualOrder)
     }
 
     func testSharedTitleMetadataHydratesPartnerLibraryWithEpisodes() throws {
