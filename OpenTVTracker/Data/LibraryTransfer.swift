@@ -1,40 +1,5 @@
 import Foundation
 
-struct LibraryImportPreview: Sendable {
-    let snapshot: LibrarySnapshot
-    let matchedCount: Int
-    let addedCount: Int
-    let duplicateCount: Int
-    let skippedCount: Int
-    let sourceName: String
-    let watchedEpisodeCount: Int
-    let watchEventCount: Int
-
-    init(
-        snapshot: LibrarySnapshot,
-        matchedCount: Int,
-        addedCount: Int,
-        duplicateCount: Int,
-        skippedCount: Int,
-        sourceName: String = "OpenTV",
-        watchedEpisodeCount: Int = 0,
-        watchEventCount: Int = 0
-    ) {
-        self.snapshot = snapshot
-        self.matchedCount = matchedCount
-        self.addedCount = addedCount
-        self.duplicateCount = duplicateCount
-        self.skippedCount = skippedCount
-        self.sourceName = sourceName
-        self.watchedEpisodeCount = watchedEpisodeCount
-        self.watchEventCount = watchEventCount
-    }
-
-    var summary: String {
-        "\(matchedCount) matched · \(addedCount) new · \(duplicateCount) duplicates · \(skippedCount) skipped"
-    }
-}
-
 enum LibraryTransferService {
     static func exportJSON(_ snapshot: LibrarySnapshot) throws -> Data {
         try LibraryArchiveCodec.encode(snapshot, prettyPrinted: true)
@@ -70,8 +35,14 @@ enum LibraryTransferService {
     }
 
     static func previewImport(_ data: Data, into current: LibrarySnapshot) throws -> LibraryImportPreview {
-        if let imported = try? LibraryArchiveCodec.decode(data) {
-            return merge(imported: imported, into: current)
+        if LibraryBackupMerge.appearsToBeJSON(data) {
+            do {
+                return merge(imported: try LibraryArchiveCodec.decode(data), into: current)
+            } catch let error as LibraryArchiveError {
+                throw error
+            } catch {
+                throw LibraryTransferError.unreadableFile
+            }
         }
         guard let csv = String(data: data, encoding: .utf8) else {
             throw LibraryTransferError.unreadableFile
@@ -107,17 +78,43 @@ extension LibraryTransferService {
             }
         }
 
-        if let selectedProviderIDs = imported.selectedProviderIDs {
-            merged.selectedProviderIDs = selectedProviderIDs
-        }
+        mergeLibraryMetadata(imported: imported, current: current, into: &merged)
 
         return LibraryImportPreview(
             snapshot: merged,
             matchedCount: matched,
             addedCount: added,
             duplicateCount: duplicates,
-            skippedCount: 0
+            skippedCount: 0,
+            sourceName: "OpenTV backup",
+            watchedEpisodeCount: imported.titles.reduce(0) {
+                $0 + ($1.watchedEpisodeIDs?.count ?? 0)
+            },
+            watchEventCount: imported.sharedSpace.watchEvents?.count ?? 0,
+            importNotice: LibraryBackupMerge.importNotice(
+                for: imported,
+                current: current
+            )
         )
+    }
+
+    private static func mergeLibraryMetadata(
+        imported: LibrarySnapshot,
+        current: LibrarySnapshot,
+        into merged: inout LibrarySnapshot
+    ) {
+        merged.selectedProviderIDs = imported.selectedProviderIDs ?? merged.selectedProviderIDs
+        if let aliases = imported.importResolutionAliases {
+            var mergedAliases = merged.importResolutionAliases ?? [:]
+            mergedAliases.merge(aliases) { _, importedAlias in importedAlias }
+            merged.importResolutionAliases = mergedAliases
+        }
+        merged.sharedSpace = LibraryBackupMerge.sharedSpace(
+            imported: imported.sharedSpace,
+            into: current.sharedSpace
+        )
+        merged.allowsAIReranking = imported.allowsAIReranking ?? merged.allowsAIReranking
+        merged.streamingRegionCode = imported.streamingRegionCode ?? merged.streamingRegionCode
     }
 
     private static func mergeCSV(
@@ -234,6 +231,7 @@ extension LibraryTransferService {
         result.isDismissed = imported.isDismissed
         result.isDisliked = imported.isDisliked
         result.personalWatchlist = imported.personalWatchlist
+        result.watchedEpisodeIDs = imported.watchedEpisodeIDs
         return result
     }
 }

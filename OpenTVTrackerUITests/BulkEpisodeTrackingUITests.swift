@@ -49,6 +49,32 @@ final class BulkEpisodeTrackingUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Mark episode unwatched"].waitForExistence(timeout: 2))
     }
 
+    func testRootUsesExactlyFourNativeTabs() {
+        let tabBar = app.tabBars.firstMatch
+
+        XCTAssertTrue(tabBar.waitForExistence(timeout: 2))
+        XCTAssertEqual(tabBar.buttons.count, 4)
+        XCTAssertTrue(tabBar.buttons["Today"].exists)
+        XCTAssertTrue(tabBar.buttons["Discover"].exists)
+        XCTAssertTrue(tabBar.buttons["Together"].exists)
+        XCTAssertTrue(tabBar.buttons["Library"].exists)
+        XCTAssertFalse(tabBar.buttons["Profile"].exists)
+        XCTAssertFalse(tabBar.buttons["AI"].exists)
+    }
+
+    func testSwitchingTabsPreservesTodayNavigation() {
+        let upNextTitle = app.buttons["home.up-next-title"]
+        XCTAssertTrue(upNextTitle.waitForExistence(timeout: 2))
+        upNextTitle.tap()
+        XCTAssertTrue(app.buttons["season.1"].waitForExistence(timeout: 2))
+
+        app.tabBars.buttons["Library"].tap()
+        XCTAssertTrue(app.buttons["library.profile"].waitForExistence(timeout: 2))
+
+        app.tabBars.buttons["Today"].tap()
+        XCTAssertTrue(app.buttons["season.1"].waitForExistence(timeout: 2))
+    }
+
     private func openSeason() {
         let upNextTitle = app.buttons["home.up-next-title"]
         XCTAssertTrue(upNextTitle.waitForExistence(timeout: 2))
