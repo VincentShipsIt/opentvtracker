@@ -98,7 +98,12 @@ struct OpenTVTrackerApp: App {
                 }
                 .onChange(of: scenePhase) { _, phase in
                     guard phase == .active else { return }
-                    Task { await model.startCloudSyncIfNeeded() }
+                    Task {
+                        await model.startCloudSyncIfNeeded()
+                        await model.refreshReminderCapability()
+                        await model.refreshReminders()
+                        model.publishWidgetSnapshot()
+                    }
                 }
         }
     }
