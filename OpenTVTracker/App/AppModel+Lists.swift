@@ -2,7 +2,7 @@ import Foundation
 
 extension AppModel {
     var partnerSharedLists: [SharedMediaList] {
-        let currentMemberID = sharedSpace.members.first(where: \.isCurrentUser)?.id
+        let currentMemberID = sharedSpace.members.first(where: \.isCurrentUser)?.id ?? "local-user"
         return (sharedSpace.sharedLists ?? [])
             .filter { !$0.isDeleted && $0.ownerMemberID != currentMemberID }
             .sorted { lhs, rhs in

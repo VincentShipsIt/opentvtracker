@@ -65,6 +65,23 @@ final class CloudSharingModelTests: XCTestCase {
         XCTAssertTrue(tombstone.titleIDs.isEmpty)
     }
 
+    func testLegacyLocalListIsNotPresentedAsPartnerOwnedWithoutMemberMetadata() {
+        var snapshot = LibrarySnapshot.empty
+        snapshot.sharedSpace.members = []
+        snapshot.sharedSpace.sharedLists = [
+            SharedMediaList(
+                id: "date-night",
+                name: "Date night",
+                titleIDs: [],
+                ownerMemberID: "local-user",
+                updatedAt: .now
+            )
+        ]
+        let model = AppModel(store: MemoryLibraryStore(), seed: snapshot)
+
+        XCTAssertTrue(model.partnerSharedLists.isEmpty)
+    }
+
     private static let seasons = [
         SeasonSummary(
             id: "season-1",
