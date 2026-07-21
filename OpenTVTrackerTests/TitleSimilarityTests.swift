@@ -30,4 +30,11 @@ final class TitleSimilarityTests: XCTestCase {
 
         XCTAssertFalse(model.moreLikeThis("severance").contains(where: { $0.title.id == "stranger-things" }))
     }
+
+    func testDismissedTitlesRemainBrowsableInMoreLikeThis() {
+        let model = AppModel(store: MemoryLibraryStore(), seed: .sample)
+        model.setRecommendationDismissed(true, for: "stranger-things")
+
+        XCTAssertTrue(model.moreLikeThis("severance").contains(where: { $0.title.id == "stranger-things" }))
+    }
 }

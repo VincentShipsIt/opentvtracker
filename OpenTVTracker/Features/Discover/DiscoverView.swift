@@ -236,18 +236,21 @@ struct DiscoverView: View {
         }
     }
 
-    private var rotatedRecommendations: [MediaTitle] {
+}
+
+private extension DiscoverView {
+    var rotatedRecommendations: [MediaTitle] {
         let titles = model.recommendations
         guard !titles.isEmpty else { return [] }
         let offset = surpriseOffset % titles.count
         return Array(titles[offset...]) + Array(titles[..<offset])
     }
 
-    private var trimmedSearchText: String {
+    var trimmedSearchText: String {
         searchText.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private var searchStatus: String {
+    var searchStatus: String {
         if model.isSearchingCatalog {
             return "Searching for “\(trimmedSearchText)”…"
         }
@@ -257,17 +260,17 @@ struct DiscoverView: View {
         return "\(model.catalogSearchResults.count) matches for “\(trimmedSearchText)” · availability shown separately"
     }
 
-    private func titles(for provider: StreamingProvider) -> [MediaTitle] {
+    func titles(for provider: StreamingProvider) -> [MediaTitle] {
         model.titles.filter { title in
             title.providers.contains(where: { $0.id == provider.id })
         }
     }
 
-    private var categorySections: [DiscoverCategorySection] {
+    var categorySections: [DiscoverCategorySection] {
         DiscoverCategorySection.available(in: model.titlesOnSelectedProviders)
     }
 
-    private func presentTrailer(for title: MediaTitle) {
+    func presentTrailer(for title: MediaTitle) {
         guard let sourceURL = title.trailerURL,
               let trailer = TrailerPresentation(title: title.title, sourceURL: sourceURL) else {
             return
@@ -329,12 +332,12 @@ private struct CatalogSearchCard: View {
                 .foregroundStyle(availabilityColor)
                 .lineLimit(1)
 
-            if title.state == .completed {
-                Label("Watched", systemImage: "checkmark.circle.fill")
+            if title.state.isCurrentViewingComplete {
+                Label(title.state == .completed ? "Watched" : "Caught up", systemImage: title.state.symbol)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.green)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .accessibilityLabel("Already watched")
+                    .accessibilityLabel(title.state == .completed ? "Already watched" : "Currently caught up")
             } else {
                 Button("Mark watched", systemImage: "checkmark.circle") {
                     model.markWatched(title.id)

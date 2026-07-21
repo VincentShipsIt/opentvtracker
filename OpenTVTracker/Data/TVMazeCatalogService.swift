@@ -130,6 +130,7 @@ private struct TVMazeShowDTO: Decodable {
     let runtime: Int?
     let averageRuntime: Int?
     let premiered: String?
+    let status: String?
     let rating: Rating
     let weight: Int?
     let network: Channel?
@@ -146,6 +147,7 @@ private struct TVMazeShowDTO: Decodable {
         case runtime
         case averageRuntime
         case premiered
+        case status
         case rating
         case weight
         case network
@@ -187,11 +189,13 @@ private struct TVMazeShowDTO: Decodable {
             backdropURL: nil,
             trailerURL: nil,
             nextEpisodeAirDate: nextEpisode?.0,
+            nextEpisodeAirDateIsAllDay: nextEpisode.map { $0.1.airstamp == nil },
             releaseDate: releaseDate,
             personalWatchlist: false,
             seasons: Self.seasons(from: episodes, showID: id),
             metadataSource: .tvmaze,
-            sourceURL: url
+            sourceURL: url,
+            seriesLifecycle: Self.lifecycle(from: status)
         )
     }
 
@@ -212,7 +216,8 @@ private struct TVMazeShowDTO: Decodable {
                     airDate: episode.airDate,
                     runtimeMinutes: episode.runtime,
                     overview: Self.plainText(episode.summary),
-                    stillURL: episode.image?.original ?? episode.image?.medium
+                    stillURL: episode.image?.original ?? episode.image?.medium,
+                    airDateIsAllDay: episode.airstamp == nil
                 )
             )
         }
@@ -256,6 +261,17 @@ private struct TVMazeShowDTO: Decodable {
         return .any
     }
 
+    private static func lifecycle(from status: String?) -> SeriesLifecycle {
+        switch status?.lowercased() {
+        case "ended":
+            .ended
+        case "running", "to be determined", "in development":
+            .continuing
+        default:
+            .unknown
+        }
+    }
+
     private static func plainText(_ html: String?) -> String? {
         guard let html else { return nil }
         let withoutTags = html.replacingOccurrences(
@@ -297,12 +313,13 @@ private struct TVMazeEpisodeDTO: Decodable {
     let season: Int?
     let number: Int?
     let airdate: String?
+    let airstamp: Date?
     let runtime: Int?
     let image: Image?
     let summary: String?
 
     var airDate: Date? {
-        airdate.flatMap(Self.parseDay)
+        airstamp ?? airdate.flatMap(Self.parseDay)
     }
 
     private static func parseDay(_ value: String) -> Date? {

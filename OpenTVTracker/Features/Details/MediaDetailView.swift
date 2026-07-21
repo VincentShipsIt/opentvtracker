@@ -126,14 +126,14 @@ struct MediaDetailView: View {
                 model.markNextWatched(title.id)
             } label: {
                 Label(
-                    title.state == .completed ? "Watched" : title.kind == .movie ? "Mark watched" : "Mark next watched",
+                    title.nextWatchActionLabel,
                     systemImage: "checkmark.circle.fill"
                 )
                     .frame(maxWidth: .infinity)
             }
             .controlSize(.large)
             .adaptiveGlassButton(prominent: title.trailerURL == nil)
-            .disabled(title.state == .completed)
+            .disabled(title.state.isCurrentViewingComplete)
 
             MediaDetailWatchlistActions(title: title)
 
@@ -258,6 +258,14 @@ struct MediaDetailView: View {
                 .font(.footnote.weight(.semibold))
             }
         }
+    }
+}
+
+private extension MediaTitle {
+    var nextWatchActionLabel: String {
+        if state == .completed { return "Watched" }
+        if state == .caughtUp { return "Caught up" }
+        return kind == .movie ? "Mark watched" : "Mark next watched"
     }
 }
 
