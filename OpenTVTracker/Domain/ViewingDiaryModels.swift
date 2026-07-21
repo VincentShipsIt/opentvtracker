@@ -120,10 +120,18 @@ enum ViewingDiaryMigration {
             let episode = event.episode.flatMap { episodeNumber in
                 season?.episodes.first(where: { $0.number == episodeNumber })
             }
+            let scope: ViewingDiaryScope
+            if episode != nil {
+                scope = .episode
+            } else if event.season != nil {
+                scope = .season
+            } else {
+                scope = .title
+            }
             return ViewingDiaryEntry(
                 id: "diary:\(event.id)",
                 titleID: event.titleID,
-                scope: episode == nil ? .title : .episode,
+                scope: scope,
                 seasonNumber: event.season,
                 episodeID: episode?.id,
                 episodeNumber: event.episode,

@@ -8,6 +8,7 @@ extension AppModel {
         if titles[index].kind == .movie {
             guard titles[index].state != .completed else { return }
             titles[index].state = .completed
+            titles[index].personalWatchlist = false
         } else if let next = nextUnwatchedEpisode(for: titles[index]) {
             setEpisodeWatched(
                 true,
@@ -21,6 +22,8 @@ extension AppModel {
             progress.episode = min(progress.episode + 1, progress.totalEpisodes)
             titles[index].progress = progress
             titles[index].state = progress.episode == progress.totalEpisodes ? .completed : .watching
+        } else {
+            return
         }
 
         titles[index].lastWatchedAt = watchedAt

@@ -96,8 +96,11 @@ enum TVTimeNativeRecordParser {
         to entity: inout TVTimeEntity,
         duplicates: inout Int
     ) {
-        if entity.watches.contains(watch) {
+        if let index = entity.watches.firstIndex(where: { $0.hasSameIdentity(as: watch) }) {
             duplicates += 1
+            if let rating = watch.rating {
+                entity.watches[index].rating = rating
+            }
         } else {
             entity.watches.append(watch)
         }

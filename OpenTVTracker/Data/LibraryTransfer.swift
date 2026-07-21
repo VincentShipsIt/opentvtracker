@@ -95,18 +95,24 @@ extension LibraryTransferService {
         var added = 0
         var duplicates = 0
         var seen = Set<String>()
+        var importedTitleIDMap: [MediaTitle.ID: MediaTitle.ID] = [:]
 
         for importedTitle in imported.titles {
             let identity = identityKey(for: importedTitle)
             guard seen.insert(identity).inserted else {
+                if let destination = merged.titles.first(where: { titlesMatch($0, importedTitle) }) {
+                    importedTitleIDMap[importedTitle.id] = destination.id
+                }
                 duplicates += 1
                 continue
             }
 
             if let index = merged.titles.firstIndex(where: { titlesMatch($0, importedTitle) }) {
+                importedTitleIDMap[importedTitle.id] = merged.titles[index].id
                 merged.titles[index] = mergingTracking(from: importedTitle, into: merged.titles[index])
                 matched += 1
             } else {
+                importedTitleIDMap[importedTitle.id] = importedTitle.id
                 merged.titles.append(importedTitle)
                 added += 1
             }
@@ -116,9 +122,14 @@ extension LibraryTransferService {
             merged.selectedProviderIDs = selectedProviderIDs
         }
         if imported.diaryEntries != nil || imported.sharedSpace.watchEvents?.isEmpty == false {
+            let importedDiaryEntries = remappingDiaryEntries(
+                ViewingDiaryMigration.resolvedEntries(from: imported),
+                titleIDMap: importedTitleIDMap,
+                destinationTitles: merged.titles
+            )
             merged.diaryEntries = mergedDiaryEntries(
                 current: merged.diaryEntries ?? [],
-                imported: ViewingDiaryMigration.resolvedEntries(from: imported)
+                imported: importedDiaryEntries
             )
         }
 
@@ -234,20 +245,6 @@ extension LibraryTransferService {
         )
     }
 
-    private static func mergingTracking(from imported: MediaTitle, into catalog: MediaTitle) -> MediaTitle {
-        var result = catalog
-        result.state = imported.state
-        result.progress = imported.progress
-        result.userRating = imported.userRating
-        result.notes = imported.notes
-        result.rewatchCount = imported.rewatchCount
-        result.lastWatchedAt = imported.lastWatchedAt
-        result.isDismissed = imported.isDismissed
-        result.isDisliked = imported.isDisliked
-        result.personalWatchlist = imported.personalWatchlist
-        result.watchedEpisodeIDs = imported.watchedEpisodeIDs
-        return result
-    }
 }
 
 extension LibraryTransferService {
@@ -264,20 +261,6 @@ extension LibraryTransferService {
             totalEpisodes, rating, title.notes ?? "",
             String(title.completedRewatches), lastWatchedAt
         ]
-    }
-
-    private static func titlesMatch(_ lhs: MediaTitle, _ rhs: MediaTitle) -> Bool {
-        if lhs.catalogID > 0, rhs.catalogID > 0 { return lhs.catalogID == rhs.catalogID }
-        return normalizedTitle(lhs.title) == normalizedTitle(rhs.title) && lhs.year == rhs.year
-    }
-
-    private static func identityKey(for title: MediaTitle) -> String {
-        title.catalogID > 0 ? "catalog:\(title.catalogID)" : "title:\(normalizedTitle(title.title)):\(title.year)"
-    }
-
-    private static func normalizedTitle(_ title: String) -> String {
-        title.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
-            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     static func csvData(header: [String], rows: [[String]]) -> Data {

@@ -23,6 +23,21 @@ final class AppModelTests: XCTestCase {
 
         let title = model.titles.first(where: { $0.id == "past-lives" })
         XCTAssertEqual(title?.state, .completed)
+        XCTAssertFalse(title?.isOnPersonalWatchlist ?? true)
+    }
+
+    func testMarkNextDoesNotRecordWatchForSeriesWithoutEpisodeProgress() throws {
+        var snapshot = LibrarySnapshot.sample
+        let index = try XCTUnwrap(snapshot.titles.firstIndex(where: { $0.id == "severance" }))
+        snapshot.titles[index].seasons = nil
+        snapshot.titles[index].progress = nil
+        snapshot.sharedSpace.watchEvents = []
+        let model = AppModel(store: MemoryLibraryStore(), seed: snapshot)
+
+        model.markNextWatched("severance")
+
+        XCTAssertTrue(model.sharedSpace.watchEvents?.isEmpty == true)
+        XCTAssertNil(model.mediaTitle(withID: "severance")?.lastWatchedAt)
     }
 
     func testFinalEpisodeLeavesUpNext() throws {

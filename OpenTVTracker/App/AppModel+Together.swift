@@ -85,6 +85,7 @@ extension AppModel {
         let isRewatch = titles[index].kind == .movie && titles[index].state == .completed
         if titles[index].kind == .movie {
             titles[index].state = .completed
+            titles[index].personalWatchlist = false
         } else if let next = nextUnwatchedEpisode(for: titles[index]) {
             markEpisodeWatchedTogether(titleID: id, season: next.season, episode: next.episode)
             return
@@ -98,6 +99,9 @@ extension AppModel {
         }
         titles[index].lastWatchedAt = watchedAt
         if titles[index].kind == .movie {
+            if isRewatch {
+                titles[index].rewatchCount = titles[index].completedRewatches + 1
+            }
             appendDiaryWatch(title: titles[index], watchedAt: watchedAt, isRewatch: isRewatch)
         }
         for member in sharedSpace.members {

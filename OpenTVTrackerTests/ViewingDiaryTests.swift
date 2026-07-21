@@ -59,6 +59,21 @@ final class ViewingDiaryTests: XCTestCase {
         XCTAssertNil(model.sharedSpace.notes?.first(where: { $0.titleID == "severance" }))
     }
 
+    func testSeasonIsWatchedOnlyAfterEveryEpisodeIsWatched() throws {
+        let model = try makeModel()
+        let target = ViewingDiaryTarget.season(
+            titleID: "severance",
+            seasonID: "season-1",
+            seasonNumber: 1
+        )
+
+        XCTAssertFalse(model.isDiaryTargetWatched(target))
+        model.setEpisodeWatched(true, titleID: "severance", seasonNumber: 1, episodeID: "s1e1")
+        XCTAssertFalse(model.isDiaryTargetWatched(target))
+        model.setEpisodeWatched(true, titleID: "severance", seasonNumber: 1, episodeID: "s1e2")
+        XCTAssertTrue(model.isDiaryTargetWatched(target))
+    }
+
     func testUnwatchRemovesEpisodeDatesButPreservesPrivateRating() throws {
         let model = try makeModel()
         let target = ViewingDiaryTarget.episode(
@@ -94,6 +109,21 @@ final class ViewingDiaryTests: XCTestCase {
 
         XCTAssertEqual(model.diaryRecords.map(\.entry.isRewatch), [true, false])
         XCTAssertGreaterThan(model.diaryDays[0].date, model.diaryDays[1].date)
+    }
+
+    func testBackdatedEpisodeRewatchDoesNotRegressTitleRecency() throws {
+        let model = try makeModel()
+        model.setEpisodeWatched(true, titleID: "severance", seasonNumber: 1, episodeID: "s1e1")
+        let latestWatch = try XCTUnwrap(model.mediaTitle(withID: "severance")?.lastWatchedAt)
+
+        model.recordEpisodeRewatch(
+            titleID: "severance",
+            seasonNumber: 1,
+            episodeID: "s1e1",
+            watchedAt: Date(timeIntervalSince1970: 1)
+        )
+
+        XCTAssertEqual(model.mediaTitle(withID: "severance")?.lastWatchedAt, latestWatch)
     }
 
     func testLegacyWatchEventsMigrateOnceAndIgnoreCorrectionsAndOtherMembers() throws {
@@ -207,6 +237,21 @@ final class ViewingDiaryTests: XCTestCase {
         togetherModel.markWatchedTogether("severance")
         XCTAssertEqual(togetherModel.diaryEntries.first?.episodeID, "s1e1")
         XCTAssertFalse(togetherModel.diaryEntries.contains { $0.scope == .title })
+    }
+
+    func testTogetherMovieRewatchUpdatesCountAndLeavesWatchlist() throws {
+        var snapshot = LibrarySnapshot.sample
+        let index = try XCTUnwrap(snapshot.titles.firstIndex(where: { $0.id == "past-lives" }))
+        snapshot.titles[index].state = .completed
+        snapshot.titles[index].personalWatchlist = true
+        snapshot.titles[index].rewatchCount = 1
+        let model = AppModel(store: MemoryLibraryStore(), seed: snapshot)
+
+        model.markWatchedTogether("past-lives")
+
+        let title = try XCTUnwrap(model.mediaTitle(withID: "past-lives"))
+        XCTAssertEqual(title.completedRewatches, 2)
+        XCTAssertFalse(title.isOnPersonalWatchlist)
     }
 
     private func makeModel() throws -> AppModel {

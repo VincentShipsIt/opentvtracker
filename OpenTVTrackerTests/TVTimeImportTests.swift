@@ -72,6 +72,28 @@ final class TVTimeImportTests: XCTestCase {
         XCTAssertEqual(second.watchEventCount, 0)
     }
 
+    func testDuplicateWatchRowsMergeRatingWithoutDuplicatingHistory() async throws {
+        let archive = try makeArchive([
+            "tracking-prod-records-v2.csv": """
+            key,s_id,series_name,s_no,ep_no,created_at,episode_rating
+            watch-episode-101,42,Severance,1,1,2025-02-14T20:30:00Z,
+            watch-episode-101,42,Severance,1,1,2025-02-14T20:30:00Z,9
+            """
+        ])
+        let snapshot = snapshotWithSeveranceEpisodes()
+
+        let preview = try await TVTimeImportService.previewImport(
+            archive,
+            into: snapshot,
+            catalog: LocalCatalogService(titles: snapshot.titles),
+            region: .malta
+        )
+
+        XCTAssertEqual(preview.snapshot.sharedSpace.watchEvents?.count, 1)
+        XCTAssertEqual(preview.snapshot.diaryEntries?.count, 1)
+        XCTAssertEqual(preview.snapshot.diaryEntries?.first?.rating, 9)
+    }
+
     @MainActor
     func testReimportAfterVersionFourMigrationDoesNotDuplicateWatch() async throws {
         let archive = try makeArchive([

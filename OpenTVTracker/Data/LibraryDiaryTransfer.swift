@@ -1,6 +1,38 @@
 import Foundation
 
 extension LibraryTransferService {
+    static func remappingDiaryEntries(
+        _ entries: [ViewingDiaryEntry],
+        titleIDMap: [MediaTitle.ID: MediaTitle.ID],
+        destinationTitles: [MediaTitle]
+    ) -> [ViewingDiaryEntry] {
+        let titlesByID = Dictionary(uniqueKeysWithValues: destinationTitles.map { ($0.id, $0) })
+        return entries.map { entry in
+            let destinationTitleID = titleIDMap[entry.titleID] ?? entry.titleID
+            let destinationTitle = titlesByID[destinationTitleID]
+            let destinationSeason = entry.seasonNumber.flatMap { seasonNumber in
+                destinationTitle?.seasons?.first(where: { $0.number == seasonNumber })
+            }
+            let remappedEpisodeID = entry.episodeNumber.flatMap { episodeNumber in
+                destinationSeason?.episodes.first(where: { $0.number == episodeNumber })?.id
+            }
+            return ViewingDiaryEntry(
+                id: entry.id,
+                titleID: destinationTitleID,
+                scope: entry.scope,
+                seasonNumber: entry.seasonNumber,
+                episodeID: remappedEpisodeID ?? entry.episodeID,
+                episodeNumber: entry.episodeNumber,
+                watchedAt: entry.watchedAt,
+                rating: entry.rating,
+                note: entry.note,
+                isRewatch: entry.isRewatch,
+                createdAt: entry.createdAt,
+                updatedAt: entry.updatedAt
+            )
+        }
+    }
+
     static func mergedDiaryEntries(
         current: [ViewingDiaryEntry],
         imported: [ViewingDiaryEntry]
@@ -58,6 +90,7 @@ extension LibraryTransferService {
         var added = 0
         var duplicates = 0
         var skipped = 0
+        var importedWatchCount = 0
 
         for row in rows.dropFirst() where row.contains(where: { !$0.isEmpty }) {
             let values = csvValues(header: normalizedHeader, row: row)
@@ -77,6 +110,9 @@ extension LibraryTransferService {
             } else {
                 added += 1
                 entriesByID[entry.id] = entry
+                if entry.watchedAt != nil {
+                    importedWatchCount += 1
+                }
             }
         }
 
@@ -88,7 +124,7 @@ extension LibraryTransferService {
             duplicateCount: duplicates,
             skippedCount: skipped,
             sourceName: "OpenTV diary",
-            watchEventCount: merged.diaryEntries?.filter { $0.watchedAt != nil }.count ?? 0
+            watchEventCount: importedWatchCount
         )
     }
 }

@@ -49,6 +49,13 @@ struct TVTimeWatch: Hashable, Sendable {
     var occurredAt: Date?
     var rating: Double?
     var isRewatch: Bool
+
+    func hasSameIdentity(as other: TVTimeWatch) -> Bool {
+        season == other.season
+            && episode == other.episode
+            && occurredAt == other.occurredAt
+            && isRewatch == other.isRewatch
+    }
 }
 
 private enum TVTimeArchiveParser {
@@ -282,8 +289,11 @@ private enum TVTimeArchiveParser {
         to entity: inout TVTimeEntity,
         duplicates: inout Int
     ) {
-        if entity.watches.contains(watch) {
+        if let index = entity.watches.firstIndex(where: { $0.hasSameIdentity(as: watch) }) {
             duplicates += 1
+            if let rating = watch.rating {
+                entity.watches[index].rating = rating
+            }
         } else {
             entity.watches.append(watch)
         }

@@ -70,8 +70,19 @@ extension AppModel {
         case .title(let titleID):
             return mediaTitle(withID: titleID)?.state == .completed
                 || diaryEntries(for: target).contains(where: { $0.watchedAt != nil })
-        case .season:
-            return true
+        case .season(let titleID, let seasonID, let seasonNumber):
+            if diaryEntries(for: target).contains(where: { $0.watchedAt != nil }) {
+                return true
+            }
+            guard let title = mediaTitle(withID: titleID),
+                  let season = title.seasons?.first(where: {
+                      $0.id == seasonID && $0.number == seasonNumber
+                  }),
+                  !season.episodes.isEmpty else {
+                return false
+            }
+            let watchedIDs = resolvedWatchedEpisodeIDs(for: title)
+            return season.episodes.allSatisfy { watchedIDs.contains($0.id) }
         case .episode(let titleID, _, let seasonNumber, let episodeID, _):
             return isEpisodeWatched(
                 titleID: titleID,
@@ -164,7 +175,10 @@ extension AppModel {
             isRewatch: true
         )
         titles[index].rewatchCount = titles[index].completedRewatches + 1
-        titles[index].lastWatchedAt = watchedAt
+        titles[index].lastWatchedAt = max(
+            titles[index].lastWatchedAt ?? .distantPast,
+            watchedAt
+        )
         appendWatchEvent(
             title: titles[index],
             kind: .rewatch,
@@ -207,7 +221,7 @@ extension AppModel {
            }) {
             diaryEntries[metadataIndex].watchedAt = watchedAt
             diaryEntries[metadataIndex].rating = rating ?? diaryEntries[metadataIndex].rating
-            diaryEntries[metadataIndex].updatedAt = watchedAt
+            diaryEntries[metadataIndex].updatedAt = .now
             return
         }
 
