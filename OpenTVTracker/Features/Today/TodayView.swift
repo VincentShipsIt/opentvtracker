@@ -2,6 +2,7 @@ import SwiftUI
 
 struct TodayView: View {
     @Environment(AppModel.self) private var model
+    @State private var presentsAssistant = false
 
     var body: some View {
         NavigationStack {
@@ -26,6 +27,18 @@ struct TodayView: View {
             }
             .navigationDestination(for: MediaTitle.self) { title in
                 MediaDetailView(titleID: title.id)
+            }
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Ask OpenTV", systemImage: "sparkles") {
+                        presentsAssistant = true
+                    }
+                    .accessibilityHint("Opens personalized viewing suggestions")
+                    .accessibilityIdentifier("today.ask-opentv")
+                }
+            }
+            .fullScreenCover(isPresented: $presentsAssistant) {
+                DiscoveryAssistantView()
             }
         }
     }

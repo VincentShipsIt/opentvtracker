@@ -6,6 +6,7 @@ struct MediaDetailView: View {
     @State private var presentedTrailer: TrailerPresentation?
     @State private var showsTrackingEditor = false
     @State private var showsSharedNoteEditor = false
+    @State private var showsReminderEditor = false
 
     var body: some View {
         ZStack {
@@ -48,6 +49,14 @@ struct MediaDetailView: View {
         }
         .sheet(isPresented: $showsSharedNoteEditor) {
             if let title { SharedNoteEditorView(title: title) }
+        }
+        .sheet(isPresented: $showsReminderEditor) {
+            if let title {
+                TitleReminderEditorView(
+                    title: title,
+                    leadTime: model.reminderLeadTime(for: title.id)
+                )
+            }
         }
         .navigationDestination(for: MoreLikeThisRoute.self) { route in
             MoreLikeThisView(sourceTitleID: route.sourceTitleID)
@@ -132,43 +141,18 @@ struct MediaDetailView: View {
             .adaptiveGlassButton(prominent: title.trailerURL == nil)
             .disabled(title.state.isCurrentViewingComplete)
 
-            watchlistActions(title)
+            MediaDetailWatchlistActions(title: title)
+
+            MediaDetailReminderAction(
+                title: title,
+                showsReminderEditor: $showsReminderEditor
+            )
 
             recommendationAndTrackingActions(title)
 
             if model.isShared(title.id) {
                 sharedActions(title)
             }
-        }
-    }
-
-    private func watchlistActions(_ title: MediaTitle) -> some View {
-        HStack(spacing: 10) {
-            Button {
-                model.toggleWatchlist(title.id)
-            } label: {
-                Label(
-                    "My watchlist",
-                    systemImage: title.isOnPersonalWatchlist ? "bookmark.fill" : "bookmark"
-                )
-                    .frame(maxWidth: .infinity)
-            }
-            .adaptiveGlassButton()
-            .accessibilityValue(title.isOnPersonalWatchlist ? "Added" : "Not added")
-            .accessibilityHint("Adds or removes this title without changing your viewing progress")
-
-            Button {
-                model.toggleTogether(title.id)
-            } label: {
-                Label(
-                    "Our watchlist",
-                    systemImage: model.isShared(title.id) ? "person.2.fill" : "person.2"
-                )
-                    .frame(maxWidth: .infinity)
-            }
-            .adaptiveGlassButton()
-            .accessibilityValue(model.isShared(title.id) ? "Added" : "Not added")
-            .accessibilityHint("Adds or removes this title from the watchlist you share")
         }
     }
 
