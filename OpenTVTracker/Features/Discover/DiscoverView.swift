@@ -5,6 +5,7 @@ struct DiscoverView: View {
     @State private var searchText = ""
     @State private var surpriseOffset = 0
     @State private var presentedSheet: DiscoverSheet?
+    @State private var presentsAssistant = false
 
     var body: some View {
         NavigationStack {
@@ -46,6 +47,15 @@ struct DiscoverView: View {
             .navigationDestination(for: DiscoverCategory.self) { category in
                 DiscoverCategoryShelfView(category: category)
             }
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Ask OpenTV", systemImage: "sparkles") {
+                        presentsAssistant = true
+                    }
+                    .accessibilityHint("Opens personalized viewing suggestions")
+                    .accessibilityIdentifier("discover.ask-opentv")
+                }
+            }
             .sheet(item: $presentedSheet) { sheet in
                 switch sheet {
                 case .categories:
@@ -57,6 +67,9 @@ struct DiscoverView: View {
                 case .trailer(let trailer):
                     TrailerPlayerView(trailer: trailer)
                 }
+            }
+            .fullScreenCover(isPresented: $presentsAssistant) {
+                DiscoveryAssistantView()
             }
         }
     }
