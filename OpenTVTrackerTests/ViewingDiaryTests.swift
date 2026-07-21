@@ -111,6 +111,19 @@ final class ViewingDiaryTests: XCTestCase {
         XCTAssertGreaterThan(model.diaryDays[0].date, model.diaryDays[1].date)
     }
 
+    func testTitleRewatchRecordsMatchingDiaryAndSharedHistory() throws {
+        let model = try makeModel()
+
+        model.recordRewatch("past-lives")
+
+        let entry = try XCTUnwrap(model.diaryEntries(for: .title(titleID: "past-lives")).first)
+        let event = try XCTUnwrap(model.sharedSpace.watchEvents?.last)
+        XCTAssertTrue(entry.isRewatch)
+        XCTAssertEqual(entry.watchedAt, model.mediaTitle(withID: "past-lives")?.lastWatchedAt)
+        XCTAssertEqual(event.kind, .rewatch)
+        XCTAssertEqual(event.occurredAt, entry.watchedAt)
+    }
+
     func testBackdatedEpisodeRewatchDoesNotRegressTitleRecency() throws {
         let model = try makeModel()
         model.setEpisodeWatched(true, titleID: "severance", seasonNumber: 1, episodeID: "s1e1")
