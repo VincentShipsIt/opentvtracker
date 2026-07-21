@@ -173,6 +173,7 @@ final class TraktSyncTests: XCTestCase {
         XCTAssertEqual(model.traktSyncState.lastError, TraktSyncError.providerUnavailable.localizedDescription)
     }
 
+    @MainActor
     func testCompletedSyncPreservesTitlesChangedWhileRequestWasInFlight() throws {
         let baseline = LibrarySnapshot.sample.titles
         var current = baseline
