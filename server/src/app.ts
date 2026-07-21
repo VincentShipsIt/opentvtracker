@@ -10,6 +10,7 @@ import {
 import { TMDBClient } from "./tmdb";
 import {
   readJSONBody,
+  validateCatalogReviews,
   validateCatalogSearch,
   validateCatalogTitle,
   validateChallengeRequest,
@@ -34,7 +35,7 @@ export type SafeLogger = (event: SafeLogEvent) => void;
 type AppDependencies = {
   config: ServerConfig;
   security: AppAttestSecurity;
-  tmdb?: Pick<TMDBClient, "search" | "title">;
+  tmdb?: Pick<TMDBClient, "search" | "title" | "reviews">;
   cinemaShowings?: typeof embassyShowings;
   logger?: SafeLogger;
   rateLimiter?: BoundedRateLimiter;
@@ -82,6 +83,7 @@ const quotas = {
   token: { ip: 20, device: 20, window: 60_000 },
   catalogSearch: { ip: 30, device: 10, window: 60_000 },
   catalogTitle: { ip: 120, device: 60, window: 60_000 },
+  catalogReviews: { ip: 120, device: 60, window: 60_000 },
   cinema: { ip: 40, device: 20, window: 60_000 },
 } as const;
 
@@ -239,6 +241,43 @@ export function createApp(dependencies: AppDependencies): {
             }),
             config,
             "catalog-search",
+          );
+          status = result.status;
+          code = result.status === 304 ? "not_modified" : "ok";
+          return result;
+        }
+
+        const catalogReviewsMatch = url.pathname.match(
+          /^\/v1\/catalog\/(movie|series)\/(\d+)\/reviews$/,
+        );
+        if (request.method === "GET" && catalogReviewsMatch) {
+          if (!config.controls.catalogEnabled || !tmdb) {
+            status = 503;
+            code = "disabled";
+            return disabled(config);
+          }
+          const identity = await security.authorizeRequest(
+            request,
+            new Uint8Array(),
+          );
+          enforceProtectedQuota(
+            limiter,
+            "catalog-reviews",
+            ipAddress,
+            identity.deviceID,
+            quotas.catalogReviews,
+            identity.trust,
+          );
+          const input = validateCatalogReviews(catalogReviewsMatch, url);
+          const cacheKey = `reviews:${input.kind}:${input.id}:${input.page}`;
+          const result = await cachedJSON(
+            cache,
+            cacheKey,
+            300_000,
+            request,
+            () => tmdb.reviews(input.kind, input.id, input.page),
+            config,
+            "catalog-reviews",
           );
           status = result.status;
           code = result.status === 304 ? "not_modified" : "ok";

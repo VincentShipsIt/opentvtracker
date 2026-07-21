@@ -1,9 +1,10 @@
 import SwiftUI
 
 struct LibraryView: View {
+    @Environment(AppModel.self) private var model
     @State private var section: LibrarySection = .titles
     @State private var filter: WatchState = .watching
-    @State private var showsDataTools = false
+    @State private var presentedSheet: LibrarySheet?
 
     var body: some View {
         NavigationStack {
@@ -19,24 +20,64 @@ struct LibraryView: View {
                     .pickerStyle(.segmented)
                     .padding(.horizontal, AppTheme.horizontalPadding)
 
-                    switch section {
-                    case .titles:
-                        LibraryTitlesView(filter: $filter)
-                    case .lists:
+                    if section == .lists {
                         CustomListsView()
+                    } else {
+                        Picker("Tracking state", selection: $filter) {
+                            ForEach(WatchState.allCases, id: \.self) { state in
+                                Text(state.label).tag(state)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .padding(.horizontal, AppTheme.horizontalPadding)
+
+                        Group {
+                            if filteredTitles.isEmpty {
+                                ContentUnavailableView(
+                                    "Nothing \(filter.label.lowercased())",
+                                    systemImage: "rectangle.stack.badge.plus",
+                                    description: Text("Add something from Discover and it will appear here.")
+                                )
+                                .frame(maxHeight: .infinity)
+                            } else {
+                                List(filteredTitles) { title in
+                                    NavigationLink(value: title) {
+                                        LibraryRow(title: title)
+                                    }
+                                    .listRowBackground(Color.clear)
+                                    .listRowSeparator(.hidden)
+                                }
+                                .listStyle(.plain)
+                                .scrollContentBackground(.hidden)
+                            }
+                        }
+                        .transaction { $0.disablesAnimations = true }
                     }
                 }
                 .padding(.top, 8)
             }
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Profile and settings", systemImage: "person.crop.circle") {
+                        presentedSheet = .profile
+                    }
+                    .accessibilityHint("Opens your viewing profile and app settings")
+                    .accessibilityIdentifier("library.profile")
+                }
+
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Import or export", systemImage: "arrow.up.arrow.down") {
-                        showsDataTools = true
+                        presentedSheet = .dataTools
                     }
                 }
             }
-            .sheet(isPresented: $showsDataTools) {
-                LibraryDataView()
+            .sheet(item: $presentedSheet) { sheet in
+                switch sheet {
+                case .dataTools:
+                    LibraryDataView()
+                case .profile:
+                    ProfileView()
+                }
             }
             .navigationDestination(for: MediaTitle.self) { title in
                 MediaDetailView(titleID: title.id)
@@ -44,47 +85,16 @@ struct LibraryView: View {
         }
     }
 
-}
-
-private struct LibraryTitlesView: View {
-    @Environment(AppModel.self) private var model
-    @Binding var filter: WatchState
-
-    var body: some View {
-        VStack(spacing: 12) {
-            Picker("Tracking state", selection: $filter) {
-                ForEach(WatchState.allCases, id: \.self) { state in
-                    Text(state.label).tag(state)
-                }
-            }
-            .pickerStyle(.segmented)
-            .padding(.horizontal, AppTheme.horizontalPadding)
-
-            if filteredTitles.isEmpty {
-                ContentUnavailableView(
-                    "Nothing \(filter.label.lowercased())",
-                    systemImage: "rectangle.stack.badge.plus",
-                    description: Text("Add something from Discover and it will appear here.")
-                )
-                .frame(maxHeight: .infinity)
-            } else {
-                List(filteredTitles) { title in
-                    NavigationLink(value: title) {
-                        LibraryRow(title: title)
-                    }
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-                }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
-            }
-        }
-        .transaction { $0.disablesAnimations = true }
-    }
-
     private var filteredTitles: [MediaTitle] {
         model.titles(in: filter)
     }
+}
+
+private enum LibrarySheet: String, Identifiable {
+    case dataTools
+    case profile
+
+    var id: Self { self }
 }
 
 struct LibraryRow: View {
@@ -101,7 +111,7 @@ struct LibraryRow: View {
                 Text("\(title.year) · \(title.kind.label)")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                Label(title.progressLabel, systemImage: title.state == .completed ? "checkmark.circle.fill" : "play.circle.fill")
+                Label(title.progressLabel, systemImage: title.state.symbol)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(Color.accentColor)
                 if let progress = title.progress {
@@ -119,7 +129,7 @@ private enum LibrarySection: String, CaseIterable, Identifiable {
     case titles
     case lists
 
-    var id: String { rawValue }
+    var id: Self { self }
 
     var label: String {
         switch self {

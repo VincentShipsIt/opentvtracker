@@ -7,9 +7,22 @@ struct MediaSearchQuery: Hashable, Sendable {
     var region: StreamingRegion
 }
 
+struct CommunityReviewPage: Hashable, Sendable {
+    let page: Int
+    let totalPages: Int
+    let results: [CommunityReview]
+}
+
 protocol CatalogProviding: Sendable {
     func search(_ query: MediaSearchQuery) async throws -> [MediaTitle]
     func title(kind: MediaKind, catalogID: Int, region: StreamingRegion) async throws -> MediaTitle
+    func reviews(kind: MediaKind, catalogID: Int, page: Int) async throws -> CommunityReviewPage
+}
+
+extension CatalogProviding {
+    func reviews(kind _: MediaKind, catalogID _: Int, page: Int) async throws -> CommunityReviewPage {
+        CommunityReviewPage(page: max(page, 1), totalPages: 1, results: [])
+    }
 }
 
 struct RecommendationContext: Hashable, Sendable {
@@ -54,6 +67,59 @@ protocol RecommendationProviding: Sendable {
         from snapshot: LibrarySnapshot,
         context: RecommendationContext
     ) async throws -> [Recommendation]
+}
+
+enum ReminderAuthorization: String, Sendable {
+    case notDetermined
+    case denied
+    case authorized
+    case provisional
+    case ephemeral
+
+    var allowsScheduling: Bool {
+        switch self {
+        case .authorized, .provisional, .ephemeral: true
+        case .notDetermined, .denied: false
+        }
+    }
+}
+
+struct ReminderCapability: Equatable, Sendable {
+    let authorization: ReminderAuthorization
+    let backgroundRefreshAvailable: Bool
+
+    static let unknown = ReminderCapability(
+        authorization: .notDetermined,
+        backgroundRefreshAvailable: false
+    )
+}
+
+protocol ReminderScheduling: Sendable {
+    func requestAuthorization() async -> ReminderAuthorization
+    func capability() async -> ReminderCapability
+    func reconcile(
+        titles: [MediaTitle],
+        selectedProviderIDs: Set<StreamingProvider.ID>,
+        settings: ReminderSettings,
+        now: Date
+    ) async throws
+}
+
+struct NoopReminderScheduler: ReminderScheduling {
+    func requestAuthorization() async -> ReminderAuthorization {
+        .denied
+    }
+
+    func capability() async -> ReminderCapability {
+        .unknown
+    }
+
+    func reconcile(
+        titles _: [MediaTitle],
+        selectedProviderIDs _: Set<StreamingProvider.ID>,
+        settings _: ReminderSettings,
+        now _: Date
+    ) async throws {}
 }
 
 enum PartnerSharingAvailability: Hashable, Sendable {

@@ -1,91 +1,101 @@
 import Foundation
 
 enum TVTimeNativeRecordParser {
-    static func parseEpisodeRecords(
-        _ records: [[String: String]],
+    static func parseEpisodeRecord(
+        _ values: [String: String],
         entities: inout [String: TVTimeEntity],
-        duplicates: inout Int
+        duplicates: inout Int,
+        diagnostics: inout TVTimeImportDiagnostics
     ) {
-        for values in records where TVTimeCSV.bool(values, ["is_watched"]) == true {
-            let title = TVTimeCSV.string(values, ["title", "show_name", "series_name"])
-            let sourceID = TVTimeCSV.string(values, ["series_tvdb_id", "series_id", "s_id"])
-            guard let identity = identity(kind: .series, sourceID: sourceID, title: title) else { continue }
-            var entity = entities[identity] ?? TVTimeEntity(
-                identity: identity,
-                sourceID: sourceID,
-                title: title ?? "",
-                kind: .series
-            )
+        guard TVTimeCSV.bool(values, ["is_watched"]) == true else { return }
+        let title = TVTimeCSV.string(values, ["title", "show_name", "series_name"])
+        let sourceID = TVTimeCSV.string(values, ["series_tvdb_id", "series_id", "s_id"])
+        guard let identity = identity(kind: .series, sourceID: sourceID, title: title) else {
+            diagnostics.missingIdentityCount += 1
+            return
+        }
+        let initial = TVTimeEntity(
+            identity: identity,
+            sourceID: sourceID,
+            title: title ?? "",
+            kind: .series
+        )
+        let rewatchCount = max(TVTimeCSV.int(values, ["rewatch_count"]) ?? 0, 0)
+        addWatch(
+            TVTimeWatch(
+                season: TVTimeCSV.int(values, ["season", "episode_season_number", "season_number"]),
+                episode: TVTimeCSV.int(values, ["episode", "episode_number"]),
+                occurredAt: TVTimeCSV.date(values, ["watched_at", "ts", "created_at"]),
+                rating: TVTimeCSV.double(values, ["episode_rating", "rating", "rate"]),
+                isRewatch: rewatchCount > 0,
+                rewatchCount: rewatchCount
+            ),
+            to: &entities[identity, default: initial],
+            duplicates: &duplicates
+        )
+    }
+
+    static func parseMovieRecord(
+        _ values: [String: String],
+        entities: inout [String: TVTimeEntity],
+        duplicates: inout Int,
+        diagnostics: inout TVTimeImportDiagnostics
+    ) {
+        let title = TVTimeCSV.string(values, ["title", "movie_name", "name"])
+        let sourceID = TVTimeCSV.string(values, ["tvdb_id", "movie_id", "uuid"])
+        guard let identity = identity(kind: .movie, sourceID: sourceID, title: title) else {
+            diagnostics.missingIdentityCount += 1
+            return
+        }
+        let initial = TVTimeEntity(
+            identity: identity,
+            sourceID: sourceID,
+            title: title ?? "",
+            year: TVTimeCSV.year(values),
+            kind: .movie
+        )
+        if TVTimeCSV.bool(values, ["is_watched"]) == true {
             addWatch(
                 TVTimeWatch(
-                    season: TVTimeCSV.int(values, ["season", "episode_season_number", "season_number"]),
-                    episode: TVTimeCSV.int(values, ["episode", "episode_number"]),
-                    occurredAt: TVTimeCSV.date(values, ["watched_at", "ts", "created_at"]),
-                    isRewatch: (TVTimeCSV.int(values, ["rewatch_count"]) ?? 0) > 0
+                    occurredAt: TVTimeCSV.date(values, ["watched_at", "created_at"]),
+                    rating: TVTimeCSV.double(values, ["rating", "rate"]),
+                    isRewatch: false
                 ),
-                to: &entity,
+                to: &entities[identity, default: initial],
                 duplicates: &duplicates
             )
-            entities[identity] = entity
+            let importedRewatchCount = TVTimeCSV.int(values, ["rewatch_count"]) ?? 0
+            let existingRewatchCount = entities[identity, default: initial].rewatchCount
+            entities[identity, default: initial].rewatchCount = max(
+                existingRewatchCount,
+                importedRewatchCount
+            )
+        } else {
+            entities[identity, default: initial].isForLater = true
         }
     }
 
-    static func parseMovies(
-        _ records: [[String: String]],
+    static func parseSeriesRecord(
+        _ values: [String: String],
         entities: inout [String: TVTimeEntity],
-        duplicates: inout Int
+        diagnostics: inout TVTimeImportDiagnostics
     ) {
-        for values in records {
-            let title = TVTimeCSV.string(values, ["title", "movie_name", "name"])
-            let sourceID = TVTimeCSV.string(values, ["tvdb_id", "movie_id", "uuid"])
-            guard let identity = identity(kind: .movie, sourceID: sourceID, title: title) else { continue }
-            var entity = entities[identity] ?? TVTimeEntity(
-                identity: identity,
-                sourceID: sourceID,
-                title: title ?? "",
-                year: TVTimeCSV.year(values),
-                kind: .movie
-            )
-            if TVTimeCSV.bool(values, ["is_watched"]) == true {
-                addWatch(
-                    TVTimeWatch(
-                        occurredAt: TVTimeCSV.date(values, ["watched_at", "created_at"]),
-                        isRewatch: false
-                    ),
-                    to: &entity,
-                    duplicates: &duplicates
-                )
-                entity.rewatchCount = max(
-                    entity.rewatchCount,
-                    TVTimeCSV.int(values, ["rewatch_count"]) ?? 0
-                )
-            } else {
-                entity.isForLater = true
-            }
-            entities[identity] = entity
+        let title = TVTimeCSV.string(values, ["title", "series_name", "name"])
+        let sourceID = TVTimeCSV.string(values, ["tvdb_id", "series_tvdb_id", "series_id"])
+        guard let identity = identity(kind: .series, sourceID: sourceID, title: title) else {
+            diagnostics.missingIdentityCount += 1
+            return
         }
-    }
-
-    static func parseSeries(
-        _ records: [[String: String]],
-        entities: inout [String: TVTimeEntity]
-    ) {
-        for values in records {
-            let title = TVTimeCSV.string(values, ["title", "series_name", "name"])
-            let sourceID = TVTimeCSV.string(values, ["tvdb_id", "series_tvdb_id", "series_id"])
-            guard let identity = identity(kind: .series, sourceID: sourceID, title: title) else { continue }
-            var entity = entities[identity] ?? TVTimeEntity(
-                identity: identity,
-                sourceID: sourceID,
-                title: title ?? "",
-                kind: .series
-            )
-            switch TVTimeCSV.string(values, ["status"])?.lowercased() {
-            case "not_started_yet": entity.isForLater = true
-            case "stopped": entity.isArchived = true
-            default: entity.isFollowed = true
-            }
-            entities[identity] = entity
+        let initial = TVTimeEntity(
+            identity: identity,
+            sourceID: sourceID,
+            title: title ?? "",
+            kind: .series
+        )
+        switch TVTimeCSV.string(values, ["status"])?.lowercased() {
+        case "not_started_yet": entities[identity, default: initial].isForLater = true
+        case "stopped": entities[identity, default: initial].isArchived = true
+        default: entities[identity, default: initial].isFollowed = true
         }
     }
 
@@ -94,8 +104,11 @@ enum TVTimeNativeRecordParser {
         to entity: inout TVTimeEntity,
         duplicates: inout Int
     ) {
-        if entity.watches.contains(watch) {
+        if let index = entity.watches.firstIndex(where: { $0.hasSameIdentity(as: watch) }) {
             duplicates += 1
+            if let rating = watch.rating {
+                entity.watches[index].rating = rating
+            }
         } else {
             entity.watches.append(watch)
         }

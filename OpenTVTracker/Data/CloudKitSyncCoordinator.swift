@@ -150,6 +150,9 @@ private final class CloudKitSyncWorker: CKSyncEngineDelegate, @unchecked Sendabl
         case .fetchedRecordZoneChanges(let changes):
             for modification in changes.modifications {
                 await store.cache(modification.record)
+                if modification.record.recordID.recordName == "space-state" {
+                    NotificationCenter.default.post(name: .openTVCloudSharedStateChanged, object: nil)
+                }
             }
             for deletion in changes.deletions {
                 await store.removeCached(recordID: deletion.recordID)
@@ -175,6 +178,10 @@ private final class CloudKitSyncWorker: CKSyncEngineDelegate, @unchecked Sendabl
             await store.record(for: recordID)
         }
     }
+}
+
+extension Notification.Name {
+    static let openTVCloudSharedStateChanged = Notification.Name("OpenTVCloudSharedStateChanged")
 }
 
 private actor CloudKitSyncStore {

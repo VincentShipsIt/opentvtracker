@@ -23,6 +23,21 @@ final class AppModelTests: XCTestCase {
 
         let title = model.titles.first(where: { $0.id == "past-lives" })
         XCTAssertEqual(title?.state, .completed)
+        XCTAssertFalse(title?.isOnPersonalWatchlist ?? true)
+    }
+
+    func testMarkNextDoesNotRecordWatchForSeriesWithoutEpisodeProgress() throws {
+        var snapshot = LibrarySnapshot.sample
+        let index = try XCTUnwrap(snapshot.titles.firstIndex(where: { $0.id == "severance" }))
+        snapshot.titles[index].seasons = nil
+        snapshot.titles[index].progress = nil
+        snapshot.sharedSpace.watchEvents = []
+        let model = AppModel(store: MemoryLibraryStore(), seed: snapshot)
+
+        model.markNextWatched("severance")
+
+        XCTAssertTrue(model.sharedSpace.watchEvents?.isEmpty == true)
+        XCTAssertNil(model.mediaTitle(withID: "severance")?.lastWatchedAt)
     }
 
     func testFinalEpisodeLeavesUpNext() throws {
@@ -282,4 +297,96 @@ final class AppModelTests: XCTestCase {
             ]
         )
     ]
+}
+
+@MainActor
+final class CatalogSearchTests: XCTestCase {
+    func testCatalogSearchKeepsProviderFuzzyMatches() async throws {
+        let fuzzyMatch = try XCTUnwrap(LibrarySnapshot.sample.titles.first(where: { $0.id == "past-lives" }))
+        let service = CatalogSearchStub { _ in [fuzzyMatch] }
+        let model = AppModel(
+            store: MemoryLibraryStore(),
+            catalogService: service,
+            seed: .sample
+        )
+
+        await model.searchCatalog(text: "Korean romance")
+
+        XCTAssertEqual(model.catalogSearchResults.map(\.id), [fuzzyMatch.id])
+        XCTAssertNil(model.catalogSearchError)
+    }
+
+    func testNewerCatalogSearchWinsWhenOlderRequestFinishesLast() async throws {
+        let slowResult = try XCTUnwrap(LibrarySnapshot.sample.titles.first(where: { $0.id == "severance" }))
+        let fastResult = try XCTUnwrap(LibrarySnapshot.sample.titles.first(where: { $0.id == "fallout" }))
+        let service = CatalogSearchStub { query in
+            if query.text == "slow" {
+                do {
+                    try await Task.sleep(for: .milliseconds(400))
+                } catch {
+                    // Simulate a provider that cannot cancel an in-flight request.
+                }
+                return [slowResult]
+            }
+            try await Task.sleep(for: .milliseconds(20))
+            return [fastResult]
+        }
+        let model = AppModel(
+            store: MemoryLibraryStore(),
+            catalogService: service,
+            seed: .sample
+        )
+
+        let slowSearch = Task { await model.searchCatalog(text: "slow") }
+        try await Task.sleep(for: .milliseconds(300))
+        let fastSearch = Task { await model.searchCatalog(text: "fast") }
+
+        await fastSearch.value
+        await slowSearch.value
+
+        XCTAssertEqual(model.catalogSearchQuery, "fast")
+        XCTAssertEqual(model.catalogSearchResults.map(\.id), [fastResult.id])
+        XCTAssertFalse(model.isSearchingCatalog)
+    }
+
+    func testClearingCatalogSearchInvalidatesInFlightResults() async throws {
+        let delayedResult = try XCTUnwrap(LibrarySnapshot.sample.titles.first(where: { $0.id == "severance" }))
+        let service = CatalogSearchStub { _ in
+            do {
+                try await Task.sleep(for: .milliseconds(400))
+            } catch {
+                // Native cancellation can be advisory once a provider request has started.
+            }
+            return [delayedResult]
+        }
+        let model = AppModel(
+            store: MemoryLibraryStore(),
+            catalogService: service,
+            seed: .sample
+        )
+
+        let pendingSearch = Task { await model.searchCatalog(text: "slow") }
+        try await Task.sleep(for: .milliseconds(300))
+        await model.searchCatalog(text: "")
+        await pendingSearch.value
+
+        XCTAssertTrue(model.catalogSearchResults.isEmpty)
+        XCTAssertEqual(model.catalogSearchQuery, "")
+        XCTAssertFalse(model.isSearchingCatalog)
+    }
+
+    func testCatalogSearchFailureHasDistinctErrorState() async {
+        let service = CatalogSearchStub { _ in throw CatalogServiceError.unavailable }
+        let model = AppModel(
+            store: MemoryLibraryStore(),
+            catalogService: service,
+            seed: .sample
+        )
+
+        await model.searchCatalog(text: "Severance")
+
+        XCTAssertTrue(model.catalogSearchResults.isEmpty)
+        XCTAssertEqual(model.catalogSearchError, CatalogServiceError.unavailable.localizedDescription)
+        XCTAssertFalse(model.isSearchingCatalog)
+    }
 }

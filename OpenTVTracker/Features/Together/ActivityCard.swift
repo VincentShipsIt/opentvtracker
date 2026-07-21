@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ActivityCard: View {
     @Environment(AppModel.self) private var model
+    @State private var revealsReactions = false
     let activity: SharedActivity
     let space: SharedSpace
     let title: MediaTitle?
@@ -48,7 +49,7 @@ struct ActivityCard: View {
                 .buttonStyle(.plain)
                 .accessibilityHint("Opens \(title.title)")
 
-                reactionMenu
+                reactionControl
             }
         } else {
             HStack(spacing: 14) {
@@ -63,35 +64,89 @@ struct ActivityCard: View {
                     .font(.headline)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                reactionMenu
+                reactionControl
             }
         }
     }
 
-    private var reactionMenu: some View {
-        Menu {
-            Button("Love", systemImage: "heart.fill") {
-                model.react(to: activity.id, symbol: "heart.fill")
-            }
-            Button("Nice", systemImage: "hand.thumbsup.fill") {
-                model.react(to: activity.id, symbol: "hand.thumbsup.fill")
-            }
-            Button("Funny", systemImage: "face.smiling.fill") {
-                model.react(to: activity.id, symbol: "face.smiling.fill")
-            }
-        } label: {
-            VStack(spacing: 4) {
-                Image(systemName: reactionSymbol)
-                    .font(.body.weight(.semibold))
-                if !reactionCounts.isEmpty {
-                    Text(reactionCounts.reduce(0) { $0 + $1.count }, format: .number)
-                        .font(.caption2.weight(.semibold))
+    @ViewBuilder
+    private var reactionControl: some View {
+        if canViewReactions {
+            Menu {
+                ForEach(availableReactionAssets) { asset in
+                    Button(
+                        asset.kind == .gif ? "GIF: \(asset.label)" : "\(asset.displayValue) \(asset.label)"
+                    ) {
+                        addReaction(asset)
+                    }
                 }
+            } label: {
+                VStack(spacing: 4) {
+                    if currentReactionAsset?.kind == .gif {
+                        Text("GIF")
+                            .font(.caption2.weight(.black))
+                    } else {
+                        Text(currentReactionAsset?.displayValue ?? "☺️")
+                            .font(.body)
+                    }
+                    if !reactionCounts.isEmpty {
+                        Text(reactionCounts.reduce(0) { $0 + $1.count }, format: .number)
+                            .font(.caption2.weight(.semibold))
+                    }
+                }
+                .foregroundStyle(currentReaction == nil ? Color.secondary : Color.accentColor)
+                .frame(width: 44, height: 44)
             }
-            .foregroundStyle(currentReaction == nil ? Color.secondary : Color.accentColor)
-            .frame(width: 44, height: 44)
+            .accessibilityLabel(currentReaction == nil ? "React to activity" : "Change reaction")
+        } else {
+            Button {
+                revealsReactions = true
+            } label: {
+                Image(systemName: "eye.slash.fill")
+                    .frame(width: 44, height: 44)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .accessibilityLabel("Reveal spoiler-sensitive reactions")
+            .accessibilityHint("Shows reactions attached to this episode")
         }
-        .accessibilityLabel(currentReaction == nil ? "React to activity" : "Change reaction")
+    }
+
+    private var availableReactionAssets: [SharedReactionAsset] {
+        activity.watchEventID == nil
+            ? SharedReactionAssetPolicy.emojiAssets
+            : SharedReactionAssetPolicy.allAssets
+    }
+
+    private var canViewReactions: Bool {
+        guard let season = activity.season,
+              let episode = activity.episode else {
+            return true
+        }
+        guard let title,
+              let episodeID = title.seasons?
+                .first(where: { $0.number == season })?
+                .episodes.first(where: { $0.number == episode })?
+                .id else {
+            return revealsReactions
+        }
+        return revealsReactions || model.isEpisodeWatched(
+            titleID: title.id,
+            seasonNumber: season,
+            episodeID: episodeID
+        )
+    }
+
+    private func addReaction(_ asset: SharedReactionAsset) {
+        if let watchEventID = activity.watchEventID {
+            model.react(to: watchEventID, asset: asset)
+        } else {
+            model.react(to: activity.id, symbol: asset.displayValue)
+        }
+    }
+
+    private var currentReactionAsset: SharedReactionAsset? {
+        currentReaction.flatMap(SharedReactionAssetPolicy.asset)
     }
 
     private var member: SpaceMember {
@@ -101,20 +156,28 @@ struct ActivityCard: View {
 
     private var currentReaction: SharedReaction? {
         let currentMemberID = space.members.first(where: \.isCurrentUser)?.id
+        if let watchEventID = activity.watchEventID {
+            return model.sharedSpace.reactions?.last { reaction in
+                reaction.watchEventID == watchEventID && reaction.memberID == currentMemberID
+            }
+        }
         return model.sharedSpace.reactions?.last { reaction in
             reaction.activityID == activity.id && reaction.memberID == currentMemberID
         }
     }
 
-    private var reactionSymbol: String {
-        currentReaction?.symbol ?? "face.smiling"
-    }
-
     private var reactionCounts: [ActivityReactionCount] {
-        let reactions = model.sharedSpace.reactions?.filter { $0.activityID == activity.id } ?? []
-        return Dictionary(grouping: reactions, by: \.symbol)
-            .map { ActivityReactionCount(symbol: $0.key, count: $0.value.count) }
-            .sorted { $0.symbol < $1.symbol }
+        let reactions = model.sharedSpace.reactions?.filter { reaction in
+            if let watchEventID = activity.watchEventID {
+                return reaction.watchEventID == watchEventID
+            }
+            return reaction.activityID == activity.id
+        } ?? []
+        return Dictionary(grouping: reactions) { reaction in
+            SharedReactionAssetPolicy.asset(for: reaction)?.id ?? reaction.symbol
+        }
+            .map { ActivityReactionCount(assetID: $0.key, count: $0.value.count) }
+            .sorted { $0.assetID < $1.assetID }
     }
 
     private var cardTint: Color? {
@@ -133,7 +196,7 @@ struct ActivityCard: View {
 }
 
 private struct ActivityReactionCount: Identifiable {
-    let symbol: String
+    let assetID: String
     let count: Int
-    var id: String { symbol }
+    var id: String { assetID }
 }

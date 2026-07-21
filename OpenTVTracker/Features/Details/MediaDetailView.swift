@@ -7,6 +7,7 @@ struct MediaDetailView: View {
     @State private var listPickerTitle: MediaTitle?
     @State private var showsTrackingEditor = false
     @State private var showsSharedNoteEditor = false
+    @State private var showsReminderEditor = false
 
     var body: some View {
         ZStack {
@@ -53,6 +54,14 @@ struct MediaDetailView: View {
         .sheet(isPresented: $showsSharedNoteEditor) {
             if let title { SharedNoteEditorView(title: title) }
         }
+        .sheet(isPresented: $showsReminderEditor) {
+            if let title {
+                TitleReminderEditorView(
+                    title: title,
+                    leadTime: model.reminderLeadTime(for: title.id)
+                )
+            }
+        }
         .navigationDestination(for: MoreLikeThisRoute.self) { route in
             MoreLikeThisView(sourceTitleID: route.sourceTitleID)
         }
@@ -60,11 +69,12 @@ struct MediaDetailView: View {
             SeasonEpisodesView(route: route)
         }
         .navigationDestination(for: CommunityReview.self) { CommunityReviewDetailView(review: $0) }
+        .navigationDestination(for: CommunityReviewsRoute.self) { route in
+            CommunityReviewsView(titleID: route.titleID)
+        }
     }
 
-    private var title: MediaTitle? {
-        model.mediaTitle(withID: titleID)
-    }
+    private var title: MediaTitle? { model.mediaTitle(withID: titleID) }
 
     private func hero(_ title: MediaTitle) -> some View {
         ZStack(alignment: .bottomLeading) {
@@ -112,67 +122,35 @@ struct MediaDetailView: View {
 
     private func actions(_ title: MediaTitle) -> some View {
         VStack(spacing: 10) {
-            if let trailerURL = title.trailerURL {
-                Button {
-                    presentedTrailer = TrailerPresentation(title: title.title, url: trailerURL)
-                } label: {
-                    Label("Watch trailer", systemImage: "play.fill")
-                        .frame(maxWidth: .infinity)
-                }
-                .controlSize(.large)
-                .adaptiveGlassButton(prominent: true)
+            TrailerActionView(title: title) { trailer in
+                presentedTrailer = trailer
             }
 
             Button {
                 model.markNextWatched(title.id)
             } label: {
                 Label(
-                    title.state == .completed ? "Watched" : title.kind == .movie ? "Mark watched" : "Mark next watched",
+                    title.nextWatchActionLabel,
                     systemImage: "checkmark.circle.fill"
                 )
                     .frame(maxWidth: .infinity)
             }
             .controlSize(.large)
             .adaptiveGlassButton(prominent: title.trailerURL == nil)
-            .disabled(title.state == .completed)
+            .disabled(title.state.isCurrentViewingComplete)
 
-            watchlistActions(title)
+            MediaDetailWatchlistActions(title: title)
+
+            MediaDetailReminderAction(
+                title: title,
+                showsReminderEditor: $showsReminderEditor
+            )
 
             recommendationAndTrackingActions(title)
 
             if model.isShared(title.id) {
                 sharedActions(title)
             }
-        }
-    }
-
-    private func watchlistActions(_ title: MediaTitle) -> some View {
-        HStack(spacing: 10) {
-            Button {
-                model.toggleWatchlist(title.id)
-            } label: {
-                Label(
-                    "My watchlist",
-                    systemImage: title.isOnPersonalWatchlist ? "bookmark.fill" : "bookmark"
-                )
-                    .frame(maxWidth: .infinity)
-            }
-            .adaptiveGlassButton()
-            .accessibilityValue(title.isOnPersonalWatchlist ? "Added" : "Not added")
-            .accessibilityHint("Adds or removes this title without changing your viewing progress")
-
-            Button {
-                model.toggleTogether(title.id)
-            } label: {
-                Label(
-                    "Our watchlist",
-                    systemImage: model.isShared(title.id) ? "person.2.fill" : "person.2"
-                )
-                    .frame(maxWidth: .infinity)
-            }
-            .adaptiveGlassButton()
-            .accessibilityValue(model.isShared(title.id) ? "Added" : "Not added")
-            .accessibilityHint("Adds or removes this title from the watchlist you share")
         }
     }
 
@@ -185,6 +163,34 @@ struct MediaDetailView: View {
 
             Button("Shared note", systemImage: "note.text.badge.plus") {
                 showsSharedNoteEditor = true
+            }
+            .adaptiveGlassButton()
+        }
+    }
+
+    private func recommendationAndTrackingActions(_ title: MediaTitle) -> some View {
+        VStack(spacing: 10) {
+            NavigationLink(value: MoreLikeThisRoute(sourceTitleID: title.id)) {
+                Label("More like this", systemImage: "sparkles")
+                    .frame(maxWidth: .infinity)
+            }
+            .controlSize(.large)
+            .adaptiveGlassButton()
+            .accessibilityHint("Finds similar unwatched titles on your selected streaming services")
+
+            Button {
+                showsTrackingEditor = true
+            } label: {
+                Label("Your activity", systemImage: "checkmark.rectangle.stack")
+                    .frame(maxWidth: .infinity)
+            }
+            .adaptiveGlassButton()
+
+            Button {
+                listPickerTitle = title
+            } label: {
+                Label("Add to custom list", systemImage: "list.bullet.rectangle")
+                    .frame(maxWidth: .infinity)
             }
             .adaptiveGlassButton()
         }
@@ -240,9 +246,17 @@ struct MediaDetailView: View {
         if !title.reviews.isEmpty {
             VStack(alignment: .leading, spacing: 12) {
                 SectionHeading(title: "Community notes", subtitle: "Spoilers stay hidden unless you ask")
-                ForEach(title.reviews) { review in
+                ForEach(Array(title.reviews.prefix(3))) { review in
                     ReviewCard(review: review)
                 }
+
+                NavigationLink(value: CommunityReviewsRoute(titleID: title.id)) {
+                    Label("See all reviews", systemImage: "text.bubble")
+                        .frame(maxWidth: .infinity)
+                }
+                .controlSize(.large)
+                .adaptiveGlassButton()
+                .accessibilityHint("Loads more source-attributed community reviews in OpenTV")
 
                 HStack {
                     if let sourceURL = SourceLinks.catalog(for: title) {
@@ -259,33 +273,11 @@ struct MediaDetailView: View {
     }
 }
 
-private extension MediaDetailView {
-    func recommendationAndTrackingActions(_ title: MediaTitle) -> some View {
-        VStack(spacing: 10) {
-            NavigationLink(value: MoreLikeThisRoute(sourceTitleID: title.id)) {
-                Label("More like this", systemImage: "sparkles")
-                    .frame(maxWidth: .infinity)
-            }
-            .controlSize(.large)
-            .adaptiveGlassButton()
-            .accessibilityHint("Finds similar unwatched titles on your selected streaming services")
-
-            Button {
-                showsTrackingEditor = true
-            } label: {
-                Label("Your activity", systemImage: "checkmark.rectangle.stack")
-                    .frame(maxWidth: .infinity)
-            }
-            .adaptiveGlassButton()
-
-            Button {
-                listPickerTitle = title
-            } label: {
-                Label("Add to custom list", systemImage: "list.bullet.rectangle")
-                    .frame(maxWidth: .infinity)
-            }
-            .adaptiveGlassButton()
-        }
+private extension MediaTitle {
+    var nextWatchActionLabel: String {
+        if state == .completed { return "Watched" }
+        if state == .caughtUp { return "Caught up" }
+        return kind == .movie ? "Mark watched" : "Mark next watched"
     }
 }
 

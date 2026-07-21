@@ -10,10 +10,11 @@ Website: [opentvtracker.dev](https://opentvtracker.dev)
 - Discover titles on selected streaming services with transparent on-device recommendations.
 - Optionally rerank the same bounded candidates using a user-controlled OpenRouter key.
 - Share a watchlist and progress through invitation-only CloudKit records.
+- Keep episode reactions and notes private, spoiler-gated, and attached to an exact shared watch event.
 - View Malta cinema listings and open official booking pages.
 - Import and export a portable, versioned library.
 
-Read the [product vision](docs/VISION.md), [architecture](docs/ARCHITECTURE.md), [threat model](docs/THREAT_MODEL.md), and [roadmap](docs/ROADMAP.md).
+Read the [data ownership promise](docs/DATA_OWNERSHIP.md), [product vision](docs/VISION.md), [architecture](docs/ARCHITECTURE.md), [threat model](docs/THREAT_MODEL.md), and [roadmap](docs/ROADMAP.md).
 
 ## Trust model
 
