@@ -15,7 +15,7 @@ enum DeterministicRecommendationEngine {
         context: RecommendationContext,
         limit: Int = 20
     ) -> [Recommendation] {
-        let history = snapshot.titles.filter { $0.state == .completed || $0.state == .watching }
+        let history = snapshot.titles.filter { $0.state.contributesViewingHistory }
         let analytics = ViewingAnalyticsEngine.summarize(snapshot: snapshot, scope: .personal)
         let genreWeights = preferredGenreWeights(history: history, analytics: analytics)
         let profiles = snapshot.sharedSpace.tasteProfiles ?? []
@@ -74,7 +74,7 @@ enum DeterministicRecommendationEngine {
         analytics: ViewingAnalyticsSummary
     ) -> [String: Double] {
         var weights = history.reduce(into: [String: Double]()) { weights, title in
-            let completionWeight = title.state == .completed ? 1.5 : 1.0
+            let completionWeight = title.state.isCurrentViewingComplete ? 1.5 : 1.0
             let ratingWeight = title.userRating.map { max($0 - 5, 0) / 5 } ?? 0.5
             for genre in title.genres {
                 weights[normalized(genre), default: 0] += completionWeight + ratingWeight
@@ -175,8 +175,7 @@ enum RecommendationViewingProfiler {
         let recentTitles = snapshot.titles
             .filter { title in
                 title.lastWatchedAt != nil
-                    || title.state == .watching
-                    || title.state == .completed
+                    || title.state.contributesViewingHistory
                     || !(title.watchedEpisodeIDs ?? []).isEmpty
             }
             .sorted(by: isMoreRecent)
@@ -205,7 +204,7 @@ enum RecommendationViewingProfiler {
         } else if totalEpisodeCount > 0 {
             completionFraction = min(Double(episodeCount) / Double(totalEpisodeCount), 1)
         } else {
-            completionFraction = title.state == .completed ? 1 : title.progress?.fraction ?? 0
+            completionFraction = title.state.isCurrentViewingComplete ? 1 : title.progress?.fraction ?? 0
         }
 
         return RecommendationTitleEngagement(

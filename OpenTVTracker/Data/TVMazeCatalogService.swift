@@ -126,6 +126,7 @@ private struct TVMazeShowDTO: Decodable {
     let runtime: Int?
     let averageRuntime: Int?
     let premiered: String?
+    let status: String?
     let rating: Rating
     let weight: Int?
     let network: Channel?
@@ -142,6 +143,7 @@ private struct TVMazeShowDTO: Decodable {
         case runtime
         case averageRuntime
         case premiered
+        case status
         case rating
         case weight
         case network
@@ -188,7 +190,8 @@ private struct TVMazeShowDTO: Decodable {
             personalWatchlist: false,
             seasons: Self.seasons(from: episodes, showID: id),
             metadataSource: .tvmaze,
-            sourceURL: url
+            sourceURL: url,
+            seriesLifecycle: Self.lifecycle(from: status)
         )
     }
 
@@ -252,6 +255,17 @@ private struct TVMazeShowDTO: Decodable {
         if !normalized.isDisjoint(with: ["drama", "documentary", "history"]) { return .thoughtful }
         if !normalized.isDisjoint(with: ["family", "romance"]) { return .cozy }
         return .any
+    }
+
+    private static func lifecycle(from status: String?) -> SeriesLifecycle {
+        switch status?.lowercased() {
+        case "ended":
+            .ended
+        case "running", "to be determined", "in development":
+            .continuing
+        default:
+            .unknown
+        }
     }
 
     private static func plainText(_ html: String?) -> String? {

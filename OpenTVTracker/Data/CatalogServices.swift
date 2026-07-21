@@ -133,6 +133,7 @@ private struct CatalogTitleDTO: Decodable {
     let nextEpisodeAirDate: Date?
     let nextEpisodeAirDateIsAllDay: Bool?
     let seasons: [SeasonSummary]?
+    let seriesLifecycle: SeriesLifecycle?
 
     var mediaTitle: MediaTitle {
         MediaTitle(
@@ -162,7 +163,8 @@ private struct CatalogTitleDTO: Decodable {
             personalWatchlist: false,
             seasons: seasons,
             metadataSource: .tmdb,
-            sourceURL: URL(string: "https://www.themoviedb.org/\(kind == .movie ? "movie" : "tv")/\(catalogID)")
+            sourceURL: URL(string: "https://www.themoviedb.org/\(kind == .movie ? "movie" : "tv")/\(catalogID)"),
+            seriesLifecycle: seriesLifecycle
         )
     }
 }

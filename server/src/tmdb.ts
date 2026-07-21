@@ -5,6 +5,8 @@ export const MediaKind = {
 
 export type MediaKind = (typeof MediaKind)[keyof typeof MediaKind];
 
+export type SeriesLifecycle = "continuing" | "ended" | "unknown";
+
 export const StreamingProviderID = {
   netflix: "netflix",
   primeVideo: "prime-video",
@@ -55,6 +57,7 @@ export type CatalogTitle = {
   nextEpisodeAirDate: string | null;
   nextEpisodeAirDateIsAllDay: boolean | null;
   seasons: SeasonSummary[] | null;
+  seriesLifecycle: SeriesLifecycle | null;
 };
 
 type StreamingProvider = {
@@ -289,7 +292,25 @@ function mapDetails(
     nextEpisodeAirDate: isoDay(stringValue(nextEpisode.air_date)),
     nextEpisodeAirDateIsAllDay: stringValue(nextEpisode.air_date) !== null,
     seasons,
+    seriesLifecycle:
+      kind === MediaKind.series ? mapSeriesLifecycle(details.status) : null,
   };
+}
+
+export function mapSeriesLifecycle(status: unknown): SeriesLifecycle {
+  if (typeof status !== "string") return "unknown";
+  switch (status.toLowerCase()) {
+    case "ended":
+    case "canceled":
+      return "ended";
+    case "returning series":
+    case "in production":
+    case "planned":
+    case "pilot":
+      return "continuing";
+    default:
+      return "unknown";
+  }
 }
 
 function providersForRegion(

@@ -72,21 +72,9 @@ final class AppModel {
         streamingRegionOverride = seed.streamingRegionCode.flatMap(StreamingRegion.init(code:))
         reminderSettings = seed.reminderSettings ?? ReminderSettings()
         importResolutionAliases = seed.importResolutionAliases ?? [:]
+        titles = migratedTrackingTitles(titles, fromSchemaVersion: seed.schemaVersion)
     }
-    var upNext: [MediaTitle] {
-        titles
-            .filter { title in
-                if title.state == .watching { return true }
-                guard title.kind == .movie,
-                      title.state == .planned,
-                      title.isOnPersonalWatchlist,
-                      let releaseDate = title.releaseDate else {
-                    return false
-                }
-                return releaseDate <= .now
-            }
-            .sorted(by: isHigherUpNextPriority)
-    }
+
     var recommendations: [MediaTitle] {
         rankedRecommendations.map { recommendation in
             var title = recommendation.title
@@ -144,7 +132,10 @@ final class AppModel {
 
         do {
             if let snapshot = try await store.load() {
-                titles = merging(savedTitles: snapshot.titles, catalogTitles: seed.titles)
+                titles = migratedTrackingTitles(
+                    merging(savedTitles: snapshot.titles, catalogTitles: seed.titles),
+                    fromSchemaVersion: snapshot.schemaVersion
+                )
                 sharedSpace = snapshot.sharedSpace
                 selectedProviderIDs = snapshot.selectedProviderIDs ?? Self.defaultProviderIDs
                 allowsAIReranking = snapshot.allowsAIReranking ?? false
@@ -185,7 +176,9 @@ extension AppModel {
             guard progress.episode < progress.totalEpisodes else { return }
             progress.episode = min(progress.episode + 1, progress.totalEpisodes)
             titles[index].progress = progress
-            titles[index].state = progress.episode == progress.totalEpisodes ? .completed : .watching
+            titles[index].state = progress.episode == progress.totalEpisodes
+                ? finishedState(for: titles[index])
+                : .watching
         }
 
         titles[index].lastWatchedAt = .now
@@ -200,14 +193,29 @@ extension AppModel {
     }
 
     func setWatchState(_ state: WatchState, for id: MediaTitle.ID) {
-        if state == .completed {
+        if state == .completed || state == .caughtUp {
             markWatched(id)
+            guard let index = trackableTitleIndex(for: id) else { return }
+            let canBeCaughtUp = titles[index].kind == .series
+                && titles[index].resolvedSeriesLifecycle != .ended
+            let resolvedState: WatchState = state == .caughtUp && canBeCaughtUp ? .caughtUp : .completed
+            guard titles[index].state != resolvedState else { return }
+            titles[index].state = resolvedState
+            persist()
+            refreshRecommendationsSoon()
             return
         }
         guard let index = trackableTitleIndex(for: id) else { return }
         titles[index].state = state
         if state == .planned {
             titles[index].personalWatchlist = true
+        } else if state == .dropped {
+            titles[index].personalWatchlist = false
+            titles[index].isUpNextPinned = nil
+            titles[index].upNextSnoozedUntil = nil
+            titles[index].upNextManualOrder = nil
+        } else if state == .watching {
+            titles[index].upNextSnoozedUntil = nil
         }
         persist()
         refreshRecommendationsSoon()
@@ -249,7 +257,9 @@ extension AppModel {
         )
         let supersededID = sharedSpace.watchEvents?.last(where: { $0.titleID == id })?.id
         titles[index].progress = corrected
-        titles[index].state = corrected.episode == corrected.totalEpisodes ? .completed : .watching
+        titles[index].state = corrected.episode == corrected.totalEpisodes
+            ? finishedState(for: titles[index])
+            : .watching
         appendWatchEvent(title: titles[index], kind: .correction, supersedesEventID: supersededID)
         addActivity(
             description: "corrected \(titles[index].title) to \(corrected.label)",
@@ -286,7 +296,10 @@ extension AppModel {
     }
 
     func replaceLibrary(with snapshot: LibrarySnapshot) {
-        titles = merging(savedTitles: snapshot.titles, catalogTitles: seed.titles)
+        titles = migratedTrackingTitles(
+            merging(savedTitles: snapshot.titles, catalogTitles: seed.titles),
+            fromSchemaVersion: snapshot.schemaVersion
+        )
         sharedSpace = snapshot.sharedSpace
         selectedProviderIDs = snapshot.selectedProviderIDs ?? Self.defaultProviderIDs
         allowsAIReranking = snapshot.allowsAIReranking ?? false
@@ -364,32 +377,16 @@ extension AppModel {
             refreshedTitle.isDisliked = savedTitle.isDisliked
             refreshedTitle.personalWatchlist = savedTitle.personalWatchlist
             refreshedTitle.watchedEpisodeIDs = savedTitle.watchedEpisodeIDs
-            return refreshedTitle
+            refreshedTitle.seriesLifecycle = catalogTitle.seriesLifecycle ?? savedTitle.seriesLifecycle
+            refreshedTitle.isUpNextPinned = savedTitle.isUpNextPinned
+            refreshedTitle.upNextSnoozedUntil = savedTitle.upNextSnoozedUntil
+            refreshedTitle.upNextManualOrder = savedTitle.upNextManualOrder
+            return refreshedTrackingTitle(refreshedTitle)
         }
-        let localOnlyTitles = savedTitles.filter { !catalogIDs.contains($0.id) }
+        let localOnlyTitles = savedTitles
+            .filter { !catalogIDs.contains($0.id) }
+            .map { refreshedTrackingTitle($0) }
         return refreshedCatalog + localOnlyTitles
-    }
-
-    private func isHigherUpNextPriority(_ lhs: MediaTitle, _ rhs: MediaTitle) -> Bool {
-        if lhs.state != rhs.state { return lhs.state == .watching }
-
-        let lhsDate = lhs.nextEpisodeAirDate ?? lhs.releaseDate
-        let rhsDate = rhs.nextEpisodeAirDate ?? rhs.releaseDate
-        switch (lhsDate, rhsDate) {
-        case let (lhsDate?, rhsDate?) where lhsDate != rhsDate:
-            return lhsDate < rhsDate
-        case (_?, nil):
-            return true
-        case (nil, _?):
-            return false
-        default:
-            break
-        }
-
-        if lhs.lastWatchedAt != rhs.lastWatchedAt {
-            return (lhs.lastWatchedAt ?? .distantPast) > (rhs.lastWatchedAt ?? .distantPast)
-        }
-        return lhs.title.localizedStandardCompare(rhs.title) == .orderedAscending
     }
 
     private static let defaultProviderIDs: Set<StreamingProvider.ID> = [

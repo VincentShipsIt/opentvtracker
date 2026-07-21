@@ -8,7 +8,8 @@ enum LibraryTransferService {
     static func exportTitlesCSV(_ snapshot: LibrarySnapshot) -> Data {
         let header = [
             "catalog_id", "title", "year", "kind", "state", "personal_watchlist", "season", "episode",
-            "total_episodes", "rating", "notes", "rewatches", "last_watched_at"
+            "total_episodes", "rating", "notes", "rewatches", "last_watched_at",
+            "series_lifecycle", "is_up_next_pinned", "up_next_snoozed_until", "up_next_manual_order"
         ]
         let rows = snapshot.titles.map(titleCSVRow)
         return csvData(header: header, rows: rows)
@@ -62,7 +63,10 @@ extension LibraryTransferService {
         var duplicates = 0
         var seen = Set<String>()
 
-        for importedTitle in imported.titles {
+        for sourceTitle in imported.titles {
+            let importedTitle = sourceTitle.migratedTrackingState(
+                fromSchemaVersion: imported.schemaVersion
+            )
             let identity = identityKey(for: importedTitle)
             guard seen.insert(identity).inserted else {
                 duplicates += 1
@@ -186,7 +190,7 @@ extension LibraryTransferService {
     private static func applyCSVTracking(_ values: [String: String], title: inout MediaTitle) {
         if let stateValue = stringValue(in: values, keys: ["state", "status"]),
            let state = WatchState(rawValue: stateValue.lowercased()) {
-            title.state = state
+            title.state = state == .caughtUp && title.kind != .series ? .completed : state
         }
         if let watchlist = boolValue(
             in: values,
@@ -205,6 +209,19 @@ extension LibraryTransferService {
         }
         if let watchedAt = stringValue(in: values, keys: ["last_watched_at", "watched_at"]) {
             title.lastWatchedAt = iso8601Date(watchedAt)
+        }
+        if let lifecycle = stringValue(in: values, keys: ["series_lifecycle"]),
+           let seriesLifecycle = SeriesLifecycle(rawValue: lifecycle.lowercased()) {
+            title.seriesLifecycle = seriesLifecycle
+        }
+        if let pinned = boolValue(in: values, keys: ["is_up_next_pinned", "up_next_pinned"]) {
+            title.isUpNextPinned = pinned ? true : nil
+        }
+        if let snoozedUntil = stringValue(in: values, keys: ["up_next_snoozed_until"]) {
+            title.upNextSnoozedUntil = iso8601Date(snoozedUntil)
+        }
+        if let manualOrder = intValue(in: values, keys: ["up_next_manual_order"]) {
+            title.upNextManualOrder = max(manualOrder, 0)
         }
     }
 
@@ -232,6 +249,10 @@ extension LibraryTransferService {
         result.isDisliked = imported.isDisliked
         result.personalWatchlist = imported.personalWatchlist
         result.watchedEpisodeIDs = imported.watchedEpisodeIDs
+        result.seriesLifecycle = imported.seriesLifecycle ?? catalog.seriesLifecycle
+        result.isUpNextPinned = imported.isUpNextPinned
+        result.upNextSnoozedUntil = imported.upNextSnoozedUntil
+        result.upNextManualOrder = imported.upNextManualOrder
         return result
     }
 }
@@ -243,12 +264,17 @@ extension LibraryTransferService {
         let totalEpisodes = title.progress.map { String($0.totalEpisodes) } ?? ""
         let rating = title.userRating.map { String($0) } ?? ""
         let lastWatchedAt = title.lastWatchedAt.map(iso8601String) ?? ""
+        let snoozedUntil = title.upNextSnoozedUntil.map(iso8601String) ?? ""
 
         return [
             String(title.catalogID), title.title, String(title.year), title.kind.rawValue,
             title.state.rawValue, String(title.isOnPersonalWatchlist), season, episode,
             totalEpisodes, rating, title.notes ?? "",
-            String(title.completedRewatches), lastWatchedAt
+            String(title.completedRewatches), lastWatchedAt,
+            title.seriesLifecycle?.rawValue ?? "",
+            String(title.isUpNextPinned == true),
+            snoozedUntil,
+            title.upNextManualOrder.map(String.init) ?? ""
         ]
     }
 

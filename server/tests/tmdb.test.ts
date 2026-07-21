@@ -2,10 +2,21 @@ import { describe, expect, test } from "bun:test";
 import {
   mapEpisodeSummary,
   mapReviews,
+  mapSeriesLifecycle,
   mapStreamingProvider,
   StreamingProviderID,
   TMDBProviderID,
 } from "../src/tmdb";
+
+describe("mapSeriesLifecycle", () => {
+  test("distinguishes ended series from continuing catalog entries", () => {
+    expect(mapSeriesLifecycle("Ended")).toBe("ended");
+    expect(mapSeriesLifecycle("Canceled")).toBe("ended");
+    expect(mapSeriesLifecycle("Returning Series")).toBe("continuing");
+    expect(mapSeriesLifecycle("In Production")).toBe("continuing");
+    expect(mapSeriesLifecycle(undefined)).toBe("unknown");
+  });
+});
 
 describe("mapReviews", () => {
   test("keeps complete TMDB review content and source metadata", () => {
