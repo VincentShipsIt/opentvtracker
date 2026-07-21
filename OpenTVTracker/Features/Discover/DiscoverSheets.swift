@@ -174,7 +174,7 @@ struct StreamingServicesSettingsView: View {
             } header: {
                 Text("I subscribe to")
             } footer: {
-                Text("Discover and search only include titles available on at least one selected service.")
+                Text("These choices personalize Discover recommendations and highlight availability. Catalog search can include other services.")
             }
 
             Section {
