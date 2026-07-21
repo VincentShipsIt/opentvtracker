@@ -3,6 +3,7 @@ import SwiftUI
 struct PartnerInvitationView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
     let space: SharedSpace
     let sharingService: any PartnerSharingProviding
     @State private var availability: PartnerSharingAvailability?
@@ -82,7 +83,11 @@ struct PartnerInvitationView: View {
                     Button("Done") { dismiss() }
                 }
             }
-            .task { availability = await sharingService.availability() }
+            .task { await refreshAvailability() }
+            .onChange(of: scenePhase) { _, phase in
+                guard phase == .active else { return }
+                Task { await refreshAvailability() }
+            }
             .sheet(item: $nearbyPairingRoute) { route in
                 switch route {
                 case .host(let invitationURL):
@@ -179,7 +184,7 @@ struct PartnerInvitationView: View {
         model.sharedSpace.members.first(where: \.isCurrentUser)?.name ?? "Partner"
     }
 
-    private func prepareNearbyHosting() async {
+    private func requestInvitation() async -> URL? {
         isWorking = true
         defer { isWorking = false }
         do {
@@ -188,24 +193,24 @@ struct PartnerInvitationView: View {
             await model.flushSharedState()
             invitationURL = url
             errorMessage = nil
-            nearbyPairingRoute = .host(url)
+            return url
         } catch {
             errorMessage = error.localizedDescription
+            return nil
         }
     }
 
+    private func prepareNearbyHosting() async {
+        guard let url = await requestInvitation() else { return }
+        nearbyPairingRoute = .host(url)
+    }
+
     private func createInvitation() async {
-        isWorking = true
-        defer { isWorking = false }
-        do {
-            let url = try await sharingService.inviteURL(for: space.id)
-            model.markPartnerShareCreated()
-            await model.flushSharedState()
-            invitationURL = url
-            errorMessage = nil
-        } catch {
-            errorMessage = error.localizedDescription
-        }
+        _ = await requestInvitation()
+    }
+
+    private func refreshAvailability() async {
+        availability = await sharingService.availability()
     }
 
     private func revokeInvitation() async {

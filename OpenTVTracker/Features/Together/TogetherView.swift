@@ -2,6 +2,7 @@ import SwiftUI
 
 struct TogetherView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.scenePhase) private var scenePhase
     private let sharingService: any PartnerSharingProviding
     @State private var presentedSheet: TogetherSheet?
     @State private var sharingAvailability: PartnerSharingAvailability?
@@ -36,8 +37,10 @@ struct TogetherView: View {
             .navigationDestination(for: MediaTitle.self) { title in
                 MediaDetailView(titleID: title.id)
             }
-            .task {
-                sharingAvailability = await sharingService.availability()
+            .task { await refreshSharingAvailability() }
+            .onChange(of: scenePhase) { _, phase in
+                guard phase == .active else { return }
+                Task { await refreshSharingAvailability() }
             }
         }
     }
@@ -108,6 +111,10 @@ struct TogetherView: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("together.viewing-analytics")
+    }
+
+    private func refreshSharingAvailability() async {
+        sharingAvailability = await sharingService.availability()
     }
 }
 
