@@ -19,6 +19,12 @@ protocol CatalogProviding: Sendable {
     func reviews(kind: MediaKind, catalogID: Int, page: Int) async throws -> CommunityReviewPage
 }
 
+extension CatalogProviding {
+    func reviews(kind _: MediaKind, catalogID _: Int, page: Int) async throws -> CommunityReviewPage {
+        CommunityReviewPage(page: max(page, 1), totalPages: 1, results: [])
+    }
+}
+
 struct RecommendationContext: Hashable, Sendable {
     var mood: Mood
     var maximumRuntimeMinutes: Int?
