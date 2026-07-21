@@ -32,8 +32,13 @@ struct CreditsView: View {
                     Text("Tracking works locally. Partner sharing uses invitation-only iCloud records separate from the personal library. AI reranking is opt-in and uses the user's OpenRouter key from this iPhone's Keychain.")
                 }
 
+                Section("Data ownership") {
+                    Text("A complete, versioned JSON backup can be exported without an account or support request. CSV exports keep titles, watch events, and private shared conversations readable in common tools.")
+                    Text("If the hosted catalog proxy is unavailable, local tracking, import, export, deterministic recommendations, TVmaze fallback, and official cinema links keep working.")
+                }
+
                 Section("Open source") {
-                    Text("MIT licensed and designed for public-source development.")
+                    Text("MIT licensed. The app remains useful locally if official hosted services change or end, and forks can operate their own provider proxy.")
                     if let url = URL(string: "https://github.com/VincentShipsIt/opentvtracker") {
                         Link("Repository", destination: url)
                     }

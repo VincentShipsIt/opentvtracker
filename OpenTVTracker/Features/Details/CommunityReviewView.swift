@@ -58,6 +58,11 @@ struct ReviewCard: View {
                 if let rating = review.rating {
                     RatingLabel(rating: rating)
                 }
+                if let createdAt = review.createdAt {
+                    Text(createdAt.formatted(date: .abbreviated, time: .omitted))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
     }

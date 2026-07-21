@@ -29,6 +29,12 @@ struct ProfileView: View {
                         )
 
                         titleSection(
+                            title: "Caught up",
+                            subtitle: "Continuing series with no released episodes left",
+                            titles: model.caughtUpTitlesByRecency
+                        )
+
+                        titleSection(
                             title: "Finished",
                             subtitle: "Completed titles, newest activity first",
                             titles: model.completedTitlesByRecency

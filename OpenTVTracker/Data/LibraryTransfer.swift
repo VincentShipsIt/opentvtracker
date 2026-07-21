@@ -1,40 +1,5 @@
 import Foundation
 
-struct LibraryImportPreview: Sendable {
-    let snapshot: LibrarySnapshot
-    let matchedCount: Int
-    let addedCount: Int
-    let duplicateCount: Int
-    let skippedCount: Int
-    let sourceName: String
-    let watchedEpisodeCount: Int
-    let watchEventCount: Int
-
-    init(
-        snapshot: LibrarySnapshot,
-        matchedCount: Int,
-        addedCount: Int,
-        duplicateCount: Int,
-        skippedCount: Int,
-        sourceName: String = "OpenTV",
-        watchedEpisodeCount: Int = 0,
-        watchEventCount: Int = 0
-    ) {
-        self.snapshot = snapshot
-        self.matchedCount = matchedCount
-        self.addedCount = addedCount
-        self.duplicateCount = duplicateCount
-        self.skippedCount = skippedCount
-        self.sourceName = sourceName
-        self.watchedEpisodeCount = watchedEpisodeCount
-        self.watchEventCount = watchEventCount
-    }
-
-    var summary: String {
-        "\(matchedCount) matched · \(addedCount) new · \(duplicateCount) duplicates · \(skippedCount) skipped"
-    }
-}
-
 enum LibraryTransferService {
     static func exportJSON(_ snapshot: LibrarySnapshot) throws -> Data {
         try LibraryArchiveCodec.encode(snapshot, prettyPrinted: true)
@@ -43,7 +8,8 @@ enum LibraryTransferService {
     static func exportTitlesCSV(_ snapshot: LibrarySnapshot) -> Data {
         let header = [
             "catalog_id", "title", "year", "kind", "state", "personal_watchlist", "season", "episode",
-            "total_episodes", "rating", "notes", "rewatches", "last_watched_at"
+            "total_episodes", "rating", "notes", "rewatches", "last_watched_at",
+            "series_lifecycle", "is_up_next_pinned", "up_next_snoozed_until", "up_next_manual_order"
         ]
         let rows = snapshot.titles.map(titleCSVRow)
         return csvData(header: header, rows: rows)
@@ -70,8 +36,14 @@ enum LibraryTransferService {
     }
 
     static func previewImport(_ data: Data, into current: LibrarySnapshot) throws -> LibraryImportPreview {
-        if let imported = try? LibraryArchiveCodec.decode(data) {
-            return merge(imported: imported, into: current)
+        if LibraryBackupMerge.appearsToBeJSON(data) {
+            do {
+                return merge(imported: try LibraryArchiveCodec.decode(data), into: current)
+            } catch let error as LibraryArchiveError {
+                throw error
+            } catch {
+                throw LibraryTransferError.unreadableFile
+            }
         }
         guard let csv = String(data: data, encoding: .utf8) else {
             throw LibraryTransferError.unreadableFile
@@ -97,7 +69,10 @@ extension LibraryTransferService {
         var seen = Set<String>()
         var importedTitleIDMap: [MediaTitle.ID: MediaTitle.ID] = [:]
 
-        for importedTitle in imported.titles {
+        for sourceTitle in imported.titles {
+            let importedTitle = sourceTitle.migratedTrackingState(
+                fromSchemaVersion: imported.schemaVersion
+            )
             let identity = identityKey(for: importedTitle)
             guard seen.insert(identity).inserted else {
                 if let destination = merged.titles.first(where: { titlesMatch($0, importedTitle) }) {
@@ -118,28 +93,62 @@ extension LibraryTransferService {
             }
         }
 
-        if let selectedProviderIDs = imported.selectedProviderIDs {
-            merged.selectedProviderIDs = selectedProviderIDs
-        }
-        if imported.diaryEntries != nil || imported.sharedSpace.watchEvents?.isEmpty == false {
-            let importedDiaryEntries = remappingDiaryEntries(
-                ViewingDiaryMigration.resolvedEntries(from: imported),
-                titleIDMap: importedTitleIDMap,
-                destinationTitles: merged.titles
-            )
-            merged.diaryEntries = mergedDiaryEntries(
-                current: merged.diaryEntries ?? [],
-                imported: importedDiaryEntries
-            )
-        }
+        mergeLibraryMetadata(imported: imported, current: current, into: &merged)
+        mergeDiaryMetadata(imported: imported, titleIDMap: importedTitleIDMap, into: &merged)
 
         return LibraryImportPreview(
             snapshot: merged,
             matchedCount: matched,
             addedCount: added,
             duplicateCount: duplicates,
-            skippedCount: 0
+            skippedCount: 0,
+            sourceName: "OpenTV backup",
+            watchedEpisodeCount: imported.titles.reduce(0) {
+                $0 + ($1.watchedEpisodeIDs?.count ?? 0)
+            },
+            watchEventCount: imported.sharedSpace.watchEvents?.count ?? 0,
+            importNotice: LibraryBackupMerge.importNotice(
+                for: imported,
+                current: current
+            )
         )
+    }
+
+    private static func mergeDiaryMetadata(
+        imported: LibrarySnapshot,
+        titleIDMap: [MediaTitle.ID: MediaTitle.ID],
+        into merged: inout LibrarySnapshot
+    ) {
+        guard imported.diaryEntries != nil || imported.sharedSpace.watchEvents?.isEmpty == false else { return }
+        let importedEntries = remappingDiaryEntries(
+            ViewingDiaryMigration.resolvedEntries(from: imported),
+            titleIDMap: titleIDMap,
+            destinationTitles: merged.titles
+        )
+        merged.diaryEntries = mergedDiaryEntries(
+            current: merged.diaryEntries ?? [],
+            imported: importedEntries
+        )
+    }
+
+    private static func mergeLibraryMetadata(
+        imported: LibrarySnapshot,
+        current: LibrarySnapshot,
+        into merged: inout LibrarySnapshot
+    ) {
+        merged.selectedProviderIDs = imported.selectedProviderIDs ?? merged.selectedProviderIDs
+        if let aliases = imported.importResolutionAliases {
+            var mergedAliases = merged.importResolutionAliases ?? [:]
+            mergedAliases.merge(aliases) { _, importedAlias in importedAlias }
+            merged.importResolutionAliases = mergedAliases
+        }
+        merged.sharedSpace = LibraryBackupMerge.sharedSpace(
+            imported: imported.sharedSpace,
+            into: current.sharedSpace
+        )
+        merged.allowsAIReranking = imported.allowsAIReranking ?? merged.allowsAIReranking
+        merged.streamingRegionCode = imported.streamingRegionCode ?? merged.streamingRegionCode
+        merged.hasCompletedFirstRun = imported.hasCompletedFirstRun ?? merged.hasCompletedFirstRun
     }
 
     private static func mergeCSV(
@@ -211,7 +220,7 @@ extension LibraryTransferService {
     private static func applyCSVTracking(_ values: [String: String], title: inout MediaTitle) {
         if let stateValue = stringValue(in: values, keys: ["state", "status"]),
            let state = WatchState(rawValue: stateValue.lowercased()) {
-            title.state = state
+            title.state = state == .caughtUp && title.kind != .series ? .completed : state
         }
         if let watchlist = boolValue(
             in: values,
@@ -230,6 +239,19 @@ extension LibraryTransferService {
         }
         if let watchedAt = stringValue(in: values, keys: ["last_watched_at", "watched_at"]) {
             title.lastWatchedAt = iso8601Date(watchedAt)
+        }
+        if let lifecycle = stringValue(in: values, keys: ["series_lifecycle"]),
+           let seriesLifecycle = SeriesLifecycle(rawValue: lifecycle.lowercased()) {
+            title.seriesLifecycle = seriesLifecycle
+        }
+        if let pinned = boolValue(in: values, keys: ["is_up_next_pinned", "up_next_pinned"]) {
+            title.isUpNextPinned = pinned ? true : nil
+        }
+        if let snoozedUntil = stringValue(in: values, keys: ["up_next_snoozed_until"]) {
+            title.upNextSnoozedUntil = iso8601Date(snoozedUntil)
+        }
+        if let manualOrder = intValue(in: values, keys: ["up_next_manual_order"]) {
+            title.upNextManualOrder = max(manualOrder, 0)
         }
     }
 
@@ -254,12 +276,17 @@ extension LibraryTransferService {
         let totalEpisodes = title.progress.map { String($0.totalEpisodes) } ?? ""
         let rating = title.userRating.map { String($0) } ?? ""
         let lastWatchedAt = title.lastWatchedAt.map(iso8601String) ?? ""
+        let snoozedUntil = title.upNextSnoozedUntil.map(iso8601String) ?? ""
 
         return [
             String(title.catalogID), title.title, String(title.year), title.kind.rawValue,
             title.state.rawValue, String(title.isOnPersonalWatchlist), season, episode,
             totalEpisodes, rating, title.notes ?? "",
-            String(title.completedRewatches), lastWatchedAt
+            String(title.completedRewatches), lastWatchedAt,
+            title.seriesLifecycle?.rawValue ?? "",
+            String(title.isUpNextPinned == true),
+            snoozedUntil,
+            title.upNextManualOrder.map(String.init) ?? ""
         ]
     }
 
@@ -356,12 +383,6 @@ extension LibraryTransferService {
         return fractionalFormatter.date(from: value) ?? ISO8601DateFormatter().date(from: value)
     }
 
-}
-
-private enum CSVRowResult {
-    case matched
-    case duplicate
-    case skipped
 }
 
 enum LibraryTransferError: LocalizedError {

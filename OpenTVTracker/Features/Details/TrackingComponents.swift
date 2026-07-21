@@ -131,6 +131,7 @@ struct TrackingSummaryCard: View {
 }
 
 struct TrackingStatusSection: View {
+    let states: [WatchState]
     let selectedState: WatchState
     let onSelect: (WatchState) -> Void
 
@@ -139,7 +140,7 @@ struct TrackingStatusSection: View {
             SectionHeading(title: "Status")
 
             LazyVGrid(columns: columns, spacing: 10) {
-                ForEach(WatchState.allCases, id: \.self) { state in
+                ForEach(states, id: \.self) { state in
                     Button {
                         onSelect(state)
                     } label: {

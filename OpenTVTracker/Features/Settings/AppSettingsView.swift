@@ -3,7 +3,10 @@ import SwiftUI
 struct AppSettingsView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
+    @AppStorage(BackupHealth.lastSuccessfulExportTimestampKey)
+    private var lastSuccessfulBackupTimestamp = 0.0
     @State private var showsCredits = false
+    @State private var showsDataTools = false
 
     var body: some View {
         NavigationStack {
@@ -21,6 +24,15 @@ struct AppSettingsView: View {
                         StreamingServicesSettingsView()
                     } label: {
                         LabeledContent("Subscriptions", value: subscriptionSummary)
+                    }
+
+                    NavigationLink {
+                        ReminderSettingsView()
+                    } label: {
+                        LabeledContent(
+                            "Reminders & widgets",
+                            value: model.reminderSettings.isEnabled ? "On" : "Off"
+                        )
                     }
                 } header: {
                     Text("Availability")
@@ -43,6 +55,33 @@ struct AppSettingsView: View {
                 }
 
                 Section {
+                    NavigationLink {
+                        TraktSettingsView()
+                    } label: {
+                        LabeledContent("Trakt", value: model.isTraktAuthorized ? "Connected" : "Optional")
+                    }
+                } header: {
+                    Text("Integrations")
+                } footer: {
+                    Text("OpenTV remains fully functional offline and without a Trakt account.")
+                }
+
+                Section {
+                    Button {
+                        showsDataTools = true
+                    } label: {
+                        LabeledContent("Portable backup") {
+                            Label(backupHealth.label, systemImage: backupHealth.systemImage)
+                        }
+                    }
+                    .accessibilityHint("Opens import and export tools")
+                } header: {
+                    Text("Your data")
+                } footer: {
+                    Text(backupHealth.reminder)
+                }
+
+                Section {
                     Button("Credits & privacy", systemImage: "hand.raised.fill") {
                         showsCredits = true
                     }
@@ -60,7 +99,18 @@ struct AppSettingsView: View {
             .sheet(isPresented: $showsCredits) {
                 CreditsView()
             }
+            .sheet(isPresented: $showsDataTools) {
+                LibraryDataView()
+            }
         }
+    }
+
+    private var backupHealth: BackupHealthState {
+        BackupHealth.state(
+            lastSuccessfulExportAt: BackupHealth.lastSuccessfulExportAt(
+                from: lastSuccessfulBackupTimestamp
+            )
+        )
     }
 
     private var subscriptionSummary: String {

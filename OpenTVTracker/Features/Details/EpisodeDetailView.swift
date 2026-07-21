@@ -15,6 +15,11 @@ struct EpisodeDetailView: View {
                         hero(title: title, season: season, episode: episode)
                         trackingActions(title: title, season: season, episode: episode)
                         EpisodeDiarySection(title: title, season: season, episode: episode)
+                        EpisodeConversationView(
+                            title: title,
+                            season: season,
+                            episode: episode
+                        )
                         episodeInformation(episode)
                         EpisodeStorySection(title: title, season: season, episode: episode)
                     }

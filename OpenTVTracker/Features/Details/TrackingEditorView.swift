@@ -64,7 +64,10 @@ struct TrackingEditorView: View {
     }
 
     private var statusSection: some View {
-        TrackingStatusSection(selectedState: currentTitle.state) { state in
+        TrackingStatusSection(
+            states: WatchState.available(for: currentTitle.kind),
+            selectedState: currentTitle.state
+        ) { state in
             model.setWatchState(state, for: currentTitle.id)
         }
     }

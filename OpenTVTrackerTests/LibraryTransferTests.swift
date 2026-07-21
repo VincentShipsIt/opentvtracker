@@ -35,7 +35,14 @@ final class LibraryTransferTests: XCTestCase {
         snapshot.titles[index].notes = "Watch the elevator details."
         snapshot.titles[index].rewatchCount = 2
         snapshot.titles[index].personalWatchlist = true
-        snapshot.diaryEntries = [Self.diaryEntry]
+        snapshot.diaryEntries = [LibraryDiaryTransferTests.diaryEntry]
+        snapshot.titles[index].seriesLifecycle = .continuing
+        snapshot.titles[index].isUpNextPinned = true
+        snapshot.titles[index].upNextSnoozedUntil = Date(timeIntervalSince1970: 2_000_000_000)
+        snapshot.titles[index].upNextManualOrder = 3
+        snapshot.importResolutionAliases = [
+            "series:source:42": ImportResolutionAlias(kind: .series, catalogID: 95_396)
+        ]
 
         let data = try LibraryTransferService.exportJSON(snapshot)
         let preview = try LibraryTransferService.previewImport(data, into: .sample)
@@ -45,139 +52,189 @@ final class LibraryTransferTests: XCTestCase {
         XCTAssertEqual(imported.notes, "Watch the elevator details.")
         XCTAssertEqual(imported.completedRewatches, 2)
         XCTAssertTrue(imported.isOnPersonalWatchlist)
-        XCTAssertEqual(preview.snapshot.diaryEntries, [Self.diaryEntry])
+        XCTAssertEqual(preview.snapshot.diaryEntries, [LibraryDiaryTransferTests.diaryEntry])
+        XCTAssertEqual(imported.seriesLifecycle, .continuing)
+        XCTAssertEqual(imported.isUpNextPinned, true)
+        XCTAssertEqual(imported.upNextSnoozedUntil, Date(timeIntervalSince1970: 2_000_000_000))
+        XCTAssertEqual(imported.upNextManualOrder, 3)
+        XCTAssertEqual(
+            preview.snapshot.importResolutionAliases?["series:source:42"],
+            ImportResolutionAlias(kind: .series, catalogID: 95_396)
+        )
         XCTAssertEqual(preview.matchedCount, snapshot.titles.count)
     }
 
-    func testLegacyImportKeepsExistingEpisodeHistoryAndRemapsDiaryIdentity() throws {
-        let imported = try legacySnapshotWithRemappedDiary()
-        let destination = try destinationSnapshotForLegacyImport()
+    func testCSVImportRestoresExpandedStateAndQueueIntent() throws {
+        let csv = """
+        catalog_id,title,year,state,series_lifecycle,is_up_next_pinned,up_next_snoozed_until,up_next_manual_order
+        95396,Severance,2022,caught_up,continuing,true,2033-05-18T03:33:20Z,7
+        """
 
         let preview = try LibraryTransferService.previewImport(
-            LibraryArchiveCodec.encode(imported, prettyPrinted: false),
-            into: destination
+            try XCTUnwrap(csv.data(using: .utf8)),
+            into: .sample
         )
 
-        let title = try XCTUnwrap(preview.snapshot.titles.first(where: { $0.id == "severance" }))
-        XCTAssertEqual(title.watchedEpisodeIDs, ["existing-watch"])
-        XCTAssertEqual(preview.snapshot.diaryEntries?.first?.titleID, "severance")
-        XCTAssertEqual(preview.snapshot.diaryEntries?.first?.episodeID, "destination-episode")
+        let severance = try XCTUnwrap(preview.snapshot.titles.first(where: { $0.id == "severance" }))
+        XCTAssertEqual(severance.state, .caughtUp)
+        XCTAssertEqual(severance.seriesLifecycle, .continuing)
+        XCTAssertEqual(severance.isUpNextPinned, true)
+        XCTAssertEqual(severance.upNextSnoozedUntil, Date(timeIntervalSince1970: 2_000_000_000))
+        XCTAssertEqual(severance.upNextManualOrder, 7)
     }
 
-    private func legacySnapshotWithRemappedDiary() throws -> LibrarySnapshot {
-        var snapshot = LibrarySnapshot.sample
-        let index = try XCTUnwrap(snapshot.titles.firstIndex(where: { $0.id == "severance" }))
-        var title = try replacingID(of: snapshot.titles[index], with: "legacy-severance")
-        title.watchedEpisodeIDs = nil
-        title.seasons = [Self.legacySeason]
-        snapshot.titles[index] = title
-        snapshot.diaryEntries = [
-            ViewingDiaryEntry(
-                id: "legacy-diary",
-                titleID: title.id,
-                scope: .episode,
-                seasonNumber: 1,
-                episodeID: "legacy-episode",
-                episodeNumber: 1,
-                watchedAt: .now,
-                rating: nil,
-                note: nil,
-                isRewatch: false,
-                createdAt: .now,
-                updatedAt: .now
-            )
-        ]
-        return snapshot
-    }
+    func testCSVImportRejectsCaughtUpForMovies() throws {
+        let csv = """
+        catalog_id,title,year,state
+        666277,Past Lives,2023,caught_up
+        """
 
-    private func destinationSnapshotForLegacyImport() throws -> LibrarySnapshot {
-        var snapshot = LibrarySnapshot.sample
-        let index = try XCTUnwrap(snapshot.titles.firstIndex(where: { $0.id == "severance" }))
-        snapshot.titles[index].watchedEpisodeIDs = ["existing-watch"]
-        snapshot.titles[index].seasons = [
-            SeasonSummary(
-                id: "destination-season",
-                number: 1,
-                title: "Season 1",
-                episodes: [
-                    EpisodeSummary(
-                        id: "destination-episode",
-                        number: 1,
-                        title: "Episode 1",
-                        airDate: nil,
-                        runtimeMinutes: 50
-                    )
-                ]
-            )
-        ]
-        return snapshot
-    }
+        let preview = try LibraryTransferService.previewImport(
+            try XCTUnwrap(csv.data(using: .utf8)),
+            into: .sample
+        )
 
-    private func replacingID(of title: MediaTitle, with id: String) throws -> MediaTitle {
-        let encoded = try JSONEncoder().encode(title)
-        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
-        object["id"] = id
-        return try JSONDecoder().decode(
-            MediaTitle.self,
-            from: JSONSerialization.data(withJSONObject: object)
+        XCTAssertEqual(
+            preview.snapshot.titles.first(where: { $0.id == "past-lives" })?.state,
+            .completed
         )
     }
 
-    private static let legacySeason = SeasonSummary(
-        id: "legacy-season",
-        number: 1,
-        title: "Season 1",
-        episodes: [
-            EpisodeSummary(
-                id: "legacy-episode",
-                number: 1,
-                title: "Episode 1",
-                airDate: nil,
-                runtimeMinutes: 50
-            )
-        ]
-    )
-
-    func testDiaryCSVExportAndImportPreservesAllPrivateFields() throws {
+    func testCompleteJSONExportPreservesCurrentLocalSnapshot() throws {
         var snapshot = LibrarySnapshot.sample
-        snapshot.diaryEntries = [Self.diaryCSVEntry]
+        snapshot.selectedProviderIDs = [StreamingProvider.appleTV.id]
+        snapshot.allowsAIReranking = true
+        snapshot.streamingRegionCode = "MT"
+        snapshot.hasCompletedFirstRun = true
 
-        let data = LibraryTransferService.exportDiaryCSV(snapshot)
-        var destination = LibrarySnapshot.sample
-        destination.diaryEntries = []
-        let preview = try LibraryTransferService.previewImport(data, into: destination)
+        let data = try LibraryTransferService.exportJSON(snapshot)
+        let decoded = try LibraryArchiveCodec.decode(data)
 
-        XCTAssertEqual(preview.sourceName, "OpenTV diary")
-        XCTAssertEqual(preview.addedCount, 1)
+        XCTAssertEqual(decoded, snapshot)
+        XCTAssertEqual(decoded.hasCompletedFirstRun, true)
+    }
+
+    func testCompleteJSONImportRestoresCurrentLocalSnapshotIntoEmptyLibrary() throws {
+        var snapshot = LibrarySnapshot.sample
+        snapshot.selectedProviderIDs = [StreamingProvider.appleTV.id]
+        snapshot.allowsAIReranking = true
+        snapshot.streamingRegionCode = "MT"
+
+        let data = try LibraryTransferService.exportJSON(snapshot)
+        let preview = try LibraryTransferService.previewImport(data, into: .empty)
+
+        XCTAssertNil(preview.snapshot.sharedSpace.reactions)
+        XCTAssertNil(preview.snapshot.sharedSpace.notes)
+        XCTAssertNil(preview.snapshot.sharedSpace.conversationDeletions)
+        XCTAssertEqual(preview.snapshot, snapshot)
+    }
+
+    func testCompleteJSONImportMergesSharedHistoryWithoutDeletingNewerLocalData() throws {
+        var backup = LibrarySnapshot.sample
+        let archivedEvent = SharedWatchEvent(
+            id: "archived-event",
+            titleID: "severance",
+            memberID: "vincent",
+            kind: .watched,
+            season: 1,
+            episode: 1,
+            occurredAt: Date(timeIntervalSince1970: 1_000),
+            supersedesEventID: nil
+        )
+        backup.sharedSpace.watchEvents = [archivedEvent]
+
+        var current = LibrarySnapshot.sample
+        let currentEvent = SharedWatchEvent(
+            id: "current-event",
+            titleID: "severance",
+            memberID: "vincent",
+            kind: .watched,
+            season: 1,
+            episode: 2,
+            occurredAt: Date(timeIntervalSince1970: 2_000),
+            supersedesEventID: nil
+        )
+        current.sharedSpace.watchEvents = [currentEvent]
+
+        let data = try LibraryTransferService.exportJSON(backup)
+        let preview = try LibraryTransferService.previewImport(data, into: current)
+
+        XCTAssertEqual(
+            Set(preview.snapshot.sharedSpace.watchEvents?.map(\.id) ?? []),
+            Set(["archived-event", "current-event"])
+        )
         XCTAssertEqual(preview.watchEventCount, 1)
-        XCTAssertEqual(preview.snapshot.diaryEntries, [Self.diaryCSVEntry])
-
-        let repeated = try LibraryTransferService.previewImport(data, into: preview.snapshot)
-        XCTAssertEqual(repeated.watchEventCount, 0)
+        XCTAssertEqual(preview.sourceName, "OpenTV backup")
     }
 
-    func testLegacyJSONImportBackfillsDiaryFromWatchEvents() throws {
-        var imported = LibrarySnapshot.sample
-        imported.diaryEntries = nil
-        imported.sharedSpace.watchEvents = [
-            SharedWatchEvent(
-                id: "legacy-json-watch",
-                titleID: "severance",
-                memberID: "vincent",
-                kind: .watched,
-                season: nil,
-                episode: nil,
-                occurredAt: Date(timeIntervalSince1970: 1_700_000_000),
-                supersedesEventID: nil
-            )
-        ]
-        let data = try LibraryArchiveCodec.encode(imported, prettyPrinted: false)
-        var destination = LibrarySnapshot.sample
-        destination.diaryEntries = []
+    func testCompleteJSONImportPreviewsRestoredAISetting() throws {
+        var snapshot = LibrarySnapshot.sample
+        snapshot.allowsAIReranking = true
 
-        let preview = try LibraryTransferService.previewImport(data, into: destination)
+        let data = try LibraryTransferService.exportJSON(snapshot)
+        let preview = try LibraryTransferService.previewImport(data, into: .empty)
 
-        XCTAssertEqual(preview.snapshot.diaryEntries?.map(\.id), ["diary:legacy-json-watch"])
+        XCTAssertEqual(preview.snapshot.allowsAIReranking, true)
+        XCTAssertTrue(preview.importNotice?.contains("AI reranking will be enabled") == true)
+    }
+
+    func testLegacyJSONImportPreservesSettingsMissingFromBackup() throws {
+        let exported = try LibraryTransferService.exportJSON(.sample)
+        var object = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: exported) as? [String: Any]
+        )
+        object["schemaVersion"] = 3
+        var archivedSnapshot = try XCTUnwrap(object["snapshot"] as? [String: Any])
+        archivedSnapshot.removeValue(forKey: "allowsAIReranking")
+        archivedSnapshot.removeValue(forKey: "streamingRegionCode")
+        object["snapshot"] = archivedSnapshot
+        let legacyArchive = try JSONSerialization.data(withJSONObject: object)
+
+        var current = LibrarySnapshot.sample
+        current.allowsAIReranking = true
+        current.streamingRegionCode = "MT"
+
+        let preview = try LibraryTransferService.previewImport(legacyArchive, into: current)
+
+        XCTAssertEqual(preview.snapshot.allowsAIReranking, true)
+        XCTAssertEqual(preview.snapshot.streamingRegionCode, "MT")
+        XCTAssertTrue(preview.importNotice?.contains("Streaming region keeps its current setting") == true)
+        XCTAssertTrue(
+            preview.importNotice?.contains("AI reranking keeps its current enabled setting") == true
+        )
+    }
+
+    func testJSONImportRestoresWatchedEpisodesForExistingCatalogTitle() throws {
+        var snapshot = LibrarySnapshot.sample
+        let index = try XCTUnwrap(snapshot.titles.firstIndex(where: { $0.id == "severance" }))
+        snapshot.titles[index].watchedEpisodeIDs = ["severance-s1e1"]
+
+        let data = try LibraryTransferService.exportJSON(snapshot)
+        let preview = try LibraryTransferService.previewImport(data, into: .sample)
+        let restored = try XCTUnwrap(
+            preview.snapshot.titles.first(where: { $0.id == "severance" })
+        )
+
+        XCTAssertEqual(restored.watchedEpisodeIDs, Set(["severance-s1e1"]))
+    }
+
+    func testJSONImportRejectsUnsupportedFutureSchema() throws {
+        let exported = try LibraryTransferService.exportJSON(.sample)
+        var object = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: exported) as? [String: Any]
+        )
+        object["schemaVersion"] = LibraryArchiveEnvelope.currentSchemaVersion + 1
+        let futureArchive = try JSONSerialization.data(withJSONObject: object)
+
+        XCTAssertThrowsError(
+            try LibraryTransferService.previewImport(futureArchive, into: .empty)
+        ) { error in
+            guard let archiveError = error as? LibraryArchiveError,
+                  case .unsupportedSchema(let version) = archiveError else {
+                return XCTFail("Expected an unsupported schema error, got \(error)")
+            }
+            XCTAssertEqual(version, LibraryArchiveEnvelope.currentSchemaVersion + 1)
+        }
     }
 
     func testCSVImportRestoresPersonalWatchlistWithoutChangingState() throws {
@@ -194,6 +251,22 @@ final class LibraryTransferTests: XCTestCase {
         let severance = try XCTUnwrap(preview.snapshot.titles.first(where: { $0.id == "severance" }))
         XCTAssertEqual(severance.state, .watching)
         XCTAssertTrue(severance.isOnPersonalWatchlist)
+    }
+
+    func testLegacyJSONImportMigratesContinuingSeriesToCaughtUp() throws {
+        var snapshot = LibrarySnapshot.sample
+        snapshot.schemaVersion = 4
+        let index = try XCTUnwrap(snapshot.titles.firstIndex(where: { $0.id == "severance" }))
+        snapshot.titles[index].state = .completed
+        snapshot.titles[index].seriesLifecycle = .continuing
+
+        let data = try LibraryTransferService.exportJSON(snapshot)
+        let preview = try LibraryTransferService.previewImport(data, into: .sample)
+
+        XCTAssertEqual(
+            preview.snapshot.titles.first(where: { $0.id == "severance" })?.state,
+            .caughtUp
+        )
     }
 
     func testCSVImportIsIdempotentAndReportsDuplicates() throws {
@@ -226,34 +299,4 @@ final class LibraryTransferTests: XCTestCase {
         XCTAssertEqual(loaded?.selectedProviderIDs, [StreamingProvider.appleTV.id])
         XCTAssertEqual(loaded?.schemaVersion, LibraryArchiveEnvelope.currentSchemaVersion)
     }
-
-    private static let diaryEntry = ViewingDiaryEntry(
-        id: "diary-entry",
-        titleID: "severance",
-        scope: .episode,
-        seasonNumber: 1,
-        episodeID: "severance-s1e1",
-        episodeNumber: 1,
-        watchedAt: Date(timeIntervalSince1970: 1_700_000_000),
-        rating: 9,
-        note: "That hallway, \"scene\".\nUnforgettable.",
-        isRewatch: true,
-        createdAt: Date(timeIntervalSince1970: 1_700_000_000),
-        updatedAt: Date(timeIntervalSince1970: 1_700_000_100)
-    )
-
-    private static let diaryCSVEntry = ViewingDiaryEntry(
-        id: "diary-entry",
-        titleID: "severance",
-        scope: .episode,
-        seasonNumber: 1,
-        episodeID: "severance-s1e1",
-        episodeNumber: 1,
-        watchedAt: Date(timeIntervalSince1970: 1_700_000_000),
-        rating: 9,
-        note: "That hallway, \"scene\".\nUnforgettable.",
-        isRewatch: true,
-        createdAt: Date(timeIntervalSince1970: 1_700_000_000.125),
-        updatedAt: Date(timeIntervalSince1970: 1_700_000_100)
-    )
 }

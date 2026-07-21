@@ -18,7 +18,11 @@ enum TitleSimilarity {
 
         return candidates
             .lazy
-            .filter { $0.id != source.id && $0.state != .completed }
+            .filter {
+                $0.id != source.id
+                    && !$0.state.isCurrentViewingComplete
+                    && $0.state != .dropped
+            }
             .map { match(source: source, candidate: $0) }
             .filter { $0.score > 0 }
             .sorted(by: isBetterMatch)

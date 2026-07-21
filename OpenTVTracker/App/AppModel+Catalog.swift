@@ -9,6 +9,19 @@ extension AppModel {
         StreamingProvider.supportedSubscriptions.filter { selectedProviderIDs.contains($0.id) }
     }
 
+    func newReleasesOnSelectedProviders(referenceDate: Date = .now) -> [MediaTitle] {
+        let cutoff = referenceDate.addingTimeInterval(-14 * 24 * 60 * 60)
+        return titlesOnSelectedProviders
+            .filter { title in
+                guard let releaseDate = title.nextEpisodeAirDate ?? title.releaseDate else { return false }
+                return releaseDate >= cutoff && releaseDate <= referenceDate
+            }
+            .sorted {
+                ($0.nextEpisodeAirDate ?? $0.releaseDate ?? .distantPast)
+                    > ($1.nextEpisodeAirDate ?? $1.releaseDate ?? .distantPast)
+            }
+    }
+
     var streamingRegion: StreamingRegion {
         streamingRegionOverride ?? .deviceDefault()
     }
@@ -80,6 +93,9 @@ extension AppModel {
 
     func searchCatalog(text: String) async {
         let queryText = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let requestID = UUID()
+        catalogSearchRequestID = requestID
+
         guard !queryText.isEmpty else {
             catalogSearchResults = []
             catalogSearchError = nil
@@ -90,23 +106,32 @@ extension AppModel {
             return
         }
 
+        catalogSearchResults = []
+        catalogSearchError = nil
+        catalogSearchPage = 0
+        catalogSearchQuery = queryText
+        hasMoreCatalogResults = false
         isSearchingCatalog = true
-        defer { isSearchingCatalog = false }
+        defer {
+            if catalogSearchRequestID == requestID {
+                isSearchingCatalog = false
+            }
+        }
         do {
             try await Task.sleep(for: .milliseconds(250))
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled, catalogSearchRequestID == requestID else { return }
             let results = try await catalogService.search(
                 MediaSearchQuery(text: queryText, kind: nil, page: 1, region: streamingRegion)
             )
-            guard queryText == text.trimmingCharacters(in: .whitespacesAndNewlines) else { return }
+            guard catalogSearchRequestID == requestID, catalogSearchQuery == queryText else { return }
             catalogSearchResults = results
             catalogSearchPage = 1
-            catalogSearchQuery = queryText
             hasMoreCatalogResults = results.count >= 20
             catalogSearchError = nil
         } catch is CancellationError {
             return
         } catch {
+            guard catalogSearchRequestID == requestID else { return }
             catalogSearchResults = []
             catalogSearchError = error.localizedDescription
         }
@@ -115,18 +140,27 @@ extension AppModel {
     func loadMoreCatalogResults(text: String) async {
         let queryText = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !isSearchingCatalog, hasMoreCatalogResults, queryText == catalogSearchQuery else { return }
+        let requestID = catalogSearchRequestID
+        catalogSearchError = nil
         isSearchingCatalog = true
-        defer { isSearchingCatalog = false }
+        defer {
+            if catalogSearchRequestID == requestID {
+                isSearchingCatalog = false
+            }
+        }
         do {
             let nextPage = catalogSearchPage + 1
             let results = try await catalogService.search(
                 MediaSearchQuery(text: queryText, kind: nil, page: nextPage, region: streamingRegion)
             )
+            guard catalogSearchRequestID == requestID, catalogSearchQuery == queryText else { return }
             let existingIDs = Set(catalogSearchResults.map(\.id))
             catalogSearchResults.append(contentsOf: results.filter { !existingIDs.contains($0.id) })
             catalogSearchPage = nextPage
             hasMoreCatalogResults = results.count >= 20
+            catalogSearchError = nil
         } catch {
+            guard catalogSearchRequestID == requestID else { return }
             catalogSearchError = error.localizedDescription
         }
     }
@@ -137,14 +171,19 @@ extension AppModel {
         persist()
 
         guard streamingRegion != previousRegion else { return }
+        invalidateUpcomingCalendarRefresh()
         clearUntrackedCatalogTitles()
+        catalogSearchRequestID = UUID()
         catalogSearchResults = []
+        catalogSearchError = nil
+        isSearchingCatalog = false
         catalogSearchPage = 0
         catalogSearchQuery = ""
         hasMoreCatalogResults = false
 
         Task {
             await refreshDiscoveryCatalog()
+            await refreshUpcomingCalendar(force: true)
             await refreshRecommendations()
         }
     }
@@ -157,11 +196,14 @@ extension AppModel {
                 && title.userRating == nil
                 && title.notes == nil
                 && title.completedRewatches == 0
+                && title.isUpNextPinned != true
+                && title.upNextSnoozedUntil == nil
+                && title.upNextManualOrder == nil
                 && !sharedTitleIDs.contains(title.id)
         }
     }
 
-    private func mergingCatalogDetails(_ details: MediaTitle, into existing: MediaTitle) -> MediaTitle {
+    func mergingCatalogDetails(_ details: MediaTitle, into existing: MediaTitle) -> MediaTitle {
         var result = existing
         result.title = details.title
         result.year = details.year
@@ -180,8 +222,10 @@ extension AppModel {
         result.backdropURL = details.backdropURL
         result.trailerURL = details.trailerURL
         result.nextEpisodeAirDate = details.nextEpisodeAirDate
+        result.nextEpisodeAirDateIsAllDay = details.nextEpisodeAirDateIsAllDay
         result.releaseDate = details.releaseDate
         result.seasons = details.seasons
-        return result
+        result.seriesLifecycle = details.seriesLifecycle ?? existing.seriesLifecycle
+        return refreshedTrackingTitle(result)
     }
 }

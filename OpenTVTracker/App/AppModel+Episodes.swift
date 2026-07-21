@@ -1,5 +1,19 @@
 import Foundation
 
+extension MediaTitle {
+    var episodeIDsThroughProgress: Set<EpisodeSummary.ID> {
+        guard let progress else { return [] }
+        let episodeIDs: [EpisodeSummary.ID] = (seasons ?? [])
+            .filter { $0.number > 0 }
+            .flatMap { season -> [EpisodeSummary.ID] in
+                guard season.number <= progress.season else { return [] }
+                if season.number < progress.season { return season.episodes.map(\.id) }
+                return season.episodes.filter { $0.number <= progress.episode }.map(\.id)
+            }
+        return Set(episodeIDs)
+    }
+}
+
 extension AppModel {
     func progressSummary(for title: MediaTitle) -> MediaProgressSummary {
         guard title.kind == .series else {
@@ -9,18 +23,16 @@ extension AppModel {
             )
         }
 
-        let seasons = (title.seasons ?? []).filter { $0.number > 0 }
-        let totalEpisodeCount = seasons.reduce(0) { $0 + $1.episodes.count }
+        let releasedEpisodeIDs = Set(releasedEpisodes(for: title).map(\.id))
+        let totalEpisodeCount = releasedEpisodeIDs.count
         guard totalEpisodeCount > 0 else {
             return MediaProgressSummary(
                 label: title.progress?.label ?? title.state.label,
-                fraction: title.state == .completed ? 1 : title.progress?.fraction ?? 0
+                fraction: title.state.isCurrentViewingComplete ? 1 : title.progress?.fraction ?? 0
             )
         }
 
-        let watchedCount = seasons.reduce(0) { count, season in
-            count + watchedEpisodeCount(titleID: title.id, season: season)
-        }
+        let watchedCount = releasedEpisodeIDs.intersection(resolvedWatchedEpisodeIDs(for: title)).count
         return MediaProgressSummary(
             label: "\(watchedCount) of \(totalEpisodeCount) episodes",
             fraction: Double(watchedCount) / Double(totalEpisodeCount)
@@ -45,7 +57,7 @@ extension AppModel {
             return "\(season):\(episode)"
         })
         guard totalEpisodeCount > 0, !watchedEpisodes.isEmpty else {
-            return MediaProgressSummary(label: "Watched together", fraction: title.state == .completed ? 1 : 0)
+            return MediaProgressSummary(label: "Watched together", fraction: title.state.isCurrentViewingComplete ? 1 : 0)
         }
         return MediaProgressSummary(
             label: "\(watchedEpisodes.count) of \(totalEpisodeCount) episodes together",
@@ -169,56 +181,28 @@ extension AppModel {
         }
     }
 
+    func regularSeasons(for title: MediaTitle) -> [SeasonSummary] {
+        (title.seasons ?? [])
+            .filter { $0.number > 0 }
+            .sorted { $0.number < $1.number }
+    }
+
     func nextUnwatchedEpisode(
         for title: MediaTitle
     ) -> (season: SeasonSummary, episode: EpisodeSummary)? {
         let watchedIDs = resolvedWatchedEpisodeIDs(for: title)
+        let releasedIDs = Set(releasedEpisodes(for: title).map(\.id))
         for season in regularSeasons(for: title) {
             if let episode = season.episodes.sorted(by: { $0.number < $1.number })
-                .first(where: { !watchedIDs.contains($0.id) }) {
+                .first(where: { episode in
+                    releasedIDs.contains(episode.id) && !watchedIDs.contains(episode.id)
+                }) {
                 return (season, episode)
             }
         }
         return nil
     }
 
-    func markEpisodeWatchedTogether(
-        titleID: MediaTitle.ID,
-        season: SeasonSummary,
-        episode: EpisodeSummary
-    ) {
-        guard let index = trackableTitleIndex(for: titleID) else { return }
-        var watchedIDs = resolvedWatchedEpisodeIDs(for: titles[index])
-        guard watchedIDs.insert(episode.id).inserted else { return }
-
-        titles[index].watchedEpisodeIDs = watchedIDs
-        updateEpisodeProgress(at: index, watchedIDs: watchedIDs)
-        let watchedAt = Date.now
-        titles[index].lastWatchedAt = watchedAt
-        appendDiaryWatch(
-            title: titles[index],
-            season: season,
-            episode: episode,
-            watchedAt: watchedAt,
-            isRewatch: false
-        )
-        for member in sharedSpace.members {
-            appendWatchEvent(
-                title: titles[index],
-                kind: .watchedTogether,
-                memberID: member.id,
-                season: season.number,
-                episode: episode.number,
-                occurredAt: watchedAt
-            )
-        }
-        addActivity(
-            description: "watched \(titles[index].title) S\(season.number) E\(episode.number) together",
-            titleID: titles[index].id
-        )
-        persist()
-        syncSharedStateSoon()
-    }
 }
 
 private extension AppModel {
@@ -293,74 +277,6 @@ private extension AppModel {
             .filter { $0.number <= episodeNumber }
             .sorted { $0.number < $1.number }
             .map { (season: season, episode: $0) }
-    }
-
-    func resolvedWatchedEpisodeIDs(for title: MediaTitle) -> Set<EpisodeSummary.ID> {
-        if let watchedEpisodeIDs = title.watchedEpisodeIDs { return watchedEpisodeIDs }
-        let seasons = regularSeasons(for: title)
-        if title.state == .completed {
-            return Set(seasons.flatMap(\.episodes).map(\.id))
-        }
-        guard let progress = title.progress else { return [] }
-        let episodeIDs: [EpisodeSummary.ID] = seasons.flatMap { season -> [EpisodeSummary.ID] in
-            guard season.number <= progress.season else { return [] }
-            if season.number < progress.season { return season.episodes.map(\.id) }
-            return season.episodes.filter { $0.number <= progress.episode }.map(\.id)
-        }
-        return Set(episodeIDs)
-    }
-
-    func regularSeasons(for title: MediaTitle) -> [SeasonSummary] {
-        (title.seasons ?? [])
-            .filter { $0.number > 0 }
-            .sorted { $0.number < $1.number }
-    }
-
-    func updateEpisodeProgress(at index: Int, watchedIDs: Set<EpisodeSummary.ID>) {
-        let seasons = regularSeasons(for: titles[index])
-        let regularEpisodes = seasons.flatMap(\.episodes)
-        let isComplete = !regularEpisodes.isEmpty && regularEpisodes.allSatisfy { watchedIDs.contains($0.id) }
-
-        var latestSeason: SeasonSummary?
-        var latestEpisode: EpisodeSummary?
-        for season in seasons {
-            for episode in season.episodes where watchedIDs.contains(episode.id) {
-                guard let currentSeason = latestSeason, let currentEpisode = latestEpisode else {
-                    latestSeason = season
-                    latestEpisode = episode
-                    continue
-                }
-                if season.number > currentSeason.number
-                    || (season.number == currentSeason.number && episode.number > currentEpisode.number) {
-                    latestSeason = season
-                    latestEpisode = episode
-                }
-            }
-        }
-
-        if let latestSeason, let latestEpisode {
-            titles[index].progress = EpisodeProgress(
-                season: latestSeason.number,
-                episode: latestEpisode.number,
-                totalEpisodes: latestSeason.episodes.count
-            )
-        } else if let firstSeason = seasons.first {
-            titles[index].progress = EpisodeProgress(
-                season: firstSeason.number,
-                episode: 0,
-                totalEpisodes: firstSeason.episodes.count
-            )
-        } else {
-            titles[index].progress = nil
-        }
-
-        if isComplete {
-            titles[index].state = .completed
-        } else if !watchedIDs.isEmpty {
-            titles[index].state = .watching
-        } else if titles[index].state == .watching || titles[index].state == .completed {
-            titles[index].state = .planned
-        }
     }
 
     func supersedePersonalWatchEvents(

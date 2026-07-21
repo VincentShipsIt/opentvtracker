@@ -42,6 +42,10 @@
 	<string>$(OPENROUTER_OAUTH_CALLBACK_URL)</string>
 	<key>OpenRouterSiteURL</key>
 	<string>$(OPENROUTER_SITE_URL)</string>
+	<key>TraktClientID</key>
+	<string>$(TRAKT_CLIENT_ID)</string>
+	<key>TraktClientSecret</key>
+	<string>$(TRAKT_CLIENT_SECRET)</string>
 	<key>OpenTVAPIBaseURL</key>
 	<string>$(CATALOG_PROXY_BASE_URL)</string>
 	<key>OpenTVAppAttestDevelopmentToken</key>

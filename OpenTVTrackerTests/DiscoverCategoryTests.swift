@@ -15,6 +15,17 @@ final class DiscoverCategoryTests: XCTestCase {
         XCTAssertFalse(movies.contains(where: { $0.state == .completed }))
     }
 
+    func testCategoriesKeepDismissedAndDislikedTitlesBrowsable() throws {
+        var catalog = LibrarySnapshot.sample.titles
+        let index = try XCTUnwrap(catalog.firstIndex(where: { $0.kind == .movie && $0.state != .completed }))
+        catalog[index].isDismissed = true
+        catalog[index].isDisliked = true
+
+        let movies = DiscoverCategory.movies.titles(from: catalog)
+
+        XCTAssertTrue(movies.contains(where: { $0.id == catalog[index].id }))
+    }
+
     func testTopRatedIsSortedByRating() {
         let titles = DiscoverCategory.topRated.titles(from: LibrarySnapshot.sample.titles)
 

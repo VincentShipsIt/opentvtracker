@@ -1,6 +1,26 @@
 import Foundation
 
+enum TogetherConnectionPhase: Hashable, Sendable {
+    case unconnected
+    case waitingForPartner
+    case connected
+    case revoked
+    case expired
+    case left
+}
+
 extension AppModel {
+    var togetherConnectionPhase: TogetherConnectionPhase {
+        switch sharedSpace.resolvedMembershipState {
+        case .local: .unconnected
+        case .pending: .waitingForPartner
+        case .accepted: .connected
+        case .revoked: .revoked
+        case .expired: .expired
+        case .left: .left
+        }
+    }
+
     var togetherActivity: [SharedActivity] {
         let currentMemberID = sharedSpace.members.first(where: \.isCurrentUser)?.id
         return sharedSpace.activity.filter { activity in
@@ -10,11 +30,17 @@ extension AppModel {
         }
     }
 
+    @discardableResult
     func addActivity(
         description: String,
         titleID: MediaTitle.ID? = nil,
-        symbol: String = "checkmark"
-    ) {
+        symbol: String = "checkmark",
+        kind: SharedActivityKind = .general,
+        occurredAt: Date = .now,
+        watchEventID: SharedWatchEvent.ID? = nil,
+        season: Int? = nil,
+        episode: Int? = nil
+    ) -> SharedActivity {
         let currentMember = sharedSpace.members.first(where: \.isCurrentUser)
         let activity = SharedActivity(
             id: UUID().uuidString,
@@ -22,9 +48,15 @@ extension AppModel {
             description: description.trimmingCharacters(in: .whitespaces),
             relativeDate: "Now",
             symbol: symbol,
-            titleID: titleID
+            titleID: titleID,
+            kind: kind,
+            occurredAt: occurredAt,
+            watchEventID: watchEventID,
+            season: season,
+            episode: episode
         )
         sharedSpace.activity.insert(activity, at: 0)
+        return activity
     }
 
     func toggleTogether(_ id: MediaTitle.ID) {
@@ -93,7 +125,9 @@ extension AppModel {
             guard progress.episode < progress.totalEpisodes else { return }
             progress.episode = min(progress.episode + 1, progress.totalEpisodes)
             titles[index].progress = progress
-            titles[index].state = progress.episode == progress.totalEpisodes ? .completed : .watching
+            titles[index].state = progress.episode == progress.totalEpisodes
+                ? finishedState(for: titles[index])
+                : .watching
         } else {
             return
         }
@@ -104,61 +138,80 @@ extension AppModel {
             }
             appendDiaryWatch(title: titles[index], watchedAt: watchedAt, isRewatch: isRewatch)
         }
+        let currentMemberID = sharedSpace.members.first(where: \.isCurrentUser)?.id
+        var conversationWatchEvent: SharedWatchEvent?
         for member in sharedSpace.members {
-            appendWatchEvent(
+            let event = appendWatchEvent(
                 title: titles[index],
                 kind: .watchedTogether,
                 memberID: member.id,
                 occurredAt: watchedAt
             )
+            if member.id == currentMemberID || conversationWatchEvent == nil {
+                conversationWatchEvent = event
+            }
         }
         addActivity(
             description: "watched \(titles[index].title) together",
-            titleID: titles[index].id
+            titleID: titles[index].id,
+            kind: .watchedTogether,
+            watchEventID: conversationWatchEvent?.id
         )
-        persist()
-        syncSharedStateSoon()
-    }
-
-    func react(to activityID: SharedActivity.ID, symbol: String) {
-        let memberID = sharedSpace.members.first(where: \.isCurrentUser)?.id ?? "local-user"
-        var reactions = sharedSpace.reactions ?? []
-        reactions.removeAll { $0.activityID == activityID && $0.memberID == memberID }
-        reactions.append(
-            SharedReaction(
-                id: UUID().uuidString,
-                activityID: activityID,
-                memberID: memberID,
-                symbol: symbol,
-                occurredAt: .now
-            )
-        )
-        sharedSpace.reactions = reactions
-        persist()
-        syncSharedStateSoon()
-    }
-
-    func addSharedNote(_ text: String, titleID: MediaTitle.ID) {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        let memberID = sharedSpace.members.first(where: \.isCurrentUser)?.id ?? "local-user"
-        var notes = sharedSpace.notes ?? []
-        notes.append(
-            SharedNote(
-                id: UUID().uuidString,
-                titleID: titleID,
-                memberID: memberID,
-                text: trimmed,
-                createdAt: .now
-            )
-        )
-        sharedSpace.notes = notes
         persist()
         syncSharedStateSoon()
     }
 
     func isShared(_ id: MediaTitle.ID) -> Bool {
         sharedSpace.titleIDs.contains(id)
+    }
+
+    func togetherMemberProgressSummary(
+        for title: MediaTitle,
+        memberID: SpaceMember.ID
+    ) -> MediaProgressSummary {
+        let allEvents = sharedSpace.watchEvents ?? []
+        let supersededEventIDs = Set(allEvents.compactMap { event in
+            event.kind == .correction ? event.supersedesEventID : nil
+        })
+        let watchedEvents = allEvents.filter { event in
+            event.titleID == title.id
+                && event.memberID == memberID
+                && !supersededEventIDs.contains(event.id)
+                && (event.kind == .watched || event.kind == .watchedTogether || event.kind == .rewatch)
+        }
+
+        if title.kind == .movie {
+            if !watchedEvents.isEmpty {
+                return MediaProgressSummary(label: "Watched", fraction: 1)
+            }
+            return memberFallbackProgress(for: title, memberID: memberID)
+        }
+
+        let countedEpisodeKeys = Set((title.seasons ?? [])
+            .filter { $0.number > 0 }
+            .flatMap { season in
+                season.episodes.map { "\(season.number):\($0.number)" }
+            })
+        let watchedEpisodes = Set(watchedEvents.compactMap { event -> String? in
+            guard let season = event.season, let episode = event.episode else { return nil }
+            return "\(season):\(episode)"
+        }).intersection(countedEpisodeKeys)
+        let totalEpisodeCount = countedEpisodeKeys.count
+
+        if totalEpisodeCount > 0, !watchedEpisodes.isEmpty {
+            return MediaProgressSummary(
+                label: "\(watchedEpisodes.count) of \(totalEpisodeCount) episodes",
+                fraction: Double(watchedEpisodes.count) / Double(totalEpisodeCount)
+            )
+        }
+
+        if let latestEvent = watchedEvents.max(by: { $0.occurredAt < $1.occurredAt }),
+           let season = latestEvent.season,
+           let episode = latestEvent.episode {
+            return MediaProgressSummary(label: "Season \(season), episode \(episode)", fraction: 0)
+        }
+
+        return memberFallbackProgress(for: title, memberID: memberID)
     }
 
     func prepareSharedTitleMetadataForSync() {
@@ -196,7 +249,20 @@ extension AppModel {
         metadata.isDisliked = nil
         metadata.personalWatchlist = false
         metadata.watchedEpisodeIDs = nil
+        metadata.isUpNextPinned = nil
+        metadata.upNextSnoozedUntil = nil
+        metadata.upNextManualOrder = nil
         return metadata
+    }
+
+    private func memberFallbackProgress(
+        for title: MediaTitle,
+        memberID: SpaceMember.ID
+    ) -> MediaProgressSummary {
+        guard sharedSpace.members.first(where: { $0.id == memberID })?.isCurrentUser == true else {
+            return MediaProgressSummary(label: "No progress yet", fraction: 0)
+        }
+        return progressSummary(for: title)
     }
 }
 

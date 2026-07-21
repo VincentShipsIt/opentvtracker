@@ -24,6 +24,12 @@ Production request logs contain only a random request ID, method, route path, st
 
 Devices without App Attest support do not receive anonymous access to the official hosted proxy. The app falls back to TVmaze and official cinema sources.
 
+## Optional Trakt sync
+
+Trakt sync is off until the user connects an account with device authorization. The resulting access and refresh tokens are stored as this-device-only Keychain items and sent only to `api.trakt.tv`. Sync sends TMDB identifiers, movie or episode watch dates, integer ratings, and watchlist changes. It imports the same fields plus personal-list names and membership. It never sends private notes, partner activity or member identities, recommendation feedback, moods, subscription choices, or OpenRouter credentials.
+
+Disconnecting removes the Trakt token from this iPhone and asks Trakt to revoke it when the network is available. Local tracking continues unchanged when disconnected or offline.
+
 ## Control and deletion
 
 Library data can be exported as versioned JSON or CSV. Removing the app removes local data and Keychain credentials. Revoking or leaving a partner share removes CloudKit access and purges retained shared state. Proxy operators can remove an App Attest device record from their configured state store. OpenTV does not sell data, track users across apps, or include advertising SDKs.

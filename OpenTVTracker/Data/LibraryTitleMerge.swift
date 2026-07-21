@@ -29,6 +29,10 @@ extension LibraryTransferService {
         if let watchedEpisodeIDs = imported.watchedEpisodeIDs {
             result.watchedEpisodeIDs = watchedEpisodeIDs
         }
+        result.seriesLifecycle = imported.seriesLifecycle ?? catalog.seriesLifecycle
+        result.isUpNextPinned = imported.isUpNextPinned
+        result.upNextSnoozedUntil = imported.upNextSnoozedUntil
+        result.upNextManualOrder = imported.upNextManualOrder
         return result
     }
 }

@@ -49,6 +49,20 @@
                ReferencedContainer = "container:OpenTVTracker.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "8246A73D7A3AEF3C352E2FA5"
+               BuildableName = "OpenTVWidgets.appex"
+               BlueprintName = "OpenTVWidgets"
+               ReferencedContainer = "container:OpenTVTracker.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction
