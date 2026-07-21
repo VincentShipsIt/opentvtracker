@@ -63,6 +63,59 @@ protocol RecommendationProviding: Sendable {
     ) async throws -> [Recommendation]
 }
 
+enum ReminderAuthorization: String, Sendable {
+    case notDetermined
+    case denied
+    case authorized
+    case provisional
+    case ephemeral
+
+    var allowsScheduling: Bool {
+        switch self {
+        case .authorized, .provisional, .ephemeral: true
+        case .notDetermined, .denied: false
+        }
+    }
+}
+
+struct ReminderCapability: Equatable, Sendable {
+    let authorization: ReminderAuthorization
+    let backgroundRefreshAvailable: Bool
+
+    static let unknown = ReminderCapability(
+        authorization: .notDetermined,
+        backgroundRefreshAvailable: false
+    )
+}
+
+protocol ReminderScheduling: Sendable {
+    func requestAuthorization() async -> ReminderAuthorization
+    func capability() async -> ReminderCapability
+    func reconcile(
+        titles: [MediaTitle],
+        selectedProviderIDs: Set<StreamingProvider.ID>,
+        settings: ReminderSettings,
+        now: Date
+    ) async throws
+}
+
+struct NoopReminderScheduler: ReminderScheduling {
+    func requestAuthorization() async -> ReminderAuthorization {
+        .denied
+    }
+
+    func capability() async -> ReminderCapability {
+        .unknown
+    }
+
+    func reconcile(
+        titles _: [MediaTitle],
+        selectedProviderIDs _: Set<StreamingProvider.ID>,
+        settings _: ReminderSettings,
+        now _: Date
+    ) async throws {}
+}
+
 enum PartnerSharingAvailability: Hashable, Sendable {
     case available
     case iCloudAccountRequired
