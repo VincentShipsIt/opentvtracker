@@ -223,7 +223,9 @@ private struct SharedTitlePickerView: View {
         model.titles
             .filter { !model.isShared($0.id) }
             .sorted { lhs, rhs in
-                if lhs.state != rhs.state { return lhs.state == .watching }
+                if (lhs.state == .watching) != (rhs.state == .watching) {
+                    return lhs.state == .watching
+                }
                 return lhs.title.localizedStandardCompare(rhs.title) == .orderedAscending
             }
     }
