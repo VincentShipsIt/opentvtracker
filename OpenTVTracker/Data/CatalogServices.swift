@@ -126,8 +126,9 @@ struct FallbackCatalogService: CatalogProviding {
     }
 
     func reviews(kind: MediaKind, catalogID: Int, page: Int) async throws -> CommunityReviewPage {
-        if let primary {
-            return try await primary.reviews(kind: kind, catalogID: catalogID, page: page)
+        if let primary,
+           let reviewPage = try? await primary.reviews(kind: kind, catalogID: catalogID, page: page) {
+            return reviewPage
         }
         return try await fallback.reviews(kind: kind, catalogID: catalogID, page: page)
     }

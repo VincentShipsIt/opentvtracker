@@ -223,6 +223,10 @@ private struct InlineTrailerWebView: UIViewRepresentable {
             onStateChange(.failed)
         }
 
+        func webViewWebContentProcessDidTerminate(_: WKWebView) {
+            onStateChange(.failed)
+        }
+
         func webView(
             _: WKWebView,
             decidePolicyFor navigationAction: WKNavigationAction,

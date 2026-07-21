@@ -63,6 +63,24 @@ final class CommunityReviewPaginationTests: XCTestCase {
         XCTAssertEqual(pagination.nextPage, 1)
     }
 
+    func testCatalogFallsBackWhenPrimaryReviewRequestFails() async throws {
+        let fallbackPage = CommunityReviewPage(
+            page: 2,
+            totalPages: 3,
+            results: [review(id: "fallback")]
+        )
+        let service = FallbackCatalogService(
+            primary: ReviewCatalogStub(result: .failure(.unavailable)),
+            fallback: ReviewCatalogStub(result: .success(fallbackPage))
+        )
+
+        let page = try await service.reviews(kind: .series, catalogID: 42, page: 2)
+
+        XCTAssertEqual(page.page, fallbackPage.page)
+        XCTAssertEqual(page.totalPages, fallbackPage.totalPages)
+        XCTAssertEqual(page.results.map(\.id), ["fallback"])
+    }
+
     private func review(id: String) -> CommunityReview {
         CommunityReview(
             id: id,
@@ -72,5 +90,21 @@ final class CommunityReviewPaginationTests: XCTestCase {
             source: "TMDB",
             containsSpoilers: true
         )
+    }
+}
+
+private struct ReviewCatalogStub: CatalogProviding {
+    let result: Result<CommunityReviewPage, CatalogServiceError>
+
+    func search(_: MediaSearchQuery) async throws -> [MediaTitle] {
+        throw CatalogServiceError.notFound
+    }
+
+    func title(kind _: MediaKind, catalogID _: Int, region _: StreamingRegion) async throws -> MediaTitle {
+        throw CatalogServiceError.notFound
+    }
+
+    func reviews(kind _: MediaKind, catalogID _: Int, page _: Int) async throws -> CommunityReviewPage {
+        try result.get()
     }
 }
