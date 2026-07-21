@@ -178,40 +178,6 @@ final class AppModel {
 }
 
 extension AppModel {
-    func markNextWatched(_ id: MediaTitle.ID) {
-        guard let index = trackableTitleIndex(for: id) else { return }
-
-        if titles[index].kind == .movie {
-            guard titles[index].state != .completed else { return }
-            titles[index].state = .completed
-        } else if let next = nextUnwatchedEpisode(for: titles[index]) {
-            setEpisodeWatched(
-                true,
-                titleID: id,
-                seasonNumber: next.season.number,
-                episodeID: next.episode.id
-            )
-            return
-        } else if var progress = titles[index].progress {
-            guard progress.episode < progress.totalEpisodes else { return }
-            progress.episode = min(progress.episode + 1, progress.totalEpisodes)
-            titles[index].progress = progress
-            titles[index].state = progress.episode == progress.totalEpisodes
-                ? finishedState(for: titles[index])
-                : .watching
-        }
-
-        titles[index].lastWatchedAt = .now
-        appendWatchEvent(title: titles[index], kind: .watched)
-
-        addActivity(
-            description: "watched \(titles[index].title) \(titles[index].progress?.label ?? "")",
-            titleID: titles[index].id
-        )
-        persist()
-        syncSharedStateSoon()
-    }
-
     func setWatchState(_ state: WatchState, for id: MediaTitle.ID) {
         if state == .completed || state == .caughtUp {
             markWatched(id)
