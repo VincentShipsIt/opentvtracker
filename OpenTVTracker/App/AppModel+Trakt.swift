@@ -45,8 +45,13 @@ extension AppModel {
         defer { isTraktSyncing = false }
 
         do {
-            let result = try await traktService.sync(snapshot)
-            titles = result.snapshot.titles
+            let syncSnapshot = snapshot
+            let result = try await traktService.sync(syncSnapshot)
+            titles = Self.mergingTraktTitles(
+                baseline: syncSnapshot.titles,
+                current: titles,
+                synced: result.snapshot.titles
+            )
             traktSyncState = result.snapshot.traktSyncState ?? .empty
             traktSyncSummary = result.summary.description
             isTraktAuthorized = true
@@ -57,5 +62,26 @@ extension AppModel {
             isTraktAuthorized = await traktService.isAuthorized()
             persist()
         }
+    }
+
+    static func mergingTraktTitles(
+        baseline: [MediaTitle],
+        current: [MediaTitle],
+        synced: [MediaTitle]
+    ) -> [MediaTitle] {
+        let baselineByID = Dictionary(uniqueKeysWithValues: baseline.map { ($0.id, $0) })
+        let currentByID = Dictionary(uniqueKeysWithValues: current.map { ($0.id, $0) })
+        var merged = synced.compactMap { syncedTitle -> MediaTitle? in
+            guard let baselineTitle = baselineByID[syncedTitle.id] else {
+                return currentByID[syncedTitle.id] ?? syncedTitle
+            }
+            guard let currentTitle = currentByID[syncedTitle.id] else {
+                return nil
+            }
+            return currentTitle == baselineTitle ? syncedTitle : currentTitle
+        }
+        let mergedIDs = Set(merged.map(\.id))
+        merged.append(contentsOf: current.filter { baselineByID[$0.id] == nil && !mergedIDs.contains($0.id) })
+        return merged
     }
 }

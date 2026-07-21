@@ -173,6 +173,25 @@ final class TraktSyncTests: XCTestCase {
         XCTAssertEqual(model.traktSyncState.lastError, TraktSyncError.providerUnavailable.localizedDescription)
     }
 
+    func testCompletedSyncPreservesTitlesChangedWhileRequestWasInFlight() throws {
+        let baseline = LibrarySnapshot.sample.titles
+        var current = baseline
+        var synced = baseline
+        let index = try XCTUnwrap(baseline.firstIndex(where: { $0.id == "past-lives" }))
+        current[index].notes = "Watch with Alex"
+        synced[index].personalWatchlist = false
+
+        let merged = AppModel.mergingTraktTitles(
+            baseline: baseline,
+            current: current,
+            synced: synced
+        )
+
+        let title = try XCTUnwrap(merged.first(where: { $0.id == "past-lives" }))
+        XCTAssertEqual(title.notes, "Watch with Alex")
+        XCTAssertEqual(title.personalWatchlist, current[index].personalWatchlist)
+    }
+
     private static var episodeSnapshot: LibrarySnapshot {
         var snapshot = LibrarySnapshot.sample
         let index = snapshot.titles.firstIndex(where: { $0.id == "severance" })!
