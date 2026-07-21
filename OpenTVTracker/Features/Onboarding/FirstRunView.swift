@@ -28,6 +28,7 @@ struct FirstRunView: View {
     @State private var step: FirstRunStep = .services
     @State private var searchText = ""
     @State private var showsPartnerInvitation = false
+    let partnerSharingService: any PartnerSharingProviding
 
     var body: some View {
         NavigationStack {
@@ -63,7 +64,10 @@ struct FirstRunView: View {
                 await model.searchCatalog(text: searchText)
             }
             .sheet(isPresented: $showsPartnerInvitation) {
-                PartnerInvitationView(space: model.sharedSpace)
+                PartnerInvitationView(
+                    space: model.sharedSpace,
+                    sharingService: partnerSharingService
+                )
             }
         }
         .interactiveDismissDisabled()
@@ -219,7 +223,7 @@ struct FirstRunView: View {
 }
 
 #Preview {
-    FirstRunView()
+    FirstRunView(partnerSharingService: PreviewPartnerSharingService())
         .environment(AppModel(store: MemoryLibraryStore(), seed: .sample))
         .environment(\.allowsRemoteArtwork, false)
 }
