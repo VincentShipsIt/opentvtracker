@@ -295,10 +295,11 @@ private extension AppModel {
 
     func resolvedWatchedEpisodeIDs(for title: MediaTitle) -> Set<EpisodeSummary.ID> {
         if let watchedEpisodeIDs = title.watchedEpisodeIDs { return watchedEpisodeIDs }
+        if title.progress != nil { return title.episodeIDsThroughProgress }
         if title.state.isCurrentViewingComplete {
             return Set(releasedEpisodes(for: title).map(\.id))
         }
-        return title.episodeIDsThroughProgress
+        return []
     }
 
     func updateEpisodeProgress(at index: Int, watchedIDs: Set<EpisodeSummary.ID>) {

@@ -24,7 +24,15 @@ extension AppModel {
     }
 
     func markWatched(_ id: MediaTitle.ID) {
-        guard let index = trackableTitleIndex(for: id), !titles[index].state.isCurrentViewingComplete else { return }
+        guard let index = trackableTitleIndex(for: id) else { return }
+        if titles[index].kind == .movie {
+            guard !titles[index].state.isCurrentViewingComplete else { return }
+        } else if titles[index].state.isCurrentViewingComplete {
+            let watchedIDs = resolvedWatchedEpisodeIDs(for: titles[index])
+            guard releasedEpisodes(for: titles[index]).contains(where: { !watchedIDs.contains($0.id) }) else {
+                return
+            }
+        }
 
         let regularSeasons = regularSeasons(for: titles[index])
         if titles[index].kind == .series, !regularSeasons.isEmpty {

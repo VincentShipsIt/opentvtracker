@@ -145,7 +145,7 @@ final class UpNextIntentTests: XCTestCase {
         XCTAssertEqual(title.upNextSnoozedUntil, Date(timeIntervalSince1970: 2_000_000_000))
     }
 
-    func testCaughtUpStateTakesPrecedenceOverStaleProgressWhenEpisodeIDsAreMissing() throws {
+    func testLegacyProgressKeepsNewReleaseUnwatchedWhenEpisodeIDsAreMissing() throws {
         var snapshot = LibrarySnapshot.sample
         let index = try XCTUnwrap(snapshot.titles.firstIndex(where: { $0.id == "severance" }))
         snapshot.titles = [snapshot.titles[index]]
@@ -166,7 +166,7 @@ final class UpNextIntentTests: XCTestCase {
 
         let model = AppModel(store: MemoryLibraryStore(), seed: snapshot)
 
-        XCTAssertEqual(model.mediaTitle(withID: "severance")?.state, .caughtUp)
+        XCTAssertEqual(model.mediaTitle(withID: "severance")?.state, .watching)
     }
 
     func testPinSnoozeAndMoveLowerDeterministicallyReorderQueue() throws {
@@ -219,7 +219,7 @@ final class UpNextIntentTests: XCTestCase {
         XCTAssertEqual(model.staleUpNext(at: now).map(\.id), ["severance"])
     }
 
-    func testStaleQueueIncludesWatchingTitlesWithoutWatchDates() throws {
+    func testNewWatchingTitleWithoutWatchDateStaysInActiveQueue() throws {
         var snapshot = LibrarySnapshot.sample
         let index = try XCTUnwrap(snapshot.titles.firstIndex(where: { $0.id == "severance" }))
         snapshot.titles = [snapshot.titles[index]]
@@ -227,10 +227,35 @@ final class UpNextIntentTests: XCTestCase {
         snapshot.titles[0].lastWatchedAt = nil
         let model = AppModel(store: MemoryLibraryStore(), seed: snapshot)
 
-        XCTAssertEqual(
-            model.staleUpNext(at: Date(timeIntervalSince1970: 2_000_000_000)).map(\.id),
-            ["severance"]
-        )
+        XCTAssertTrue(model.staleUpNext(at: Date(timeIntervalSince1970: 2_000_000_000)).isEmpty)
+        XCTAssertEqual(model.activeUpNext.map(\.id), ["severance"])
+    }
+
+    func testCompletingCaughtUpSeriesIncludesNewlyReleasedEpisodes() throws {
+        var snapshot = LibrarySnapshot.sample
+        let index = try XCTUnwrap(snapshot.titles.firstIndex(where: { $0.id == "severance" }))
+        snapshot.titles = [snapshot.titles[index]]
+        snapshot.titles[0].state = .caughtUp
+        snapshot.titles[0].seriesLifecycle = .continuing
+        snapshot.titles[0].watchedEpisodeIDs = ["s1e1"]
+        snapshot.titles[0].progress = EpisodeProgress(season: 1, episode: 1, totalEpisodes: 2)
+        snapshot.titles[0].seasons = [
+            SeasonSummary(
+                id: "season-1",
+                number: 1,
+                title: "Season 1",
+                episodes: [
+                    EpisodeSummary(id: "s1e1", number: 1, title: "Episode 1", airDate: nil, runtimeMinutes: 50),
+                    EpisodeSummary(id: "s1e2", number: 2, title: "Episode 2", airDate: nil, runtimeMinutes: 52)
+                ]
+            )
+        ]
+        let model = AppModel(store: MemoryLibraryStore(), seed: snapshot)
+
+        model.setWatchState(.completed, for: "severance")
+
+        XCTAssertEqual(model.mediaTitle(withID: "severance")?.state, .completed)
+        XCTAssertEqual(model.mediaTitle(withID: "severance")?.watchedEpisodeIDs, ["s1e1", "s1e2"])
     }
 
     private func modelWithSingleEpisode(lifecycle: SeriesLifecycle) throws -> AppModel {
