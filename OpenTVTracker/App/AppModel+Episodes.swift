@@ -293,15 +293,6 @@ private extension AppModel {
             .map { (season: season, episode: $0) }
     }
 
-    func resolvedWatchedEpisodeIDs(for title: MediaTitle) -> Set<EpisodeSummary.ID> {
-        if let watchedEpisodeIDs = title.watchedEpisodeIDs { return watchedEpisodeIDs }
-        if title.progress != nil { return title.episodeIDsThroughProgress }
-        if title.state.isCurrentViewingComplete {
-            return Set(releasedEpisodes(for: title).map(\.id))
-        }
-        return []
-    }
-
     func updateEpisodeProgress(at index: Int, watchedIDs: Set<EpisodeSummary.ID>) {
         let seasons = regularSeasons(for: titles[index])
 
@@ -376,5 +367,16 @@ private extension AppModel {
                 supersedesEventID: event.id
             )
         }
+    }
+}
+
+extension AppModel {
+    func resolvedWatchedEpisodeIDs(for title: MediaTitle) -> Set<EpisodeSummary.ID> {
+        if let watchedEpisodeIDs = title.watchedEpisodeIDs { return watchedEpisodeIDs }
+        if title.progress != nil { return title.episodeIDsThroughProgress }
+        if title.state.isCurrentViewingComplete {
+            return Set(releasedEpisodes(for: title).map(\.id))
+        }
+        return []
     }
 }
