@@ -1,6 +1,26 @@
 import Foundation
 
+enum TogetherConnectionPhase: Hashable, Sendable {
+    case unconnected
+    case waitingForPartner
+    case connected
+    case revoked
+    case expired
+    case left
+}
+
 extension AppModel {
+    var togetherConnectionPhase: TogetherConnectionPhase {
+        switch sharedSpace.resolvedMembershipState {
+        case .local: .unconnected
+        case .pending: .waitingForPartner
+        case .accepted: .connected
+        case .revoked: .revoked
+        case .expired: .expired
+        case .left: .left
+        }
+    }
+
     var togetherActivity: [SharedActivity] {
         let currentMemberID = sharedSpace.members.first(where: \.isCurrentUser)?.id
         return sharedSpace.activity.filter { activity in
@@ -101,7 +121,9 @@ extension AppModel {
         } else if var progress = titles[index].progress {
             progress.episode = min(progress.episode + 1, progress.totalEpisodes)
             titles[index].progress = progress
-            titles[index].state = progress.episode == progress.totalEpisodes ? .completed : .watching
+            titles[index].state = progress.episode == progress.totalEpisodes
+                ? finishedState(for: titles[index])
+                : .watching
         }
         titles[index].lastWatchedAt = .now
         let currentMemberID = sharedSpace.members.first(where: \.isCurrentUser)?.id
@@ -128,6 +150,55 @@ extension AppModel {
 
     func isShared(_ id: MediaTitle.ID) -> Bool {
         sharedSpace.titleIDs.contains(id)
+    }
+
+    func togetherMemberProgressSummary(
+        for title: MediaTitle,
+        memberID: SpaceMember.ID
+    ) -> MediaProgressSummary {
+        let allEvents = sharedSpace.watchEvents ?? []
+        let supersededEventIDs = Set(allEvents.compactMap { event in
+            event.kind == .correction ? event.supersedesEventID : nil
+        })
+        let watchedEvents = allEvents.filter { event in
+            event.titleID == title.id
+                && event.memberID == memberID
+                && !supersededEventIDs.contains(event.id)
+                && (event.kind == .watched || event.kind == .watchedTogether || event.kind == .rewatch)
+        }
+
+        if title.kind == .movie {
+            if !watchedEvents.isEmpty {
+                return MediaProgressSummary(label: "Watched", fraction: 1)
+            }
+            return memberFallbackProgress(for: title, memberID: memberID)
+        }
+
+        let countedEpisodeKeys = Set((title.seasons ?? [])
+            .filter { $0.number > 0 }
+            .flatMap { season in
+                season.episodes.map { "\(season.number):\($0.number)" }
+            })
+        let watchedEpisodes = Set(watchedEvents.compactMap { event -> String? in
+            guard let season = event.season, let episode = event.episode else { return nil }
+            return "\(season):\(episode)"
+        }).intersection(countedEpisodeKeys)
+        let totalEpisodeCount = countedEpisodeKeys.count
+
+        if totalEpisodeCount > 0, !watchedEpisodes.isEmpty {
+            return MediaProgressSummary(
+                label: "\(watchedEpisodes.count) of \(totalEpisodeCount) episodes",
+                fraction: Double(watchedEpisodes.count) / Double(totalEpisodeCount)
+            )
+        }
+
+        if let latestEvent = watchedEvents.max(by: { $0.occurredAt < $1.occurredAt }),
+           let season = latestEvent.season,
+           let episode = latestEvent.episode {
+            return MediaProgressSummary(label: "Season \(season), episode \(episode)", fraction: 0)
+        }
+
+        return memberFallbackProgress(for: title, memberID: memberID)
     }
 
     func prepareSharedTitleMetadataForSync() {
@@ -165,9 +236,21 @@ extension AppModel {
         metadata.isDisliked = nil
         metadata.personalWatchlist = false
         metadata.watchedEpisodeIDs = nil
+        metadata.isUpNextPinned = nil
+        metadata.upNextSnoozedUntil = nil
+        metadata.upNextManualOrder = nil
         return metadata
     }
 
+    private func memberFallbackProgress(
+        for title: MediaTitle,
+        memberID: SpaceMember.ID
+    ) -> MediaProgressSummary {
+        guard sharedSpace.members.first(where: { $0.id == memberID })?.isCurrentUser == true else {
+            return MediaProgressSummary(label: "No progress yet", fraction: 0)
+        }
+        return progressSummary(for: title)
+    }
 }
 
 private enum PartnerDeviceIdentity {

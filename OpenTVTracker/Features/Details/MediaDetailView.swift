@@ -65,11 +65,12 @@ struct MediaDetailView: View {
             SeasonEpisodesView(route: route)
         }
         .navigationDestination(for: CommunityReview.self) { CommunityReviewDetailView(review: $0) }
+        .navigationDestination(for: CommunityReviewsRoute.self) { route in
+            CommunityReviewsView(titleID: route.titleID)
+        }
     }
 
-    private var title: MediaTitle? {
-        model.mediaTitle(withID: titleID)
-    }
+    private var title: MediaTitle? { model.mediaTitle(withID: titleID) }
 
     private func hero(_ title: MediaTitle) -> some View {
         ZStack(alignment: .bottomLeading) {
@@ -117,29 +118,22 @@ struct MediaDetailView: View {
 
     private func actions(_ title: MediaTitle) -> some View {
         VStack(spacing: 10) {
-            if let trailerURL = title.trailerURL {
-                Button {
-                    presentedTrailer = TrailerPresentation(title: title.title, url: trailerURL)
-                } label: {
-                    Label("Watch trailer", systemImage: "play.fill")
-                        .frame(maxWidth: .infinity)
-                }
-                .controlSize(.large)
-                .adaptiveGlassButton(prominent: true)
+            TrailerActionView(title: title) { trailer in
+                presentedTrailer = trailer
             }
 
             Button {
                 model.markNextWatched(title.id)
             } label: {
                 Label(
-                    title.state == .completed ? "Watched" : title.kind == .movie ? "Mark watched" : "Mark next watched",
+                    title.nextWatchActionLabel,
                     systemImage: "checkmark.circle.fill"
                 )
                     .frame(maxWidth: .infinity)
             }
             .controlSize(.large)
             .adaptiveGlassButton(prominent: title.trailerURL == nil)
-            .disabled(title.state == .completed)
+            .disabled(title.state.isCurrentViewingComplete)
 
             MediaDetailWatchlistActions(title: title)
 
@@ -240,9 +234,17 @@ struct MediaDetailView: View {
         if !title.reviews.isEmpty {
             VStack(alignment: .leading, spacing: 12) {
                 SectionHeading(title: "Community notes", subtitle: "Spoilers stay hidden unless you ask")
-                ForEach(title.reviews) { review in
+                ForEach(Array(title.reviews.prefix(3))) { review in
                     ReviewCard(review: review)
                 }
+
+                NavigationLink(value: CommunityReviewsRoute(titleID: title.id)) {
+                    Label("See all reviews", systemImage: "text.bubble")
+                        .frame(maxWidth: .infinity)
+                }
+                .controlSize(.large)
+                .adaptiveGlassButton()
+                .accessibilityHint("Loads more source-attributed community reviews in OpenTV")
 
                 HStack {
                     if let sourceURL = SourceLinks.catalog(for: title) {
@@ -256,6 +258,14 @@ struct MediaDetailView: View {
                 .font(.footnote.weight(.semibold))
             }
         }
+    }
+}
+
+private extension MediaTitle {
+    var nextWatchActionLabel: String {
+        if state == .completed { return "Watched" }
+        if state == .caughtUp { return "Caught up" }
+        return kind == .movie ? "Mark watched" : "Mark next watched"
     }
 }
 

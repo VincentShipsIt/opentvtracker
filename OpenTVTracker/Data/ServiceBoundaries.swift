@@ -7,9 +7,16 @@ struct MediaSearchQuery: Hashable, Sendable {
     var region: StreamingRegion
 }
 
+struct CommunityReviewPage: Hashable, Sendable {
+    let page: Int
+    let totalPages: Int
+    let results: [CommunityReview]
+}
+
 protocol CatalogProviding: Sendable {
     func search(_ query: MediaSearchQuery) async throws -> [MediaTitle]
     func title(kind: MediaKind, catalogID: Int, region: StreamingRegion) async throws -> MediaTitle
+    func reviews(kind: MediaKind, catalogID: Int, page: Int) async throws -> CommunityReviewPage
 }
 
 struct RecommendationContext: Hashable, Sendable {

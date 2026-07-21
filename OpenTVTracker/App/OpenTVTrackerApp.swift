@@ -64,22 +64,30 @@ struct OpenTVTrackerApp: App {
     @UIApplicationDelegateAdaptor(OpenTVAppDelegate.self) private var appDelegate
     @Environment(\.scenePhase) private var scenePhase
     @State private var model: AppModel
+    private let partnerSharingService: any PartnerSharingProviding
 
     init() {
         #if DEBUG
-        if ProcessInfo.processInfo.arguments.contains("-ui-testing-bulk-watch") {
+        let processInfo = ProcessInfo.processInfo
+        let isBulkWatchUITest = processInfo.arguments.contains("-ui-testing-bulk-watch")
+        if isBulkWatchUITest {
             _model = State(initialValue: AppModel(store: MemoryLibraryStore(), seed: .bulkWatchUITest))
         } else {
             _model = State(initialValue: AppModel())
         }
+        partnerSharingService = isBulkWatchUITest
+            || processInfo.environment["XCTestConfigurationFilePath"] != nil
+            ? PreviewPartnerSharingService()
+            : CloudKitPartnerSharingService()
         #else
         _model = State(initialValue: AppModel())
+        partnerSharingService = CloudKitPartnerSharingService()
         #endif
     }
 
     var body: some Scene {
         WindowGroup {
-            RootTabView()
+            RootTabView(partnerSharingService: partnerSharingService)
                 .environment(model)
                 .task {
                     await model.load()

@@ -2,7 +2,9 @@ import SwiftUI
 
 struct TodayView: View {
     @Environment(AppModel.self) private var model
+    @Binding var selectedTab: AppTab
     @State private var presentsAssistant = false
+    @State private var presentedSheet: TodaySheet?
 
     var body: some View {
         NavigationStack {
@@ -11,14 +13,33 @@ struct TodayView: View {
 
                 ScrollView {
                     LazyVStack(spacing: AppTheme.sectionSpacing) {
-                        if let first = model.upNext.first {
+                        TodayHeader(
+                            memberName: currentMember.name,
+                            onOpenProfile: { presentedSheet = .profile }
+                        )
+
+                        if let first = model.activeUpNext.first {
                             UpNextHero(title: first)
+                        } else if let recommendation = model.recommendations.first {
+                            TodayRecommendationCard(
+                                title: recommendation,
+                                onAdd: { model.setWatchState(.planned, for: recommendation.id) },
+                                onOpenDiscover: { selectedTab = .discover }
+                            )
+                            .padding(.horizontal, AppTheme.horizontalPadding)
                         } else {
-                            caughtUp
-                                .padding(.horizontal, AppTheme.horizontalPadding)
+                            TodayRecoveryCard(
+                                hasSelectedServices: !model.selectedProviderIDs.isEmpty,
+                                catalogError: model.catalogSearchError,
+                                onManageServices: { presentedSheet = .services },
+                                onOpenDiscover: { selectedTab = .discover }
+                            )
+                            .padding(.horizontal, AppTheme.horizontalPadding)
                         }
 
                         remainingQueue
+                        staleQueue
+                        newReleases
                         partnerActivity
                     }
                     .padding(.bottom, 32)
@@ -28,7 +49,15 @@ struct TodayView: View {
                 MediaDetailView(titleID: title.id)
             }
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    NavigationLink {
+                        UpcomingCalendarView()
+                    } label: {
+                        Label("Upcoming calendar", systemImage: "calendar")
+                    }
+                    .accessibilityHint("Shows upcoming episodes and movie releases")
+                    .accessibilityIdentifier("home.upcoming-calendar")
+
                     Button("Ask OpenTV", systemImage: "sparkles") {
                         presentsAssistant = true
                     }
@@ -39,23 +68,20 @@ struct TodayView: View {
             .fullScreenCover(isPresented: $presentsAssistant) {
                 DiscoveryAssistantView()
             }
-        }
-    }
-
-    private var caughtUp: some View {
-        GlassSurface(tint: .green) {
-            ContentUnavailableView(
-                "You are caught up",
-                systemImage: "checkmark.seal.fill",
-                description: Text("Pick something from Discover or your watchlist.")
-            )
-            .padding(.vertical, 20)
+            .sheet(item: $presentedSheet) { sheet in
+                switch sheet {
+                case .profile:
+                    ProfileView()
+                case .services:
+                    ServiceManagerView()
+                }
+            }
         }
     }
 
     @ViewBuilder
     private var remainingQueue: some View {
-        let remaining = Array(model.upNext.dropFirst())
+        let remaining = Array(model.activeUpNext.dropFirst())
         if !remaining.isEmpty {
             VStack(alignment: .leading, spacing: 14) {
                 SectionHeading(title: "Also up next", subtitle: "Small commitments, ready when you are")
@@ -64,13 +90,63 @@ struct TodayView: View {
                 ScrollView(.horizontal) {
                     LazyHStack(spacing: 14) {
                         ForEach(remaining) { title in
+                            UpNextPosterCard(title: title)
+                        }
+                    }
+                    .padding(.horizontal, AppTheme.horizontalPadding)
+                    .padding(.bottom, 4)
+                }
+                .scrollIndicators(.hidden)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var staleQueue: some View {
+        if !model.staleUpNext.isEmpty {
+            VStack(alignment: .leading, spacing: 14) {
+                SectionHeading(
+                    title: "Haven't watched in a while",
+                    subtitle: "Resume, snooze, or drop these without losing your place"
+                )
+                .padding(.horizontal, AppTheme.horizontalPadding)
+
+                ScrollView(.horizontal) {
+                    LazyHStack(spacing: 14) {
+                        ForEach(model.staleUpNext) { title in
+                            UpNextPosterCard(
+                                title: title,
+                                subtitle: title.lastWatchedAt.map {
+                                    "Last watched \($0.formatted(.relative(presentation: .named)))"
+                                } ?? "Ready when you are"
+                            )
+                        }
+                    }
+                    .padding(.horizontal, AppTheme.horizontalPadding)
+                    .padding(.bottom, 4)
+                }
+                .scrollIndicators(.hidden)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var newReleases: some View {
+        let releases = model.newReleasesOnSelectedProviders()
+        if !releases.isEmpty {
+            VStack(alignment: .leading, spacing: 14) {
+                SectionHeading(
+                    title: "New on your services",
+                    subtitle: "Released in the last two weeks"
+                )
+                .padding(.horizontal, AppTheme.horizontalPadding)
+
+                ScrollView(.horizontal) {
+                    LazyHStack(spacing: 14) {
+                        ForEach(releases) { title in
                             NavigationLink(value: title) {
-                                MediaProgressPosterCard(
-                                    title: title,
-                                    summary: model.progressSummary(for: title),
-                                    subtitle: title.nextReleaseDescription
-                                )
-                                .frame(width: 144)
+                                PosterShelfCard(title: title)
+                                    .frame(width: 144)
                             }
                             .buttonStyle(.plain)
                         }
@@ -85,18 +161,11 @@ struct TodayView: View {
 
     @ViewBuilder
     private var partnerActivity: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            SectionHeading(title: "Together", subtitle: model.sharedSpace.name)
-            if model.togetherActivity.isEmpty {
-                ContentUnavailableView(
-                    "No shared activity yet",
-                    systemImage: "person.2",
-                    description: Text("Share a title or mark something watched together.")
-                )
-                .frame(minHeight: 180)
-            } else {
+        if !model.togetherActivity.isEmpty {
+            VStack(alignment: .leading, spacing: 14) {
+                SectionHeading(title: "Together", subtitle: "Latest from \(model.sharedSpace.name)")
                 VStack(spacing: 12) {
-                    ForEach(model.togetherActivity.prefix(3)) { activity in
+                    ForEach(model.togetherActivity.prefix(2)) { activity in
                         ActivityCard(
                             activity: activity,
                             space: model.sharedSpace,
@@ -105,9 +174,21 @@ struct TodayView: View {
                     }
                 }
             }
+            .padding(.horizontal, AppTheme.horizontalPadding)
         }
-        .padding(.horizontal, AppTheme.horizontalPadding)
     }
+
+    private var currentMember: SpaceMember {
+        model.sharedSpace.members.first(where: \.isCurrentUser)
+            ?? SpaceMember(id: "local-user", name: "You", initials: "YOU", isCurrentUser: true)
+    }
+}
+
+private enum TodaySheet: Hashable, Identifiable {
+    case profile
+    case services
+
+    var id: Self { self }
 }
 
 private struct UpNextHero: View {
@@ -160,18 +241,25 @@ private struct UpNextHero: View {
                             .accessibilityLabel("Viewing progress")
                             .accessibilityValue(progressSummary.label)
 
-                        Button {
-                            model.markNextWatched(title.id)
-                            progressTrigger += 1
-                        } label: {
-                            Label(watchedActionTitle, systemImage: "checkmark.circle.fill")
-                                .frame(maxWidth: .infinity)
+                        HStack(spacing: 10) {
+                            Button {
+                                model.markNextWatched(title.id)
+                                progressTrigger += 1
+                            } label: {
+                                Label(watchedActionTitle, systemImage: "checkmark.circle.fill")
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .controlSize(.large)
+                            .buttonStyle(.borderedProminent)
+                            .tint(.white)
+                            .foregroundStyle(.black)
+                            .sensoryFeedback(.success, trigger: progressTrigger)
+
+                            QueueActionsMenu(title: title)
+                                .controlSize(.large)
+                                .buttonStyle(.bordered)
+                                .tint(.white)
                         }
-                        .controlSize(.large)
-                        .buttonStyle(.borderedProminent)
-                        .tint(.white)
-                        .foregroundStyle(.black)
-                        .sensoryFeedback(.success, trigger: progressTrigger)
                     }
                     .frame(width: max(geometry.size.width - (AppTheme.horizontalPadding * 2), 0))
                     .padding(.horizontal, AppTheme.horizontalPadding)
@@ -189,8 +277,85 @@ private struct UpNextHero: View {
     }
 }
 
+private struct UpNextPosterCard: View {
+    @Environment(AppModel.self) private var model
+    let title: MediaTitle
+    var subtitle: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            NavigationLink(value: title) {
+                MediaProgressPosterCard(
+                    title: title,
+                    summary: model.progressSummary(for: title),
+                    subtitle: subtitle ?? title.nextReleaseDescription
+                )
+            }
+            .buttonStyle(.plain)
+
+            QueueActionsMenu(title: title)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+        .frame(width: 144)
+    }
+}
+
+private struct QueueActionsMenu: View {
+    @Environment(AppModel.self) private var model
+    let title: MediaTitle
+
+    var body: some View {
+        Menu {
+            Button {
+                model.setUpNextPinned(title.isUpNextPinned != true, for: title.id)
+            } label: {
+                Label(
+                    title.isUpNextPinned == true ? "Unpin" : "Pin to top",
+                    systemImage: title.isUpNextPinned == true ? "pin.slash" : "pin"
+                )
+            }
+
+            if title.isSnoozed(at: .now) {
+                Button {
+                    model.snoozeUpNext(title.id, until: nil)
+                } label: {
+                    Label("Bring back now", systemImage: "arrow.uturn.backward")
+                }
+            } else {
+                Button {
+                    model.snoozeUpNext(title.id, until: snoozeDate)
+                } label: {
+                    Label("Snooze for one week", systemImage: "clock.badge")
+                }
+            }
+
+            Button {
+                model.moveUpNextLower(title.id)
+            } label: {
+                Label("Move lower", systemImage: "arrow.down")
+            }
+
+            if title.kind == .series {
+                Button {
+                    model.setWatchState(.dropped, for: title.id)
+                } label: {
+                    Label("Mark dropped", systemImage: "xmark.circle")
+                }
+            }
+        } label: {
+            Label("Queue actions", systemImage: "ellipsis.circle")
+                .labelStyle(.iconOnly)
+        }
+        .accessibilityLabel("Queue actions for \(title.title)")
+    }
+
+    private var snoozeDate: Date {
+        Calendar.current.date(byAdding: .day, value: 7, to: .now) ?? .now
+    }
+}
+
 #Preview {
-    TodayView()
+    TodayView(selectedTab: .constant(.today))
         .environment(AppModel(store: MemoryLibraryStore(), seed: .sample))
         .environment(\.allowsRemoteArtwork, false)
 }
