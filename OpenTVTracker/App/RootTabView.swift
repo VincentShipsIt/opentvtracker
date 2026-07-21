@@ -42,7 +42,7 @@ struct RootTabView: View {
         }
         .tint(.accentColor)
         .fullScreenCover(isPresented: $presentsFirstRun) {
-            FirstRunView()
+            FirstRunView(partnerSharingService: partnerSharingService)
         }
         .task(id: model.hasLoaded) {
             guard model.hasLoaded, !model.hasCompletedFirstRun else { return }
