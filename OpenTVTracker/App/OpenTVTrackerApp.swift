@@ -47,22 +47,26 @@ struct OpenTVTrackerApp: App {
     @UIApplicationDelegateAdaptor(OpenTVAppDelegate.self) private var appDelegate
     @Environment(\.scenePhase) private var scenePhase
     @State private var model: AppModel
+    private let partnerSharingService: any PartnerSharingProviding
 
     init() {
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("-ui-testing-bulk-watch") {
             _model = State(initialValue: AppModel(store: MemoryLibraryStore(), seed: .bulkWatchUITest))
+            partnerSharingService = PreviewPartnerSharingService()
         } else {
             _model = State(initialValue: AppModel())
+            partnerSharingService = CloudKitPartnerSharingService()
         }
         #else
         _model = State(initialValue: AppModel())
+        partnerSharingService = CloudKitPartnerSharingService()
         #endif
     }
 
     var body: some Scene {
         WindowGroup {
-            RootTabView()
+            RootTabView(partnerSharingService: partnerSharingService)
                 .environment(model)
                 .task {
                     await model.load()

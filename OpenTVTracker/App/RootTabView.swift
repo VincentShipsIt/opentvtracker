@@ -9,6 +9,7 @@ enum AppTab: Hashable {
 
 struct RootTabView: View {
     @State private var selection: AppTab = .today
+    let partnerSharingService: any PartnerSharingProviding
 
     var body: some View {
         TabView(selection: $selection) {
@@ -28,7 +29,7 @@ struct RootTabView: View {
             }
 
             Tab("Together", systemImage: "person.2.fill", value: .together) {
-                TogetherView()
+                TogetherView(sharingService: partnerSharingService)
                     .accessibilityIdentifier("tab.together")
             }
 
@@ -43,7 +44,7 @@ struct RootTabView: View {
 }
 
 #Preview {
-    RootTabView()
+    RootTabView(partnerSharingService: PreviewPartnerSharingService())
         .environment(AppModel(store: MemoryLibraryStore(), seed: .sample))
         .environment(\.allowsRemoteArtwork, false)
 }
