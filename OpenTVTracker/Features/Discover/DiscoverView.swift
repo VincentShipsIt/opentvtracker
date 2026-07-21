@@ -190,11 +190,18 @@ struct DiscoverView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 12)
                 } else if let error = model.catalogSearchError {
-                    ContentUnavailableView(
-                        "Catalog unavailable",
-                        systemImage: "wifi.exclamationmark",
-                        description: Text(error)
-                    )
+                    VStack(spacing: 16) {
+                        ContentUnavailableView(
+                            "Catalog unavailable",
+                            systemImage: "wifi.exclamationmark",
+                            description: Text(error)
+                        )
+
+                        Button("Try again", systemImage: "arrow.clockwise") {
+                            Task { await model.loadMoreCatalogResults(text: searchText) }
+                        }
+                        .adaptiveGlassButton(prominent: true)
+                    }
                 }
             }
         }

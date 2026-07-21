@@ -128,6 +128,7 @@ extension AppModel {
         let queryText = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !isSearchingCatalog, hasMoreCatalogResults, queryText == catalogSearchQuery else { return }
         let requestID = catalogSearchRequestID
+        catalogSearchError = nil
         isSearchingCatalog = true
         defer {
             if catalogSearchRequestID == requestID {
@@ -144,6 +145,7 @@ extension AppModel {
             catalogSearchResults.append(contentsOf: results.filter { !existingIDs.contains($0.id) })
             catalogSearchPage = nextPage
             hasMoreCatalogResults = results.count >= 20
+            catalogSearchError = nil
         } catch {
             guard catalogSearchRequestID == requestID else { return }
             catalogSearchError = error.localizedDescription
