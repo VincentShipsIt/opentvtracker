@@ -187,7 +187,9 @@ struct LibraryDataView: View {
             }
         }
     }
+}
 
+private extension LibraryDataView {
     private var currentPreview: LibraryImportPreview? {
         importCoordinator?.preview ?? importPreview
     }
