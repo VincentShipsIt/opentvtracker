@@ -7,7 +7,7 @@ struct TogetherView: View {
     @State private var presentedSheet: TogetherSheet?
     @State private var sharingAvailability: PartnerSharingAvailability?
 
-    init(sharingService: any PartnerSharingProviding = CloudKitPartnerSharingService()) {
+    init(sharingService: any PartnerSharingProviding) {
         self.sharingService = sharingService
     }
 
@@ -124,7 +124,7 @@ struct TogetherView: View {
         .environment(\.allowsRemoteArtwork, false)
 }
 
-private struct PreviewPartnerSharingService: PartnerSharingProviding {
+struct PreviewPartnerSharingService: PartnerSharingProviding {
     func availability() async -> PartnerSharingAvailability { .available }
 
     func inviteURL(for _: SharedSpace.ID) async throws -> URL {
