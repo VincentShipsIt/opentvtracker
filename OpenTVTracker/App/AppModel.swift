@@ -259,9 +259,11 @@ extension AppModel {
 
     func recordRewatch(_ id: MediaTitle.ID) {
         guard let index = trackableTitleIndex(for: id) else { return }
+        let watchedAt = Date.now
         titles[index].rewatchCount = titles[index].completedRewatches + 1
-        titles[index].lastWatchedAt = .now
-        appendWatchEvent(title: titles[index], kind: .rewatch)
+        titles[index].lastWatchedAt = watchedAt
+        recordTitleRewatchInDiary(titles[index], watchedAt: watchedAt)
+        appendWatchEvent(title: titles[index], kind: .rewatch, occurredAt: watchedAt)
         addActivity(
             description: "rewatched \(titles[index].title)",
             titleID: titles[index].id,
@@ -368,11 +370,9 @@ extension AppModel {
     func flushPendingPersistence() async {
         await saveTask?.value
     }
-
     func flushPendingReminders() async {
         await reminderTask?.value
     }
-
     func refreshRecommendations() async {
         guard allowsAIReranking else {
             remoteRankedRecommendations = []

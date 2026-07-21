@@ -177,7 +177,6 @@
 		E2B5FEB70787BE3DA72B8C7F /* LibraryTransfer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4678CD1604F11015454665A7 /* LibraryTransfer.swift */; };
 		E47EA8A432D01C6D85B2D40F /* TogetherView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AAFCABC14F1C5AE4F0169C7 /* TogetherView.swift */; };
 		E78D65A6C0CEAEC9E4086993 /* LibraryPersisting.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBBD0032700550FCBAE59CEC /* LibraryPersisting.swift */; };
-		E9F7122F5216CFA5A397A67F /* TVTimeMergeAccumulator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A302CB88020C911C4908682 /* TVTimeMergeAccumulator.swift */; };
 		EB5DB02133407F5D22B3FE19 /* AppModel+Episodes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BB64E89979BCD5C0AE1B607 /* AppModel+Episodes.swift */; };
 		EB89E3CEDCC147CADF6D923C /* TraktSyncEdgeCaseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DA645E7F698A47D164EA413 /* TraktSyncEdgeCaseTests.swift */; };
 		EB957279FF5081E3D3A2B8CA /* LibraryDataView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99D8913E76F6F19B3429126F /* LibraryDataView.swift */; };
@@ -285,7 +284,6 @@
 		48F9DBE470CF3D4846AD83C3 /* TVTimeImportIntegrityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVTimeImportIntegrityTests.swift; sourceTree = "<group>"; };
 		492F7F202E01B8C6716E3C59 /* TraktSyncTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TraktSyncTests.swift; sourceTree = "<group>"; };
 		493F1A7537846757A044FDAE /* ServiceBoundaries.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceBoundaries.swift; sourceTree = "<group>"; };
-		4A302CB88020C911C4908682 /* TVTimeMergeAccumulator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVTimeMergeAccumulator.swift; sourceTree = "<group>"; };
 		4B325A30F98FDFF8695425C2 /* reaction-happy-dance.gif */ = {isa = PBXFileReference; lastKnownFileType = image.gif; path = "reaction-happy-dance.gif"; sourceTree = "<group>"; };
 		4C3F72180ACFB3BF46E562EB /* BackupHealthTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupHealthTests.swift; sourceTree = "<group>"; };
 		4CF88C5B1269C6E75E623119 /* AppModel+Reminders.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+Reminders.swift"; sourceTree = "<group>"; };
@@ -491,7 +489,6 @@
 				67182631F08D306587C707A8 /* TVTimeImportReportBuilder.swift */,
 				8FEE2765A6E9DF2C669A8BF9 /* TVTimeListMerger.swift */,
 				EF907450AFF0759C3920551C /* TVTimeListParser.swift */,
-				4A302CB88020C911C4908682 /* TVTimeMergeAccumulator.swift */,
 				8153EDA09ACF660FCCC5731E /* TVTimeNativeRecordParser.swift */,
 				E2F8946DC4EE1DAE49DC50DC /* TVTimeZIPReader.swift */,
 			);
@@ -920,7 +917,7 @@
 					96396D01C2F07D817EF2875C = {
 						DevelopmentTeam = C76R5DRH64;
 						ProvisioningStyle = Automatic;
-						SystemCapabilities = "[\"com.apple.iCloud\": [\"enabled\": 1], \"com.apple.DeviceCheck\": [\"enabled\": 1], \"com.apple.Push\": [\"enabled\": 1]]";
+						SystemCapabilities = "[\"com.apple.DeviceCheck\": [\"enabled\": 1], \"com.apple.iCloud\": [\"enabled\": 1], \"com.apple.Push\": [\"enabled\": 1]]";
 					};
 					B0AF29D3A827D293C2407B7B = {
 						DevelopmentTeam = C76R5DRH64;
@@ -1137,7 +1134,6 @@
 				5C3E1EB9260672A82D30C682 /* TVTimeImportReportBuilder.swift in Sources */,
 				8D7A43E471B129970D411437 /* TVTimeListMerger.swift in Sources */,
 				8ED3B9631DAEEDB3B73C2DEB /* TVTimeListParser.swift in Sources */,
-				E9F7122F5216CFA5A397A67F /* TVTimeMergeAccumulator.swift in Sources */,
 				9871D12596D7B61A02641F50 /* TVTimeNativeRecordParser.swift in Sources */,
 				4BFEA87481F72CF042ED3B40 /* TVTimeResolutionView.swift in Sources */,
 				F174771646994C976737EF5F /* TVTimeZIPReader.swift in Sources */,
