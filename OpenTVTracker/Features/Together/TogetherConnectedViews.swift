@@ -151,7 +151,6 @@ struct TogetherSharedWatchlistSection: View {
             }
         }
     }
-
     private func sharedTitleSubtitle(for title: MediaTitle) -> String {
         if title.kind == .movie { return "Shared movie" }
         switch title.state {
