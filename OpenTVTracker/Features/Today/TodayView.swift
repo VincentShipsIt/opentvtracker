@@ -3,7 +3,8 @@ import SwiftUI
 struct TodayView: View {
     @Environment(AppModel.self) private var model
     @Binding var selectedTab: AppTab
-    @State private var showsServiceManager = false
+    @State private var presentsAssistant = false
+    @State private var presentedSheet: TodaySheet?
 
     var body: some View {
         NavigationStack {
@@ -14,7 +15,7 @@ struct TodayView: View {
                     LazyVStack(spacing: AppTheme.sectionSpacing) {
                         TodayHeader(
                             memberName: currentMember.name,
-                            onOpenProfile: { selectedTab = .profile }
+                            onOpenProfile: { presentedSheet = .profile }
                         )
 
                         if let first = model.upNext.first {
@@ -30,7 +31,7 @@ struct TodayView: View {
                             TodayRecoveryCard(
                                 hasSelectedServices: !model.selectedProviderIDs.isEmpty,
                                 catalogError: model.catalogSearchError,
-                                onManageServices: { showsServiceManager = true },
+                                onManageServices: { presentedSheet = .services },
                                 onOpenDiscover: { selectedTab = .discover }
                             )
                             .padding(.horizontal, AppTheme.horizontalPadding)
@@ -46,8 +47,25 @@ struct TodayView: View {
             .navigationDestination(for: MediaTitle.self) { title in
                 MediaDetailView(titleID: title.id)
             }
-            .sheet(isPresented: $showsServiceManager) {
-                ServiceManagerView()
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Ask OpenTV", systemImage: "sparkles") {
+                        presentsAssistant = true
+                    }
+                    .accessibilityHint("Opens personalized viewing suggestions")
+                    .accessibilityIdentifier("today.ask-opentv")
+                }
+            }
+            .fullScreenCover(isPresented: $presentsAssistant) {
+                DiscoveryAssistantView()
+            }
+            .sheet(item: $presentedSheet) { sheet in
+                switch sheet {
+                case .profile:
+                    ProfileView()
+                case .services:
+                    ServiceManagerView()
+                }
             }
         }
     }
@@ -134,6 +152,13 @@ struct TodayView: View {
         model.sharedSpace.members.first(where: \.isCurrentUser)
             ?? SpaceMember(id: "local-user", name: "You", initials: "YOU", isCurrentUser: true)
     }
+}
+
+private enum TodaySheet: Hashable, Identifiable {
+    case profile
+    case services
+
+    var id: Self { self }
 }
 
 private struct TodayHeader: View {

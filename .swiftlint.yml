@@ -1,5 +1,7 @@
 included:
   - OpenTVTracker
+  - OpenTVShared
+  - OpenTVWidgets
   - OpenTVTrackerTests
   - OpenTVTrackerUITests
 

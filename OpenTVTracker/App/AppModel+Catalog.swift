@@ -93,6 +93,9 @@ extension AppModel {
 
     func searchCatalog(text: String) async {
         let queryText = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let requestID = UUID()
+        catalogSearchRequestID = requestID
+
         guard !queryText.isEmpty else {
             catalogSearchResults = []
             catalogSearchError = nil
@@ -103,23 +106,32 @@ extension AppModel {
             return
         }
 
+        catalogSearchResults = []
+        catalogSearchError = nil
+        catalogSearchPage = 0
+        catalogSearchQuery = queryText
+        hasMoreCatalogResults = false
         isSearchingCatalog = true
-        defer { isSearchingCatalog = false }
+        defer {
+            if catalogSearchRequestID == requestID {
+                isSearchingCatalog = false
+            }
+        }
         do {
             try await Task.sleep(for: .milliseconds(250))
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled, catalogSearchRequestID == requestID else { return }
             let results = try await catalogService.search(
                 MediaSearchQuery(text: queryText, kind: nil, page: 1, region: streamingRegion)
             )
-            guard queryText == text.trimmingCharacters(in: .whitespacesAndNewlines) else { return }
+            guard catalogSearchRequestID == requestID, catalogSearchQuery == queryText else { return }
             catalogSearchResults = results
             catalogSearchPage = 1
-            catalogSearchQuery = queryText
             hasMoreCatalogResults = results.count >= 20
             catalogSearchError = nil
         } catch is CancellationError {
             return
         } catch {
+            guard catalogSearchRequestID == requestID else { return }
             catalogSearchResults = []
             catalogSearchError = error.localizedDescription
         }
@@ -128,18 +140,27 @@ extension AppModel {
     func loadMoreCatalogResults(text: String) async {
         let queryText = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !isSearchingCatalog, hasMoreCatalogResults, queryText == catalogSearchQuery else { return }
+        let requestID = catalogSearchRequestID
+        catalogSearchError = nil
         isSearchingCatalog = true
-        defer { isSearchingCatalog = false }
+        defer {
+            if catalogSearchRequestID == requestID {
+                isSearchingCatalog = false
+            }
+        }
         do {
             let nextPage = catalogSearchPage + 1
             let results = try await catalogService.search(
                 MediaSearchQuery(text: queryText, kind: nil, page: nextPage, region: streamingRegion)
             )
+            guard catalogSearchRequestID == requestID, catalogSearchQuery == queryText else { return }
             let existingIDs = Set(catalogSearchResults.map(\.id))
             catalogSearchResults.append(contentsOf: results.filter { !existingIDs.contains($0.id) })
             catalogSearchPage = nextPage
             hasMoreCatalogResults = results.count >= 20
+            catalogSearchError = nil
         } catch {
+            guard catalogSearchRequestID == requestID else { return }
             catalogSearchError = error.localizedDescription
         }
     }
@@ -151,7 +172,10 @@ extension AppModel {
 
         guard streamingRegion != previousRegion else { return }
         clearUntrackedCatalogTitles()
+        catalogSearchRequestID = UUID()
         catalogSearchResults = []
+        catalogSearchError = nil
+        isSearchingCatalog = false
         catalogSearchPage = 0
         catalogSearchQuery = ""
         hasMoreCatalogResults = false
