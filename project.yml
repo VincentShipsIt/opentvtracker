@@ -27,6 +27,7 @@ targets:
       Release: Config/Base.xcconfig
     sources:
       - path: OpenTVTracker
+      - path: OpenTVShared
     resources:
       - path: OpenTVTracker/Resources/Assets.xcassets
       - path: OpenTVTracker/Resources/PrivacyInfo.xcprivacy
@@ -59,7 +60,7 @@ targets:
         CODE_SIGN_STYLE: Automatic
         CODE_SIGN_ENTITLEMENTS: Config/OpenTVTracker.entitlements
         PRODUCT_BUNDLE_IDENTIFIER: dev.opentvtracker.app
-        TARGETED_DEVICE_FAMILY: 1
+        TARGETED_DEVICE_FAMILY: "1,2"
       configs:
         Debug:
           APP_ATTEST_ENVIRONMENT: development
@@ -77,6 +78,32 @@ targets:
           enabled: 1
     dependencies:
       - package: ZIPFoundation
+      - target: OpenTVWidgets
+        embed: true
+  OpenTVWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: OpenTVWidgets
+      - path: OpenTVShared
+    resources:
+      - path: OpenTVWidgets/PrivacyInfo.xcprivacy
+    info:
+      path: Config/OpenTVWidgets-Info.plist
+      properties:
+        CFBundleDisplayName: OpenTV Widgets
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        APPLICATION_EXTENSION_API_ONLY: YES
+        CODE_SIGN_ENTITLEMENTS: Config/OpenTVWidgets.entitlements
+        CODE_SIGN_STYLE: Automatic
+        PRODUCT_BUNDLE_IDENTIFIER: dev.opentvtracker.app.widgets
+        SKIP_INSTALL: YES
+        TARGETED_DEVICE_FAMILY: 1
   OpenTVTrackerTests:
     type: bundle.unit-test
     platform: iOS
@@ -105,6 +132,7 @@ schemes:
     build:
       targets:
         OpenTVTracker: all
+        OpenTVWidgets: all
         OpenTVTrackerTests: [test]
         OpenTVTrackerUITests: [test]
     test:
