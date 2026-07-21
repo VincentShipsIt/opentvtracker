@@ -14,8 +14,14 @@ struct EpisodeDetailView: View {
                     LazyVStack(alignment: .leading, spacing: AppTheme.sectionSpacing) {
                         hero(title: title, season: season, episode: episode)
                         trackingActions(title: title, season: season, episode: episode)
+                        EpisodeDiarySection(title: title, season: season, episode: episode)
+                        EpisodeConversationView(
+                            title: title,
+                            season: season,
+                            episode: episode
+                        )
                         episodeInformation(episode)
-                        overview(episode)
+                        EpisodeStorySection(title: title, season: season, episode: episode)
                     }
                     .padding(.horizontal, AppTheme.horizontalPadding)
                     .padding(.top, 12)
@@ -76,18 +82,30 @@ struct EpisodeDetailView: View {
         return "S\(season.number) E\(episode.number)"
     }
 
+    @ViewBuilder
     private func hero(
         title: MediaTitle,
         season: SeasonSummary,
         episode: EpisodeSummary
     ) -> some View {
-        EpisodeStillArtwork(
-            url: episode.stillURL,
-            fallbackURL: title.backdropURL ?? title.posterURL,
-            showTitle: title.title,
-            episodeLabel: "Season \(season.number), episode \(episode.number)",
-            palette: title.palette
+        let isWatched = model.isEpisodeWatched(
+            titleID: title.id,
+            seasonNumber: season.number,
+            episodeID: episode.id
         )
+        Group {
+            if isWatched {
+                EpisodeStillArtwork(
+                    url: episode.stillURL,
+                    fallbackURL: title.backdropURL ?? title.posterURL,
+                    showTitle: title.title,
+                    episodeLabel: "Season \(season.number), episode \(episode.number)",
+                    palette: title.palette
+                )
+            } else {
+                EpisodeSpoilerArtworkPlaceholder(label: "Artwork hidden until watched")
+            }
+        }
         .frame(maxWidth: .infinity)
         .frame(height: 210)
         .overlay(alignment: .bottomLeading) {
@@ -103,7 +121,7 @@ struct EpisodeDetailView: View {
                 Text("\(season.title) · Episode \(episode.number)")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.white.opacity(0.78))
-                Text(episode.title)
+                Text(isWatched ? episode.title : "Episode title hidden until watched")
                     .font(.title2.weight(.black))
                     .foregroundStyle(.white)
                     .lineLimit(2)
@@ -218,7 +236,7 @@ struct EpisodeDetailView: View {
     }
 
     private func episodeInformation(_ episode: EpisodeSummary) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        return VStack(alignment: .leading, spacing: 12) {
             SectionHeading(title: "Episode details")
 
             GlassSurface(cornerRadius: AppTheme.compactRadius) {
@@ -240,21 +258,6 @@ struct EpisodeDetailView: View {
         }
     }
 
-    private func overview(_ episode: EpisodeSummary) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SectionHeading(title: "Story")
-
-            GlassSurface(cornerRadius: AppTheme.compactRadius) {
-                Text(episode.overview?.nilIfBlank ?? "No episode description is available yet.")
-                    .font(.body)
-                    .lineSpacing(5)
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(18)
-            }
-        }
-    }
-
     private func airDateLabel(for episode: EpisodeSummary) -> String {
         episode.airDate?.formatted(date: .long, time: .omitted) ?? "To be announced"
     }
@@ -264,20 +267,109 @@ struct EpisodeDetailView: View {
     }
 }
 
-private struct DetailRow: View {
-    let label: String
-    let value: String
+private struct EpisodeDiarySection: View {
+    @Environment(AppModel.self) private var model
+    let title: MediaTitle
+    let season: SeasonSummary
+    let episode: EpisodeSummary
 
     var body: some View {
-        HStack {
-            Text(label)
-            Spacer()
-            Text(value)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.trailing)
+        VStack(alignment: .leading, spacing: 12) {
+            SectionHeading(title: "Your diary")
+
+            if isWatched {
+                NavigationLink {
+                    ViewingDiaryEditorView(target: target)
+                } label: {
+                    GlassSurface(cornerRadius: AppTheme.compactRadius, tint: .indigo) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "book.pages.fill")
+                                .font(.title3)
+                                .foregroundStyle(.indigo)
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text("Rating, note, and watch dates")
+                                    .font(.headline)
+                                Text("Private to this device and your exports")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            Image(systemName: "chevron.right")
+                                .foregroundStyle(.secondary)
+                                .accessibilityHidden(true)
+                        }
+                        .padding(14)
+                    }
+                }
+                .buttonStyle(.plain)
+            } else {
+                GlassSurface(cornerRadius: AppTheme.compactRadius) {
+                    Label(
+                        "Mark this episode watched to unlock private notes and ratings",
+                        systemImage: "eye.slash.fill"
+                    )
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(16)
+                }
+            }
         }
-        .padding(16)
-        .accessibilityElement(children: .combine)
+    }
+
+    private var isWatched: Bool {
+        model.isEpisodeWatched(
+            titleID: title.id,
+            seasonNumber: season.number,
+            episodeID: episode.id
+        )
+    }
+
+    private var target: ViewingDiaryTarget {
+        .episode(
+            titleID: title.id,
+            seasonID: season.id,
+            seasonNumber: season.number,
+            episodeID: episode.id,
+            episodeNumber: episode.number
+        )
+    }
+}
+
+private struct EpisodeStorySection: View {
+    @Environment(AppModel.self) private var model
+    let title: MediaTitle
+    let season: SeasonSummary
+    let episode: EpisodeSummary
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SectionHeading(title: "Story")
+
+            GlassSurface(cornerRadius: AppTheme.compactRadius) {
+                if isWatched {
+                    Text(episode.overview?.nilIfBlank ?? "No episode description is available yet.")
+                        .font(.body)
+                        .lineSpacing(5)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(18)
+                } else {
+                    Label("Episode summary hidden until watched", systemImage: "eye.slash.fill")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(18)
+                }
+            }
+        }
+    }
+
+    private var isWatched: Bool {
+        model.isEpisodeWatched(
+            titleID: title.id,
+            seasonNumber: season.number,
+            episodeID: episode.id
+        )
     }
 }
 

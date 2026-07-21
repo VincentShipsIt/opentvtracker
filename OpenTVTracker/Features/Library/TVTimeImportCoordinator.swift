@@ -22,7 +22,10 @@ final class TVTimeImportCoordinator {
         errorMessage = nil
     }
 
-    func resolve(_ issue: ImportResolutionIssue, with title: MediaTitle) async -> Bool {
+    func resolve(
+        _ issue: ImportResolutionIssue,
+        with title: MediaTitle
+    ) async -> Bool {
         guard !isRefreshing else { return false }
         isRefreshing = true
         defer { isRefreshing = false }
@@ -38,13 +41,16 @@ final class TVTimeImportCoordinator {
         }
     }
 
-    func search(_ text: String, kind: MediaKind) async -> [MediaTitle] {
+    func search(
+        _ text: String,
+        kind: MediaKind
+    ) async throws -> [MediaTitle] {
         do {
             let results = try await session.search(text, kind: kind)
             errorMessage = nil
             return results
         } catch is CancellationError {
-            return []
+            throw CancellationError()
         } catch {
             errorMessage = error.localizedDescription
             return []

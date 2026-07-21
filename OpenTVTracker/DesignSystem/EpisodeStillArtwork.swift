@@ -72,3 +72,23 @@ struct EpisodeStillArtwork: View {
         }
     }
 }
+
+struct EpisodeSpoilerArtworkPlaceholder: View {
+    let label: String?
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: 10)
+            .fill(Color.secondary.opacity(0.14))
+            .overlay {
+                if let label {
+                    Label(label, systemImage: "eye.slash.fill")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                } else {
+                    Image(systemName: "eye.slash.fill")
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .accessibilityLabel("Episode artwork hidden until watched")
+    }
+}

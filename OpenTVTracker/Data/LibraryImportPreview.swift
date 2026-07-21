@@ -1,5 +1,3 @@
-import Foundation
-
 struct LibraryImportPreview: Sendable {
     let snapshot: LibrarySnapshot
     let matchedCount: Int
@@ -9,8 +7,12 @@ struct LibraryImportPreview: Sendable {
     let sourceName: String
     let watchedEpisodeCount: Int
     let watchEventCount: Int
-    let importNotice: String?
+    let listCount: Int
+    let listMembershipCount: Int
+    let integrityCounts: [ImportCountComparison]
     let resolutionIssues: [ImportResolutionIssue]
+    let warnings: [ImportWarning]
+    let importNotice: String?
 
     init(
         snapshot: LibrarySnapshot,
@@ -21,8 +23,12 @@ struct LibraryImportPreview: Sendable {
         sourceName: String = "OpenTV",
         watchedEpisodeCount: Int = 0,
         watchEventCount: Int = 0,
-        importNotice: String? = nil,
-        resolutionIssues: [ImportResolutionIssue] = []
+        listCount: Int = 0,
+        listMembershipCount: Int = 0,
+        integrityCounts: [ImportCountComparison] = [],
+        resolutionIssues: [ImportResolutionIssue] = [],
+        warnings: [ImportWarning] = [],
+        importNotice: String? = nil
     ) {
         self.snapshot = snapshot
         self.matchedCount = matchedCount
@@ -32,8 +38,12 @@ struct LibraryImportPreview: Sendable {
         self.sourceName = sourceName
         self.watchedEpisodeCount = watchedEpisodeCount
         self.watchEventCount = watchEventCount
-        self.importNotice = importNotice
+        self.listCount = listCount
+        self.listMembershipCount = listMembershipCount
+        self.integrityCounts = integrityCounts
         self.resolutionIssues = resolutionIssues
+        self.warnings = warnings
+        self.importNotice = importNotice
     }
 
     var summary: String {

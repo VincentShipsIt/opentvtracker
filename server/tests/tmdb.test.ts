@@ -2,7 +2,9 @@ import { describe, expect, test } from "bun:test";
 import {
   mapAlternativeTitles,
   mapEpisodeSummary,
+  mapReviewPage,
   mapReviews,
+  mapSeriesLifecycle,
   mapStreamingProvider,
   StreamingProviderID,
   TMDBProviderID,
@@ -55,6 +57,16 @@ describe("mapAlternativeTitles", () => {
   });
 });
 
+describe("mapSeriesLifecycle", () => {
+  test("distinguishes ended series from continuing catalog entries", () => {
+    expect(mapSeriesLifecycle("Ended")).toBe("ended");
+    expect(mapSeriesLifecycle("Canceled")).toBe("ended");
+    expect(mapSeriesLifecycle("Returning Series")).toBe("continuing");
+    expect(mapSeriesLifecycle("In Production")).toBe("continuing");
+    expect(mapSeriesLifecycle(undefined)).toBe("unknown");
+  });
+});
+
 describe("mapReviews", () => {
   test("keeps complete TMDB review content and source metadata", () => {
     const content = "A".repeat(900);
@@ -90,6 +102,27 @@ describe("mapReviews", () => {
       updatedAt: "2026-07-15T11:45:00Z",
     });
   });
+
+  test("maps bounded review pages with stable cross-page identities", () => {
+    const page = mapReviewPage(
+      {
+        page: 2,
+        total_pages: 120,
+        results: [
+          { id: "stable", content: "First" },
+          { content: "No provider identifier" },
+        ],
+      },
+      2,
+    );
+
+    expect(page.page).toBe(2);
+    expect(page.totalPages).toBe(100);
+    expect(page.results.map((review) => review.id)).toEqual([
+      "tmdb-review-stable",
+      "tmdb-review-2-1",
+    ]);
+  });
 });
 
 describe("mapEpisodeSummary", () => {
@@ -105,6 +138,7 @@ describe("mapEpisodeSummary", () => {
           overview: "The team meets a mysterious visitor.",
           still_path: "/episode-still.jpg",
           vote_average: 8.4,
+          episode_type: "finale",
         },
         95396,
         1,
@@ -118,7 +152,25 @@ describe("mapEpisodeSummary", () => {
       overview: "The team meets a mysterious visitor.",
       stillURL: "https://image.tmdb.org/t/p/w500/episode-still.jpg",
       rating: 8.4,
+      releaseType: "finale",
+      airDateIsAllDay: true,
     });
+  });
+
+  test("does not infer a finale from malformed upstream metadata", () => {
+    expect(
+      mapEpisodeSummary(
+        {
+          id: 456,
+          episode_number: 8,
+          name: "Unknown type",
+          air_date: "2026-07-24",
+          episode_type: "season_finale",
+        },
+        95396,
+        2,
+      ).releaseType,
+    ).toBeNull();
   });
 });
 

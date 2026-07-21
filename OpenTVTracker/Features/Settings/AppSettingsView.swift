@@ -25,6 +25,15 @@ struct AppSettingsView: View {
                     } label: {
                         LabeledContent("Subscriptions", value: subscriptionSummary)
                     }
+
+                    NavigationLink {
+                        ReminderSettingsView()
+                    } label: {
+                        LabeledContent(
+                            "Reminders & widgets",
+                            value: model.reminderSettings.isEnabled ? "On" : "Off"
+                        )
+                    }
                 } header: {
                     Text("Availability")
                 } footer: {
@@ -43,6 +52,18 @@ struct AppSettingsView: View {
                     Text("Discovery")
                 } footer: {
                     Text("Off by default. Deterministic on-device recommendations always remain available.")
+                }
+
+                Section {
+                    NavigationLink {
+                        TraktSettingsView()
+                    } label: {
+                        LabeledContent("Trakt", value: model.isTraktAuthorized ? "Connected" : "Optional")
+                    }
+                } header: {
+                    Text("Integrations")
+                } footer: {
+                    Text("OpenTV remains fully functional offline and without a Trakt account.")
                 }
 
                 Section {

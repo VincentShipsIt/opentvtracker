@@ -8,6 +8,7 @@ SwiftUI features
 @MainActor AppModel
     ├── local SwiftData / versioned import-export
     ├── private and shared CloudKit sync (optional)
+    ├── direct user-authorized Trakt interoperability (optional)
     ├── deterministic recommendation engine
     └── service protocols
           ├── public TVmaze / official cinema fallbacks
@@ -61,6 +62,10 @@ App Attest validates the App ID (`TeamID.BundleID`), so a public fork cannot aut
 
 OAuth PKCE runs in a SwiftUI web authentication session using an associated HTTPS callback. The exchanged user key is a this-device-only Keychain item. Direct chat-completions calls send at most 20 public candidates and validate that structured output contains every supplied ID exactly once. The operator server has no OpenRouter route, key, model, or spend exposure.
 
+## Trakt
+
+Optional Trakt interoperability uses device OAuth directly between the iPhone and `api.trakt.tv`. Access and refresh tokens are this-device-only Keychain items. The local library remains authoritative and usable offline; provider failures never replace it. Sync compares Trakt's last-activity timestamp before fetching, then applies additive history plus three-way rating and watchlist reconciliation. Remote history deletion never moves local progress backward, and a simultaneous rating conflict keeps the local value. Imported personal-list membership is retained in the versioned local archive even where OpenTV has no matching editable field. See [TRAKT_SYNC.md](TRAKT_SYNC.md).
+
 ## Partner sharing
 
-One custom CloudKit zone represents one private partner space with a zone-wide `CKShare`, members, shared titles, append-only watch events, and explicit progress corrections. Account changes, revocation, and leaving purge retained shared state.
+One custom CloudKit zone represents one private partner space with a zone-wide `CKShare`, members, shared titles, append-only watch events, explicit progress corrections, and episode conversation entries. Notes and bounded reaction asset identifiers reference an exact watch event. Conversation deletes use timestamped tombstones so offline merges cannot resurrect older private content. Account changes, revocation, and leaving purge retained shared state.

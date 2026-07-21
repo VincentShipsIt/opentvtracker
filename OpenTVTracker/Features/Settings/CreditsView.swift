@@ -33,7 +33,7 @@ struct CreditsView: View {
                 }
 
                 Section("Data ownership") {
-                    Text("A complete, versioned JSON backup can be exported without an account or support request. CSV exports keep titles and watch events readable in common tools.")
+                    Text("A complete, versioned JSON backup can be exported without an account or support request. CSV exports keep titles, watch events, and private shared conversations readable in common tools.")
                     Text("If the hosted catalog proxy is unavailable, local tracking, import, export, deterministic recommendations, TVmaze fallback, and official cinema links keep working.")
                 }
 

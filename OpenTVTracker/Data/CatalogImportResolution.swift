@@ -1,37 +1,5 @@
 import Foundation
 
-enum ImportResolutionReason: String, Hashable, Sendable {
-    case noCatalogMatch
-    case ambiguousCatalogMatch
-    case unsafeAnimeRelation
-    case catalogUnavailable
-
-    var label: String {
-        switch self {
-        case .noCatalogMatch: "No catalog match"
-        case .ambiguousCatalogMatch: "Several possible matches"
-        case .unsafeAnimeRelation: "Anime relation needs confirmation"
-        case .catalogUnavailable: "Catalog unavailable"
-        }
-    }
-}
-
-struct ImportResolutionIssue: Hashable, Identifiable, Sendable {
-    let id: String
-    let sourceID: String?
-    let title: String
-    let year: Int?
-    let kind: MediaKind
-    let reason: ImportResolutionReason
-    let detail: String
-
-    var displayTitle: String {
-        if !title.isEmpty { return title }
-        if let sourceID { return "\(kind.label) source ID \(sourceID)" }
-        return "Unnamed \(kind.label.lowercased())"
-    }
-}
-
 struct CatalogResolvedTitle: Sendable {
     let title: MediaTitle
     let seasonNumberOverride: Int?

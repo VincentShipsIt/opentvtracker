@@ -160,6 +160,33 @@ export function validateCatalogTitle(
   return { kind, id, region };
 }
 
+export function validateCatalogReviews(
+  match: RegExpMatchArray,
+  url: URL,
+): {
+  kind: MediaKind;
+  id: number;
+  page: number;
+} {
+  exactQueryKeys(url, ["page"]);
+  const kind = match[1];
+  if (kind !== "movie" && kind !== "series")
+    throw new ValidationError("invalid_kind");
+  const id = strictInteger(
+    match[2] ?? "",
+    1,
+    2_147_483_647,
+    "invalid_catalog_id",
+  );
+  const page = strictInteger(
+    url.searchParams.get("page") ?? "1",
+    1,
+    100,
+    "invalid_page",
+  );
+  return { kind, id, page };
+}
+
 export function validateCatalogExternalID(
   match: RegExpMatchArray,
   url: URL,

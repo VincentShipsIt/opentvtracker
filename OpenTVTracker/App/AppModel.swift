@@ -3,20 +3,33 @@ import Observation
 @MainActor
 @Observable
 final class AppModel {
-    private let store: any LibraryPersisting
+    let store: any LibraryPersisting
     private let recommendationService: any RecommendationProviding
+    let traktService: any TraktSyncProviding
+    let sharedConversationNotifier: any SharedConversationNotifying
+    let reminderScheduler: any ReminderScheduling
     let catalogService: any CatalogProviding
     private let seed: LibrarySnapshot
-    private var saveTask: Task<Void, Never>?
-    private var persistenceRevision = 0
-
+    var saveTask: Task<Void, Never>?
+    var reminderTask: Task<Void, Never>?
+    var persistenceRevision = 0
     var titles: [MediaTitle]
     var sharedSpace: SharedSpace
+    var diaryEntries: [ViewingDiaryEntry]
+    var lists: [MediaList]
     private(set) var selectedProviderIDs: Set<StreamingProvider.ID>
     private(set) var allowsAIReranking: Bool
     private(set) var streamingRegionOverride: StreamingRegion?
-    private(set) var importResolutionAliases: [String: MediaTitle.ID]
-    private(set) var importResolutionSeasonOverrides: [String: Int]
+    var traktSyncState: TraktSyncState
+    var isTraktAuthorized = false
+    var isTraktSyncing = false
+    var traktSyncSummary: String?
+    var traktSyncError: String?
+    var reminderSettings: ReminderSettings
+    var reminderCapability = ReminderCapability.unknown
+    var reminderError: String?
+    private(set) var importResolutionAliases: [String: ImportResolutionAlias]
+    private(set) var hasCompletedFirstRun: Bool
     private(set) var hasLoaded = false
     var persistenceError: String?
     private(set) var remoteRankedRecommendations: [Recommendation] = []
@@ -26,19 +39,36 @@ final class AppModel {
     var catalogSearchPage = 0
     var catalogSearchQuery = ""
     var hasMoreCatalogResults = false
-
+    var isRefreshingUpcomingCalendar = false
+    var upcomingCalendarLastRefreshedAt: Date?
+    var upcomingCalendarLastAttemptedAt: Date?
+    var upcomingCalendarRefreshError: String?
+    var upcomingCalendarRefreshRevision = 0
+    var hasQueuedUpcomingCalendarRefresh = false
+    var catalogSearchRequestID = UUID()
     var selectedMood: Mood = .any {
         didSet { refreshRecommendationsSoon() }
     }
-
     init(
         store: any LibraryPersisting = LibraryStoreFactory.makeDefault(),
         recommendationService: any RecommendationProviding = ProviderNeutralRecommendationService(),
+        sharedConversationNotifier: any SharedConversationNotifying = SharedConversationNotificationService(),
+        reminderScheduler: (any ReminderScheduling)? = nil,
         catalogService: (any CatalogProviding)? = nil,
+        traktService: any TraktSyncProviding = TraktSyncServiceFactory.makeDefault(),
         seed: LibrarySnapshot = .empty
     ) {
         self.store = store
         self.recommendationService = recommendationService
+        self.traktService = traktService
+        self.sharedConversationNotifier = sharedConversationNotifier
+        if let reminderScheduler {
+            self.reminderScheduler = reminderScheduler
+        } else if seed == .empty {
+            self.reminderScheduler = LocalNotificationReminderService()
+        } else {
+            self.reminderScheduler = NoopReminderScheduler()
+        }
         if let catalogService {
             self.catalogService = catalogService
         } else if seed == .empty {
@@ -49,26 +79,18 @@ final class AppModel {
         self.seed = seed
         titles = seed.titles
         sharedSpace = seed.sharedSpace
+        diaryEntries = Self.resolvedDiaryEntries(from: seed)
+        lists = seed.lists ?? []
         selectedProviderIDs = seed.selectedProviderIDs ?? Self.defaultProviderIDs
         allowsAIReranking = seed.allowsAIReranking ?? false
         streamingRegionOverride = seed.streamingRegionCode.flatMap(StreamingRegion.init(code:))
+        traktSyncState = seed.traktSyncState ?? .empty
+        reminderSettings = seed.reminderSettings ?? ReminderSettings()
         importResolutionAliases = seed.importResolutionAliases ?? [:]
-        importResolutionSeasonOverrides = seed.importResolutionSeasonOverrides ?? [:]
+        hasCompletedFirstRun = seed.hasCompletedFirstRun ?? (seed != .empty)
+        titles = migratedTrackingTitles(titles, fromSchemaVersion: seed.schemaVersion)
     }
-    var upNext: [MediaTitle] {
-        titles
-            .filter { title in
-                if title.state == .watching { return true }
-                guard title.kind == .movie,
-                      title.state == .planned,
-                      title.isOnPersonalWatchlist,
-                      let releaseDate = title.releaseDate else {
-                    return false
-                }
-                return releaseDate <= .now
-            }
-            .sorted(by: isHigherUpNextPriority)
-    }
+
     var recommendations: [MediaTitle] {
         rankedRecommendations.map { recommendation in
             var title = recommendation.title
@@ -94,7 +116,6 @@ final class AppModel {
         let sharedIDs = Set(sharedSpace.titleIDs)
         return titles.filter { sharedIDs.contains($0.id) }
     }
-
     var snapshot: LibrarySnapshot {
         LibrarySnapshot(
             titles: titles,
@@ -102,8 +123,12 @@ final class AppModel {
             selectedProviderIDs: selectedProviderIDs,
             allowsAIReranking: allowsAIReranking,
             streamingRegionCode: streamingRegionOverride?.code,
+            diaryEntries: diaryEntries,
+            reminderSettings: reminderSettings,
             importResolutionAliases: importResolutionAliases,
-            importResolutionSeasonOverrides: importResolutionSeasonOverrides
+            traktSyncState: traktSyncState,
+            hasCompletedFirstRun: hasCompletedFirstRun,
+            lists: lists
         )
     }
 
@@ -122,25 +147,39 @@ final class AppModel {
     func load() async {
         guard !hasLoaded else { return }
         defer { hasLoaded = true }
+        var canReconcileReminders = true
 
         do {
             if let snapshot = try await store.load() {
-                titles = merging(savedTitles: snapshot.titles, catalogTitles: seed.titles)
+                titles = migratedTrackingTitles(
+                    merging(savedTitles: snapshot.titles, catalogTitles: seed.titles),
+                    fromSchemaVersion: snapshot.schemaVersion
+                )
                 sharedSpace = snapshot.sharedSpace
+                diaryEntries = Self.resolvedDiaryEntries(from: snapshot)
+                lists = snapshot.lists ?? []
                 selectedProviderIDs = snapshot.selectedProviderIDs ?? Self.defaultProviderIDs
                 allowsAIReranking = snapshot.allowsAIReranking ?? false
                 streamingRegionOverride = snapshot.streamingRegionCode.flatMap(StreamingRegion.init(code:))
+                traktSyncState = snapshot.traktSyncState ?? .empty
+                reminderSettings = snapshot.reminderSettings ?? ReminderSettings()
                 importResolutionAliases = snapshot.importResolutionAliases ?? [:]
-                importResolutionSeasonOverrides = snapshot.importResolutionSeasonOverrides ?? [:]
+                hasCompletedFirstRun = snapshot.hasCompletedFirstRun ?? true
             }
         } catch {
             persistenceError = "Your saved library could not be opened. Your catalog and saved data remain separate."
+            canReconcileReminders = false
         }
         await refreshDiscoveryCatalog()
         await refreshRecommendations()
+        isTraktAuthorized = await traktService.isAuthorized()
+        await refreshReminderCapability()
+        if canReconcileReminders {
+            await refreshReminders()
+        }
+        publishWidgetSnapshot()
     }
 }
-
 extension AppModel {
     func markNextWatched(_ id: MediaTitle.ID) {
         guard let index = trackableTitleIndex(for: id) else { return }
@@ -160,7 +199,9 @@ extension AppModel {
             guard progress.episode < progress.totalEpisodes else { return }
             progress.episode = min(progress.episode + 1, progress.totalEpisodes)
             titles[index].progress = progress
-            titles[index].state = progress.episode == progress.totalEpisodes ? .completed : .watching
+            titles[index].state = progress.episode == progress.totalEpisodes
+                ? finishedState(for: titles[index])
+                : .watching
         }
 
         titles[index].lastWatchedAt = .now
@@ -175,14 +216,29 @@ extension AppModel {
     }
 
     func setWatchState(_ state: WatchState, for id: MediaTitle.ID) {
-        if state == .completed {
+        if state == .completed || state == .caughtUp {
             markWatched(id)
+            guard let index = trackableTitleIndex(for: id) else { return }
+            let canBeCaughtUp = titles[index].kind == .series
+                && titles[index].resolvedSeriesLifecycle != .ended
+            let resolvedState: WatchState = state == .caughtUp && canBeCaughtUp ? .caughtUp : .completed
+            guard titles[index].state != resolvedState else { return }
+            titles[index].state = resolvedState
+            persist()
+            refreshRecommendationsSoon()
             return
         }
         guard let index = trackableTitleIndex(for: id) else { return }
         titles[index].state = state
         if state == .planned {
             titles[index].personalWatchlist = true
+        } else if state == .dropped {
+            titles[index].personalWatchlist = false
+            titles[index].isUpNextPinned = nil
+            titles[index].upNextSnoozedUntil = nil
+            titles[index].upNextManualOrder = nil
+        } else if state == .watching {
+            titles[index].upNextSnoozedUntil = nil
         }
         persist()
         refreshRecommendationsSoon()
@@ -203,9 +259,11 @@ extension AppModel {
 
     func recordRewatch(_ id: MediaTitle.ID) {
         guard let index = trackableTitleIndex(for: id) else { return }
+        let watchedAt = Date.now
         titles[index].rewatchCount = titles[index].completedRewatches + 1
-        titles[index].lastWatchedAt = .now
-        appendWatchEvent(title: titles[index], kind: .rewatch)
+        titles[index].lastWatchedAt = watchedAt
+        recordTitleRewatchInDiary(titles[index], watchedAt: watchedAt)
+        appendWatchEvent(title: titles[index], kind: .rewatch, occurredAt: watchedAt)
         addActivity(
             description: "rewatched \(titles[index].title)",
             titleID: titles[index].id,
@@ -224,7 +282,9 @@ extension AppModel {
         )
         let supersededID = sharedSpace.watchEvents?.last(where: { $0.titleID == id })?.id
         titles[index].progress = corrected
-        titles[index].state = corrected.episode == corrected.totalEpisodes ? .completed : .watching
+        titles[index].state = corrected.episode == corrected.totalEpisodes
+            ? finishedState(for: titles[index])
+            : .watching
         appendWatchEvent(title: titles[index], kind: .correction, supersedesEventID: supersededID)
         addActivity(
             description: "corrected \(titles[index].title) to \(corrected.label)",
@@ -260,14 +320,26 @@ extension AppModel {
         streamingRegionOverride = region
     }
 
+    func completeFirstRun() {
+        guard !hasCompletedFirstRun else { return }
+        hasCompletedFirstRun = true
+        persist()
+    }
     func replaceLibrary(with snapshot: LibrarySnapshot) {
-        titles = merging(savedTitles: snapshot.titles, catalogTitles: seed.titles)
+        titles = migratedTrackingTitles(
+            merging(savedTitles: snapshot.titles, catalogTitles: seed.titles),
+            fromSchemaVersion: snapshot.schemaVersion
+        )
         sharedSpace = snapshot.sharedSpace
+        diaryEntries = Self.resolvedDiaryEntries(from: snapshot)
+        lists = snapshot.lists ?? []
         selectedProviderIDs = snapshot.selectedProviderIDs ?? Self.defaultProviderIDs
         allowsAIReranking = snapshot.allowsAIReranking ?? false
         streamingRegionOverride = snapshot.streamingRegionCode.flatMap(StreamingRegion.init(code:))
+        traktSyncState = snapshot.traktSyncState ?? .empty
+        reminderSettings = snapshot.reminderSettings ?? ReminderSettings()
         importResolutionAliases = snapshot.importResolutionAliases ?? [:]
-        importResolutionSeasonOverrides = snapshot.importResolutionSeasonOverrides ?? [:]
+        hasCompletedFirstRun = snapshot.hasCompletedFirstRun ?? true
         persist()
     }
 
@@ -298,7 +370,9 @@ extension AppModel {
     func flushPendingPersistence() async {
         await saveTask?.value
     }
-
+    func flushPendingReminders() async {
+        await reminderTask?.value
+    }
     func refreshRecommendations() async {
         guard allowsAIReranking else {
             remoteRankedRecommendations = []
@@ -315,83 +389,9 @@ extension AppModel {
             context: context
         )) ?? []
     }
-
 }
 
 extension AppModel {
-    func persist() {
-        let snapshot = self.snapshot
-        let store = store
-        persistenceRevision += 1
-        let revision = persistenceRevision
-        saveTask?.cancel()
-
-        saveTask = Task {
-            do {
-                try await Task.sleep(for: .milliseconds(150))
-                guard !Task.isCancelled else { return }
-                try await store.save(snapshot)
-                if revision == persistenceRevision {
-                    persistenceError = nil
-                }
-            } catch is CancellationError {
-                return
-            } catch {
-                if revision == persistenceRevision {
-                    persistenceError = "Your latest change is visible but could not be saved."
-                }
-            }
-        }
-    }
-
-    func refreshRecommendationsSoon() {
-        Task { await refreshRecommendations() }
-    }
-
-    func merging(savedTitles: [MediaTitle], catalogTitles: [MediaTitle]) -> [MediaTitle] {
-        let savedByID = Dictionary(uniqueKeysWithValues: savedTitles.map { ($0.id, $0) })
-        let catalogIDs = Set(catalogTitles.map(\.id))
-        let refreshedCatalog = catalogTitles.map { catalogTitle in
-            guard let savedTitle = savedByID[catalogTitle.id] else { return catalogTitle }
-            var refreshedTitle = catalogTitle
-            refreshedTitle.state = savedTitle.state
-            refreshedTitle.progress = savedTitle.progress
-            refreshedTitle.userRating = savedTitle.userRating
-            refreshedTitle.notes = savedTitle.notes
-            refreshedTitle.rewatchCount = savedTitle.rewatchCount
-            refreshedTitle.lastWatchedAt = savedTitle.lastWatchedAt
-            refreshedTitle.isDismissed = savedTitle.isDismissed
-            refreshedTitle.isDisliked = savedTitle.isDisliked
-            refreshedTitle.personalWatchlist = savedTitle.personalWatchlist
-            refreshedTitle.watchedEpisodeIDs = savedTitle.watchedEpisodeIDs
-            return refreshedTitle
-        }
-        let localOnlyTitles = savedTitles.filter { !catalogIDs.contains($0.id) }
-        return refreshedCatalog + localOnlyTitles
-    }
-
-    private func isHigherUpNextPriority(_ lhs: MediaTitle, _ rhs: MediaTitle) -> Bool {
-        if lhs.state != rhs.state { return lhs.state == .watching }
-
-        let lhsDate = lhs.nextEpisodeAirDate ?? lhs.releaseDate
-        let rhsDate = rhs.nextEpisodeAirDate ?? rhs.releaseDate
-        switch (lhsDate, rhsDate) {
-        case let (lhsDate?, rhsDate?) where lhsDate != rhsDate:
-            return lhsDate < rhsDate
-        case (_?, nil):
-            return true
-        case (nil, _?):
-            return false
-        default:
-            break
-        }
-
-        if lhs.lastWatchedAt != rhs.lastWatchedAt {
-            return (lhs.lastWatchedAt ?? .distantPast) > (rhs.lastWatchedAt ?? .distantPast)
-        }
-        return lhs.title.localizedStandardCompare(rhs.title) == .orderedAscending
-    }
-
     private static let defaultProviderIDs: Set<StreamingProvider.ID> = [
         StreamingProvider.netflix.id,
         StreamingProvider.primeVideo.id,

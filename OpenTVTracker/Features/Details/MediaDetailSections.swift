@@ -1,5 +1,22 @@
 import SwiftUI
 
+struct DetailRow: View {
+    let label: String
+    let value: String
+
+    var body: some View {
+        HStack {
+            Text(label)
+            Spacer()
+            Text(value)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.trailing)
+        }
+        .padding(16)
+        .accessibilityElement(children: .combine)
+    }
+}
+
 struct MediaEpisodeSection: View {
     @Environment(AppModel.self) private var model
     let title: MediaTitle

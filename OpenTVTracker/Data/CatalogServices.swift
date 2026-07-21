@@ -20,6 +20,18 @@ struct LocalCatalogService: CatalogProviding {
         }
         return title
     }
+
+    func reviews(kind: MediaKind, catalogID: Int, page: Int) async throws -> CommunityReviewPage {
+        guard let title = titles.first(where: { $0.kind == kind && $0.catalogID == catalogID }) else {
+            throw CatalogServiceError.notFound
+        }
+        return CommunityReviewPage(
+            page: max(page, 1),
+            totalPages: 1,
+            results: page <= 1 ? title.reviews : []
+        )
+    }
+
 }
 
 struct ServerCatalogService: CatalogProviding {
@@ -45,6 +57,12 @@ struct ServerCatalogService: CatalogProviding {
         let url = try titleURL(kind: kind, catalogID: catalogID, region: region)
         let response: CatalogTitleDTO = try await request(url)
         return response.mediaTitle
+    }
+
+    func reviews(kind: MediaKind, catalogID: Int, page: Int) async throws -> CommunityReviewPage {
+        let url = try reviewsURL(kind: kind, catalogID: catalogID, page: page)
+        let response: CommunityReviewPageDTO = try await request(url)
+        return response.reviewPage
     }
 
     func resolve(
@@ -76,6 +94,16 @@ struct ServerCatalogService: CatalogProviding {
             resolvingAgainstBaseURL: false
         )
         components?.queryItems = [URLQueryItem(name: "region", value: region.code)]
+        guard let url = components?.url else { throw CatalogServiceError.invalidEndpoint }
+        return url
+    }
+
+    func reviewsURL(kind: MediaKind, catalogID: Int, page: Int) throws -> URL {
+        var components = URLComponents(
+            url: baseURL.appending(path: "v1/catalog/\(kind.rawValue)/\(catalogID)/reviews"),
+            resolvingAgainstBaseURL: false
+        )
+        components?.queryItems = [URLQueryItem(name: "page", value: String(max(page, 1)))]
         guard let url = components?.url else { throw CatalogServiceError.invalidEndpoint }
         return url
     }
@@ -141,6 +169,14 @@ struct FallbackCatalogService: CatalogProviding {
         return try await fallback.title(kind: kind, catalogID: catalogID, region: region)
     }
 
+    func reviews(kind: MediaKind, catalogID: Int, page: Int) async throws -> CommunityReviewPage {
+        if let primary,
+           let reviewPage = try? await primary.reviews(kind: kind, catalogID: catalogID, page: page) {
+            return reviewPage
+        }
+        return try await fallback.reviews(kind: kind, catalogID: catalogID, page: page)
+    }
+
     func resolve(
         _ reference: ExternalCatalogReference,
         region: StreamingRegion
@@ -168,6 +204,20 @@ private struct CatalogSearchResponse: Decodable {
     let results: [CatalogTitleDTO]
 }
 
+private struct CommunityReviewPageDTO: Decodable {
+    let page: Int
+    let totalPages: Int
+    let results: [CommunityReview]
+
+    var reviewPage: CommunityReviewPage {
+        CommunityReviewPage(
+            page: page,
+            totalPages: totalPages,
+            results: results
+        )
+    }
+}
+
 private struct CatalogTitleDTO: Decodable {
     let catalogID: Int
     let title: String
@@ -186,7 +236,9 @@ private struct CatalogTitleDTO: Decodable {
     let reviews: [CommunityReview]?
     let releaseDate: Date?
     let nextEpisodeAirDate: Date?
+    let nextEpisodeAirDateIsAllDay: Bool?
     let seasons: [SeasonSummary]?
+    let seriesLifecycle: SeriesLifecycle?
 
     var mediaTitle: MediaTitle {
         MediaTitle(
@@ -212,11 +264,13 @@ private struct CatalogTitleDTO: Decodable {
             backdropURL: backdropURL,
             trailerURL: trailerURL,
             nextEpisodeAirDate: nextEpisodeAirDate,
+            nextEpisodeAirDateIsAllDay: nextEpisodeAirDateIsAllDay,
             releaseDate: releaseDate,
             personalWatchlist: false,
             seasons: seasons,
             metadataSource: .tmdb,
-            sourceURL: URL(string: "https://www.themoviedb.org/\(kind == .movie ? "movie" : "tv")/\(catalogID)")
+            sourceURL: URL(string: "https://www.themoviedb.org/\(kind == .movie ? "movie" : "tv")/\(catalogID)"),
+            seriesLifecycle: seriesLifecycle
         )
     }
 }

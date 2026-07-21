@@ -10,28 +10,34 @@ struct ImportResolutionSection: View {
                 NavigationLink {
                     TVTimeResolutionView(issue: issue, coordinator: coordinator)
                 } label: {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(issue.displayTitle)
-                            .foregroundStyle(.primary)
-                        Text([
-                            issue.kind.label,
-                            issue.year.map { String($0) },
-                            issue.reason.label
-                        ].compactMap { $0 }.joined(separator: " · "))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Text(issue.detail)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    .accessibilityElement(children: .combine)
+                    ImportResolutionRow(issue: issue)
                 }
             }
         } header: {
-            Text("Needs a catalog match")
+            Text("Needs a match")
         } footer: {
-            Text("Choose the correct release once. OpenTV saves the source-ID mapping for safe re-imports.")
+            Text("Choose the correct catalog title once. OpenTV saves that source-ID match for safe re-imports.")
         }
+    }
+}
+
+private struct ImportResolutionRow: View {
+    let issue: ImportResolutionIssue
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(issue.displayTitle)
+                .foregroundStyle(.primary)
+            Text([issue.kind.label, issue.year.map { String($0) }, issue.reason.label]
+                .compactMap { $0 }
+                .joined(separator: " · "))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(issue.detail)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -43,7 +49,10 @@ private struct TVTimeResolutionView: View {
     @State private var results: [MediaTitle] = []
     @State private var isSearching = false
 
-    init(issue: ImportResolutionIssue, coordinator: TVTimeImportCoordinator) {
+    init(
+        issue: ImportResolutionIssue,
+        coordinator: TVTimeImportCoordinator
+    ) {
         self.issue = issue
         self.coordinator = coordinator
         _query = State(initialValue: issue.title)
@@ -120,9 +129,9 @@ private struct TVTimeResolutionView: View {
         do {
             try await Task.sleep(for: .milliseconds(250))
             guard !Task.isCancelled else { return }
-            let newResults = await coordinator.search(trimmed, kind: issue.kind)
+            let loaded = try await coordinator.search(trimmed, kind: issue.kind)
             guard !Task.isCancelled else { return }
-            results = newResults
+            results = loaded
         } catch is CancellationError {
             return
         } catch {

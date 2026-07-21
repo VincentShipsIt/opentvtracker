@@ -26,31 +26,6 @@ enum MetadataSource: String, Codable, Sendable {
     var displayName: String { rawValue }
 }
 
-enum WatchState: String, Codable, CaseIterable, Sendable {
-    case watching
-    case planned
-    case paused
-    case completed
-
-    var label: String {
-        switch self {
-        case .watching: "Watching"
-        case .planned: "Watchlist"
-        case .paused: "Paused"
-        case .completed: "Completed"
-        }
-    }
-
-    var symbol: String {
-        switch self {
-        case .watching: "play.circle.fill"
-        case .planned: "bookmark.fill"
-        case .paused: "pause.circle.fill"
-        case .completed: "checkmark.circle.fill"
-        }
-    }
-}
-
 enum Mood: String, Codable, CaseIterable, Identifiable, Sendable {
     case any
     case cozy
@@ -113,6 +88,14 @@ struct EpisodeSummary: Codable, Hashable, Identifiable, Sendable {
     var overview: String?
     var stillURL: URL?
     var rating: Double?
+    var releaseType: EpisodeReleaseType?
+    var airDateIsAllDay: Bool?
+}
+
+enum EpisodeReleaseType: String, Codable, Hashable, Sendable {
+    case standard
+    case midSeason = "mid_season"
+    case finale
 }
 
 struct SeasonSummary: Codable, Hashable, Identifiable, Sendable {
@@ -202,6 +185,7 @@ struct MediaTitle: Codable, Hashable, Identifiable, Sendable {
     var rewatchCount: Int? = nil
     var lastWatchedAt: Date? = nil
     var nextEpisodeAirDate: Date? = nil
+    var nextEpisodeAirDateIsAllDay: Bool? = nil
     var releaseDate: Date? = nil
     var isDismissed: Bool? = nil
     var isDisliked: Bool? = nil
@@ -210,6 +194,10 @@ struct MediaTitle: Codable, Hashable, Identifiable, Sendable {
     var metadataSource: MetadataSource? = nil
     var sourceURL: URL? = nil
     var watchedEpisodeIDs: Set<EpisodeSummary.ID>? = nil
+    var seriesLifecycle: SeriesLifecycle? = nil
+    var isUpNextPinned: Bool? = nil
+    var upNextSnoozedUntil: Date? = nil
+    var upNextManualOrder: Int? = nil
 
     var progressLabel: String {
         switch kind {
@@ -227,7 +215,30 @@ struct MediaTitle: Codable, Hashable, Identifiable, Sendable {
     }
 
     var isRecommendationEligible: Bool {
-        state != .completed && isDismissed != true && isDisliked != true
+        !state.isCurrentViewingComplete
+            && state != .dropped
+            && isDismissed != true
+            && isDisliked != true
+    }
+
+    var resolvedSeriesLifecycle: SeriesLifecycle {
+        seriesLifecycle ?? .unknown
+    }
+
+    var finishedWatchState: WatchState {
+        guard kind == .series else { return .completed }
+        switch resolvedSeriesLifecycle {
+        case .continuing:
+            return .caughtUp
+        case .ended:
+            return .completed
+        case .unknown:
+            return nextEpisodeAirDate == nil ? .completed : .caughtUp
+        }
+    }
+
+    func isSnoozed(at date: Date) -> Bool {
+        upNextSnoozedUntil.map { $0 > date } ?? false
     }
 }
 
@@ -243,6 +254,11 @@ struct SpaceMember: Codable, Hashable, Identifiable, Sendable {
     let isCurrentUser: Bool
 }
 
+enum SharedActivityKind: String, Codable, Sendable {
+    case general
+    case watchedTogether
+}
+
 struct SharedActivity: Codable, Hashable, Identifiable, Sendable {
     let id: String
     let memberID: String
@@ -250,8 +266,12 @@ struct SharedActivity: Codable, Hashable, Identifiable, Sendable {
     let relativeDate: String
     let symbol: String
     var titleID: MediaTitle.ID? = nil
+    var kind: SharedActivityKind? = nil
+    var occurredAt: Date? = nil
+    var watchEventID: SharedWatchEvent.ID? = nil
+    var season: Int? = nil
+    var episode: Int? = nil
 }
-
 enum SharedMembershipState: String, Codable, Sendable {
     case local
     case pending
@@ -260,14 +280,12 @@ enum SharedMembershipState: String, Codable, Sendable {
     case expired
     case left
 }
-
 enum WatchEventKind: String, Codable, Sendable {
     case watched
     case correction
     case rewatch
     case watchedTogether
 }
-
 struct SharedWatchEvent: Codable, Hashable, Identifiable, Sendable {
     let id: String
     let titleID: MediaTitle.ID
@@ -278,28 +296,11 @@ struct SharedWatchEvent: Codable, Hashable, Identifiable, Sendable {
     let occurredAt: Date
     let supersedesEventID: String?
 }
-
 struct MemberTasteProfile: Codable, Hashable, Identifiable, Sendable {
     let id: SpaceMember.ID
     var preferredGenres: [String]
     var preferredMoods: [Mood]
     var maximumRuntimeMinutes: Int?
-}
-
-struct SharedReaction: Codable, Hashable, Identifiable, Sendable {
-    let id: String
-    let activityID: SharedActivity.ID
-    let memberID: SpaceMember.ID
-    let symbol: String
-    let occurredAt: Date
-}
-
-struct SharedNote: Codable, Hashable, Identifiable, Sendable {
-    let id: String
-    let titleID: MediaTitle.ID
-    let memberID: SpaceMember.ID
-    let text: String
-    let createdAt: Date
 }
 
 struct SharedSpace: Codable, Hashable, Identifiable, Sendable {
@@ -314,16 +315,23 @@ struct SharedSpace: Codable, Hashable, Identifiable, Sendable {
     var tasteProfiles: [MemberTasteProfile]? = nil
     var reactions: [SharedReaction]? = nil
     var notes: [SharedNote]? = nil
+    var conversationDeletions: [SharedConversationDeletion]? = nil
     var cloudZoneName: String? = nil
     var cloudOwnerName: String? = nil
     var isCurrentUserShareOwner: Bool? = nil
     var titleMetadata: [MediaTitle]? = nil
+    var sharedLists: [SharedMediaList]? = nil
 
     var resolvedMembershipState: SharedMembershipState {
         membershipState ?? (isCloudSharingEnabled ? .accepted : .local)
     }
 }
 // swiftlint:enable implicit_optional_initialization
+
+struct ImportResolutionAlias: Codable, Hashable, Sendable {
+    let kind: MediaKind
+    let catalogID: Int
+}
 
 struct LibrarySnapshot: Codable, Hashable, Sendable {
     var schemaVersion: Int?
@@ -332,8 +340,12 @@ struct LibrarySnapshot: Codable, Hashable, Sendable {
     var selectedProviderIDs: Set<StreamingProvider.ID>?
     var allowsAIReranking: Bool?
     var streamingRegionCode: String?
-    var importResolutionAliases: [String: MediaTitle.ID]?
-    var importResolutionSeasonOverrides: [String: Int]?
+    var diaryEntries: [ViewingDiaryEntry]?
+    var traktSyncState: TraktSyncState?
+    var reminderSettings: ReminderSettings?
+    var importResolutionAliases: [String: ImportResolutionAlias]?
+    var hasCompletedFirstRun: Bool?
+    var lists: [MediaList]?
 
     init(
         titles: [MediaTitle],
@@ -341,9 +353,13 @@ struct LibrarySnapshot: Codable, Hashable, Sendable {
         selectedProviderIDs: Set<StreamingProvider.ID>? = nil,
         allowsAIReranking: Bool = false,
         streamingRegionCode: String? = nil,
-        importResolutionAliases: [String: MediaTitle.ID]? = nil,
-        importResolutionSeasonOverrides: [String: Int]? = nil,
-        schemaVersion: Int = 5
+        diaryEntries: [ViewingDiaryEntry]? = nil,
+        reminderSettings: ReminderSettings = ReminderSettings(),
+        importResolutionAliases: [String: ImportResolutionAlias]? = nil,
+        traktSyncState: TraktSyncState? = nil,
+        hasCompletedFirstRun: Bool? = nil,
+        lists: [MediaList] = [],
+        schemaVersion: Int = 6
     ) {
         self.schemaVersion = schemaVersion
         self.titles = titles
@@ -351,11 +367,14 @@ struct LibrarySnapshot: Codable, Hashable, Sendable {
         self.selectedProviderIDs = selectedProviderIDs
         self.allowsAIReranking = allowsAIReranking
         self.streamingRegionCode = streamingRegionCode
+        self.diaryEntries = diaryEntries
+        self.traktSyncState = traktSyncState
+        self.reminderSettings = reminderSettings
         self.importResolutionAliases = importResolutionAliases
-        self.importResolutionSeasonOverrides = importResolutionSeasonOverrides
+        self.hasCompletedFirstRun = hasCompletedFirstRun
+        self.lists = lists
     }
 }
-
 extension LibrarySnapshot {
     static let empty = LibrarySnapshot(
         titles: [],
@@ -373,7 +392,9 @@ extension LibrarySnapshot {
             tasteProfiles: [],
             reactions: [],
             notes: [],
+            conversationDeletions: [],
             isCurrentUserShareOwner: true
-        )
+        ),
+        diaryEntries: []
     )
 }

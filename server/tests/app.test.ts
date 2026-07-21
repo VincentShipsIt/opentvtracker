@@ -4,7 +4,10 @@ import type { ServerConfig } from "../src/config";
 import { AppAttestSecurity, MemoryDeviceStore } from "../src/security";
 import type { CatalogTitle, TMDBClient } from "../src/tmdb";
 
-type TestTMDB = Pick<TMDBClient, "search" | "title" | "resolveExternalID">;
+type TestTMDB = Pick<
+  TMDBClient,
+  "search" | "title" | "reviews" | "resolveExternalID"
+>;
 
 describe("server application", () => {
   test("health is generic and the anonymous paid reranking route is absent", async () => {
@@ -37,6 +40,10 @@ describe("server application", () => {
       title: async () => {
         providerCalls += 1;
         throw new Error("not expected");
+      },
+      reviews: async () => {
+        providerCalls += 1;
+        return { page: 1, totalPages: 1, results: [] };
       },
       resolveExternalID: async () => {
         providerCalls += 1;
@@ -84,6 +91,7 @@ describe("server application", () => {
       title: async () => {
         throw new Error("not expected");
       },
+      reviews: async () => ({ page: 1, totalPages: 1, results: [] }),
       resolveExternalID: async () => null,
     });
 
@@ -107,6 +115,7 @@ describe("server application", () => {
       title: async () => {
         throw new Error("not expected");
       },
+      reviews: async () => ({ page: 1, totalPages: 1, results: [] }),
       resolveExternalID: async () => null,
     });
 
@@ -124,12 +133,37 @@ describe("server application", () => {
     expect(providerCalls).toBe(1);
   });
 
+  test("returns protected, cached review pages from the bounded route", async () => {
+    let providerCalls = 0;
+    const { app } = testApp(undefined, {
+      search: async () => [],
+      title: async () => {
+        throw new Error("not expected");
+      },
+      reviews: async (_kind, _id, page) => {
+        providerCalls += 1;
+        return { page, totalPages: 3, results: [] };
+      },
+      resolveExternalID: async () => null,
+    });
+    const url = "https://example.test/v1/catalog/series/95396/reviews?page=2";
+
+    const first = await app.fetch(developmentRequest(url));
+    const second = await app.fetch(developmentRequest(url));
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    expect(await first.json()).toMatchObject({ page: 2, totalPages: 3 });
+    expect(providerCalls).toBe(1);
+  });
+
   test("caches only confirmed external ID mappings after authentication", async () => {
     let providerCalls = 0;
     const resolved = catalogTitle();
     const { app } = testApp(undefined, {
       search: async () => [],
       title: async () => resolved,
+      reviews: async () => ({ page: 1, totalPages: 1, results: [] }),
       resolveExternalID: async () => {
         providerCalls += 1;
         return resolved;
@@ -156,6 +190,7 @@ describe("server application", () => {
       title: async () => {
         throw new Error("not expected");
       },
+      reviews: async () => ({ page: 1, totalPages: 1, results: [] }),
       resolveExternalID: async () => {
         providerCalls += 1;
         return null;
@@ -256,6 +291,7 @@ function testApp(
         title: async () => {
           throw new Error("not used");
         },
+        reviews: async () => ({ page: 1, totalPages: 1, results: [] }),
         resolveExternalID: async () => null,
       },
       logger,
@@ -283,7 +319,9 @@ function catalogTitle(): CatalogTitle {
     reviews: [],
     releaseDate: "2022-02-18T00:00:00Z",
     nextEpisodeAirDate: null,
+    nextEpisodeAirDateIsAllDay: null,
     seasons: null,
+    seriesLifecycle: "continuing",
   };
 }
 

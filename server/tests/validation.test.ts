@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   readJSONBody,
   validateCatalogExternalID,
+  validateCatalogReviews,
   validateCatalogSearch,
   validateCatalogTitle,
   validateCinemaShowings,
@@ -18,6 +19,20 @@ describe("request validation", () => {
       "/v1/catalog/movie/42".match(/^\/v1\/catalog\/(movie|series)\/(\d+)$/)!,
       new URL("https://example.test/v1/catalog/movie/42?region=US"),
     );
+    const reviews = validateCatalogReviews(
+      "/v1/catalog/series/42/reviews".match(
+        /^\/v1\/catalog\/(movie|series)\/(\d+)\/reviews$/,
+      )!,
+      new URL("https://example.test/v1/catalog/series/42/reviews?page=3"),
+    );
+    const external = validateCatalogExternalID(
+      "/v1/catalog/resolve/tvdb/371980".match(
+        /^\/v1\/catalog\/resolve\/(tvdb)\/(\d+)$/,
+      )!,
+      new URL(
+        "https://example.test/v1/catalog/resolve/tvdb/371980?kind=series&region=mt",
+      ),
+    );
 
     expect(search).toEqual({
       query: "Drama",
@@ -26,20 +41,12 @@ describe("request validation", () => {
       region: "MT",
     });
     expect(title).toEqual({ kind: "movie", id: 42, region: "US" });
-    expect(
-      validateCatalogExternalID(
-        "/v1/catalog/resolve/tvdb/371980".match(
-          /^\/v1\/catalog\/resolve\/(tvdb)\/(\d+)$/,
-        )!,
-        new URL(
-          "https://example.test/v1/catalog/resolve/tvdb/371980?kind=series&region=jp",
-        ),
-      ),
-    ).toEqual({
+    expect(reviews).toEqual({ kind: "series", id: 42, page: 3 });
+    expect(external).toEqual({
       source: "tvdb",
       id: 371980,
       kind: "series",
-      region: "JP",
+      region: "MT",
     });
   });
 
@@ -70,15 +77,23 @@ describe("request validation", () => {
       ),
     ).toThrow("invalid_region");
     expect(() =>
+      validateCatalogReviews(
+        "/v1/catalog/movie/42/reviews".match(
+          /^\/v1\/catalog\/(movie|series)\/(\d+)\/reviews$/,
+        )!,
+        new URL("https://example.test/v1/catalog/movie/42/reviews?page=101"),
+      ),
+    ).toThrow("invalid_page");
+    expect(() =>
       validateCatalogExternalID(
-        "/v1/catalog/resolve/tvdb/371980".match(
+        "/v1/catalog/resolve/tvdb/0".match(
           /^\/v1\/catalog\/resolve\/(tvdb)\/(\d+)$/,
         )!,
         new URL(
-          "https://example.test/v1/catalog/resolve/tvdb/371980?kind=person",
+          "https://example.test/v1/catalog/resolve/tvdb/0?kind=series&region=MT",
         ),
       ),
-    ).toThrow("invalid_kind");
+    ).toThrow("invalid_external_id");
   });
 
   test("bounds cinema dates and region", () => {

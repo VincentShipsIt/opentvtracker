@@ -19,7 +19,7 @@ final class CatalogImportSafetyTests: XCTestCase {
             kind: .series
         )
 
-        let resolution = await TVTimeCatalogResolver.resolveTitles(
+        let resolution = await TVTimeImportMerger.resolveTitles(
             [entity],
             current: .empty,
             catalog: SafetyCatalog(searchResults: [anime]),

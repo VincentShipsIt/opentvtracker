@@ -1,61 +1,45 @@
 import Foundation
 
-struct TVTimeTitleResolution: Sendable {
-    var resolved: [String: CatalogResolvedTitle]
-    var issues: [String: ImportResolutionIssue]
+private enum AutomaticResolutionResult: Sendable {
+    case resolved(String, CatalogResolvedTitle)
+    case issue(ImportResolutionIssue)
 }
 
 enum TVTimeCatalogResolver {
+    static func validatedAliases(
+        _ entities: [TVTimeEntity],
+        resolved aliasTitles: [String: MediaTitle],
+        warnings initialWarnings: [ImportWarning]
+    ) -> TVTimeTitleResolution {
+        var resolved: [String: CatalogResolvedTitle] = [:]
+        var warnings = initialWarnings
+        for entity in entities {
+            guard let title = aliasTitles[entity.identity] else { continue }
+            let seasonNumber = CatalogImportMatcher.safeAnimeSeasonNumber(in: entity.title)
+            if let seasonNumber,
+               title.seasons?.contains(where: { $0.number == seasonNumber }) != true {
+                warnings.append(
+                    ImportWarning(
+                        id: "unsafe-alias-\(entity.identity)",
+                        message: "The saved match no longer contains Season \(seasonNumber). Confirm the release."
+                    )
+                )
+                continue
+            }
+            resolved[entity.identity] = CatalogResolvedTitle(
+                title: title,
+                seasonNumberOverride: seasonNumber
+            )
+        }
+        return TVTimeTitleResolution(resolved: resolved, issues: [:], warnings: warnings)
+    }
+
     static func resolveTitles(
         _ entities: [TVTimeEntity],
-        current: LibrarySnapshot,
         catalog: any CatalogProviding,
         region: StreamingRegion
     ) async -> TVTimeTitleResolution {
-        let local = localResolution(entities, current: current)
-        let remote = await resolveRemote(
-            local.unresolved,
-            catalog: catalog,
-            region: region
-        )
-        var resolved = local.resolved
-        resolved.merge(remote.resolved) { _, remoteTitle in remoteTitle }
-        return TVTimeTitleResolution(resolved: resolved, issues: remote.issues)
-    }
-
-    private static func localResolution(
-        _ entities: [TVTimeEntity],
-        current: LibrarySnapshot
-    ) -> (resolved: [String: CatalogResolvedTitle], unresolved: [TVTimeEntity]) {
-        var resolved: [String: CatalogResolvedTitle] = [:]
-        var unresolved: [TVTimeEntity] = []
-        let aliases = current.importResolutionAliases ?? [:]
-        let seasonOverrides = current.importResolutionSeasonOverrides ?? [:]
-
-        for entity in entities {
-            let local = aliases[entity.identity].flatMap { titleID in
-                current.titles.first { $0.id == titleID }
-            } ?? current.titles.first {
-                CatalogImportMatcher.matches($0, entity: entity)
-            }
-            if let local {
-                resolved[entity.identity] = CatalogResolvedTitle(
-                    title: local,
-                    seasonNumberOverride: seasonOverrides[entity.identity]
-                )
-            } else {
-                unresolved.append(entity)
-            }
-        }
-        return (resolved, unresolved)
-    }
-
-    private static func resolveRemote(
-        _ entities: [TVTimeEntity],
-        catalog: any CatalogProviding,
-        region: StreamingRegion
-    ) async -> TVTimeTitleResolution {
-        var resolution = TVTimeTitleResolution(resolved: [:], issues: [:])
+        var resolution = TVTimeTitleResolution(resolved: [:], issues: [:], warnings: [])
         for batchStart in stride(from: 0, to: entities.count, by: 6) {
             let batch = Array(entities[batchStart..<min(batchStart + 6, entities.count)])
             await withTaskGroup(of: AutomaticResolutionResult.self) { group in
@@ -87,30 +71,25 @@ enum TVTimeCatalogResolver {
         }
         guard !entity.title.isEmpty else {
             return .issue(
-                issue(
+                resolutionIssue(
                     entity,
-                    reason: .noCatalogMatch,
+                    reason: .missingTitle,
                     detail: "This record has no title and its source identifier did not resolve."
                 )
             )
         }
-        guard let candidates = await searchCandidates(
-            entity,
-            catalog: catalog,
-            region: region
-        ) else {
+        guard let candidates = await searchCandidates(entity, catalog: catalog, region: region) else {
             return .issue(
-                issue(
+                resolutionIssue(
                     entity,
                     reason: .catalogUnavailable,
-                    detail: "OpenTV could not reach the catalog. Retry or choose a match when it is available."
+                    detail: "OpenTV could not reach the catalog. Retry when it is available."
                 )
             )
         }
-
         switch CatalogImportMatcher.select(entity: entity, candidates: candidates) {
         case .issue(let reason, let detail):
-            return .issue(issue(entity, reason: reason, detail: detail))
+            return .issue(resolutionIssue(entity, reason: reason, detail: detail))
         case .resolved(let resolved):
             return await detailedResolution(
                 entity,
@@ -128,18 +107,14 @@ enum TVTimeCatalogResolver {
     ) async -> AutomaticResolutionResult? {
         guard let source = entity.source,
               let sourceID = entity.sourceID.flatMap(Int.init),
-              sourceID > 0 else {
-            return nil
-        }
+              sourceID > 0 else { return nil }
         do {
             let reference = ExternalCatalogReference(
                 source: source,
                 sourceID: sourceID,
                 kind: entity.kind
             )
-            guard let title = try await catalog.resolve(reference, region: region) else {
-                return nil
-            }
+            guard let title = try await catalog.resolve(reference, region: region) else { return nil }
             return .resolved(
                 entity.identity,
                 CatalogResolvedTitle(title: title, seasonNumberOverride: nil)
@@ -147,10 +122,10 @@ enum TVTimeCatalogResolver {
         } catch {
             guard entity.title.isEmpty else { return nil }
             return .issue(
-                issue(
+                resolutionIssue(
                     entity,
                     reason: .catalogUnavailable,
-                    detail: "OpenTV could not resolve this legacy source ID. Retry when the catalog is available."
+                    detail: "OpenTV could not resolve this legacy source ID. Retry later."
                 )
             )
         }
@@ -166,9 +141,7 @@ enum TVTimeCatalogResolver {
         for query in CatalogImportMatcher.searchQueries(for: entity) {
             guard let results = try? await catalog.search(
                 MediaSearchQuery(text: query, kind: entity.kind, page: 1, region: region)
-            ) else {
-                continue
-            }
+            ) else { continue }
             completedSearch = true
             for result in results where result.kind == entity.kind {
                 candidates[result.id] = result
@@ -191,10 +164,10 @@ enum TVTimeCatalogResolver {
         if let seasonNumber = resolved.seasonNumberOverride,
            detailed.seasons?.contains(where: { $0.number == seasonNumber }) != true {
             return .issue(
-                issue(
+                resolutionIssue(
                     entity,
                     reason: .unsafeAnimeRelation,
-                    detail: "The selected catalog title does not contain Season \(seasonNumber). Choose the intended release."
+                    detail: "The catalog title lacks Season \(seasonNumber). Choose the intended release."
                 )
             )
         }
@@ -207,7 +180,7 @@ enum TVTimeCatalogResolver {
         )
     }
 
-    private static func issue(
+    private static func resolutionIssue(
         _ entity: TVTimeEntity,
         reason: ImportResolutionReason,
         detail: String
@@ -222,9 +195,4 @@ enum TVTimeCatalogResolver {
             detail: detail
         )
     }
-}
-
-private enum AutomaticResolutionResult: Sendable {
-    case resolved(String, CatalogResolvedTitle)
-    case issue(ImportResolutionIssue)
 }

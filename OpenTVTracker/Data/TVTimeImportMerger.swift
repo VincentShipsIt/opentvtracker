@@ -1,23 +1,63 @@
 import Foundation
 
+struct TVTimeTitleResolution: Sendable {
+    var resolved: [String: CatalogResolvedTitle]
+    var issues: [String: ImportResolutionIssue]
+    var warnings: [ImportWarning]
+}
+
 enum TVTimeImportMerger {
-    static func merge(
-        _ archive: TVTimeArchive,
-        into current: LibrarySnapshot,
+    static func resolveTitles(
+        _ entities: [TVTimeEntity],
+        current: LibrarySnapshot,
         catalog: any CatalogProviding,
         region: StreamingRegion
-    ) async -> LibraryImportPreview {
-        let resolved = await TVTimeCatalogResolver.resolveTitles(
-            archive.entities,
-            current: current,
+    ) async -> TVTimeTitleResolution {
+        var resolved: [String: CatalogResolvedTitle] = [:]
+        var issues: [String: ImportResolutionIssue] = [:]
+        var warnings: [ImportWarning] = []
+        var unresolved: [TVTimeEntity] = []
+        let currentTitles = TVTimeMediaTitleLookup(current.titles)
+
+        let aliasResolution = await TVTimeImportAliasResolver.resolve(
+            entities,
+            aliases: current.importResolutionAliases ?? [:],
             catalog: catalog,
             region: region
         )
-        return mergedPreview(
-            archive,
-            into: current,
-            automaticResolution: resolved,
-            manualResolutions: [:]
+        let validatedAliases = TVTimeCatalogResolver.validatedAliases(
+            entities,
+            resolved: aliasResolution.resolved,
+            warnings: aliasResolution.warnings
+        )
+        resolved = validatedAliases.resolved
+        warnings = validatedAliases.warnings
+
+        for entity in entities {
+            if resolved[entity.identity] != nil {
+                continue
+            }
+            if let localIndex = currentTitles.index(matching: entity) {
+                resolved[entity.identity] = CatalogResolvedTitle(
+                    title: current.titles[localIndex],
+                    seasonNumberOverride: nil
+                )
+            } else {
+                unresolved.append(entity)
+            }
+        }
+
+        let catalogResolution = await TVTimeCatalogResolver.resolveTitles(
+            unresolved,
+            catalog: catalog,
+            region: region
+        )
+        resolved.merge(catalogResolution.resolved) { _, catalogTitle in catalogTitle }
+        issues.merge(catalogResolution.issues) { _, catalogIssue in catalogIssue }
+        return TVTimeTitleResolution(
+            resolved: resolved,
+            issues: issues,
+            warnings: warnings + catalogResolution.warnings
         )
     }
 
@@ -27,323 +67,206 @@ enum TVTimeImportMerger {
         automaticResolution: TVTimeTitleResolution,
         manualResolutions: [ImportResolutionIssue.ID: MediaTitle]
     ) -> LibraryImportPreview {
-        var state = PreviewMergeState(snapshot: current)
-        for entity in archive.entities {
-            merge(
-                entity,
-                automaticResolution: automaticResolution,
-                manualResolutions: manualResolutions,
-                state: &state
-            )
-        }
-        state.snapshot.importResolutionAliases = state.aliases
-        state.snapshot.importResolutionSeasonOverrides = state.seasonOverrides
-        let remainingIssues = remainingIssues(
-            automaticResolution,
-            manualResolutions: manualResolutions
+        var snapshot = current
+        var resolved = automaticResolution.resolved
+        var resolutionIssues = automaticResolution.issues
+        applyManualResolutions(
+            manualResolutions,
+            resolved: &resolved,
+            issues: &resolutionIssues,
+            snapshot: &snapshot
         )
-
+        let totals = mergeArchive(archive, resolved: resolved, into: &snapshot)
+        let warnings = TVTimeImportReportBuilder.warnings(
+            automaticResolution.warnings,
+            diagnostics: archive.diagnostics,
+            resolutionIssueCount: resolutionIssues.count,
+            unmatchedEpisodeCount: totals.unmatchedEpisodeCount
+        )
+        let sourceCounts = TVTimeImportReportBuilder.sourceCounts(for: archive)
         return LibraryImportPreview(
-            snapshot: state.snapshot,
-            matchedCount: state.matchedCount,
-            addedCount: state.addedCount,
+            snapshot: snapshot,
+            matchedCount: totals.matchedCount,
+            addedCount: totals.addedCount,
             duplicateCount: archive.duplicateCount,
-            skippedCount: state.skippedCount,
+            skippedCount: totals.skippedCount,
             sourceName: "TV Time",
-            watchedEpisodeCount: state.watchedEpisodeCount,
-            watchEventCount: state.watchEventCount,
-            importNotice: importNotice(for: remainingIssues),
-            resolutionIssues: remainingIssues
+            watchedEpisodeCount: totals.watchedEpisodeCount,
+            watchEventCount: totals.watchEventCount,
+            listCount: totals.listCount,
+            listMembershipCount: totals.listMembershipCount,
+            integrityCounts: ImportMetricCategory.allCases.map { category in
+                ImportCountComparison(
+                    category: category,
+                    sourceCount: sourceCounts[category, default: 0],
+                    importedCount: totals.destinationCounts[category, default: 0]
+                )
+            },
+            resolutionIssues: resolutionIssues.values.sorted {
+                $0.displayTitle.localizedStandardCompare($1.displayTitle) == .orderedAscending
+            },
+            warnings: warnings
         )
+    }
+}
+
+private extension TVTimeImportMerger {
+    private static func applyManualResolutions(
+        _ manualResolutions: [ImportResolutionIssue.ID: MediaTitle],
+        resolved: inout [String: CatalogResolvedTitle],
+        issues: inout [String: ImportResolutionIssue],
+        snapshot: inout LibrarySnapshot
+    ) {
+        for (identity, title) in manualResolutions {
+            let seasonNumber = CatalogImportMatcher.safeAnimeSeasonNumber(
+                in: issues[identity]?.title ?? ""
+            )
+            let safeOverride = seasonNumber.flatMap { number in
+                title.seasons?.contains(where: { $0.number == number }) == true ? number : nil
+            }
+            resolved[identity] = CatalogResolvedTitle(
+                title: title,
+                seasonNumberOverride: safeOverride
+            )
+            issues.removeValue(forKey: identity)
+            var aliases = snapshot.importResolutionAliases ?? [:]
+            aliases[identity] = ImportResolutionAlias(kind: title.kind, catalogID: title.catalogID)
+            snapshot.importResolutionAliases = aliases
+        }
+    }
+
+    private static func mergeArchive(
+        _ archive: TVTimeArchive,
+        resolved: [String: CatalogResolvedTitle],
+        into snapshot: inout LibrarySnapshot
+    ) -> PreviewMergeTotals {
+        var totals = PreviewMergeTotals(
+            skippedCount: archive.diagnostics.missingIdentityCount
+                + archive.diagnostics.unsupportedRecordCount
+        )
+        var watchEvents = snapshot.sharedSpace.watchEvents ?? []
+        var diaryEntries = snapshot.diaryEntries ?? []
+        var mergeState = TVTimeMergeState(snapshot: snapshot)
+        for entity in archive.entities {
+            guard let result = merge(
+                entity,
+                into: &snapshot,
+                resolved: resolved,
+                state: &mergeState,
+                shouldShare: !archive.containsListOnly(entity)
+            ) else {
+                totals.skippedCount += 1
+                continue
+            }
+            totals.add(result)
+            watchEvents.append(contentsOf: result.watchEvents)
+            diaryEntries.append(contentsOf: result.diaryEntries)
+        }
+        snapshot.sharedSpace.watchEvents = watchEvents
+        snapshot.diaryEntries = diaryEntries
+        let listMerge = TVTimeListMerger.merge(
+            archive.lists,
+            into: snapshot.lists ?? [],
+            resolved: resolved.mapValues(\.title)
+        )
+        snapshot.lists = listMerge.lists
+        totals.listCount = archive.lists.count
+        totals.listMembershipCount = listMerge.importedMemberships
+        totals.skippedCount += listMerge.skippedMemberships
+        return totals
     }
 
     private static func merge(
         _ entity: TVTimeEntity,
-        automaticResolution: TVTimeTitleResolution,
-        manualResolutions: [ImportResolutionIssue.ID: MediaTitle],
-        state: inout PreviewMergeState
-    ) {
-        guard let resolved = resolvedTitle(
-            for: entity,
-            automaticResolution: automaticResolution,
-            manualResolutions: manualResolutions
-        ) else {
-            state.skippedCount += 1
-            return
-        }
-        var title = resolved.title
-        let aliasedTitleID = state.aliases[entity.identity]
-        let existingIndex = aliasedTitleID.flatMap { alias in
-            state.snapshot.titles.firstIndex { $0.id == alias }
-        } ?? state.snapshot.titles.firstIndex {
-            $0.id == title.id
-        } ?? state.snapshot.titles.firstIndex {
-            CatalogImportMatcher.matches($0, entity: entity)
-        }
+        into snapshot: inout LibrarySnapshot,
+        resolved: [String: CatalogResolvedTitle],
+        state: inout TVTimeMergeState,
+        shouldShare: Bool
+    ) -> EntityMergeResult? {
+        guard let resolvedTitle = resolved[entity.identity] else { return nil }
+        var catalogTitle = resolvedTitle.title
+        let existingIndex = state.titleLookup.index(for: catalogTitle, matching: entity)
         if let existingIndex {
-            title = state.snapshot.titles[existingIndex]
-            state.matchedCount += 1
-        } else {
-            state.addedCount += 1
+            catalogTitle = snapshot.titles[existingIndex]
         }
-        let applied = apply(
+
+        let applied = TVTimeHistoryApplier.apply(
             entity,
-            to: &title,
-            memberID: state.memberID,
-            existingEventIDs: &state.existingEventIDs,
-            seasonNumberOverride: resolved.seasonNumberOverride
+            to: &catalogTitle,
+            state: &state,
+            seasonNumberOverride: resolvedTitle.seasonNumberOverride
         )
-        state.apply(applied)
         if let existingIndex {
-            state.snapshot.titles[existingIndex] = title
+            snapshot.titles[existingIndex] = catalogTitle
         } else {
-            state.snapshot.titles.append(title)
-        }
-        state.record(title, for: entity, seasonNumberOverride: resolved.seasonNumberOverride)
-    }
-
-    private static func resolvedTitle(
-        for entity: TVTimeEntity,
-        automaticResolution: TVTimeTitleResolution,
-        manualResolutions: [ImportResolutionIssue.ID: MediaTitle]
-    ) -> CatalogResolvedTitle? {
-        if let manual = manualResolutions[entity.identity] {
-            let seasonNumber = CatalogImportMatcher.safeAnimeSeasonNumber(in: entity.title)
-            let safeOverride = seasonNumber.flatMap { number in
-                manual.seasons?.contains(where: { $0.number == number }) == true ? number : nil
-            }
-            return CatalogResolvedTitle(title: manual, seasonNumberOverride: safeOverride)
-        }
-        return automaticResolution.resolved[entity.identity]
-    }
-
-    private static func remainingIssues(
-        _ resolution: TVTimeTitleResolution,
-        manualResolutions: [ImportResolutionIssue.ID: MediaTitle]
-    ) -> [ImportResolutionIssue] {
-        resolution.issues.values
-            .filter { manualResolutions[$0.id] == nil }
-            .sorted { $0.displayTitle.localizedStandardCompare($1.displayTitle) == .orderedAscending }
-    }
-
-    private static func importNotice(for issues: [ImportResolutionIssue]) -> String? {
-        guard !issues.isEmpty else { return nil }
-        let noun = issues.count == 1 ? "match needs" : "matches need"
-        return "\(issues.count) catalog \(noun) manual confirmation. Unresolved records stay out of this preview instead of being skipped silently."
-    }
-
-    private static func apply(
-        _ entity: TVTimeEntity,
-        to title: inout MediaTitle,
-        memberID: String,
-        existingEventIDs: inout Set<String>,
-        seasonNumberOverride: Int?
-    ) -> AppliedHistory {
-        title.userRating = entity.rating ?? title.userRating
-        if entity.isArchived {
-            title.state = .paused
-            title.personalWatchlist = false
-        } else if entity.isForLater || (entity.isFollowed && entity.watches.isEmpty) {
-            title.personalWatchlist = true
-            if entity.watches.isEmpty { title.state = .planned }
-        }
-
-        if title.kind == .movie {
-            return applyMovieHistory(
-                entity.watches,
-                rewatchCount: entity.rewatchCount,
-                to: &title,
-                memberID: memberID,
-                existingEventIDs: &existingEventIDs
+            snapshot.titles.append(catalogTitle)
+            state.titleLookup.insert(
+                catalogTitle,
+                at: snapshot.titles.index(before: snapshot.titles.endIndex)
             )
         }
-        return applyEpisodeHistory(
-            entity.watches,
-            to: &title,
-            memberID: memberID,
-            existingEventIDs: &existingEventIDs,
-            seasonNumberOverride: seasonNumberOverride
-        )
-    }
-
-    private static func applyMovieHistory(
-        _ watches: [TVTimeWatch],
-        rewatchCount: Int,
-        to title: inout MediaTitle,
-        memberID: String,
-        existingEventIDs: inout Set<String>
-    ) -> AppliedHistory {
-        guard !watches.isEmpty else { return AppliedHistory() }
-        title.state = .completed
-        title.rewatchCount = [
-            title.completedRewatches,
-            rewatchCount,
-            watches.count - 1,
-            watches.filter(\.isRewatch).count
-        ].max()
-        title.lastWatchedAt = watches.compactMap(\.occurredAt).max() ?? title.lastWatchedAt
-        let events = TVTimeWatchEventFactory.make(
-            watches,
-            title: title,
-            memberID: memberID,
-            existingEventIDs: &existingEventIDs
-        )
-        return AppliedHistory(watchEvents: events)
-    }
-
-    private static func applyEpisodeHistory(
-        _ watches: [TVTimeWatch],
-        to title: inout MediaTitle,
-        memberID: String,
-        existingEventIDs: inout Set<String>,
-        seasonNumberOverride: Int?
-    ) -> AppliedHistory {
-        let episodeWatches = episodeWatches(
-            watches,
-            seasonNumberOverride: seasonNumberOverride
-        )
-        guard !episodeWatches.isEmpty else { return AppliedHistory() }
-        var watchedIDs = title.watchedEpisodeIDs ?? []
-        var unmatchedEpisodes = 0
-
-        for watch in episodeWatches {
-            guard let seasonNumber = watch.season, let episodeNumber = watch.episode,
-                  let episode = title.seasons?
-                    .first(where: { $0.number == seasonNumber })?
-                    .episodes.first(where: { $0.number == episodeNumber }) else {
-                unmatchedEpisodes += 1
-                continue
-            }
-            watchedIDs.insert(episode.id)
+        if shouldShare, state.titleIDs.insert(catalogTitle.id).inserted {
+            snapshot.sharedSpace.titleIDs.append(catalogTitle.id)
         }
 
-        title.watchedEpisodeIDs = watchedIDs
-        title.lastWatchedAt = episodeWatches.compactMap(\.occurredAt).max() ?? title.lastWatchedAt
-        if let latest = episodeWatches.max(by: {
-            ($0.season ?? 0, $0.episode ?? 0) < ($1.season ?? 0, $1.episode ?? 0)
-        }), let seasonNumber = latest.season, let episodeNumber = latest.episode {
-            let total = title.seasons?.first(where: { $0.number == seasonNumber })?.episodes.count ?? episodeNumber
-            title.progress = EpisodeProgress(
-                season: seasonNumber,
-                episode: episodeNumber,
-                totalEpisodes: max(total, 1)
-            )
+        var destinationCounts: [ImportMetricCategory: Int] = [
+            (entity.kind == .series ? .shows : .movies): 1,
+            .episodes: applied.watchedEpisodes,
+            .rewatches: applied.rewatches
+        ]
+        if entity.rating != nil { destinationCounts[.ratings] = 1 }
+        if applied.watchlisted {
+            destinationCounts[.watchlist] = 1
         }
-
-        let releasedEpisodeIDs = Set((title.seasons ?? []).flatMap { season in
-            guard season.number > 0 else { return [EpisodeSummary.ID]() }
-            return season.episodes.compactMap { episode in
-                guard let airDate = episode.airDate, airDate <= Date() else { return nil }
-                return episode.id
-            }
-        })
-        title.state = !releasedEpisodeIDs.isEmpty && releasedEpisodeIDs.isSubset(of: watchedIDs)
-            ? .completed : .watching
-
-        let events = TVTimeWatchEventFactory.make(
-            episodeWatches,
-            title: title,
-            memberID: memberID,
-            existingEventIDs: &existingEventIDs
-        )
-        return AppliedHistory(
-            watchedEpisodes: episodeWatches.count - unmatchedEpisodes,
-            unmatchedEpisodes: unmatchedEpisodes,
-            watchEvents: events
+        return EntityMergeResult(
+            matchedCount: existingIndex == nil ? 0 : 1,
+            addedCount: existingIndex == nil ? 1 : 0,
+            watchedEpisodeCount: applied.watchedEpisodes,
+            watchEventCount: applied.watchEvents.count,
+            skippedCount: applied.unmatchedEpisodes,
+            unmatchedEpisodeCount: applied.unmatchedEpisodes,
+            destinationCounts: destinationCounts,
+            watchEvents: applied.watchEvents,
+            diaryEntries: applied.diaryEntries
         )
     }
 
-    private static func episodeWatches(
-        _ watches: [TVTimeWatch],
-        seasonNumberOverride: Int?
-    ) -> [TVTimeWatch] {
-        watches.compactMap { watch in
-            guard watch.season != nil, watch.episode != nil else { return nil }
-            guard let seasonNumberOverride, watch.season == 1 else { return watch }
-            var mapped = watch
-            mapped.season = seasonNumberOverride
-            return mapped
-        }
-    }
 }
 
-private enum TVTimeWatchEventFactory {
-    static func make(
-        _ watches: [TVTimeWatch],
-        title: MediaTitle,
-        memberID: String,
-        existingEventIDs: inout Set<String>
-    ) -> [SharedWatchEvent] {
-        watches.compactMap { watch in
-            guard let occurredAt = watch.occurredAt else { return nil }
-            let timestamp = Int64(occurredAt.timeIntervalSince1970)
-            let kind: WatchEventKind = watch.isRewatch ? .rewatch : .watched
-            let eventID = [
-                "tvtime", title.id, String(watch.season ?? 0), String(watch.episode ?? 0),
-                String(timestamp), kind.rawValue
-            ].joined(separator: ":")
-            guard existingEventIDs.insert(eventID).inserted else { return nil }
-            return SharedWatchEvent(
-                id: eventID,
-                titleID: title.id,
-                memberID: memberID,
-                kind: kind,
-                season: watch.season,
-                episode: watch.episode,
-                occurredAt: occurredAt,
-                supersedesEventID: nil
-            )
-        }
-    }
-}
-
-private struct AppliedHistory {
-    var watchedEpisodes = 0
-    var unmatchedEpisodes = 0
-    var watchEvents: [SharedWatchEvent] = []
-}
-
-private struct PreviewMergeState {
-    var snapshot: LibrarySnapshot
+private struct PreviewMergeTotals {
     var matchedCount = 0
     var addedCount = 0
-    var skippedCount = 0
     var watchedEpisodeCount = 0
     var watchEventCount = 0
-    let memberID: String
-    var existingEventIDs: Set<String>
-    var aliases: [String: MediaTitle.ID]
-    var seasonOverrides: [String: Int]
+    var unmatchedEpisodeCount = 0
+    var listCount = 0
+    var listMembershipCount = 0
+    var skippedCount: Int
+    var destinationCounts = Dictionary(
+        uniqueKeysWithValues: ImportMetricCategory.allCases.map { ($0, 0) }
+    )
 
-    init(snapshot: LibrarySnapshot) {
-        self.snapshot = snapshot
-        memberID = snapshot.sharedSpace.members.first(where: \.isCurrentUser)?.id ?? "local-user"
-        existingEventIDs = Set((snapshot.sharedSpace.watchEvents ?? []).map(\.id))
-        aliases = snapshot.importResolutionAliases ?? [:]
-        seasonOverrides = snapshot.importResolutionSeasonOverrides ?? [:]
-    }
-
-    mutating func apply(_ applied: AppliedHistory) {
-        watchedEpisodeCount += applied.watchedEpisodes
-        watchEventCount += applied.watchEvents.count
-        skippedCount += applied.unmatchedEpisodes
-        snapshot.sharedSpace.watchEvents =
-            (snapshot.sharedSpace.watchEvents ?? []) + applied.watchEvents
-    }
-
-    mutating func record(
-        _ title: MediaTitle,
-        for entity: TVTimeEntity,
-        seasonNumberOverride: Int?
-    ) {
-        if !snapshot.sharedSpace.titleIDs.contains(title.id) {
-            snapshot.sharedSpace.titleIDs.append(title.id)
-        }
-        aliases[entity.identity] = title.id
-        if let seasonNumberOverride {
-            seasonOverrides[entity.identity] = seasonNumberOverride
-        } else {
-            seasonOverrides.removeValue(forKey: entity.identity)
+    mutating func add(_ result: EntityMergeResult) {
+        matchedCount += result.matchedCount
+        addedCount += result.addedCount
+        watchedEpisodeCount += result.watchedEpisodeCount
+        watchEventCount += result.watchEventCount
+        unmatchedEpisodeCount += result.unmatchedEpisodeCount
+        skippedCount += result.skippedCount
+        for (category, count) in result.destinationCounts {
+            destinationCounts[category, default: 0] += count
         }
     }
+}
+
+private struct EntityMergeResult {
+    let matchedCount: Int
+    let addedCount: Int
+    let watchedEpisodeCount: Int
+    let watchEventCount: Int
+    let skippedCount: Int
+    let unmatchedEpisodeCount: Int
+    let destinationCounts: [ImportMetricCategory: Int]
+    let watchEvents: [SharedWatchEvent]
+    let diaryEntries: [ViewingDiaryEntry]
 }
