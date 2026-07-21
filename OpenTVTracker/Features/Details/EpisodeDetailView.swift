@@ -14,6 +14,11 @@ struct EpisodeDetailView: View {
                     LazyVStack(alignment: .leading, spacing: AppTheme.sectionSpacing) {
                         hero(title: title, season: season, episode: episode)
                         trackingActions(title: title, season: season, episode: episode)
+                        EpisodeConversationView(
+                            title: title,
+                            season: season,
+                            episode: episode
+                        )
                         episodeInformation(episode)
                         overview(episode)
                     }

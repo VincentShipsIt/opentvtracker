@@ -60,4 +60,4 @@ Optional Trakt interoperability uses device OAuth directly between the iPhone an
 
 ## Partner sharing
 
-One custom CloudKit zone represents one private partner space with a zone-wide `CKShare`, members, shared titles, append-only watch events, and explicit progress corrections. Account changes, revocation, and leaving purge retained shared state.
+One custom CloudKit zone represents one private partner space with a zone-wide `CKShare`, members, shared titles, append-only watch events, explicit progress corrections, and episode conversation entries. Notes and bounded reaction asset identifiers reference an exact watch event. Conversation deletes use timestamped tombstones so offline merges cannot resurrect older private content. Account changes, revocation, and leaving purge retained shared state.

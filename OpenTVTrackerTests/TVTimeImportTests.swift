@@ -6,9 +6,9 @@ final class TVTimeImportTests: XCTestCase {
     func testTVTimeZIPRestoresEpisodeHistoryRatingAndWatchDate() async throws {
         let archive = try makeArchive([
             "tracking-prod-records-v2.csv": """
-            key,s_id,series_name,s_no,ep_no,created_at,is_followed,is_for_later
-            watch-episode-101,42,Severance,1,1,2025-02-14T20:30:00Z,,
-            user-series-102,43,Slow Horses,,,,true,true
+            key,s_id,series_name,s_no,ep_no,created_at,is_followed,is_for_later,is_archived
+            watch-episode-101,42,Severance,1,1,2025-02-14T20:30:00Z,,,
+            user-series-102,43,Slow Horses,,,,true,true,true
             """,
             "tv_show_rate.csv": """
             tv_show_id,tv_show_name,rate
@@ -30,7 +30,8 @@ final class TVTimeImportTests: XCTestCase {
         XCTAssertEqual(severance.userRating, 10)
         XCTAssertEqual(severance.state, .watching)
         XCTAssertFalse(severance.isOnPersonalWatchlist)
-        XCTAssertTrue(slowHorses.isOnPersonalWatchlist)
+        XCTAssertEqual(slowHorses.state, .dropped)
+        XCTAssertFalse(slowHorses.isOnPersonalWatchlist)
         XCTAssertEqual(preview.sourceName, "TV Time")
         XCTAssertEqual(preview.matchedCount, 2)
         XCTAssertEqual(preview.watchedEpisodeCount, 1)

@@ -11,6 +11,10 @@ extension AppModel {
         titles(in: .watching).sorted(by: isMoreRecentlyWatched)
     }
 
+    var caughtUpTitlesByRecency: [MediaTitle] {
+        titles(in: .caughtUp).sorted(by: isMoreRecentlyWatched)
+    }
+
     var completedTitlesByRecency: [MediaTitle] {
         titles(in: .completed).sorted(by: isMoreRecentlyWatched)
     }
@@ -20,14 +24,31 @@ extension AppModel {
     }
 
     func markWatched(_ id: MediaTitle.ID) {
-        guard let index = trackableTitleIndex(for: id), titles[index].state != .completed else { return }
+        guard let index = trackableTitleIndex(for: id) else { return }
+        if titles[index].kind == .movie {
+            guard !titles[index].state.isCurrentViewingComplete else { return }
+        } else if titles[index].state.isCurrentViewingComplete {
+            let watchedIDs = resolvedWatchedEpisodeIDs(for: titles[index])
+            guard releasedEpisodes(for: titles[index]).contains(where: { !watchedIDs.contains($0.id) }) else {
+                return
+            }
+        }
 
-        let regularSeasons = (titles[index].seasons ?? [])
-            .filter { $0.number > 0 }
-            .sorted { $0.number < $1.number }
+        let regularSeasons = regularSeasons(for: titles[index])
         if titles[index].kind == .series, !regularSeasons.isEmpty {
-            titles[index].watchedEpisodeIDs = Set(regularSeasons.flatMap(\.episodes).map(\.id))
-            if let lastSeason = regularSeasons.last {
+            let releasedIDs = Set(releasedEpisodes(for: titles[index]).map(\.id))
+            let releasedSeasons = regularSeasons.compactMap { season -> SeasonSummary? in
+                let episodes = season.episodes.filter { releasedIDs.contains($0.id) }
+                guard !episodes.isEmpty else { return nil }
+                return SeasonSummary(
+                    id: season.id,
+                    number: season.number,
+                    title: season.title,
+                    episodes: episodes
+                )
+            }
+            titles[index].watchedEpisodeIDs = Set(releasedSeasons.flatMap(\.episodes).map(\.id))
+            if let lastSeason = releasedSeasons.last {
                 titles[index].progress = EpisodeProgress(
                     season: lastSeason.number,
                     episode: lastSeason.episodes.count,
@@ -36,7 +57,7 @@ extension AppModel {
             }
         }
 
-        titles[index].state = .completed
+        titles[index].state = finishedState(for: titles[index])
         titles[index].personalWatchlist = false
         titles[index].lastWatchedAt = .now
         appendWatchEvent(title: titles[index], kind: .watched)
@@ -44,6 +65,7 @@ extension AppModel {
         refreshRecommendationsSoon()
     }
 
+    @discardableResult
     func appendWatchEvent(
         title: MediaTitle,
         kind: WatchEventKind,
@@ -51,7 +73,7 @@ extension AppModel {
         season: Int? = nil,
         episode: Int? = nil,
         supersedesEventID: String? = nil
-    ) {
+    ) -> SharedWatchEvent {
         let resolvedMemberID = memberID ?? sharedSpace.members.first(where: \.isCurrentUser)?.id ?? "local-user"
         let event = SharedWatchEvent(
             id: UUID().uuidString,
@@ -66,6 +88,16 @@ extension AppModel {
         var events = sharedSpace.watchEvents ?? []
         events.append(event)
         sharedSpace.watchEvents = events
+        return event
+    }
+
+    func resolvedWatchedEpisodeIDs(for title: MediaTitle) -> Set<EpisodeSummary.ID> {
+        if let watchedEpisodeIDs = title.watchedEpisodeIDs { return watchedEpisodeIDs }
+        if title.progress != nil { return title.episodeIDsThroughProgress }
+        if title.state.isCurrentViewingComplete {
+            return Set(releasedEpisodes(for: title).map(\.id))
+        }
+        return []
     }
 
     private func isMoreRecentlyWatched(_ lhs: MediaTitle, _ rhs: MediaTitle) -> Bool {

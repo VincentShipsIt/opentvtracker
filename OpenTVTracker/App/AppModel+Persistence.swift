@@ -17,9 +17,15 @@ extension AppModel {
             refreshedTitle.isDisliked = savedTitle.isDisliked
             refreshedTitle.personalWatchlist = savedTitle.personalWatchlist
             refreshedTitle.watchedEpisodeIDs = savedTitle.watchedEpisodeIDs
-            return refreshedTitle
+            refreshedTitle.seriesLifecycle = catalogTitle.seriesLifecycle ?? savedTitle.seriesLifecycle
+            refreshedTitle.isUpNextPinned = savedTitle.isUpNextPinned
+            refreshedTitle.upNextSnoozedUntil = savedTitle.upNextSnoozedUntil
+            refreshedTitle.upNextManualOrder = savedTitle.upNextManualOrder
+            return refreshedTrackingTitle(refreshedTitle)
         }
-        let localOnlyTitles = savedTitles.filter { !catalogIDs.contains($0.id) }
+        let localOnlyTitles = savedTitles
+            .filter { !catalogIDs.contains($0.id) }
+            .map { refreshedTrackingTitle($0) }
         return refreshedCatalog + localOnlyTitles
     }
 

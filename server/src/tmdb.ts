@@ -5,6 +5,8 @@ export const MediaKind = {
 
 export type MediaKind = (typeof MediaKind)[keyof typeof MediaKind];
 
+export type SeriesLifecycle = "continuing" | "ended" | "unknown";
+
 export const StreamingProviderID = {
   netflix: "netflix",
   primeVideo: "prime-video",
@@ -53,7 +55,9 @@ export type CatalogTitle = {
   reviews: CommunityReview[];
   releaseDate: string | null;
   nextEpisodeAirDate: string | null;
+  nextEpisodeAirDateIsAllDay: boolean | null;
   seasons: SeasonSummary[] | null;
+  seriesLifecycle: SeriesLifecycle | null;
 };
 
 type StreamingProvider = {
@@ -63,7 +67,7 @@ type StreamingProvider = {
   brandHex: string | null;
 };
 
-type CommunityReview = {
+export type CommunityReview = {
   id: string;
   author: string;
   excerpt: string;
@@ -77,6 +81,12 @@ type CommunityReview = {
   updatedAt: string | null;
 };
 
+export type CommunityReviewPage = {
+  page: number;
+  totalPages: number;
+  results: CommunityReview[];
+};
+
 export type EpisodeSummary = {
   id: string;
   number: number;
@@ -86,6 +96,8 @@ export type EpisodeSummary = {
   overview: string | null;
   stillURL: string | null;
   rating: number | null;
+  releaseType: "standard" | "mid_season" | "finale" | null;
+  airDateIsAllDay: boolean;
 };
 
 type SeasonSummary = {
@@ -169,6 +181,19 @@ export class TMDBClient {
     );
     const seasons = kind === "series" ? await this.seasons(id, details) : null;
     return mapDetails(details, kind, region, seasons);
+  }
+
+  async reviews(
+    kind: MediaKind,
+    id: number,
+    page: number,
+  ): Promise<CommunityReviewPage> {
+    const namespace = kind === "movie" ? "movie" : "tv";
+    const requestedPage = Math.max(page, 1);
+    const payload = await this.get<Record<string, unknown>>(
+      `/${namespace}/${id}/reviews?language=en-US&page=${requestedPage}`,
+    );
+    return mapReviewPage(payload, requestedPage);
   }
 
   private async seasons(
@@ -284,8 +309,27 @@ function mapDetails(
     reviews: mapReviews(reviewsPayload),
     releaseDate: isoDay(releaseDay),
     nextEpisodeAirDate: isoDay(stringValue(nextEpisode.air_date)),
+    nextEpisodeAirDateIsAllDay: stringValue(nextEpisode.air_date) !== null,
     seasons,
+    seriesLifecycle:
+      kind === MediaKind.series ? mapSeriesLifecycle(details.status) : null,
   };
+}
+
+export function mapSeriesLifecycle(status: unknown): SeriesLifecycle {
+  if (typeof status !== "string") return "unknown";
+  switch (status.toLowerCase()) {
+    case "ended":
+    case "canceled":
+      return "ended";
+    case "returning series":
+    case "in production":
+    case "planned":
+    case "pilot":
+      return "continuing";
+    default:
+      return "unknown";
+  }
 }
 
 function providersForRegion(
@@ -380,19 +424,54 @@ export function mapEpisodeSummary(
     overview: stringValue(episode.overview)?.trim() || null,
     stillURL: imageURL(stringValue(episode.still_path), "w500"),
     rating: numberValue(episode.vote_average),
+    releaseType: episodeReleaseType(episode.episode_type),
+    airDateIsAllDay: true,
   };
 }
 
-export function mapReviews(payload: Record<string, unknown>): CommunityReview[] {
+export function mapReviewPage(
+  payload: Record<string, unknown>,
+  requestedPage: number,
+): CommunityReviewPage {
+  const page = boundedInteger(payload.page, requestedPage, 1, 100);
+  const rawTotalPages = numberValue(payload.total_pages);
+  const totalPages =
+    rawTotalPages !== null && Number.isSafeInteger(rawTotalPages)
+      ? Math.min(Math.max(rawTotalPages, page), 100)
+      : page;
+  return {
+    page,
+    totalPages,
+    results: mapReviews(payload, page, 20),
+  };
+}
+
+function episodeReleaseType(
+  value: unknown,
+): "standard" | "mid_season" | "finale" | null {
+  if (value === "standard" || value === "mid_season" || value === "finale") {
+    return value;
+  }
+  return null;
+}
+
+export function mapReviews(
+  payload: Record<string, unknown>,
+  page = 1,
+  maximum = 8,
+): CommunityReview[] {
   return (Array.isArray(payload.results) ? payload.results : [])
-    .slice(0, 8)
+    .slice(0, maximum)
     .map((value, index): CommunityReview => {
       const review = asRecord(value);
       const authorDetails = asRecord(review.author_details);
       const content =
         stringValue(review.content)?.replace(/\s+/g, " ").trim() ?? "";
+      const providerID = stringValue(review.id);
       return {
-        id: `tmdb-review-${stringValue(review.id) ?? index}`,
+        id: providerID
+          ? `tmdb-review-${providerID}`
+          : `tmdb-review-${page}-${index}`,
         author: stringValue(review.author) ?? "TMDB member",
         excerpt: content,
         rating: numberValue(authorDetails.rating),
@@ -434,7 +513,8 @@ function imageURL(
 
 function reviewAvatarURL(path: string | null): string | null {
   if (!path) return null;
-  if (path.startsWith("/https://") || path.startsWith("/http://")) return path.slice(1);
+  if (path.startsWith("/https://") || path.startsWith("/http://"))
+    return path.slice(1);
   return imageURL(path, "w185");
 }
 
@@ -474,4 +554,19 @@ function stringValue(value: unknown): string | null {
 
 function numberValue(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function boundedInteger(
+  value: unknown,
+  fallback: number,
+  minimum: number,
+  maximum: number,
+): number {
+  const parsed = numberValue(value);
+  return parsed !== null &&
+    Number.isSafeInteger(parsed) &&
+    parsed >= minimum &&
+    parsed <= maximum
+    ? parsed
+    : fallback;
 }
