@@ -41,6 +41,37 @@ final class TogetherExperienceTests: XCTestCase {
         XCTAssertEqual(partner.fraction, 0.5, accuracy: 0.001)
     }
 
+    func testMemberProgressIgnoresSpecialsAndUnknownEpisodes() throws {
+        var snapshot = LibrarySnapshot.sample
+        let titleIndex = try XCTUnwrap(snapshot.titles.firstIndex(where: { $0.id == "severance" }))
+        snapshot.titles[titleIndex].seasons = Self.episodeTrackingSeasons
+        snapshot.sharedSpace.watchEvents = [
+            Self.watchEvent(id: "regular", memberID: "partner", season: 1, episode: 1, timestamp: 1),
+            Self.watchEvent(id: "special", memberID: "partner", season: 0, episode: 1, timestamp: 2),
+            Self.watchEvent(id: "unknown", memberID: "partner", season: 3, episode: 1, timestamp: 3)
+        ]
+        let model = AppModel(store: MemoryLibraryStore(), seed: snapshot)
+        let title = try XCTUnwrap(model.mediaTitle(withID: "severance"))
+
+        let summary = model.togetherMemberProgressSummary(for: title, memberID: "partner")
+
+        XCTAssertEqual(summary.label, "1 of 4 episodes")
+        XCTAssertEqual(summary.fraction, 0.25, accuracy: 0.001)
+    }
+
+    func testProgressFallbackUsesPersonalStateOnlyForCurrentMember() throws {
+        var snapshot = LibrarySnapshot.sample
+        snapshot.sharedSpace.watchEvents = []
+        let model = AppModel(store: MemoryLibraryStore(), seed: snapshot)
+        let title = try XCTUnwrap(model.mediaTitle(withID: "past-lives"))
+
+        let currentUser = model.togetherMemberProgressSummary(for: title, memberID: "vincent")
+        let partner = model.togetherMemberProgressSummary(for: title, memberID: "partner")
+
+        XCTAssertEqual(currentUser, model.progressSummary(for: title))
+        XCTAssertEqual(partner, MediaProgressSummary(label: "No progress yet", fraction: 0))
+    }
+
     private static let memberWatchEvents = [
         watchEvent(id: "vincent-1", memberID: "vincent", season: 1, episode: 1, timestamp: 1),
         watchEvent(id: "vincent-2", memberID: "vincent", season: 1, episode: 2, timestamp: 2),

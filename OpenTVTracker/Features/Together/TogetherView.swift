@@ -85,9 +85,9 @@ struct TogetherView: View {
                     space: model.sharedSpace
                 )
             }
-
-            analyticsLink
         }
+
+        analyticsLink
     }
 
     private var sharedUpNextTitle: MediaTitle? {

@@ -186,13 +186,16 @@ extension AppModel {
             return memberFallbackProgress(for: title, memberID: memberID)
         }
 
+        let countedEpisodeKeys = Set((title.seasons ?? [])
+            .filter { $0.number > 0 }
+            .flatMap { season in
+                season.episodes.map { "\(season.number):\($0.number)" }
+            })
         let watchedEpisodes = Set(watchedEvents.compactMap { event -> String? in
             guard let season = event.season, let episode = event.episode else { return nil }
             return "\(season):\(episode)"
-        })
-        let totalEpisodeCount = (title.seasons ?? [])
-            .filter { $0.number > 0 }
-            .reduce(0) { $0 + $1.episodes.count }
+        }).intersection(countedEpisodeKeys)
+        let totalEpisodeCount = countedEpisodeKeys.count
 
         if totalEpisodeCount > 0, !watchedEpisodes.isEmpty {
             return MediaProgressSummary(
