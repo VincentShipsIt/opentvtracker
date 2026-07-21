@@ -51,13 +51,17 @@ struct OpenTVTrackerApp: App {
 
     init() {
         #if DEBUG
-        if ProcessInfo.processInfo.arguments.contains("-ui-testing-bulk-watch") {
+        let processInfo = ProcessInfo.processInfo
+        let isBulkWatchUITest = processInfo.arguments.contains("-ui-testing-bulk-watch")
+        if isBulkWatchUITest {
             _model = State(initialValue: AppModel(store: MemoryLibraryStore(), seed: .bulkWatchUITest))
-            partnerSharingService = PreviewPartnerSharingService()
         } else {
             _model = State(initialValue: AppModel())
-            partnerSharingService = CloudKitPartnerSharingService()
         }
+        partnerSharingService = isBulkWatchUITest
+            || processInfo.environment["XCTestConfigurationFilePath"] != nil
+            ? PreviewPartnerSharingService()
+            : CloudKitPartnerSharingService()
         #else
         _model = State(initialValue: AppModel())
         partnerSharingService = CloudKitPartnerSharingService()
