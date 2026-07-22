@@ -18,16 +18,26 @@ enum TVTimeImportMerger {
         var warnings: [ImportWarning] = []
         var unresolved: [TVTimeEntity] = []
         let currentTitles = TVTimeMediaTitleLookup(current.titles)
+        let aliases = current.importResolutionAliases ?? [:]
+        var aliasTitles: [String: MediaTitle] = [:]
+        for entity in entities {
+            guard let alias = aliases[entity.identity],
+                  let localTitle = current.titles.first(where: {
+                      $0.kind == alias.kind && $0.catalogID == alias.catalogID
+                  }) else { continue }
+            aliasTitles[entity.identity] = localTitle
+        }
 
         let aliasResolution = await TVTimeImportAliasResolver.resolve(
-            entities,
-            aliases: current.importResolutionAliases ?? [:],
+            entities.filter { aliasTitles[$0.identity] == nil },
+            aliases: aliases,
             catalog: catalog,
             region: region
         )
+        aliasTitles.merge(aliasResolution.resolved) { _, remoteTitle in remoteTitle }
         let validatedAliases = TVTimeCatalogResolver.validatedAliases(
             entities,
-            resolved: aliasResolution.resolved,
+            resolved: aliasTitles,
             warnings: aliasResolution.warnings
         )
         resolved = validatedAliases.resolved
@@ -77,6 +87,7 @@ enum TVTimeImportMerger {
             snapshot: &snapshot
         )
         let totals = mergeArchive(archive, resolved: resolved, into: &snapshot)
+        cacheResolutionAliases(archive.entities, resolved: resolved, in: &snapshot)
         let warnings = TVTimeImportReportBuilder.warnings(
             automaticResolution.warnings,
             diagnostics: archive.diagnostics,
@@ -133,6 +144,22 @@ private extension TVTimeImportMerger {
             aliases[identity] = ImportResolutionAlias(kind: title.kind, catalogID: title.catalogID)
             snapshot.importResolutionAliases = aliases
         }
+    }
+
+    private static func cacheResolutionAliases(
+        _ entities: [TVTimeEntity],
+        resolved: [String: CatalogResolvedTitle],
+        in snapshot: inout LibrarySnapshot
+    ) {
+        var aliases = snapshot.importResolutionAliases ?? [:]
+        for entity in entities {
+            guard let title = resolved[entity.identity]?.title else { continue }
+            aliases[entity.identity] = ImportResolutionAlias(
+                kind: title.kind,
+                catalogID: title.catalogID
+            )
+        }
+        snapshot.importResolutionAliases = aliases.isEmpty ? nil : aliases
     }
 
     private static func mergeArchive(
