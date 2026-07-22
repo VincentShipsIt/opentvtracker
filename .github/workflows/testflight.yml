@@ -1,0 +1,174 @@
+name: TestFlight
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing vX.Y.Z tag to upload
+        required: true
+        type: string
+      build_number:
+        description: Optional App Store build number override
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: testflight-${{ github.event.release.tag_name || inputs.release_tag }}
+  cancel-in-progress: false
+
+jobs:
+  archive-and-upload:
+    name: Archive and upload
+    runs-on: macos-26
+    timeout-minutes: 45
+    environment: testflight
+    env:
+      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.release_tag }}
+      REQUESTED_BUILD_NUMBER: ${{ inputs.build_number }}
+      APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+      APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+    steps:
+      - name: Define temporary paths
+        shell: bash
+        run: |
+          {
+            echo "ARCHIVE_PATH=$RUNNER_TEMP/OpenTVTracker.xcarchive"
+            echo "EXPORT_PATH=$RUNNER_TEMP/TestFlightExport"
+            echo "KEYCHAIN_PATH=$RUNNER_TEMP/opentv-signing.keychain-db"
+            echo "CERTIFICATE_PATH=$RUNNER_TEMP/distribution-certificate.p12"
+            echo "ASC_KEY_PATH=$RUNNER_TEMP/appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
+          } >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.release.tag_name || inputs.release_tag }}
+          fetch-depth: 0
+
+      - name: Validate release tag and source commit
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! "$RELEASE_TAG" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+            echo "Release tag must use vX.Y.Z; received: $RELEASE_TAG" >&2
+            exit 1
+          fi
+          marketing_version="${BASH_REMATCH[1]}"
+          git fetch origin main --no-tags
+          if ! git merge-base --is-ancestor HEAD origin/main; then
+            echo "Release tag $RELEASE_TAG does not point to a commit on main." >&2
+            exit 1
+          fi
+          build_number="$REQUESTED_BUILD_NUMBER"
+          if [[ -z "$build_number" ]]; then
+            build_number="$((100000 + GITHUB_RUN_NUMBER * 100 + GITHUB_RUN_ATTEMPT))"
+          fi
+          if [[ ! "$build_number" =~ ^[1-9][0-9]*$ ]]; then
+            echo "Build number must be a positive integer; received: $build_number" >&2
+            exit 1
+          fi
+          echo "marketing_version=$marketing_version" >> "$GITHUB_OUTPUT"
+          echo "build_number=$build_number" >> "$GITHUB_OUTPUT"
+
+      - name: Select Xcode
+        run: |
+          sudo xcode-select -s /Applications/Xcode_26.4.1.app
+          xcodebuild -version
+
+      - name: Install signing material
+        env:
+          DISTRIBUTION_CERTIFICATE_BASE64: ${{ secrets.APPLE_DISTRIBUTION_CERTIFICATE_BASE64 }}
+          DISTRIBUTION_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD }}
+          APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          keychain_password="$(openssl rand -hex 24)"
+          echo "KEYCHAIN_PASSWORD=$keychain_password" >> "$GITHUB_ENV"
+          printf '%s' "$DISTRIBUTION_CERTIFICATE_BASE64" | base64 --decode > "$CERTIFICATE_PATH"
+          mkdir -p "$(dirname "$ASC_KEY_PATH")"
+          printf '%s' "$APP_STORE_CONNECT_API_KEY_BASE64" | base64 --decode > "$ASC_KEY_PATH"
+          chmod 600 "$ASC_KEY_PATH"
+
+          security create-keychain -p "$keychain_password" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$keychain_password" "$KEYCHAIN_PATH"
+          security import "$CERTIFICATE_PATH" \
+            -k "$KEYCHAIN_PATH" \
+            -P "$DISTRIBUTION_CERTIFICATE_PASSWORD" \
+            -A \
+            -t cert \
+            -f pkcs12
+          security set-key-partition-list \
+            -S apple-tool:,apple: \
+            -s \
+            -k "$keychain_password" \
+            "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH"
+
+      - name: Archive release
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodebuild archive \
+            -project OpenTVTracker.xcodeproj \
+            -scheme OpenTVTracker \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$ARCHIVE_PATH" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_PATH" \
+            -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID" \
+            -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID" \
+            DEVELOPMENT_TEAM=C76R5DRH64 \
+            CODE_SIGN_STYLE=Automatic \
+            MARKETING_VERSION='${{ steps.release.outputs.marketing_version }}' \
+            CURRENT_PROJECT_VERSION='${{ steps.release.outputs.build_number }}' \
+            OTHER_CODE_SIGN_FLAGS="--keychain $KEYCHAIN_PATH"
+
+      - name: Export archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodebuild -exportArchive \
+            -archivePath "$ARCHIVE_PATH" \
+            -exportPath "$EXPORT_PATH" \
+            -exportOptionsPlist Config/TestFlightExportOptions.plist \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_PATH" \
+            -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID" \
+            -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID"
+
+      - name: Validate and upload to TestFlight
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          ipa_files=("$EXPORT_PATH"/*.ipa)
+          if [[ "${#ipa_files[@]}" -ne 1 ]]; then
+            echo "Expected exactly one exported IPA; found ${#ipa_files[@]}." >&2
+            exit 1
+          fi
+          cd "$(dirname "$(dirname "$ASC_KEY_PATH")")"
+          xcrun altool --validate-app \
+            --type ios \
+            --file "${ipa_files[0]}" \
+            --apiKey "$APP_STORE_CONNECT_KEY_ID" \
+            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+          xcrun altool --upload-app \
+            --type ios \
+            --file "${ipa_files[0]}" \
+            --apiKey "$APP_STORE_CONNECT_KEY_ID" \
+            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+
+      - name: Remove signing material
+        if: always()
+        shell: bash
+        run: |
+          security delete-keychain "$KEYCHAIN_PATH" 2>/dev/null || true
+          rm -f "$CERTIFICATE_PATH" "$ASC_KEY_PATH"

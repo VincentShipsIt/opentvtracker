@@ -52,7 +52,7 @@ OpenRouter OAuth requires an HTTPS callback domain associated with the app. Offi
 
 To enable partner sharing on a physical device, configure your own CloudKit container and provisioning profile. Local tracking does not require iCloud. The exact record types and deployment steps are documented in the [CloudKit schema guide](docs/CLOUDKIT_SCHEMA.md).
 
-See [PRIVACY.md](PRIVACY.md), [SECURITY.md](SECURITY.md), [CONTRIBUTING.md](CONTRIBUTING.md), and the [public release checklist](docs/PUBLIC_RELEASE_CHECKLIST.md).
+See [PRIVACY.md](PRIVACY.md), [SECURITY.md](SECURITY.md), [CONTRIBUTING.md](CONTRIBUTING.md), the [public release checklist](docs/PUBLIC_RELEASE_CHECKLIST.md), and the [TestFlight release runbook](docs/TESTFLIGHT_RELEASES.md).
 
 ## License
 
