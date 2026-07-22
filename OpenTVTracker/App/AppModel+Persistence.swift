@@ -1,6 +1,34 @@
 import Foundation
 
 extension AppModel {
+    func merging(savedTitles: [MediaTitle], catalogTitles: [MediaTitle]) -> [MediaTitle] {
+        let savedByID = Dictionary(uniqueKeysWithValues: savedTitles.map { ($0.id, $0) })
+        let catalogIDs = Set(catalogTitles.map(\.id))
+        let refreshedCatalog = catalogTitles.map { catalogTitle in
+            guard let savedTitle = savedByID[catalogTitle.id] else { return catalogTitle }
+            var refreshedTitle = catalogTitle
+            refreshedTitle.state = savedTitle.state
+            refreshedTitle.progress = savedTitle.progress
+            refreshedTitle.userRating = savedTitle.userRating
+            refreshedTitle.notes = savedTitle.notes
+            refreshedTitle.rewatchCount = savedTitle.rewatchCount
+            refreshedTitle.lastWatchedAt = savedTitle.lastWatchedAt
+            refreshedTitle.isDismissed = savedTitle.isDismissed
+            refreshedTitle.isDisliked = savedTitle.isDisliked
+            refreshedTitle.personalWatchlist = savedTitle.personalWatchlist
+            refreshedTitle.watchedEpisodeIDs = savedTitle.watchedEpisodeIDs
+            refreshedTitle.seriesLifecycle = catalogTitle.seriesLifecycle ?? savedTitle.seriesLifecycle
+            refreshedTitle.isUpNextPinned = savedTitle.isUpNextPinned
+            refreshedTitle.upNextSnoozedUntil = savedTitle.upNextSnoozedUntil
+            refreshedTitle.upNextManualOrder = savedTitle.upNextManualOrder
+            return refreshedTrackingTitle(refreshedTitle)
+        }
+        let localOnlyTitles = savedTitles
+            .filter { !catalogIDs.contains($0.id) }
+            .map { refreshedTrackingTitle($0) }
+        return refreshedCatalog + localOnlyTitles
+    }
+
     func persist() {
         let snapshot = self.snapshot
         let store = store

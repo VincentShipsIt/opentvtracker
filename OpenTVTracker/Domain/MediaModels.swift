@@ -349,6 +349,7 @@ struct LibrarySnapshot: Codable, Hashable, Sendable {
     var streamingRegionCode: String?
     var reminderSettings: ReminderSettings?
     var importResolutionAliases: [String: ImportResolutionAlias]?
+    var hasCompletedFirstRun: Bool?
 
     init(
         titles: [MediaTitle],
@@ -358,6 +359,7 @@ struct LibrarySnapshot: Codable, Hashable, Sendable {
         streamingRegionCode: String? = nil,
         reminderSettings: ReminderSettings = ReminderSettings(),
         importResolutionAliases: [String: ImportResolutionAlias]? = nil,
+        hasCompletedFirstRun: Bool? = nil,
         schemaVersion: Int = 6
     ) {
         self.schemaVersion = schemaVersion
@@ -368,6 +370,7 @@ struct LibrarySnapshot: Codable, Hashable, Sendable {
         self.streamingRegionCode = streamingRegionCode
         self.reminderSettings = reminderSettings
         self.importResolutionAliases = importResolutionAliases
+        self.hasCompletedFirstRun = hasCompletedFirstRun
     }
 }
 

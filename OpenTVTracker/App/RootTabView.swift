@@ -8,13 +8,15 @@ enum AppTab: Hashable {
 }
 
 struct RootTabView: View {
+    @Environment(AppModel.self) private var model
     @State private var selection: AppTab = .today
+    @State private var presentsFirstRun = false
     let partnerSharingService: any PartnerSharingProviding
 
     var body: some View {
         TabView(selection: $selection) {
             Tab("Today", systemImage: "sun.max.fill", value: .today) {
-                TodayView()
+                TodayView(selectedTab: $selection)
                     .accessibilityIdentifier("tab.today")
             }
 
@@ -39,6 +41,13 @@ struct RootTabView: View {
             }
         }
         .tint(.accentColor)
+        .fullScreenCover(isPresented: $presentsFirstRun) {
+            FirstRunView(partnerSharingService: partnerSharingService)
+        }
+        .task(id: model.hasLoaded) {
+            guard model.hasLoaded, !model.hasCompletedFirstRun else { return }
+            presentsFirstRun = true
+        }
         .preferredColorScheme(.dark)
     }
 }

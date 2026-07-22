@@ -103,11 +103,13 @@ final class LibraryTransferTests: XCTestCase {
         snapshot.selectedProviderIDs = [StreamingProvider.appleTV.id]
         snapshot.allowsAIReranking = true
         snapshot.streamingRegionCode = "MT"
+        snapshot.hasCompletedFirstRun = true
 
         let data = try LibraryTransferService.exportJSON(snapshot)
         let decoded = try LibraryArchiveCodec.decode(data)
 
         XCTAssertEqual(decoded, snapshot)
+        XCTAssertEqual(decoded.hasCompletedFirstRun, true)
     }
 
     func testCompleteJSONImportRestoresCurrentLocalSnapshotIntoEmptyLibrary() throws {

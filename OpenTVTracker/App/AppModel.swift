@@ -11,7 +11,6 @@ final class AppModel {
     var saveTask: Task<Void, Never>?
     var reminderTask: Task<Void, Never>?
     var persistenceRevision = 0
-
     var titles: [MediaTitle]
     var sharedSpace: SharedSpace
     private(set) var selectedProviderIDs: Set<StreamingProvider.ID>
@@ -21,6 +20,7 @@ final class AppModel {
     var reminderCapability = ReminderCapability.unknown
     var reminderError: String?
     private(set) var importResolutionAliases: [String: ImportResolutionAlias]
+    private(set) var hasCompletedFirstRun: Bool
     private(set) var hasLoaded = false
     var persistenceError: String?
     private(set) var remoteRankedRecommendations: [Recommendation] = []
@@ -40,7 +40,6 @@ final class AppModel {
     var selectedMood: Mood = .any {
         didSet { refreshRecommendationsSoon() }
     }
-
     init(
         store: any LibraryPersisting = LibraryStoreFactory.makeDefault(),
         recommendationService: any RecommendationProviding = ProviderNeutralRecommendationService(),
@@ -72,6 +71,7 @@ final class AppModel {
         streamingRegionOverride = seed.streamingRegionCode.flatMap(StreamingRegion.init(code:))
         reminderSettings = seed.reminderSettings ?? ReminderSettings()
         importResolutionAliases = seed.importResolutionAliases ?? [:]
+        hasCompletedFirstRun = seed.hasCompletedFirstRun ?? (seed != .empty)
         titles = migratedTrackingTitles(titles, fromSchemaVersion: seed.schemaVersion)
     }
 
@@ -100,7 +100,6 @@ final class AppModel {
         let sharedIDs = Set(sharedSpace.titleIDs)
         return titles.filter { sharedIDs.contains($0.id) }
     }
-
     var snapshot: LibrarySnapshot {
         LibrarySnapshot(
             titles: titles,
@@ -109,7 +108,8 @@ final class AppModel {
             allowsAIReranking: allowsAIReranking,
             streamingRegionCode: streamingRegionOverride?.code,
             reminderSettings: reminderSettings,
-            importResolutionAliases: importResolutionAliases
+            importResolutionAliases: importResolutionAliases,
+            hasCompletedFirstRun: hasCompletedFirstRun
         )
     }
 
@@ -142,6 +142,7 @@ final class AppModel {
                 streamingRegionOverride = snapshot.streamingRegionCode.flatMap(StreamingRegion.init(code:))
                 reminderSettings = snapshot.reminderSettings ?? ReminderSettings()
                 importResolutionAliases = snapshot.importResolutionAliases ?? [:]
+                hasCompletedFirstRun = snapshot.hasCompletedFirstRun ?? true
             }
         } catch {
             persistenceError = "Your saved library could not be opened. Your catalog and saved data remain separate."
@@ -295,6 +296,11 @@ extension AppModel {
         streamingRegionOverride = region
     }
 
+    func completeFirstRun() {
+        guard !hasCompletedFirstRun else { return }
+        hasCompletedFirstRun = true
+        persist()
+    }
     func replaceLibrary(with snapshot: LibrarySnapshot) {
         titles = migratedTrackingTitles(
             merging(savedTitles: snapshot.titles, catalogTitles: seed.titles),
@@ -306,6 +312,7 @@ extension AppModel {
         streamingRegionOverride = snapshot.streamingRegionCode.flatMap(StreamingRegion.init(code:))
         reminderSettings = snapshot.reminderSettings ?? ReminderSettings()
         importResolutionAliases = snapshot.importResolutionAliases ?? [:]
+        hasCompletedFirstRun = snapshot.hasCompletedFirstRun ?? true
         persist()
     }
 
@@ -357,38 +364,9 @@ extension AppModel {
             context: context
         )) ?? []
     }
-
 }
 
 extension AppModel {
-    func merging(savedTitles: [MediaTitle], catalogTitles: [MediaTitle]) -> [MediaTitle] {
-        let savedByID = Dictionary(uniqueKeysWithValues: savedTitles.map { ($0.id, $0) })
-        let catalogIDs = Set(catalogTitles.map(\.id))
-        let refreshedCatalog = catalogTitles.map { catalogTitle in
-            guard let savedTitle = savedByID[catalogTitle.id] else { return catalogTitle }
-            var refreshedTitle = catalogTitle
-            refreshedTitle.state = savedTitle.state
-            refreshedTitle.progress = savedTitle.progress
-            refreshedTitle.userRating = savedTitle.userRating
-            refreshedTitle.notes = savedTitle.notes
-            refreshedTitle.rewatchCount = savedTitle.rewatchCount
-            refreshedTitle.lastWatchedAt = savedTitle.lastWatchedAt
-            refreshedTitle.isDismissed = savedTitle.isDismissed
-            refreshedTitle.isDisliked = savedTitle.isDisliked
-            refreshedTitle.personalWatchlist = savedTitle.personalWatchlist
-            refreshedTitle.watchedEpisodeIDs = savedTitle.watchedEpisodeIDs
-            refreshedTitle.seriesLifecycle = catalogTitle.seriesLifecycle ?? savedTitle.seriesLifecycle
-            refreshedTitle.isUpNextPinned = savedTitle.isUpNextPinned
-            refreshedTitle.upNextSnoozedUntil = savedTitle.upNextSnoozedUntil
-            refreshedTitle.upNextManualOrder = savedTitle.upNextManualOrder
-            return refreshedTrackingTitle(refreshedTitle)
-        }
-        let localOnlyTitles = savedTitles
-            .filter { !catalogIDs.contains($0.id) }
-            .map { refreshedTrackingTitle($0) }
-        return refreshedCatalog + localOnlyTitles
-    }
-
     private static let defaultProviderIDs: Set<StreamingProvider.ID> = [
         StreamingProvider.netflix.id,
         StreamingProvider.primeVideo.id,
