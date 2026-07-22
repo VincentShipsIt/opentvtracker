@@ -13,7 +13,7 @@ struct LibraryHistoryView: View {
 
         ScrollView {
             LazyVStack(spacing: AppTheme.sectionSpacing) {
-                LibraryPrivacyHeader(member: currentMember)
+                LibraryPrivacyHeader(member: model.currentMember)
 
                 if diaryRecords.isEmpty, summary.isEmpty {
                     ContentUnavailableView {
@@ -53,11 +53,6 @@ struct LibraryHistoryView: View {
             .padding(.horizontal, AppTheme.horizontalPadding)
             .padding(.bottom, 32)
         }
-    }
-
-    private var currentMember: SpaceMember {
-        model.sharedSpace.members.first(where: \.isCurrentUser)
-            ?? SpaceMember(id: "local-user", name: "You", initials: "YOU", isCurrentUser: true)
     }
 
     private var backupHealth: BackupHealthState {

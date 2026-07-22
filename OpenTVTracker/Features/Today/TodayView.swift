@@ -14,7 +14,7 @@ struct TodayView: View {
                 ScrollView {
                     LazyVStack(spacing: AppTheme.sectionSpacing) {
                         TodayHeader(
-                            memberName: currentMember.name,
+                            memberName: model.currentMember.name,
                             onOpenLibrary: { selectedTab = .library }
                         )
 
@@ -176,10 +176,6 @@ struct TodayView: View {
         }
     }
 
-    private var currentMember: SpaceMember {
-        model.sharedSpace.members.first(where: \.isCurrentUser)
-            ?? SpaceMember(id: "local-user", name: "You", initials: "YOU", isCurrentUser: true)
-    }
 }
 
 private enum TodaySheet: Hashable, Identifiable {

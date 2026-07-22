@@ -1,7 +1,18 @@
 import XCTest
 @testable import OpenTVTracker
 
+@MainActor
 final class LibraryOrganizationTests: XCTestCase {
+    func testCurrentMemberFallsBackToPrivateLocalIdentity() {
+        var snapshot = LibrarySnapshot.sample
+        snapshot.sharedSpace.members = []
+        let model = AppModel(store: MemoryLibraryStore(), seed: snapshot)
+
+        XCTAssertEqual(model.currentMember.id, "local-user")
+        XCTAssertEqual(model.currentMember.name, "You")
+        XCTAssertTrue(model.currentMember.isCurrentUser)
+    }
+
     func testPrimaryOwnershipShelvesStayVisibleAndOrdered() {
         XCTAssertEqual(
             LibraryShelf.primary,

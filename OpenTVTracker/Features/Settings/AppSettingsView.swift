@@ -13,7 +13,7 @@ struct AppSettingsView: View {
             Form {
                 Section {
                     VStack(alignment: .leading, spacing: 6) {
-                        Label(currentMember.name, systemImage: "person.crop.circle.fill")
+                        Label(model.currentMember.name, systemImage: "person.crop.circle.fill")
                             .font(.headline)
                         Label("Personal history", systemImage: "lock.fill")
                             .font(.subheadline.weight(.semibold))
@@ -133,10 +133,6 @@ struct AppSettingsView: View {
         return count == 1 ? "1 service" : "\(count) services"
     }
 
-    private var currentMember: SpaceMember {
-        model.sharedSpace.members.first(where: \.isCurrentUser)
-            ?? SpaceMember(id: "local-user", name: "You", initials: "YOU", isCurrentUser: true)
-    }
 }
 
 private struct StreamingRegionPickerView: View {
