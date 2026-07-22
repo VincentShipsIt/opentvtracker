@@ -18,12 +18,13 @@ enum TVTimeListParser {
             let kind: MediaKind = TVTimeCSV.string(values, ["item_type"])?.lowercased() == "movie"
                 ? .movie : .series
             let title = TVTimeCSV.string(values, ["name", "title"])
-            let entityIdentity = identity(kind: kind, sourceID: sourceID, title: title)
+            let entityIdentity = identity(kind: kind, source: .tvdb, sourceID: sourceID, title: title)
 
             if entities[entityIdentity] == nil {
                 entities[entityIdentity] = TVTimeEntity(
                     identity: entityIdentity,
                     sourceID: sourceID,
+                    source: .tvdb,
                     title: title ?? "",
                     year: TVTimeCSV.year(values),
                     kind: kind
@@ -70,7 +71,7 @@ enum TVTimeListParser {
                 guard let sourceID else { continue }
                 append(
                     TVTimeListMembership(
-                        entityIdentity: identity(kind: kind, sourceID: sourceID, title: nil),
+                        entityIdentity: identity(kind: kind, source: nil, sourceID: sourceID, title: nil),
                         order: order
                     ),
                     listID: listID,
@@ -99,8 +100,16 @@ private extension TVTimeListParser {
         lists[listID] = list
     }
 
-    static func identity(kind: MediaKind, sourceID: String, title: String?) -> String {
-        if !sourceID.isEmpty { return "\(kind.rawValue):source:\(sourceID)" }
+    static func identity(
+        kind: MediaKind,
+        source: ExternalCatalogSource?,
+        sourceID: String,
+        title: String?
+    ) -> String {
+        if !sourceID.isEmpty {
+            let namespace = source?.rawValue ?? "source"
+            return "\(kind.rawValue):\(namespace):\(sourceID)"
+        }
         return "\(kind.rawValue):title:\(TVTimeCSV.normalizedTitle(title ?? ""))"
     }
 

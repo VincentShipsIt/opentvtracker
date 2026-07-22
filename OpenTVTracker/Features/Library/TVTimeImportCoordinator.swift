@@ -6,8 +6,7 @@ import Observation
 final class TVTimeImportCoordinator {
     private let session: TVTimeImportSession
     private var manualResolutions: [ImportResolutionIssue.ID: MediaTitle] = [:]
-    private var resolutionTail: Task<Void, Never>?
-    private var pendingResolutionCount = 0
+    private var resolutionWaiters: [CheckedContinuation<Void, Never>] = []
 
     private(set) var preview: LibraryImportPreview?
     private(set) var isRefreshing = false
@@ -27,23 +26,37 @@ final class TVTimeImportCoordinator {
     func resolve(
         _ issue: ImportResolutionIssue,
         with title: MediaTitle
-    ) async {
-        let previous = resolutionTail
-        pendingResolutionCount += 1
-        isRefreshing = true
-        let task = Task { @MainActor in
-            await previous?.value
-            self.manualResolutions[issue.id] = await self.session.detailedTitle(title)
-            self.preview = await self.session.preview(manualResolutions: self.manualResolutions)
-            self.errorMessage = nil
-            self.pendingResolutionCount -= 1
-            if self.pendingResolutionCount == 0 {
-                self.isRefreshing = false
-                self.resolutionTail = nil
-            }
+    ) async -> Bool {
+        await acquireResolutionSlot()
+        defer { releaseResolutionSlot() }
+        do {
+            let detailedTitle = try await session.detailedTitle(title)
+            manualResolutions[issue.id] = detailedTitle
+            preview = await session.preview(manualResolutions: manualResolutions)
+            errorMessage = nil
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            return false
         }
-        resolutionTail = task
-        await task.value
+    }
+
+    private func acquireResolutionSlot() async {
+        guard isRefreshing else {
+            isRefreshing = true
+            return
+        }
+        await withCheckedContinuation { continuation in
+            resolutionWaiters.append(continuation)
+        }
+    }
+
+    private func releaseResolutionSlot() {
+        guard !resolutionWaiters.isEmpty else {
+            isRefreshing = false
+            return
+        }
+        resolutionWaiters.removeFirst().resume()
     }
 
     func search(

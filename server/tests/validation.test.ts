@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   readJSONBody,
+  validateCatalogExternalID,
   validateCatalogReviews,
   validateCatalogSearch,
   validateCatalogTitle,
@@ -24,6 +25,14 @@ describe("request validation", () => {
       )!,
       new URL("https://example.test/v1/catalog/series/42/reviews?page=3"),
     );
+    const external = validateCatalogExternalID(
+      "/v1/catalog/resolve/tvdb/371980".match(
+        /^\/v1\/catalog\/resolve\/(tvdb)\/(\d+)$/,
+      )!,
+      new URL(
+        "https://example.test/v1/catalog/resolve/tvdb/371980?kind=series&region=mt",
+      ),
+    );
 
     expect(search).toEqual({
       query: "Drama",
@@ -33,6 +42,12 @@ describe("request validation", () => {
     });
     expect(title).toEqual({ kind: "movie", id: 42, region: "US" });
     expect(reviews).toEqual({ kind: "series", id: 42, page: 3 });
+    expect(external).toEqual({
+      source: "tvdb",
+      id: 371980,
+      kind: "series",
+      region: "MT",
+    });
   });
 
   test("rejects unknown, oversized, and out-of-range catalog inputs", () => {
@@ -69,6 +84,16 @@ describe("request validation", () => {
         new URL("https://example.test/v1/catalog/movie/42/reviews?page=101"),
       ),
     ).toThrow("invalid_page");
+    expect(() =>
+      validateCatalogExternalID(
+        "/v1/catalog/resolve/tvdb/0".match(
+          /^\/v1\/catalog\/resolve\/(tvdb)\/(\d+)$/,
+        )!,
+        new URL(
+          "https://example.test/v1/catalog/resolve/tvdb/0?kind=series&region=MT",
+        ),
+      ),
+    ).toThrow("invalid_external_id");
   });
 
   test("bounds cinema dates and region", () => {

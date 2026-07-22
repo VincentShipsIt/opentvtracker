@@ -159,7 +159,11 @@ extension LibraryTransferService {
         if let aliases = imported.importResolutionAliases {
             var mergedAliases = merged.importResolutionAliases ?? [:]
             mergedAliases.merge(aliases) { _, importedAlias in importedAlias }
-            merged.importResolutionAliases = mergedAliases
+            merged.importResolutionAliases = mergedAliases.filter { _, alias in
+                merged.titles.contains {
+                    $0.kind == alias.kind && $0.catalogID == alias.catalogID
+                }
+            }
         }
         merged.sharedSpace = LibraryBackupMerge.sharedSpace(
             imported: imported.sharedSpace,

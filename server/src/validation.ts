@@ -187,6 +187,32 @@ export function validateCatalogReviews(
   return { kind, id, page };
 }
 
+export function validateCatalogExternalID(
+  match: RegExpMatchArray,
+  url: URL,
+): {
+  source: "tvdb";
+  id: number;
+  kind: MediaKind;
+  region: string;
+} {
+  exactQueryKeys(url, ["kind", "region"]);
+  const source = match[1];
+  if (source !== "tvdb") throw new ValidationError("invalid_catalog_source");
+  const id = strictInteger(
+    match[2] ?? "",
+    1,
+    2_147_483_647,
+    "invalid_external_id",
+  );
+  const kind = url.searchParams.get("kind");
+  if (kind !== "movie" && kind !== "series")
+    throw new ValidationError("invalid_kind");
+  const region = (url.searchParams.get("region") ?? "MT").toUpperCase();
+  if (!/^[A-Z]{2}$/.test(region)) throw new ValidationError("invalid_region");
+  return { source, id, kind, region };
+}
+
 export function validateCinemaShowings(
   url: URL,
   now: Date = new Date(),

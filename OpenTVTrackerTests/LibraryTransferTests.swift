@@ -263,6 +263,23 @@ final class LibraryTransferTests: XCTestCase {
         XCTAssertEqual(restored.watchedEpisodeIDs, Set(["severance-s1e1"]))
     }
 
+}
+
+extension LibraryTransferTests {
+    func testJSONImportDiscardsResolutionAliasesWithoutRetainedTitles() throws {
+        var snapshot = LibrarySnapshot.sample
+        snapshot.importResolutionAliases = [
+            "series:legacy:missing": ImportResolutionAlias(kind: .series, catalogID: 999_999)
+        ]
+
+        let preview = try LibraryTransferService.previewImport(
+            LibraryTransferService.exportJSON(snapshot),
+            into: .sample
+        )
+
+        XCTAssertNil(preview.snapshot.importResolutionAliases?["series:legacy:missing"])
+    }
+
     func testJSONImportRejectsUnsupportedFutureSchema() throws {
         let exported = try LibraryTransferService.exportJSON(.sample)
         var object = try XCTUnwrap(

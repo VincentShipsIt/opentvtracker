@@ -9,14 +9,17 @@ enum TVTimeNativeRecordParser {
     ) {
         guard TVTimeCSV.bool(values, ["is_watched"]) == true else { return }
         let title = TVTimeCSV.string(values, ["title", "show_name", "series_name"])
-        let sourceID = TVTimeCSV.string(values, ["series_tvdb_id", "series_id", "s_id"])
-        guard let identity = identity(kind: .series, sourceID: sourceID, title: title) else {
+        let tvdbID = TVTimeCSV.string(values, ["series_tvdb_id"])
+        let sourceID = tvdbID ?? TVTimeCSV.string(values, ["series_id", "s_id"])
+        let source = tvdbID == nil ? nil : ExternalCatalogSource.tvdb
+        guard let identity = identity(kind: .series, source: source, sourceID: sourceID, title: title) else {
             diagnostics.missingIdentityCount += 1
             return
         }
         let initial = TVTimeEntity(
             identity: identity,
             sourceID: sourceID,
+            source: source,
             title: title ?? "",
             kind: .series
         )
@@ -42,14 +45,17 @@ enum TVTimeNativeRecordParser {
         diagnostics: inout TVTimeImportDiagnostics
     ) {
         let title = TVTimeCSV.string(values, ["title", "movie_name", "name"])
-        let sourceID = TVTimeCSV.string(values, ["tvdb_id", "movie_id", "uuid"])
-        guard let identity = identity(kind: .movie, sourceID: sourceID, title: title) else {
+        let tvdbID = TVTimeCSV.string(values, ["tvdb_id"])
+        let sourceID = tvdbID ?? TVTimeCSV.string(values, ["movie_id", "uuid"])
+        let source = tvdbID == nil ? nil : ExternalCatalogSource.tvdb
+        guard let identity = identity(kind: .movie, source: source, sourceID: sourceID, title: title) else {
             diagnostics.missingIdentityCount += 1
             return
         }
         let initial = TVTimeEntity(
             identity: identity,
             sourceID: sourceID,
+            source: source,
             title: title ?? "",
             year: TVTimeCSV.year(values),
             kind: .movie
@@ -81,14 +87,17 @@ enum TVTimeNativeRecordParser {
         diagnostics: inout TVTimeImportDiagnostics
     ) {
         let title = TVTimeCSV.string(values, ["title", "series_name", "name"])
-        let sourceID = TVTimeCSV.string(values, ["tvdb_id", "series_tvdb_id", "series_id"])
-        guard let identity = identity(kind: .series, sourceID: sourceID, title: title) else {
+        let tvdbID = TVTimeCSV.string(values, ["tvdb_id", "series_tvdb_id"])
+        let sourceID = tvdbID ?? TVTimeCSV.string(values, ["series_id"])
+        let source = tvdbID == nil ? nil : ExternalCatalogSource.tvdb
+        guard let identity = identity(kind: .series, source: source, sourceID: sourceID, title: title) else {
             diagnostics.missingIdentityCount += 1
             return
         }
         let initial = TVTimeEntity(
             identity: identity,
             sourceID: sourceID,
+            source: source,
             title: title ?? "",
             kind: .series
         )
@@ -114,8 +123,16 @@ enum TVTimeNativeRecordParser {
         }
     }
 
-    private static func identity(kind: MediaKind, sourceID: String?, title: String?) -> String? {
-        if let sourceID, !sourceID.isEmpty { return "\(kind.rawValue):source:\(sourceID)" }
+    private static func identity(
+        kind: MediaKind,
+        source: ExternalCatalogSource?,
+        sourceID: String?,
+        title: String?
+    ) -> String? {
+        if let sourceID, !sourceID.isEmpty {
+            let namespace = source?.rawValue ?? "source"
+            return "\(kind.rawValue):\(namespace):\(sourceID)"
+        }
         guard let title, !title.isEmpty else { return nil }
         return "\(kind.rawValue):title:\(TVTimeCSV.normalizedTitle(title))"
     }

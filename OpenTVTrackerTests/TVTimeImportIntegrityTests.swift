@@ -237,7 +237,7 @@ extension TVTimeImportIntegrityTests {
             towatch,series,Severance,42
             """,
             "tvtime-series-2026.csv": """
-            tvdb_id,title,status
+            series_id,title,status
             42,Severance,stopped
             """
         ])

@@ -1,19 +1,9 @@
 import Foundation
 
 struct TVTimeTitleResolution: Sendable {
-    var resolved: [String: MediaTitle]
+    var resolved: [String: CatalogResolvedTitle]
     var issues: [String: ImportResolutionIssue]
     var warnings: [ImportWarning]
-}
-
-private enum AutomaticResolutionResult: Sendable {
-    case resolved(String, MediaTitle)
-    case issue(ImportResolutionIssue)
-}
-
-private enum CandidateSelection {
-    case candidate(MediaTitle)
-    case issue(ImportResolutionReason, String)
 }
 
 enum TVTimeImportMerger {
@@ -23,33 +13,51 @@ enum TVTimeImportMerger {
         catalog: any CatalogProviding,
         region: StreamingRegion
     ) async -> TVTimeTitleResolution {
-        var resolved: [String: MediaTitle] = [:]
+        var resolved: [String: CatalogResolvedTitle] = [:]
         var issues: [String: ImportResolutionIssue] = [:]
         var warnings: [ImportWarning] = []
         var unresolved: [TVTimeEntity] = []
         let currentTitles = TVTimeMediaTitleLookup(current.titles)
+        let aliases = current.importResolutionAliases ?? [:]
+        var aliasTitles: [String: MediaTitle] = [:]
+        for entity in entities {
+            guard let alias = aliases[entity.identity],
+                  let localTitle = current.titles.first(where: {
+                      $0.kind == alias.kind && $0.catalogID == alias.catalogID
+                  }) else { continue }
+            aliasTitles[entity.identity] = localTitle
+        }
 
         let aliasResolution = await TVTimeImportAliasResolver.resolve(
-            entities,
-            aliases: current.importResolutionAliases ?? [:],
+            entities.filter { aliasTitles[$0.identity] == nil },
+            aliases: aliases,
             catalog: catalog,
             region: region
         )
-        resolved = aliasResolution.resolved
-        warnings = aliasResolution.warnings
+        aliasTitles.merge(aliasResolution.resolved) { _, remoteTitle in remoteTitle }
+        let validatedAliases = TVTimeCatalogResolver.validatedAliases(
+            entities,
+            resolved: aliasTitles,
+            warnings: aliasResolution.warnings
+        )
+        resolved = validatedAliases.resolved
+        warnings = validatedAliases.warnings
 
         for entity in entities {
             if resolved[entity.identity] != nil {
                 continue
             }
             if let localIndex = currentTitles.index(matching: entity) {
-                resolved[entity.identity] = current.titles[localIndex]
+                resolved[entity.identity] = CatalogResolvedTitle(
+                    title: current.titles[localIndex],
+                    seasonNumberOverride: nil
+                )
             } else {
                 unresolved.append(entity)
             }
         }
 
-        let catalogResolution = await resolveCatalogTitles(
+        let catalogResolution = await TVTimeCatalogResolver.resolveTitles(
             unresolved,
             catalog: catalog,
             region: region
@@ -79,6 +87,7 @@ enum TVTimeImportMerger {
             snapshot: &snapshot
         )
         let totals = mergeArchive(archive, resolved: resolved, into: &snapshot)
+        cacheResolutionAliases(archive.entities, resolved: resolved, in: &snapshot)
         let warnings = TVTimeImportReportBuilder.warnings(
             automaticResolution.warnings,
             diagnostics: archive.diagnostics,
@@ -115,12 +124,21 @@ enum TVTimeImportMerger {
 private extension TVTimeImportMerger {
     private static func applyManualResolutions(
         _ manualResolutions: [ImportResolutionIssue.ID: MediaTitle],
-        resolved: inout [String: MediaTitle],
+        resolved: inout [String: CatalogResolvedTitle],
         issues: inout [String: ImportResolutionIssue],
         snapshot: inout LibrarySnapshot
     ) {
         for (identity, title) in manualResolutions {
-            resolved[identity] = title
+            let seasonNumber = CatalogImportMatcher.safeAnimeSeasonNumber(
+                in: issues[identity]?.title ?? ""
+            )
+            let safeOverride = seasonNumber.flatMap { number in
+                title.seasons?.contains(where: { $0.number == number }) == true ? number : nil
+            }
+            resolved[identity] = CatalogResolvedTitle(
+                title: title,
+                seasonNumberOverride: safeOverride
+            )
             issues.removeValue(forKey: identity)
             var aliases = snapshot.importResolutionAliases ?? [:]
             aliases[identity] = ImportResolutionAlias(kind: title.kind, catalogID: title.catalogID)
@@ -128,9 +146,25 @@ private extension TVTimeImportMerger {
         }
     }
 
+    private static func cacheResolutionAliases(
+        _ entities: [TVTimeEntity],
+        resolved: [String: CatalogResolvedTitle],
+        in snapshot: inout LibrarySnapshot
+    ) {
+        var aliases = snapshot.importResolutionAliases ?? [:]
+        for entity in entities {
+            guard let title = resolved[entity.identity]?.title else { continue }
+            aliases[entity.identity] = ImportResolutionAlias(
+                kind: title.kind,
+                catalogID: title.catalogID
+            )
+        }
+        snapshot.importResolutionAliases = aliases.isEmpty ? nil : aliases
+    }
+
     private static func mergeArchive(
         _ archive: TVTimeArchive,
-        resolved: [String: MediaTitle],
+        resolved: [String: CatalogResolvedTitle],
         into snapshot: inout LibrarySnapshot
     ) -> PreviewMergeTotals {
         var totals = PreviewMergeTotals(
@@ -160,7 +194,7 @@ private extension TVTimeImportMerger {
         let listMerge = TVTimeListMerger.merge(
             archive.lists,
             into: snapshot.lists ?? [],
-            resolved: resolved
+            resolved: resolved.mapValues(\.title)
         )
         snapshot.lists = listMerge.lists
         totals.listCount = archive.lists.count
@@ -172,11 +206,12 @@ private extension TVTimeImportMerger {
     private static func merge(
         _ entity: TVTimeEntity,
         into snapshot: inout LibrarySnapshot,
-        resolved: [String: MediaTitle],
+        resolved: [String: CatalogResolvedTitle],
         state: inout TVTimeMergeState,
         shouldShare: Bool
     ) -> EntityMergeResult? {
-        guard var catalogTitle = resolved[entity.identity] else { return nil }
+        guard let resolvedTitle = resolved[entity.identity] else { return nil }
+        var catalogTitle = resolvedTitle.title
         let existingIndex = state.titleLookup.index(for: catalogTitle, matching: entity)
         if let existingIndex {
             catalogTitle = snapshot.titles[existingIndex]
@@ -185,7 +220,8 @@ private extension TVTimeImportMerger {
         let applied = TVTimeHistoryApplier.apply(
             entity,
             to: &catalogTitle,
-            state: &state
+            state: &state,
+            seasonNumberOverride: resolvedTitle.seasonNumberOverride
         )
         if let existingIndex {
             snapshot.titles[existingIndex] = catalogTitle
@@ -219,125 +255,6 @@ private extension TVTimeImportMerger {
             destinationCounts: destinationCounts,
             watchEvents: applied.watchEvents,
             diaryEntries: applied.diaryEntries
-        )
-    }
-
-    private static func resolve(
-        _ entity: TVTimeEntity,
-        catalog: any CatalogProviding,
-        region: StreamingRegion
-    ) async -> AutomaticResolutionResult {
-        guard !entity.title.isEmpty else {
-            return .issue(
-                resolutionIssue(
-                    entity,
-                    reason: .missingTitle,
-                    detail: "The export includes a source identifier but no searchable title."
-                )
-            )
-        }
-        do {
-            let results = try await catalog.search(
-                MediaSearchQuery(text: entity.title, kind: entity.kind, page: 1, region: region)
-            )
-            switch selectCandidate(for: entity, from: results) {
-            case .issue(let reason, let detail):
-                return .issue(
-                    resolutionIssue(entity, reason: reason, detail: detail)
-                )
-            case .candidate(let candidate):
-                let detailed = (try? await catalog.title(
-                    kind: candidate.kind,
-                    catalogID: candidate.catalogID,
-                    region: region
-                )) ?? candidate
-                return .resolved(entity.identity, detailed)
-            }
-        } catch {
-            return .issue(
-                resolutionIssue(
-                    entity,
-                    reason: .catalogUnavailable,
-                    detail: "OpenTV could not reach the catalog. Retry or choose a match when the catalog is available."
-                )
-            )
-        }
-    }
-
-    private static func resolveCatalogTitles(
-        _ entities: [TVTimeEntity],
-        catalog: any CatalogProviding,
-        region: StreamingRegion
-    ) async -> TVTimeTitleResolution {
-        var resolution = TVTimeTitleResolution(resolved: [:], issues: [:], warnings: [])
-        for batchStart in stride(from: 0, to: entities.count, by: 6) {
-            let batch = Array(entities[batchStart..<min(batchStart + 6, entities.count)])
-            await withTaskGroup(of: AutomaticResolutionResult.self) { group in
-                for entity in batch {
-                    group.addTask {
-                        await resolve(entity, catalog: catalog, region: region)
-                    }
-                }
-                for await result in group {
-                    switch result {
-                    case .resolved(let identity, let title):
-                        resolution.resolved[identity] = title
-                    case .issue(let issue):
-                        resolution.issues[issue.id] = issue
-                    }
-                }
-            }
-        }
-        return resolution
-    }
-
-    private static func resolutionIssue(
-        _ entity: TVTimeEntity,
-        reason: ImportResolutionReason,
-        detail: String
-    ) -> ImportResolutionIssue {
-        ImportResolutionIssue(
-            id: entity.identity,
-            sourceID: entity.sourceID,
-            title: entity.title,
-            year: entity.year,
-            kind: entity.kind,
-            reason: reason,
-            detail: detail
-        )
-    }
-
-    private static func selectCandidate(
-        for entity: TVTimeEntity,
-        from results: [MediaTitle]
-    ) -> CandidateSelection {
-        let matchingKind = results.filter { $0.kind == entity.kind }
-        let exactTitles = matchingKind.filter {
-            TVTimeCSV.normalizedTitle($0.title) == TVTimeCSV.normalizedTitle(entity.title)
-        }
-        let candidates = entity.year.map { year in
-            exactTitles.filter { $0.year == year }
-        } ?? exactTitles
-        if candidates.count == 1, let candidate = candidates.first {
-            return .candidate(candidate)
-        }
-        if candidates.count > 1 {
-            return .issue(
-                .ambiguousCatalogMatch,
-                "The catalog returned several exact title matches. Choose the correct release."
-            )
-        }
-        if candidates.isEmpty, exactTitles.count == 1, entity.year != nil {
-            return .issue(
-                .ambiguousCatalogMatch,
-                "The catalog found this exact title with a different release year. Confirm the correct release."
-            )
-        }
-        return .issue(
-            .noCatalogMatch,
-            matchingKind.isEmpty
-                ? "The active catalog returned no \(entity.kind.label.lowercased()) results."
-                : "The catalog results did not match the exported title and year exactly."
         )
     }
 

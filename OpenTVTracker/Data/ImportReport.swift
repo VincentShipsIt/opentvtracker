@@ -34,6 +34,7 @@ enum ImportResolutionReason: String, Hashable, Sendable {
     case missingTitle
     case noCatalogMatch
     case ambiguousCatalogMatch
+    case unsafeAnimeRelation
     case catalogUnavailable
 
     var label: String {
@@ -41,6 +42,7 @@ enum ImportResolutionReason: String, Hashable, Sendable {
         case .missingTitle: "Missing title"
         case .noCatalogMatch: "No catalog match"
         case .ambiguousCatalogMatch: "Several possible matches"
+        case .unsafeAnimeRelation: "Anime relation needs confirmation"
         case .catalogUnavailable: "Catalog unavailable"
         }
     }
