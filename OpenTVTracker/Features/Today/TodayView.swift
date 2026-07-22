@@ -29,7 +29,15 @@ struct TodayView: View {
                 MediaDetailView(titleID: title.id)
             }
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    NavigationLink {
+                        UpcomingCalendarView()
+                    } label: {
+                        Label("Upcoming calendar", systemImage: "calendar")
+                    }
+                    .accessibilityHint("Shows upcoming episodes and movie releases")
+                    .accessibilityIdentifier("home.upcoming-calendar")
+
                     Button("Ask OpenTV", systemImage: "sparkles") {
                         presentsAssistant = true
                     }

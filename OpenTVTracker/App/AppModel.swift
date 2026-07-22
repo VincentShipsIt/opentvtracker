@@ -30,8 +30,13 @@ final class AppModel {
     var catalogSearchPage = 0
     var catalogSearchQuery = ""
     var hasMoreCatalogResults = false
+    var isRefreshingUpcomingCalendar = false
+    var upcomingCalendarLastRefreshedAt: Date?
+    var upcomingCalendarLastAttemptedAt: Date?
+    var upcomingCalendarRefreshError: String?
+    var upcomingCalendarRefreshRevision = 0
+    var hasQueuedUpcomingCalendarRefresh = false
     var catalogSearchRequestID = UUID()
-
     var selectedMood: Mood = .any {
         didSet { refreshRecommendationsSoon() }
     }

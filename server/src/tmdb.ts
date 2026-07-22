@@ -55,6 +55,7 @@ export type CatalogTitle = {
   reviews: CommunityReview[];
   releaseDate: string | null;
   nextEpisodeAirDate: string | null;
+  nextEpisodeAirDateIsAllDay: boolean | null;
   seasons: SeasonSummary[] | null;
   seriesLifecycle: SeriesLifecycle | null;
 };
@@ -89,6 +90,8 @@ export type EpisodeSummary = {
   overview: string | null;
   stillURL: string | null;
   rating: number | null;
+  releaseType: "standard" | "mid_season" | "finale" | null;
+  airDateIsAllDay: boolean;
 };
 
 type SeasonSummary = {
@@ -287,6 +290,7 @@ function mapDetails(
     reviews: mapReviews(reviewsPayload),
     releaseDate: isoDay(releaseDay),
     nextEpisodeAirDate: isoDay(stringValue(nextEpisode.air_date)),
+    nextEpisodeAirDateIsAllDay: stringValue(nextEpisode.air_date) !== null,
     seasons,
     seriesLifecycle:
       kind === MediaKind.series ? mapSeriesLifecycle(details.status) : null,
@@ -401,7 +405,18 @@ export function mapEpisodeSummary(
     overview: stringValue(episode.overview)?.trim() || null,
     stillURL: imageURL(stringValue(episode.still_path), "w500"),
     rating: numberValue(episode.vote_average),
+    releaseType: episodeReleaseType(episode.episode_type),
+    airDateIsAllDay: true,
   };
+}
+
+function episodeReleaseType(
+  value: unknown,
+): "standard" | "mid_season" | "finale" | null {
+  if (value === "standard" || value === "mid_season" || value === "finale") {
+    return value;
+  }
+  return null;
 }
 
 export function mapReviews(

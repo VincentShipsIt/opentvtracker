@@ -185,6 +185,7 @@ private struct TVMazeShowDTO: Decodable {
             backdropURL: nil,
             trailerURL: nil,
             nextEpisodeAirDate: nextEpisode?.0,
+            nextEpisodeAirDateIsAllDay: nextEpisode.map { $0.1.airstamp == nil },
             releaseDate: releaseDate,
             personalWatchlist: false,
             seasons: Self.seasons(from: episodes, showID: id),
@@ -211,7 +212,8 @@ private struct TVMazeShowDTO: Decodable {
                     airDate: episode.airDate,
                     runtimeMinutes: episode.runtime,
                     overview: Self.plainText(episode.summary),
-                    stillURL: episode.image?.original ?? episode.image?.medium
+                    stillURL: episode.image?.original ?? episode.image?.medium,
+                    airDateIsAllDay: episode.airstamp == nil
                 )
             )
         }
@@ -307,12 +309,13 @@ private struct TVMazeEpisodeDTO: Decodable {
     let season: Int?
     let number: Int?
     let airdate: String?
+    let airstamp: Date?
     let runtime: Int?
     let image: Image?
     let summary: String?
 
     var airDate: Date? {
-        airdate.flatMap(Self.parseDay)
+        airstamp ?? airdate.flatMap(Self.parseDay)
     }
 
     private static func parseDay(_ value: String) -> Date? {

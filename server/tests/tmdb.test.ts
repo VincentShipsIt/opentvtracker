@@ -68,6 +68,7 @@ describe("mapEpisodeSummary", () => {
           overview: "The team meets a mysterious visitor.",
           still_path: "/episode-still.jpg",
           vote_average: 8.4,
+          episode_type: "finale",
         },
         95396,
         1,
@@ -81,7 +82,25 @@ describe("mapEpisodeSummary", () => {
       overview: "The team meets a mysterious visitor.",
       stillURL: "https://image.tmdb.org/t/p/w500/episode-still.jpg",
       rating: 8.4,
+      releaseType: "finale",
+      airDateIsAllDay: true,
     });
+  });
+
+  test("does not infer a finale from malformed upstream metadata", () => {
+    expect(
+      mapEpisodeSummary(
+        {
+          id: 456,
+          episode_number: 8,
+          name: "Unknown type",
+          air_date: "2026-07-24",
+          episode_type: "season_finale",
+        },
+        95396,
+        2,
+      ).releaseType,
+    ).toBeNull();
   });
 });
 
