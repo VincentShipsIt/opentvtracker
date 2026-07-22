@@ -280,6 +280,14 @@ enum AppServiceConfiguration {
         configuredURL(for: "OpenRouterSiteURL")
     }
 
+    static var traktClientID: String? {
+        configuredString(for: "TraktClientID")
+    }
+
+    static var traktClientSecret: String? {
+        configuredString(for: "TraktClientSecret")
+    }
+
     static var appAttestDevelopmentToken: String? {
         #if DEBUG
         configuredString(for: "OpenTVAppAttestDevelopmentToken")

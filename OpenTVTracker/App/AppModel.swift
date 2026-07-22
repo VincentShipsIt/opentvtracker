@@ -5,6 +5,7 @@ import Observation
 final class AppModel {
     let store: any LibraryPersisting
     private let recommendationService: any RecommendationProviding
+    let traktService: any TraktSyncProviding
     let sharedConversationNotifier: any SharedConversationNotifying
     let reminderScheduler: any ReminderScheduling
     let catalogService: any CatalogProviding
@@ -17,6 +18,11 @@ final class AppModel {
     private(set) var selectedProviderIDs: Set<StreamingProvider.ID>
     private(set) var allowsAIReranking: Bool
     private(set) var streamingRegionOverride: StreamingRegion?
+    var traktSyncState: TraktSyncState
+    var isTraktAuthorized = false
+    var isTraktSyncing = false
+    var traktSyncSummary: String?
+    var traktSyncError: String?
     var reminderSettings: ReminderSettings
     var reminderCapability = ReminderCapability.unknown
     var reminderError: String?
@@ -47,10 +53,12 @@ final class AppModel {
         sharedConversationNotifier: any SharedConversationNotifying = SharedConversationNotificationService(),
         reminderScheduler: (any ReminderScheduling)? = nil,
         catalogService: (any CatalogProviding)? = nil,
+        traktService: any TraktSyncProviding = TraktSyncServiceFactory.makeDefault(),
         seed: LibrarySnapshot = .empty
     ) {
         self.store = store
         self.recommendationService = recommendationService
+        self.traktService = traktService
         self.sharedConversationNotifier = sharedConversationNotifier
         if let reminderScheduler {
             self.reminderScheduler = reminderScheduler
@@ -72,6 +80,7 @@ final class AppModel {
         selectedProviderIDs = seed.selectedProviderIDs ?? Self.defaultProviderIDs
         allowsAIReranking = seed.allowsAIReranking ?? false
         streamingRegionOverride = seed.streamingRegionCode.flatMap(StreamingRegion.init(code:))
+        traktSyncState = seed.traktSyncState ?? .empty
         reminderSettings = seed.reminderSettings ?? ReminderSettings()
         importResolutionAliases = seed.importResolutionAliases ?? [:]
         hasCompletedFirstRun = seed.hasCompletedFirstRun ?? (seed != .empty)
@@ -112,6 +121,7 @@ final class AppModel {
             streamingRegionCode: streamingRegionOverride?.code,
             reminderSettings: reminderSettings,
             importResolutionAliases: importResolutionAliases,
+            traktSyncState: traktSyncState,
             hasCompletedFirstRun: hasCompletedFirstRun
         )
     }
@@ -143,6 +153,7 @@ final class AppModel {
                 selectedProviderIDs = snapshot.selectedProviderIDs ?? Self.defaultProviderIDs
                 allowsAIReranking = snapshot.allowsAIReranking ?? false
                 streamingRegionOverride = snapshot.streamingRegionCode.flatMap(StreamingRegion.init(code:))
+                traktSyncState = snapshot.traktSyncState ?? .empty
                 reminderSettings = snapshot.reminderSettings ?? ReminderSettings()
                 importResolutionAliases = snapshot.importResolutionAliases ?? [:]
                 hasCompletedFirstRun = snapshot.hasCompletedFirstRun ?? true
@@ -153,6 +164,7 @@ final class AppModel {
         }
         await refreshDiscoveryCatalog()
         await refreshRecommendations()
+        isTraktAuthorized = await traktService.isAuthorized()
         await refreshReminderCapability()
         if canReconcileReminders {
             await refreshReminders()
@@ -313,6 +325,7 @@ extension AppModel {
         selectedProviderIDs = snapshot.selectedProviderIDs ?? Self.defaultProviderIDs
         allowsAIReranking = snapshot.allowsAIReranking ?? false
         streamingRegionOverride = snapshot.streamingRegionCode.flatMap(StreamingRegion.init(code:))
+        traktSyncState = snapshot.traktSyncState ?? .empty
         reminderSettings = snapshot.reminderSettings ?? ReminderSettings()
         importResolutionAliases = snapshot.importResolutionAliases ?? [:]
         hasCompletedFirstRun = snapshot.hasCompletedFirstRun ?? true

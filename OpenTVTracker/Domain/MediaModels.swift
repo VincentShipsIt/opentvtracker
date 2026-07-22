@@ -342,6 +342,7 @@ struct LibrarySnapshot: Codable, Hashable, Sendable {
     var selectedProviderIDs: Set<StreamingProvider.ID>?
     var allowsAIReranking: Bool?
     var streamingRegionCode: String?
+    var traktSyncState: TraktSyncState?
     var reminderSettings: ReminderSettings?
     var importResolutionAliases: [String: ImportResolutionAlias]?
     var hasCompletedFirstRun: Bool?
@@ -354,6 +355,7 @@ struct LibrarySnapshot: Codable, Hashable, Sendable {
         streamingRegionCode: String? = nil,
         reminderSettings: ReminderSettings = ReminderSettings(),
         importResolutionAliases: [String: ImportResolutionAlias]? = nil,
+        traktSyncState: TraktSyncState? = nil,
         hasCompletedFirstRun: Bool? = nil,
         schemaVersion: Int = 6
     ) {
@@ -363,6 +365,7 @@ struct LibrarySnapshot: Codable, Hashable, Sendable {
         self.selectedProviderIDs = selectedProviderIDs
         self.allowsAIReranking = allowsAIReranking
         self.streamingRegionCode = streamingRegionCode
+        self.traktSyncState = traktSyncState
         self.reminderSettings = reminderSettings
         self.importResolutionAliases = importResolutionAliases
         self.hasCompletedFirstRun = hasCompletedFirstRun

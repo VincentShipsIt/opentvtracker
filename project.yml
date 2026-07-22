@@ -49,6 +49,8 @@ targets:
         OpenRouterModel: $(OPENROUTER_MODEL)
         OpenRouterOAuthCallbackURL: $(OPENROUTER_OAUTH_CALLBACK_URL)
         OpenRouterSiteURL: $(OPENROUTER_SITE_URL)
+        TraktClientID: $(TRAKT_CLIENT_ID)
+        TraktClientSecret: $(TRAKT_CLIENT_SECRET)
         OpenTVAppAttestDevelopmentToken: $(APP_ATTEST_DEVELOPMENT_TOKEN)
         UIBackgroundModes:
           - remote-notification
