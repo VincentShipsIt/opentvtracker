@@ -41,7 +41,11 @@ final class CatalogImportSafetyTests: XCTestCase {
             kind: .movie
         )
         let session = TVTimeImportSession(
-            archive: TVTimeArchive(entities: [entity], duplicateCount: 0),
+            archive: TVTimeArchive(
+                entities: [entity],
+                duplicateCount: 0,
+                diagnostics: TVTimeImportDiagnostics()
+            ),
             current: .empty,
             catalog: SafetyCatalog(searchResults: [original, remake], failsTitleRequests: true),
             region: .malta
