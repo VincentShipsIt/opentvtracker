@@ -18,6 +18,14 @@ SwiftUI features
 
 The personal library is the immediate source of truth and works offline. SwiftData never mirrors CloudKit collaboration records. Catalog, cinema, recommendation, persistence, and sharing protocols keep SwiftUI independent from DTOs, provider failures, and credentials.
 
+## Catalog identity and migration
+
+TV Time imports resolve explicit legacy TVDB identifiers through the protected operator boundary, which maps a unique TVDB result to a TMDB title. Only confirmed mappings are cached. The client also stores confirmed automatic and manual source-ID mappings in the portable library snapshot, so a re-import can reuse them without network access.
+
+Title fallback is deliberately staged: exact display, original, or localized aliases plus release year; then a controlled terminal `(YYYY)` or `- YYYY` suffix; then explicit anime relations. Ambiguous remakes never fall through to the first search result and catalog misses remain visible in the import preview for manual resolution.
+
+Anime titles ending in `Season N` may map source season 1 to TMDB season N only when the candidate is categorized as Animation and uniquely identified. Parts, cours, specials, OVAs, ONAs, and movies are not collapsed into generic seasons; they require manual confirmation.
+
 ## Official proxy trust flow
 
 ```text

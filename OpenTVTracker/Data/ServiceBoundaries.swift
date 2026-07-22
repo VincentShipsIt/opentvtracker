@@ -13,15 +13,36 @@ struct CommunityReviewPage: Hashable, Sendable {
     let results: [CommunityReview]
 }
 
+enum ExternalCatalogSource: String, Codable, Sendable {
+    case tvdb
+}
+
+struct ExternalCatalogReference: Hashable, Sendable {
+    let source: ExternalCatalogSource
+    let sourceID: Int
+    let kind: MediaKind
+}
+
 protocol CatalogProviding: Sendable {
     func search(_ query: MediaSearchQuery) async throws -> [MediaTitle]
     func title(kind: MediaKind, catalogID: Int, region: StreamingRegion) async throws -> MediaTitle
     func reviews(kind: MediaKind, catalogID: Int, page: Int) async throws -> CommunityReviewPage
+    func resolve(
+        _ reference: ExternalCatalogReference,
+        region: StreamingRegion
+    ) async throws -> MediaTitle?
 }
 
 extension CatalogProviding {
     func reviews(kind _: MediaKind, catalogID _: Int, page: Int) async throws -> CommunityReviewPage {
         CommunityReviewPage(page: max(page, 1), totalPages: 1, results: [])
+    }
+
+    func resolve(
+        _: ExternalCatalogReference,
+        region _: StreamingRegion
+    ) async throws -> MediaTitle? {
+        nil
     }
 }
 

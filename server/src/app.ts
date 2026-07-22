@@ -10,6 +10,7 @@ import {
 import { TMDBClient } from "./tmdb";
 import {
   readJSONBody,
+  validateCatalogExternalID,
   validateCatalogReviews,
   validateCatalogSearch,
   validateCatalogTitle,
@@ -35,7 +36,7 @@ export type SafeLogger = (event: SafeLogEvent) => void;
 type AppDependencies = {
   config: ServerConfig;
   security: AppAttestSecurity;
-  tmdb?: Pick<TMDBClient, "search" | "title" | "reviews">;
+  tmdb?: Pick<TMDBClient, "search" | "title" | "reviews" | "resolveExternalID">;
   cinemaShowings?: typeof embassyShowings;
   logger?: SafeLogger;
   rateLimiter?: BoundedRateLimiter;
@@ -84,6 +85,7 @@ const quotas = {
   catalogSearch: { ip: 30, device: 10, window: 60_000 },
   catalogTitle: { ip: 120, device: 60, window: 60_000 },
   catalogReviews: { ip: 120, device: 60, window: 60_000 },
+  catalogResolve: { ip: 120, device: 90, window: 60_000 },
   cinema: { ip: 40, device: 20, window: 60_000 },
 } as const;
 
@@ -321,6 +323,54 @@ export function createApp(dependencies: AppDependencies): {
           return result;
         }
 
+        const externalCatalogMatch = url.pathname.match(
+          /^\/v1\/catalog\/resolve\/(tvdb)\/(\d+)$/,
+        );
+        if (request.method === "GET" && externalCatalogMatch) {
+          if (!config.controls.catalogEnabled || !tmdb) {
+            status = 503;
+            code = "disabled";
+            return disabled(config);
+          }
+          const identity = await security.authorizeRequest(
+            request,
+            new Uint8Array(),
+          );
+          enforceProtectedQuota(
+            limiter,
+            "catalog-resolve",
+            ipAddress,
+            identity.deviceID,
+            quotas.catalogResolve,
+            identity.trust,
+          );
+          const input = validateCatalogExternalID(externalCatalogMatch, url);
+          const cacheKey = `resolve:${input.source}:${input.id}:${input.kind}:${input.region}`;
+          const result = await cachedOptionalJSON(
+            cache,
+            cacheKey,
+            604_800_000,
+            request,
+            () =>
+              tmdb.resolveExternalID(
+                input.source,
+                input.id,
+                input.kind,
+                input.region,
+              ),
+            config,
+            "catalog-resolve",
+          );
+          status = result.status;
+          code =
+            result.status === 304
+              ? "not_modified"
+              : result.status === 404
+                ? "not_found"
+                : "ok";
+          return result;
+        }
+
         if (
           request.method === "GET" &&
           url.pathname === "/v1/cinemas/showings"
@@ -429,6 +479,43 @@ async function cachedJSON(
       cacheHeaders(cached.etag, tag, ttlMilliseconds),
     );
   const body = JSON.stringify(await load());
+  const value = cache.set(key, body, ttlMilliseconds);
+  return rawJSON(
+    body,
+    200,
+    config,
+    cacheHeaders(value.etag, tag, ttlMilliseconds),
+  );
+}
+
+async function cachedOptionalJSON(
+  cache: ResponseCache,
+  key: string,
+  ttlMilliseconds: number,
+  request: Request,
+  load: () => Promise<unknown | null>,
+  config: ServerConfig,
+  tag: string,
+): Promise<Response> {
+  const cached = cache.get(key);
+  if (cached && request.headers.get("if-none-match") === cached.etag) {
+    return response(
+      null,
+      304,
+      config,
+      cacheHeaders(cached.etag, tag, ttlMilliseconds),
+    );
+  }
+  if (cached)
+    return rawJSON(
+      cached.body,
+      200,
+      config,
+      cacheHeaders(cached.etag, tag, ttlMilliseconds),
+    );
+  const loaded = await load();
+  if (loaded === null) return response({ error: "Not found" }, 404, config);
+  const body = JSON.stringify(loaded);
   const value = cache.set(key, body, ttlMilliseconds);
   return rawJSON(
     body,

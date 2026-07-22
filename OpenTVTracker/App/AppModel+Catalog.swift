@@ -210,6 +210,7 @@ extension AppModel {
     func mergingCatalogDetails(_ details: MediaTitle, into existing: MediaTitle) -> MediaTitle {
         var result = existing
         result.title = details.title
+        result.alternativeTitles = details.alternativeTitles
         result.year = details.year
         result.kind = details.kind
         result.synopsis = details.synopsis

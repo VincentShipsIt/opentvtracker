@@ -108,12 +108,12 @@ actor TVTimeImportSession {
         return results.filter { $0.kind == kind && seen.insert($0.id).inserted }
     }
 
-    func detailedTitle(_ candidate: MediaTitle) async -> MediaTitle {
-        (try? await catalog.title(
+    func detailedTitle(_ candidate: MediaTitle) async throws -> MediaTitle {
+        try await catalog.title(
             kind: candidate.kind,
             catalogID: candidate.catalogID,
             region: region
-        )) ?? candidate
+        )
     }
 }
 
@@ -141,6 +141,8 @@ struct TVTimeImportDiagnostics: Sendable {
 struct TVTimeEntity: Sendable {
     let identity: String
     var sourceID: String?
+    // swiftlint:disable:next implicit_optional_initialization
+    var source: ExternalCatalogSource? = nil
     var title: String
     var year: Int?
     var kind: MediaKind

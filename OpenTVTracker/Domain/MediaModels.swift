@@ -162,6 +162,7 @@ struct MediaTitle: Codable, Hashable, Identifiable, Sendable {
     let id: String
     let catalogID: Int
     var title: String
+    var alternativeTitles: [String]? = nil
     var year: Int
     var kind: MediaKind
     var synopsis: String
@@ -374,7 +375,6 @@ struct LibrarySnapshot: Codable, Hashable, Sendable {
         self.lists = lists
     }
 }
-
 extension LibrarySnapshot {
     static let empty = LibrarySnapshot(
         titles: [],

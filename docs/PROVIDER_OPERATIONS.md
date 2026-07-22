@@ -12,7 +12,8 @@
 - Alert on TMDB `401`, `429`, and sustained `5xx` responses, rising upstream latency, and changes in request volume/cost. Review the TMDB account/dashboard and Render metrics at least weekly during beta.
 - Alert on registration spikes, App Attest rejection rates, replay/counter failures, origin `429`s, state-persistence errors, and persistent-disk capacity.
 - Keep safe structured logs only. Never temporarily log headers, bodies, assertions, challenges, receipts, query values, keys, tokens, or IP addresses during an incident.
-- Add coarse edge limits in front of Render. Suggested starting ceilings per IP: challenge 30/minute, registration 5/hour, catalog search 30/minute, title lookup 120/minute, and cinema 40/minute. Origin limits remain authoritative and include stricter per-device ceilings.
+- Add coarse edge limits in front of Render. Suggested starting ceilings per IP: challenge 30/minute, registration 5/hour, catalog search 30/minute, external-ID lookup 60/minute, title lookup 120/minute, and cinema 40/minute. Origin limits remain authoritative and include stricter per-device ceilings.
+- The TVDB resolver caches only unique confirmed mappings for seven days. Misses and ambiguous provider responses are not cached, so monitor repeated `catalog-resolve` 404s separately from upstream failures.
 
 ## Rotation
 

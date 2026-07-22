@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+  mapAlternativeTitles,
   mapEpisodeSummary,
   mapReviewPage,
   mapReviews,
@@ -8,6 +9,53 @@ import {
   StreamingProviderID,
   TMDBProviderID,
 } from "../src/tmdb";
+
+describe("mapAlternativeTitles", () => {
+  test("deduplicates original and localized titles without returning the display title", () => {
+    expect(
+      mapAlternativeTitles(
+        {
+          name: "Attack on Titan",
+          original_name: "進撃の巨人",
+          alternative_titles: {
+            results: [
+              { title: "L'Attaque des Titans" },
+              { title: "Attack on Titan" },
+            ],
+          },
+          translations: {
+            translations: [
+              { data: { name: "Ataque a los Titanes" } },
+              { data: { name: "L'Attaque des Titans" } },
+            ],
+          },
+        },
+        "series",
+      ),
+    ).toEqual(["進撃の巨人", "Ataque a los Titanes", "L'Attaque des Titans"]);
+  });
+
+  test("keeps translations when alternative titles exceed the response cap", () => {
+    const alternativeTitles = Array.from({ length: 60 }, (_, index) => ({
+      title: `Alternative ${index}`,
+    }));
+
+    const titles = mapAlternativeTitles(
+      {
+        name: "Display title",
+        original_name: "Original title",
+        alternative_titles: { results: alternativeTitles },
+        translations: {
+          translations: [{ data: { name: "Localized title" } }],
+        },
+      },
+      "series",
+    );
+
+    expect(titles).toHaveLength(50);
+    expect(titles).toContain("Localized title");
+  });
+});
 
 describe("mapSeriesLifecycle", () => {
   test("distinguishes ended series from continuing catalog entries", () => {

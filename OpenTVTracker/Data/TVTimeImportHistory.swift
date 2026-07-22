@@ -4,7 +4,8 @@ enum TVTimeHistoryApplier {
     static func apply(
         _ entity: TVTimeEntity,
         to title: inout MediaTitle,
-        state: inout TVTimeMergeState
+        state: inout TVTimeMergeState,
+        seasonNumberOverride: Int? = nil
     ) -> TVTimeAppliedHistory {
         title.userRating = entity.rating ?? title.userRating
         let importedWatchlist = !entity.isArchived
@@ -28,7 +29,10 @@ enum TVTimeHistoryApplier {
             )
         } else {
             applied = applyEpisodeHistory(
-                entity.watches,
+                episodeWatches(
+                    entity.watches,
+                    seasonNumberOverride: seasonNumberOverride
+                ),
                 to: &title,
                 state: &state,
                 fallbackRating: entity.rating
@@ -36,6 +40,19 @@ enum TVTimeHistoryApplier {
         }
         applied.watchlisted = importedWatchlist
         return applied
+    }
+
+    private static func episodeWatches(
+        _ watches: [TVTimeWatch],
+        seasonNumberOverride: Int?
+    ) -> [TVTimeWatch] {
+        watches.compactMap { watch in
+            guard watch.season != nil, watch.episode != nil else { return nil }
+            guard let seasonNumberOverride, watch.season == 1 else { return watch }
+            var mapped = watch
+            mapped.season = seasonNumberOverride
+            return mapped
+        }
     }
 
     private static func applyMovieHistory(

@@ -74,7 +74,8 @@ private struct TVTimeResolutionView: View {
             Section("Catalog matches") {
                 if isSearching {
                     ProgressView("Searching catalog…")
-                } else if let errorMessage = coordinator.errorMessage {
+                } else if !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                          let errorMessage = coordinator.errorMessage {
                     ContentUnavailableView(
                         "Catalog unavailable",
                         systemImage: "wifi.exclamationmark",
@@ -86,8 +87,9 @@ private struct TVTimeResolutionView: View {
                     ForEach(results) { title in
                         Button {
                             Task {
-                                await coordinator.resolve(issue, with: title)
-                                dismiss()
+                                if await coordinator.resolve(issue, with: title) {
+                                    dismiss()
+                                }
                             }
                         } label: {
                             HStack(spacing: 12) {
