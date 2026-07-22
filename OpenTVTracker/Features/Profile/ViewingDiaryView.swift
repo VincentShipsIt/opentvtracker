@@ -74,6 +74,7 @@ private struct ViewingDiaryTimeline: View {
                         }
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
+                        .accessibilityIdentifier("diary.entry.\(record.entry.id)")
                     }
                 } header: {
                     Text(day.date.formatted(date: .complete, time: .omitted))

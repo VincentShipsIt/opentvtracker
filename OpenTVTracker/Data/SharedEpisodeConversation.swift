@@ -282,6 +282,17 @@ protocol SharedConversationNotifying: Sendable {
     func purge() async
 }
 
+struct NoopSharedConversationNotifier: SharedConversationNotifying {
+    func requestAuthorization() async -> Bool { false }
+
+    func notify(
+        about _: [SharedConversationNotificationEvent],
+        in _: SharedSpace
+    ) async {}
+
+    func purge() async {}
+}
+
 actor SharedConversationNotificationService: SharedConversationNotifying {
     private static let seenEventIDsKey = "opentv.shared-conversation.seen-event-ids"
 

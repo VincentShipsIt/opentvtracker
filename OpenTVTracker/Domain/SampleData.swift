@@ -278,6 +278,39 @@ extension LibrarySnapshot {
         ]
         return snapshot
     }()
+
+    static let coreJourneyUITest: LibrarySnapshot = {
+        var snapshot = bulkWatchUITest
+        snapshot.titles[0].trailerURL = URL(
+            string: "https://www.youtube.com/watch?v=abcdefghijk"
+        )
+        snapshot.sharedSpace = SharedSpace(
+            id: "ui-test-space",
+            name: "Test couch",
+            members: [
+                SpaceMember(id: "ui-test-user", name: "You", initials: "YOU", isCurrentUser: true),
+                SpaceMember(id: "ui-test-partner", name: "Partner", initials: "PT", isCurrentUser: false)
+            ],
+            titleIDs: ["ui-test-show"],
+            activity: [],
+            isCloudSharingEnabled: false,
+            membershipState: .accepted,
+            watchEvents: [],
+            reactions: [],
+            notes: [],
+            conversationDeletions: [],
+            isCurrentUserShareOwner: true
+        )
+        snapshot.hasCompletedFirstRun = true
+        return snapshot
+    }()
+
+    static let firstRunUITest: LibrarySnapshot = {
+        var snapshot = coreJourneyUITest
+        snapshot.sharedSpace = LibrarySnapshot.empty.sharedSpace
+        snapshot.hasCompletedFirstRun = false
+        return snapshot
+    }()
 }
 #endif
 

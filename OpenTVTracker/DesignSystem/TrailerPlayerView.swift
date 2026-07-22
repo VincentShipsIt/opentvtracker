@@ -2,6 +2,10 @@ import Foundation
 import SwiftUI
 import WebKit
 
+extension EnvironmentValues {
+    @Entry var forcesTrailerPlaybackFailure = false
+}
+
 struct TrailerPresentation: Identifiable, Hashable {
     let title: String
     let sourceURL: URL
@@ -133,6 +137,7 @@ struct TrailerActionView: View {
 
 struct TrailerPlayerView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.forcesTrailerPlaybackFailure) private var forcesTrailerPlaybackFailure
     let trailer: TrailerPresentation
     @State private var playbackState = TrailerPlaybackState.loading
     @State private var reloadID = UUID()
@@ -140,7 +145,7 @@ struct TrailerPlayerView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                if playbackState.showsFallback {
+                if forcesTrailerPlaybackFailure || playbackState.showsFallback {
                     ContentUnavailableView {
                         Label("Trailer could not play", systemImage: "play.slash.fill")
                     } description: {
@@ -152,6 +157,7 @@ struct TrailerPlayerView: View {
                         }
                         .adaptiveGlassButton(prominent: true)
                     }
+                    .accessibilityIdentifier("trailer.playback-fallback")
                 } else {
                     InlineTrailerWebView(url: trailer.embedURL) { state in
                         playbackState = state
