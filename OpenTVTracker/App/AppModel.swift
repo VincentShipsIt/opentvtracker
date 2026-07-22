@@ -212,14 +212,18 @@ extension AppModel {
 
     func setUserRating(_ rating: Double?, for id: MediaTitle.ID) {
         guard let index = trackableTitleIndex(for: id) else { return }
-        titles[index].userRating = rating.map { min(max($0, 0), 10) }
+        let clampedRating = rating.map { min(max($0, 0), 10) }
+        titles[index].userRating = clampedRating
+        synchronizeTitleDiaryRating(clampedRating, titleID: id)
         persist()
     }
 
     func updateNotes(_ notes: String, for id: MediaTitle.ID) {
         guard let index = trackableTitleIndex(for: id) else { return }
         let trimmed = notes.trimmingCharacters(in: .whitespacesAndNewlines)
-        titles[index].notes = trimmed.isEmpty ? nil : trimmed
+        let note = trimmed.isEmpty ? nil : trimmed
+        titles[index].notes = note
+        synchronizeTitleDiaryNote(note, titleID: id)
         persist()
     }
 
