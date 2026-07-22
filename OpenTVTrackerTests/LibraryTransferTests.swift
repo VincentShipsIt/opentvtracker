@@ -35,6 +35,7 @@ final class LibraryTransferTests: XCTestCase {
         snapshot.titles[index].notes = "Watch the elevator details."
         snapshot.titles[index].rewatchCount = 2
         snapshot.titles[index].personalWatchlist = true
+        snapshot.diaryEntries = [LibraryDiaryTransferTests.diaryEntry]
         snapshot.titles[index].seriesLifecycle = .continuing
         snapshot.titles[index].isUpNextPinned = true
         snapshot.titles[index].upNextSnoozedUntil = Date(timeIntervalSince1970: 2_000_000_000)
@@ -51,6 +52,7 @@ final class LibraryTransferTests: XCTestCase {
         XCTAssertEqual(imported.notes, "Watch the elevator details.")
         XCTAssertEqual(imported.completedRewatches, 2)
         XCTAssertTrue(imported.isOnPersonalWatchlist)
+        XCTAssertEqual(preview.snapshot.diaryEntries, [LibraryDiaryTransferTests.diaryEntry])
         XCTAssertEqual(imported.seriesLifecycle, .continuing)
         XCTAssertEqual(imported.isUpNextPinned, true)
         XCTAssertEqual(imported.upNextSnoozedUntil, Date(timeIntervalSince1970: 2_000_000_000))
@@ -60,6 +62,51 @@ final class LibraryTransferTests: XCTestCase {
             ImportResolutionAlias(kind: .series, catalogID: 95_396)
         )
         XCTAssertEqual(preview.matchedCount, snapshot.titles.count)
+    }
+
+    func testLegacyBackupMissingTrackingFieldsPreservesCatalogValues() throws {
+        var imported = try XCTUnwrap(LibrarySnapshot.sample.titles.first)
+        var catalog = imported
+        imported.progress = nil
+        imported.userRating = nil
+        imported.notes = nil
+        imported.rewatchCount = nil
+        imported.lastWatchedAt = nil
+        imported.isDismissed = nil
+        imported.isDisliked = nil
+        imported.personalWatchlist = nil
+        imported.isUpNextPinned = nil
+        imported.upNextSnoozedUntil = nil
+        imported.upNextManualOrder = nil
+        catalog.progress = EpisodeProgress(season: 2, episode: 1, totalEpisodes: 10)
+        catalog.userRating = 9
+        catalog.notes = "Keep"
+        catalog.rewatchCount = 2
+        catalog.lastWatchedAt = Date(timeIntervalSince1970: 100)
+        catalog.isDismissed = true
+        catalog.isDisliked = true
+        catalog.personalWatchlist = true
+        catalog.isUpNextPinned = true
+        catalog.upNextSnoozedUntil = Date(timeIntervalSince1970: 200)
+        catalog.upNextManualOrder = 4
+
+        let merged = LibraryTransferService.mergingTracking(
+            from: imported,
+            into: catalog,
+            fromSchemaVersion: LibraryArchiveEnvelope.currentSchemaVersion - 1
+        )
+
+        XCTAssertEqual(merged.progress, catalog.progress)
+        XCTAssertEqual(merged.userRating, catalog.userRating)
+        XCTAssertEqual(merged.notes, catalog.notes)
+        XCTAssertEqual(merged.completedRewatches, catalog.completedRewatches)
+        XCTAssertEqual(merged.lastWatchedAt, catalog.lastWatchedAt)
+        XCTAssertEqual(merged.isDismissed, catalog.isDismissed)
+        XCTAssertEqual(merged.isDisliked, catalog.isDisliked)
+        XCTAssertEqual(merged.personalWatchlist, catalog.personalWatchlist)
+        XCTAssertEqual(merged.isUpNextPinned, catalog.isUpNextPinned)
+        XCTAssertEqual(merged.upNextSnoozedUntil, catalog.upNextSnoozedUntil)
+        XCTAssertEqual(merged.upNextManualOrder, catalog.upNextManualOrder)
     }
 
     func testCSVImportRestoresExpandedStateAndQueueIntent() throws {

@@ -26,6 +26,7 @@ enum TVTimeNativeRecordParser {
                 season: TVTimeCSV.int(values, ["season", "episode_season_number", "season_number"]),
                 episode: TVTimeCSV.int(values, ["episode", "episode_number"]),
                 occurredAt: TVTimeCSV.date(values, ["watched_at", "ts", "created_at"]),
+                rating: TVTimeCSV.double(values, ["episode_rating", "rating", "rate"]),
                 isRewatch: rewatchCount > 0,
                 rewatchCount: rewatchCount
             ),
@@ -57,6 +58,7 @@ enum TVTimeNativeRecordParser {
             addWatch(
                 TVTimeWatch(
                     occurredAt: TVTimeCSV.date(values, ["watched_at", "created_at"]),
+                    rating: TVTimeCSV.double(values, ["rating", "rate"]),
                     isRewatch: false
                 ),
                 to: &entities[identity, default: initial],
@@ -102,8 +104,11 @@ enum TVTimeNativeRecordParser {
         to entity: inout TVTimeEntity,
         duplicates: inout Int
     ) {
-        if !entity.watchKeys.insert(watch).inserted {
+        if let index = entity.watches.firstIndex(where: { $0.hasSameIdentity(as: watch) }) {
             duplicates += 1
+            if let rating = watch.rating {
+                entity.watches[index].rating = rating
+            }
         } else {
             entity.watches.append(watch)
         }

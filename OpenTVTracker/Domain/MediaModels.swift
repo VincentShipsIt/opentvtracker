@@ -342,6 +342,7 @@ struct LibrarySnapshot: Codable, Hashable, Sendable {
     var selectedProviderIDs: Set<StreamingProvider.ID>?
     var allowsAIReranking: Bool?
     var streamingRegionCode: String?
+    var diaryEntries: [ViewingDiaryEntry]?
     var traktSyncState: TraktSyncState?
     var reminderSettings: ReminderSettings?
     var importResolutionAliases: [String: ImportResolutionAlias]?
@@ -353,6 +354,7 @@ struct LibrarySnapshot: Codable, Hashable, Sendable {
         selectedProviderIDs: Set<StreamingProvider.ID>? = nil,
         allowsAIReranking: Bool = false,
         streamingRegionCode: String? = nil,
+        diaryEntries: [ViewingDiaryEntry]? = nil,
         reminderSettings: ReminderSettings = ReminderSettings(),
         importResolutionAliases: [String: ImportResolutionAlias]? = nil,
         traktSyncState: TraktSyncState? = nil,
@@ -365,6 +367,7 @@ struct LibrarySnapshot: Codable, Hashable, Sendable {
         self.selectedProviderIDs = selectedProviderIDs
         self.allowsAIReranking = allowsAIReranking
         self.streamingRegionCode = streamingRegionCode
+        self.diaryEntries = diaryEntries
         self.traktSyncState = traktSyncState
         self.reminderSettings = reminderSettings
         self.importResolutionAliases = importResolutionAliases
@@ -391,6 +394,7 @@ extension LibrarySnapshot {
             notes: [],
             conversationDeletions: [],
             isCurrentUserShareOwner: true
-        )
+        ),
+        diaryEntries: []
     )
 }

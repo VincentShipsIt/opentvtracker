@@ -203,59 +203,6 @@ extension AppModel {
         return nil
     }
 
-    func markEpisodeWatchedTogether(
-        titleID: MediaTitle.ID,
-        season: SeasonSummary,
-        episode: EpisodeSummary
-    ) {
-        guard let index = trackableTitleIndex(for: titleID) else { return }
-        let existingEvents = (sharedSpace.watchEvents ?? []).filter { event in
-            event.titleID == titleID
-                && event.kind == .watchedTogether
-                && event.season == season.number
-                && event.episode == episode.number
-        }
-
-        var watchedIDs = resolvedWatchedEpisodeIDs(for: titles[index])
-        let markedEpisodeWatched = watchedIDs.insert(episode.id).inserted
-        if markedEpisodeWatched {
-            titles[index].watchedEpisodeIDs = watchedIDs
-            updateEpisodeProgress(at: index, watchedIDs: watchedIDs)
-        }
-        let currentMemberID = sharedSpace.members.first(where: \.isCurrentUser)?.id
-        var conversationWatchEvent = existingEvents.first { $0.memberID == currentMemberID }
-            ?? existingEvents.first
-        var addedWatchEvent = false
-        let membersWithEvents = Set(existingEvents.map(\.memberID))
-        for member in sharedSpace.members where !membersWithEvents.contains(member.id) {
-            let event = appendWatchEvent(
-                title: titles[index],
-                kind: .watchedTogether,
-                memberID: member.id,
-                season: season.number,
-                episode: episode.number
-            )
-            if member.id == currentMemberID || conversationWatchEvent == nil {
-                conversationWatchEvent = event
-            }
-            addedWatchEvent = true
-        }
-        guard markedEpisodeWatched || addedWatchEvent else { return }
-        titles[index].lastWatchedAt = .now
-        if addedWatchEvent {
-            addActivity(
-                description: "watched \(titles[index].title) S\(season.number) E\(episode.number) together",
-                titleID: titles[index].id,
-                kind: .watchedTogether,
-                watchEventID: conversationWatchEvent?.id,
-                season: season.number,
-                episode: episode.number
-            )
-        }
-        persist()
-        syncSharedStateSoon()
-    }
-
 }
 
 private extension AppModel {
@@ -269,6 +216,7 @@ private extension AppModel {
         var watchedIDs = resolvedWatchedEpisodeIDs(for: titles[index])
         let changedEpisodes = episodes.filter { watchedIDs.contains($0.episode.id) != watched }
         guard !changedEpisodes.isEmpty else { return }
+        let watchedAt = Date.now
 
         for item in changedEpisodes {
             if watched {
@@ -277,7 +225,15 @@ private extension AppModel {
                     title: titles[index],
                     kind: .watched,
                     season: item.season.number,
-                    episode: item.episode.number
+                    episode: item.episode.number,
+                    occurredAt: watchedAt
+                )
+                appendDiaryWatch(
+                    title: titles[index],
+                    season: item.season,
+                    episode: item.episode,
+                    watchedAt: watchedAt,
+                    isRewatch: false
                 )
             } else {
                 watchedIDs.remove(item.episode.id)
@@ -286,13 +242,18 @@ private extension AppModel {
                     seasonNumber: item.season.number,
                     episodeNumber: item.episode.number
                 )
+                clearEpisodeDiaryHistory(
+                    titleID: titles[index].id,
+                    seasonNumber: item.season.number,
+                    episodeID: item.episode.id
+                )
             }
         }
 
         titles[index].watchedEpisodeIDs = watchedIDs
         updateEpisodeProgress(at: index, watchedIDs: watchedIDs)
         if watched {
-            titles[index].lastWatchedAt = .now
+            titles[index].lastWatchedAt = watchedAt
         }
         addActivity(
             description: activityDescription,
@@ -316,52 +277,6 @@ private extension AppModel {
             .filter { $0.number <= episodeNumber }
             .sorted { $0.number < $1.number }
             .map { (season: season, episode: $0) }
-    }
-
-    func updateEpisodeProgress(at index: Int, watchedIDs: Set<EpisodeSummary.ID>) {
-        let seasons = regularSeasons(for: titles[index])
-
-        var latestSeason: SeasonSummary?
-        var latestEpisode: EpisodeSummary?
-        for season in seasons {
-            for episode in season.episodes where watchedIDs.contains(episode.id) {
-                guard let currentSeason = latestSeason, let currentEpisode = latestEpisode else {
-                    latestSeason = season
-                    latestEpisode = episode
-                    continue
-                }
-                if season.number > currentSeason.number
-                    || (season.number == currentSeason.number && episode.number > currentEpisode.number) {
-                    latestSeason = season
-                    latestEpisode = episode
-                }
-            }
-        }
-
-        if let latestSeason, let latestEpisode {
-            titles[index].progress = EpisodeProgress(
-                season: latestSeason.number,
-                episode: latestEpisode.number,
-                totalEpisodes: latestSeason.episodes.count
-            )
-        } else if let firstSeason = seasons.first {
-            titles[index].progress = EpisodeProgress(
-                season: firstSeason.number,
-                episode: 0,
-                totalEpisodes: firstSeason.episodes.count
-            )
-        } else {
-            titles[index].progress = nil
-        }
-
-        if !watchedIDs.isEmpty {
-            titles[index].state = trackingStateAfterEpisodeUpdate(
-                for: titles[index],
-                watchedIDs: watchedIDs
-            )
-        } else if titles[index].state == .watching || titles[index].state.isCurrentViewingComplete {
-            titles[index].state = .planned
-        }
     }
 
     func supersedePersonalWatchEvents(

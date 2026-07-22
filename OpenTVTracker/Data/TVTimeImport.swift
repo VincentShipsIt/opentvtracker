@@ -142,7 +142,6 @@ struct TVTimeEntity: Sendable {
     var rating: Double?
     var rewatchCount = 0
     var watches: [TVTimeWatch] = []
-    var watchKeys: Set<TVTimeWatch> = []
 
     var importedRewatchCount: Int {
         if kind == .movie {
@@ -162,8 +161,16 @@ struct TVTimeWatch: Hashable, Sendable {
     var season: Int?
     var episode: Int?
     var occurredAt: Date?
+    var rating: Double?
     var isRewatch: Bool
     var rewatchCount = 0
+
+    func hasSameIdentity(as other: TVTimeWatch) -> Bool {
+        season == other.season
+            && episode == other.episode
+            && occurredAt == other.occurredAt
+            && isRewatch == other.isRewatch
+    }
 
     var importedRewatchCount: Int {
         max(rewatchCount, isRewatch ? 1 : 0)

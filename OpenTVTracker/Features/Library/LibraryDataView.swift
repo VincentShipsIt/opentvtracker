@@ -39,6 +39,9 @@ struct LibraryDataView: View {
                     Button("Export watch events CSV", systemImage: "clock.arrow.trianglehead.counterclockwise.rotate.90") {
                         prepareExport(.eventsCSV)
                     }
+                    Button("Export private diary CSV", systemImage: "calendar.badge.clock") {
+                        prepareExport(.diaryCSV)
+                    }
                     Button("Export private conversations CSV", systemImage: "bubble.left.and.bubble.right") {
                         prepareExport(.conversationsCSV)
                     }
@@ -212,6 +215,10 @@ private extension LibraryDataView {
                 data = LibraryTransferService.exportWatchEventsCSV(model.snapshot)
                 exportContentType = .commaSeparatedText
                 exportFilename = "OpenTV-watch-events.csv"
+            case .diaryCSV:
+                data = LibraryTransferService.exportDiaryCSV(model.snapshot)
+                exportContentType = .commaSeparatedText
+                exportFilename = "OpenTV-private-diary.csv"
             case .conversationsCSV:
                 data = LibraryTransferService.exportPrivateConversationsCSV(model.snapshot)
                 exportContentType = .commaSeparatedText
@@ -337,6 +344,7 @@ enum LibraryExportKind: Equatable {
     case json
     case titlesCSV
     case eventsCSV
+    case diaryCSV
     case conversationsCSV
     case preImportRollback
 
@@ -348,7 +356,7 @@ enum LibraryExportKind: Equatable {
         switch self {
         case .json:
             "Complete backup exported."
-        case .titlesCSV, .eventsCSV, .conversationsCSV:
+        case .titlesCSV, .eventsCSV, .diaryCSV, .conversationsCSV:
             "CSV exported. Complete JSON is the restorable backup."
         case .preImportRollback:
             "Rollback backup saved. Export complete JSON to protect your updated library."

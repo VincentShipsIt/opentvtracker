@@ -325,11 +325,11 @@ actor SharedConversationNotificationService: SharedConversationNotifying {
             now: now()
         )
 
-        seenEventIDs.formUnion(events.map(\.id))
-        defaults.set(Array(seenEventIDs.sorted().suffix(500)), forKey: Self.seenEventIDsKey)
-
         let settings = await center.notificationSettings()
         guard Self.isAuthorized(settings.authorizationStatus) else { return }
+
+        seenEventIDs.formUnion(events.map(\.id))
+        defaults.set(Array(seenEventIDs.sorted().suffix(500)), forKey: Self.seenEventIDsKey)
 
         for notification in notifications {
             let content = UNMutableNotificationContent()

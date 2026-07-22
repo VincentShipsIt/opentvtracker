@@ -5,6 +5,7 @@ struct ProfileView: View {
     @State private var showsSettings = false
 
     var body: some View {
+        let diaryRecords = model.diaryRecords
         NavigationStack {
             ZStack {
                 AmbientBackdrop()
@@ -44,6 +45,17 @@ struct ProfileView: View {
                             subtitle: "Saved for later",
                             titles: model.watchlistTitlesByRecency
                         )
+
+                        NavigationLink {
+                            ViewingDiaryView()
+                        } label: {
+                            ViewingDiaryPreviewCard(
+                                entryCount: diaryRecords.count,
+                                latestDate: diaryRecords.first?.entry.watchedAt
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("profile.viewing-diary")
 
                         NavigationLink {
                             ViewingAnalyticsView(scope: .personal)
@@ -119,6 +131,43 @@ struct ProfileView: View {
 
     private var personalSummary: ViewingAnalyticsSummary {
         ViewingAnalyticsEngine.summarize(snapshot: model.snapshot, scope: .personal)
+    }
+}
+
+private struct ViewingDiaryPreviewCard: View {
+    let entryCount: Int
+    let latestDate: Date?
+
+    var body: some View {
+        GlassSurface(tint: .purple) {
+            HStack(spacing: 16) {
+                Image(systemName: "calendar.badge.clock")
+                    .font(.title)
+                    .foregroundStyle(.purple)
+                    .accessibilityHidden(true)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Viewing diary")
+                        .font(.headline)
+                    Text(subtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                Image(systemName: "chevron.right")
+                    .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
+            }
+            .padding(16)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private var subtitle: String {
+        guard entryCount > 0 else { return "Dates, ratings, notes, and rewatches" }
+        guard let latestDate else { return "\(entryCount) private entries" }
+        return "\(entryCount) entries · Latest \(latestDate.formatted(.relative(presentation: .named)))"
     }
 }
 

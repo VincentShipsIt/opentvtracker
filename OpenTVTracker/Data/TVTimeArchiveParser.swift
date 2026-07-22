@@ -146,6 +146,7 @@ private extension TVTimeArchiveParser {
                     season: season,
                     episode: episode,
                     occurredAt: TVTimeCSV.date(values, ["watch_date_range_key", "watched_at", "created_at"]),
+                    rating: TVTimeCSV.double(values, ["episode_rating", "rating", "rate"]),
                     isRewatch: key.contains("rewatch")
                 ),
                 to: &entities[identity, default: initial],
@@ -199,6 +200,7 @@ private extension TVTimeArchiveParser {
                     season: kind == .series ? TVTimeCSV.int(values, ["season_number", "season", "s_no"]) : nil,
                     episode: kind == .series ? TVTimeCSV.int(values, ["episode_number", "episode", "ep_no"]) : nil,
                     occurredAt: TVTimeCSV.date(values, ["watch_date_range_key", "watched_at", "created_at"]),
+                    rating: TVTimeCSV.double(values, ["episode_rating", "rating", "rate"]),
                     isRewatch: false
                 ),
                 to: &entities[identity, default: initial],
@@ -305,8 +307,11 @@ private extension TVTimeArchiveParser {
         to entity: inout TVTimeEntity,
         duplicates: inout Int
     ) {
-        if !entity.watchKeys.insert(watch).inserted {
+        if let index = entity.watches.firstIndex(where: { $0.hasSameIdentity(as: watch) }) {
             duplicates += 1
+            if let rating = watch.rating {
+                entity.watches[index].rating = rating
+            }
         } else {
             entity.watches.append(watch)
         }

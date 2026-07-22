@@ -38,6 +38,9 @@ final class TVTimeImportTests: XCTestCase {
         XCTAssertEqual(preview.watchEventCount, 1)
         XCTAssertEqual(preview.snapshot.sharedSpace.watchEvents?.first?.season, 1)
         XCTAssertEqual(preview.snapshot.sharedSpace.watchEvents?.first?.episode, 1)
+        let diaryEntry = try XCTUnwrap(preview.snapshot.diaryEntries?.first)
+        XCTAssertEqual(diaryEntry.episodeID, "severance-s1e1")
+        XCTAssertEqual(diaryEntry.watchedAt, Date(timeIntervalSince1970: 1_739_565_000))
     }
 
     func testReimportDoesNotDuplicateDatedWatchEvents() async throws {
@@ -65,7 +68,70 @@ final class TVTimeImportTests: XCTestCase {
 
         XCTAssertEqual(first.snapshot.sharedSpace.watchEvents?.count, 1)
         XCTAssertEqual(second.snapshot.sharedSpace.watchEvents?.count, 1)
+        XCTAssertEqual(first.snapshot.diaryEntries?.count, 1)
+        XCTAssertEqual(second.snapshot.diaryEntries?.count, 1)
         XCTAssertEqual(second.watchEventCount, 0)
+    }
+
+    func testDuplicateWatchRowsMergeRatingWithoutDuplicatingHistory() async throws {
+        let archive = try makeArchive([
+            "tracking-prod-records-v2.csv": """
+            key,s_id,series_name,s_no,ep_no,created_at,episode_rating
+            watch-episode-101,42,Severance,1,1,2025-02-14T20:30:00Z,
+            watch-episode-101,42,Severance,1,1,2025-02-14T20:30:00Z,9
+            """
+        ])
+        let snapshot = snapshotWithSeveranceEpisodes()
+
+        let preview = try await TVTimeImportService.previewImport(
+            archive,
+            into: snapshot,
+            catalog: LocalCatalogService(titles: snapshot.titles),
+            region: .malta
+        )
+
+        XCTAssertEqual(preview.snapshot.sharedSpace.watchEvents?.count, 1)
+        XCTAssertEqual(preview.snapshot.diaryEntries?.count, 1)
+        XCTAssertEqual(preview.snapshot.diaryEntries?.first?.rating, 9)
+    }
+
+    @MainActor
+    func testReimportAfterVersionFourMigrationDoesNotDuplicateWatch() async throws {
+        let archive = try makeArchive([
+            "tracking-prod-records-v2.csv": """
+            key,s_id,series_name,s_no,ep_no,created_at
+            watch-episode-101,42,Severance,1,1,2025-02-14T20:30:00Z
+            """
+        ])
+        var snapshot = snapshotWithSeveranceEpisodes()
+        let eventID = "tvtime:severance:1:1:1739565000:watched"
+        snapshot.sharedSpace.watchEvents = [
+            SharedWatchEvent(
+                id: eventID,
+                titleID: "severance",
+                memberID: "vincent",
+                kind: .watched,
+                season: 1,
+                episode: 1,
+                occurredAt: Date(timeIntervalSince1970: 1_739_565_000),
+                supersedesEventID: nil
+            )
+        ]
+        snapshot.diaryEntries = nil
+        let migratedSnapshot = AppModel(store: MemoryLibraryStore(), seed: snapshot).snapshot
+        let migratedEntryIDs = migratedSnapshot.diaryEntries?.map(\.id)
+        XCTAssertEqual(migratedEntryIDs, ["diary:\(eventID)"])
+
+        let preview = try await TVTimeImportService.previewImport(
+            archive,
+            into: migratedSnapshot,
+            catalog: LocalCatalogService(titles: migratedSnapshot.titles),
+            region: .malta
+        )
+
+        XCTAssertEqual(preview.snapshot.diaryEntries?.count, 1)
+        XCTAssertEqual(preview.snapshot.diaryEntries?.map(\.id), migratedEntryIDs)
+        XCTAssertEqual(preview.watchEventCount, 0)
     }
 
     func testNativeExportIgnoresUnwatchedEpisodesAndRestoresMovieRewatches() async throws {
@@ -221,6 +287,7 @@ extension TVTimeImportTests {
         XCTAssertEqual(movie.userRating, 8)
         XCTAssertEqual(movie.lastWatchedAt, Date(timeIntervalSince1970: 1_740_862_800))
         XCTAssertEqual(preview.watchEventCount, 1)
+        XCTAssertEqual(preview.snapshot.diaryEntries?.first?.rating, 8)
     }
 
     func testZIPWithoutTVTimeTrackingDataIsRejected() async throws {
@@ -302,61 +369,5 @@ extension TVTimeImportTests {
             )
         }
         return try XCTUnwrap(archive.data)
-    }
-}
-
-private struct CancellingCatalog: CatalogProviding {
-    func search(_ query: MediaSearchQuery) async throws -> [MediaTitle] {
-        throw CancellationError()
-    }
-
-    func title(kind: MediaKind, catalogID: Int, region: StreamingRegion) async throws -> MediaTitle {
-        throw CancellationError()
-    }
-}
-
-private actor ControlledResolutionCatalog: CatalogProviding {
-    let titles: [MediaTitle]
-    private(set) var requestedCatalogIDs: [Int] = []
-    private var releasedCatalogIDs: Set<Int> = []
-
-    init(titles: [MediaTitle]) {
-        self.titles = titles
-    }
-
-    func search(_: MediaSearchQuery) async throws -> [MediaTitle] {
-        []
-    }
-
-    func title(
-        kind: MediaKind,
-        catalogID: Int,
-        region _: StreamingRegion
-    ) async throws -> MediaTitle {
-        requestedCatalogIDs.append(catalogID)
-        while !releasedCatalogIDs.contains(catalogID) {
-            try Task.checkCancellation()
-            await Task.yield()
-        }
-        guard let title = titles.first(where: {
-            $0.kind == kind && $0.catalogID == catalogID
-        }) else {
-            throw CatalogServiceError.notFound
-        }
-        return title
-    }
-
-    func waitUntilRequested(catalogID: Int) async {
-        while !requestedCatalogIDs.contains(catalogID) {
-            await Task.yield()
-        }
-    }
-
-    func hasRequested(catalogID: Int) -> Bool {
-        requestedCatalogIDs.contains(catalogID)
-    }
-
-    func release(catalogID: Int) {
-        releasedCatalogIDs.insert(catalogID)
     }
 }

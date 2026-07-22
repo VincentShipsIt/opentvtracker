@@ -113,26 +113,40 @@ extension AppModel {
 
     func markWatchedTogether(_ id: MediaTitle.ID) {
         guard let index = trackableTitleIndex(for: id) else { return }
+        let watchedAt = Date.now
+        let isRewatch = titles[index].kind == .movie && titles[index].state == .completed
         if titles[index].kind == .movie {
             titles[index].state = .completed
+            titles[index].personalWatchlist = false
         } else if let next = nextUnwatchedEpisode(for: titles[index]) {
             markEpisodeWatchedTogether(titleID: id, season: next.season, episode: next.episode)
             return
         } else if var progress = titles[index].progress {
+            guard progress.episode < progress.totalEpisodes else { return }
             progress.episode = min(progress.episode + 1, progress.totalEpisodes)
             titles[index].progress = progress
             titles[index].state = progress.episode == progress.totalEpisodes
                 ? finishedState(for: titles[index])
                 : .watching
+        } else {
+            return
         }
-        titles[index].lastWatchedAt = .now
+        titles[index].lastWatchedAt = watchedAt
+        if titles[index].kind == .movie {
+            if isRewatch {
+                titles[index].rewatchCount = titles[index].completedRewatches + 1
+            }
+            appendDiaryWatch(title: titles[index], watchedAt: watchedAt, isRewatch: isRewatch)
+        }
         let currentMemberID = sharedSpace.members.first(where: \.isCurrentUser)?.id
+        let watchEventKind: WatchEventKind = isRewatch ? .rewatch : .watchedTogether
         var conversationWatchEvent: SharedWatchEvent?
         for member in sharedSpace.members {
             let event = appendWatchEvent(
                 title: titles[index],
-                kind: .watchedTogether,
-                memberID: member.id
+                kind: watchEventKind,
+                memberID: member.id,
+                occurredAt: watchedAt
             )
             if member.id == currentMemberID || conversationWatchEvent == nil {
                 conversationWatchEvent = event

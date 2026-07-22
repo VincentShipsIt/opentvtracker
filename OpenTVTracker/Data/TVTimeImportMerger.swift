@@ -135,15 +135,14 @@ private extension TVTimeImportMerger {
             skippedCount: archive.diagnostics.missingIdentityCount
                 + archive.diagnostics.unsupportedRecordCount
         )
-        let memberID = snapshot.sharedSpace.members.first(where: \.isCurrentUser)?.id ?? "local-user"
         var watchEvents = snapshot.sharedSpace.watchEvents ?? []
+        var diaryEntries = snapshot.diaryEntries ?? []
         var mergeState = TVTimeMergeState(snapshot: snapshot)
         for entity in archive.entities {
             guard let result = merge(
                 entity,
                 into: &snapshot,
                 resolved: resolved,
-                memberID: memberID,
                 state: &mergeState
             ) else {
                 totals.skippedCount += 1
@@ -151,8 +150,10 @@ private extension TVTimeImportMerger {
             }
             totals.add(result)
             watchEvents.append(contentsOf: result.watchEvents)
+            diaryEntries.append(contentsOf: result.diaryEntries)
         }
         snapshot.sharedSpace.watchEvents = watchEvents
+        snapshot.diaryEntries = diaryEntries
         return totals
     }
 
@@ -160,7 +161,6 @@ private extension TVTimeImportMerger {
         _ entity: TVTimeEntity,
         into snapshot: inout LibrarySnapshot,
         resolved: [String: MediaTitle],
-        memberID: String,
         state: inout TVTimeMergeState
     ) -> EntityMergeResult? {
         guard var catalogTitle = resolved[entity.identity] else { return nil }
@@ -172,8 +172,7 @@ private extension TVTimeImportMerger {
         let applied = TVTimeHistoryApplier.apply(
             entity,
             to: &catalogTitle,
-            memberID: memberID,
-            existingEventIDs: &state.existingEventIDs
+            state: &state
         )
         if let existingIndex {
             snapshot.titles[existingIndex] = catalogTitle
@@ -205,7 +204,8 @@ private extension TVTimeImportMerger {
             skippedCount: applied.unmatchedEpisodes,
             unmatchedEpisodeCount: applied.unmatchedEpisodes,
             destinationCounts: destinationCounts,
-            watchEvents: applied.watchEvents
+            watchEvents: applied.watchEvents,
+            diaryEntries: applied.diaryEntries
         )
     }
 
@@ -363,4 +363,5 @@ private struct EntityMergeResult {
     let unmatchedEpisodeCount: Int
     let destinationCounts: [ImportMetricCategory: Int]
     let watchEvents: [SharedWatchEvent]
+    let diaryEntries: [ViewingDiaryEntry]
 }

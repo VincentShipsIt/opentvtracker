@@ -22,6 +22,10 @@ struct TrackingEditorView: View {
                         ratingSection
                         noteLink
 
+                        if currentTitle.kind == .movie {
+                            movieDiaryLink
+                        }
+
                         if currentTitle.state == .completed {
                             rewatchButton
                         }
@@ -77,13 +81,7 @@ struct TrackingEditorView: View {
                 GlassSurface(cornerRadius: AppTheme.compactRadius) {
                     VStack(alignment: .leading, spacing: 14) {
                         HStack(alignment: .top, spacing: 13) {
-                            EpisodeStillArtwork(
-                                url: nextEpisode.episode.stillURL,
-                                fallbackURL: currentTitle.backdropURL ?? currentTitle.posterURL,
-                                showTitle: currentTitle.title,
-                                episodeLabel: nextEpisodeLabel,
-                                palette: currentTitle.palette
-                            )
+                            EpisodeSpoilerArtworkPlaceholder(label: nil)
                             .frame(width: 116, height: 66)
 
                             VStack(alignment: .leading, spacing: 5) {
@@ -178,6 +176,34 @@ struct TrackingEditorView: View {
         .accessibilityValue("\(currentTitle.completedRewatches) rewatches recorded")
     }
 
+    private var movieDiaryLink: some View {
+        NavigationLink {
+            ViewingDiaryEditorView(target: .title(titleID: currentTitle.id))
+        } label: {
+            GlassSurface(cornerRadius: AppTheme.compactRadius) {
+                HStack(spacing: 12) {
+                    Image(systemName: "calendar.badge.clock")
+                        .font(.title3)
+                        .foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Watch dates")
+                            .font(.headline)
+                        Text("Edit the first watch and each rewatch separately")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    Image(systemName: "chevron.right")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .accessibilityHidden(true)
+                }
+                .padding(14)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
     private var regularSeasons: [SeasonSummary] {
         (currentTitle.seasons ?? [])
             .filter { $0.number > 0 }
@@ -198,14 +224,9 @@ struct TrackingEditorView: View {
         model.nextUnwatchedEpisode(for: currentTitle)
     }
 
-    private var nextEpisodeLabel: String {
-        guard let nextEpisode else { return "Next episode" }
-        return "Season \(nextEpisode.season.number), episode \(nextEpisode.episode.number)"
-    }
-
     private var nextEpisodeTitle: String {
         guard let nextEpisode else { return "Next episode" }
-        return "S\(nextEpisode.season.number) E\(nextEpisode.episode.number) · \(nextEpisode.episode.title)"
+        return "S\(nextEpisode.season.number) E\(nextEpisode.episode.number) · Title hidden until watched"
     }
 
     private var nextEpisodeMetadata: String {

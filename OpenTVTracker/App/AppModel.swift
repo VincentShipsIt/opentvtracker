@@ -15,6 +15,7 @@ final class AppModel {
     var persistenceRevision = 0
     var titles: [MediaTitle]
     var sharedSpace: SharedSpace
+    var diaryEntries: [ViewingDiaryEntry]
     private(set) var selectedProviderIDs: Set<StreamingProvider.ID>
     private(set) var allowsAIReranking: Bool
     private(set) var streamingRegionOverride: StreamingRegion?
@@ -77,6 +78,7 @@ final class AppModel {
         self.seed = seed
         titles = seed.titles
         sharedSpace = seed.sharedSpace
+        diaryEntries = Self.resolvedDiaryEntries(from: seed)
         selectedProviderIDs = seed.selectedProviderIDs ?? Self.defaultProviderIDs
         allowsAIReranking = seed.allowsAIReranking ?? false
         streamingRegionOverride = seed.streamingRegionCode.flatMap(StreamingRegion.init(code:))
@@ -119,6 +121,7 @@ final class AppModel {
             selectedProviderIDs: selectedProviderIDs,
             allowsAIReranking: allowsAIReranking,
             streamingRegionCode: streamingRegionOverride?.code,
+            diaryEntries: diaryEntries,
             reminderSettings: reminderSettings,
             importResolutionAliases: importResolutionAliases,
             traktSyncState: traktSyncState,
@@ -150,6 +153,7 @@ final class AppModel {
                     fromSchemaVersion: snapshot.schemaVersion
                 )
                 sharedSpace = snapshot.sharedSpace
+                diaryEntries = Self.resolvedDiaryEntries(from: snapshot)
                 selectedProviderIDs = snapshot.selectedProviderIDs ?? Self.defaultProviderIDs
                 allowsAIReranking = snapshot.allowsAIReranking ?? false
                 streamingRegionOverride = snapshot.streamingRegionCode.flatMap(StreamingRegion.init(code:))
@@ -174,40 +178,6 @@ final class AppModel {
 }
 
 extension AppModel {
-    func markNextWatched(_ id: MediaTitle.ID) {
-        guard let index = trackableTitleIndex(for: id) else { return }
-
-        if titles[index].kind == .movie {
-            guard titles[index].state != .completed else { return }
-            titles[index].state = .completed
-        } else if let next = nextUnwatchedEpisode(for: titles[index]) {
-            setEpisodeWatched(
-                true,
-                titleID: id,
-                seasonNumber: next.season.number,
-                episodeID: next.episode.id
-            )
-            return
-        } else if var progress = titles[index].progress {
-            guard progress.episode < progress.totalEpisodes else { return }
-            progress.episode = min(progress.episode + 1, progress.totalEpisodes)
-            titles[index].progress = progress
-            titles[index].state = progress.episode == progress.totalEpisodes
-                ? finishedState(for: titles[index])
-                : .watching
-        }
-
-        titles[index].lastWatchedAt = .now
-        appendWatchEvent(title: titles[index], kind: .watched)
-
-        addActivity(
-            description: "watched \(titles[index].title) \(titles[index].progress?.label ?? "")",
-            titleID: titles[index].id
-        )
-        persist()
-        syncSharedStateSoon()
-    }
-
     func setWatchState(_ state: WatchState, for id: MediaTitle.ID) {
         if state == .completed || state == .caughtUp {
             markWatched(id)
@@ -239,22 +209,28 @@ extension AppModel {
 
     func setUserRating(_ rating: Double?, for id: MediaTitle.ID) {
         guard let index = trackableTitleIndex(for: id) else { return }
-        titles[index].userRating = rating.map { min(max($0, 0), 10) }
+        let clampedRating = rating.map { min(max($0, 0), 10) }
+        titles[index].userRating = clampedRating
+        synchronizeTitleDiaryRating(clampedRating, titleID: id)
         persist()
     }
 
     func updateNotes(_ notes: String, for id: MediaTitle.ID) {
         guard let index = trackableTitleIndex(for: id) else { return }
         let trimmed = notes.trimmingCharacters(in: .whitespacesAndNewlines)
-        titles[index].notes = trimmed.isEmpty ? nil : trimmed
+        let note = trimmed.isEmpty ? nil : trimmed
+        titles[index].notes = note
+        synchronizeTitleDiaryNote(note, titleID: id)
         persist()
     }
 
     func recordRewatch(_ id: MediaTitle.ID) {
         guard let index = trackableTitleIndex(for: id) else { return }
+        let watchedAt = Date.now
         titles[index].rewatchCount = titles[index].completedRewatches + 1
-        titles[index].lastWatchedAt = .now
-        appendWatchEvent(title: titles[index], kind: .rewatch)
+        titles[index].lastWatchedAt = watchedAt
+        recordTitleRewatchInDiary(titles[index], watchedAt: watchedAt)
+        appendWatchEvent(title: titles[index], kind: .rewatch, occurredAt: watchedAt)
         addActivity(
             description: "rewatched \(titles[index].title)",
             titleID: titles[index].id,
@@ -322,6 +298,7 @@ extension AppModel {
             fromSchemaVersion: snapshot.schemaVersion
         )
         sharedSpace = snapshot.sharedSpace
+        diaryEntries = Self.resolvedDiaryEntries(from: snapshot)
         selectedProviderIDs = snapshot.selectedProviderIDs ?? Self.defaultProviderIDs
         allowsAIReranking = snapshot.allowsAIReranking ?? false
         streamingRegionOverride = snapshot.streamingRegionCode.flatMap(StreamingRegion.init(code:))
