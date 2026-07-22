@@ -98,7 +98,12 @@ extension LibraryTransferService {
         }
 
         mergeLibraryMetadata(imported: imported, current: current, into: &merged)
-        mergeDiaryMetadata(imported: imported, titleIDMap: importedTitleIDMap, into: &merged)
+        mergeDiaryMetadata(
+            imported: imported,
+            current: current,
+            titleIDMap: importedTitleIDMap,
+            into: &merged
+        )
         let listCounts = mergeLists(
             imported: imported,
             titleIDMap: importedTitleIDMap,
@@ -120,10 +125,16 @@ extension LibraryTransferService {
 
     private static func mergeDiaryMetadata(
         imported: LibrarySnapshot,
+        current: LibrarySnapshot,
         titleIDMap: [MediaTitle.ID: MediaTitle.ID],
         into merged: inout LibrarySnapshot
     ) {
-        guard imported.diaryEntries != nil || imported.sharedSpace.watchEvents?.isEmpty == false else { return }
+        guard imported.diaryEntries != nil || imported.sharedSpace.watchEvents?.isEmpty == false else {
+            if current.titles.isEmpty, current.diaryEntries?.isEmpty != false {
+                merged.diaryEntries = nil
+            }
+            return
+        }
         let importedEntries = remappingDiaryEntries(
             ViewingDiaryMigration.resolvedEntries(from: imported),
             titleIDMap: titleIDMap,
