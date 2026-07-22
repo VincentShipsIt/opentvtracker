@@ -101,11 +101,9 @@ final class CoreJourneySmokeUITests: XCTestCase {
         sharedTitle.tap()
         openFirstEpisodeFromDetails()
 
-        let privateThread = app.descendants(matching: .any)["episode.private-thread"]
-        scrollToElement(privateThread)
-        assertExists(app.staticTexts["Private episode thread"])
-
         let markTogether = app.buttons["Mark watched together"]
+        scrollToElement(markTogether)
+        assertExists(app.staticTexts["Private episode thread"])
         assertExists(markTogether)
         markTogether.tap()
         assertExists(app.textFields["Add a private note"])
