@@ -95,6 +95,8 @@ enum TVTimeImportMerger {
             sourceName: "TV Time",
             watchedEpisodeCount: totals.watchedEpisodeCount,
             watchEventCount: totals.watchEventCount,
+            listCount: totals.listCount,
+            listMembershipCount: totals.listMembershipCount,
             integrityCounts: ImportMetricCategory.allCases.map { category in
                 ImportCountComparison(
                     category: category,
@@ -143,7 +145,8 @@ private extension TVTimeImportMerger {
                 entity,
                 into: &snapshot,
                 resolved: resolved,
-                state: &mergeState
+                state: &mergeState,
+                shouldShare: !archive.containsListOnly(entity)
             ) else {
                 totals.skippedCount += 1
                 continue
@@ -154,6 +157,15 @@ private extension TVTimeImportMerger {
         }
         snapshot.sharedSpace.watchEvents = watchEvents
         snapshot.diaryEntries = diaryEntries
+        let listMerge = TVTimeListMerger.merge(
+            archive.lists,
+            into: snapshot.lists ?? [],
+            resolved: resolved
+        )
+        snapshot.lists = listMerge.lists
+        totals.listCount = archive.lists.count
+        totals.listMembershipCount = listMerge.importedMemberships
+        totals.skippedCount += listMerge.skippedMemberships
         return totals
     }
 
@@ -161,7 +173,8 @@ private extension TVTimeImportMerger {
         _ entity: TVTimeEntity,
         into snapshot: inout LibrarySnapshot,
         resolved: [String: MediaTitle],
-        state: inout TVTimeMergeState
+        state: inout TVTimeMergeState,
+        shouldShare: Bool
     ) -> EntityMergeResult? {
         guard var catalogTitle = resolved[entity.identity] else { return nil }
         let existingIndex = state.titleLookup.index(for: catalogTitle, matching: entity)
@@ -183,7 +196,7 @@ private extension TVTimeImportMerger {
                 at: snapshot.titles.index(before: snapshot.titles.endIndex)
             )
         }
-        if state.titleIDs.insert(catalogTitle.id).inserted {
+        if shouldShare, state.titleIDs.insert(catalogTitle.id).inserted {
             snapshot.sharedSpace.titleIDs.append(catalogTitle.id)
         }
 
@@ -336,6 +349,8 @@ private struct PreviewMergeTotals {
     var watchedEpisodeCount = 0
     var watchEventCount = 0
     var unmatchedEpisodeCount = 0
+    var listCount = 0
+    var listMembershipCount = 0
     var skippedCount: Int
     var destinationCounts = Dictionary(
         uniqueKeysWithValues: ImportMetricCategory.allCases.map { ($0, 0) }

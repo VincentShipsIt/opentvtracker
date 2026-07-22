@@ -119,8 +119,16 @@ actor TVTimeImportSession {
 
 struct TVTimeArchive: Sendable {
     var entities: [TVTimeEntity]
+    var lists: [TVTimeList] = []
     var duplicateCount: Int
     var diagnostics: TVTimeImportDiagnostics
+
+    func containsListOnly(_ entity: TVTimeEntity) -> Bool {
+        !entity.hasTrackingData
+            && lists.contains { list in
+                list.memberships.contains { $0.entityIdentity == entity.identity }
+            }
+    }
 }
 
 struct TVTimeImportDiagnostics: Sendable {
@@ -157,6 +165,17 @@ struct TVTimeEntity: Sendable {
     }
 }
 
+extension TVTimeEntity {
+    var hasTrackingData: Bool {
+        isFollowed
+            || isForLater
+            || isArchived
+            || rating != nil
+            || rewatchCount > 0
+            || !watches.isEmpty
+    }
+}
+
 struct TVTimeWatch: Hashable, Sendable {
     var season: Int?
     var episode: Int?
@@ -175,6 +194,17 @@ struct TVTimeWatch: Hashable, Sendable {
     var importedRewatchCount: Int {
         max(rewatchCount, isRewatch ? 1 : 0)
     }
+}
+
+struct TVTimeList: Sendable {
+    let id: MediaList.ID
+    var name: String
+    var memberships: [TVTimeListMembership]
+}
+
+struct TVTimeListMembership: Hashable, Sendable {
+    let entityIdentity: String
+    let order: Int
 }
 
 enum TVTimeImportError: LocalizedError {

@@ -48,6 +48,48 @@ final class CloudSharingModelTests: XCTestCase {
         XCTAssertEqual(sharedTitle.state, .planned)
     }
 
+    func testCustomListSharingIsExplicitSanitizedAndReversible() throws {
+        let model = AppModel(store: MemoryLibraryStore(), seed: .sample)
+        let listID = try XCTUnwrap(model.createList(named: "Date night"))
+        model.addTitle("past-lives", toList: listID)
+
+        XCTAssertFalse(model.isListShared(listID))
+        model.shareListWithPartner(listID)
+
+        let sharedList = try XCTUnwrap(model.sharedSpace.sharedLists?.first(where: { $0.id == listID }))
+        XCTAssertEqual(sharedList.name, "Date night")
+        XCTAssertEqual(sharedList.titleIDs, ["past-lives"])
+        XCTAssertFalse(sharedList.isDeleted)
+        let metadata = try XCTUnwrap(model.sharedSpace.titleMetadata?.first(where: { $0.id == "past-lives" }))
+        XCTAssertNil(metadata.userRating)
+        XCTAssertNil(metadata.notes)
+
+        model.stopSharingList(listID)
+
+        XCTAssertFalse(model.isListShared(listID))
+        let tombstone = try XCTUnwrap(model.sharedSpace.sharedLists?.first(where: { $0.id == listID }))
+        XCTAssertNotNil(tombstone.deletedAt)
+        XCTAssertEqual(tombstone.name, "")
+        XCTAssertTrue(tombstone.titleIDs.isEmpty)
+    }
+
+    func testLegacyLocalListIsNotPresentedAsPartnerOwnedWithoutMemberMetadata() {
+        var snapshot = LibrarySnapshot.empty
+        snapshot.sharedSpace.members = []
+        snapshot.sharedSpace.sharedLists = [
+            SharedMediaList(
+                id: "date-night",
+                name: "Date night",
+                titleIDs: [],
+                ownerMemberID: "local-user",
+                updatedAt: .now
+            )
+        ]
+        let model = AppModel(store: MemoryLibraryStore(), seed: snapshot)
+
+        XCTAssertTrue(model.partnerSharedLists.isEmpty)
+    }
+
     private static let seasons = [
         SeasonSummary(
             id: "season-1",

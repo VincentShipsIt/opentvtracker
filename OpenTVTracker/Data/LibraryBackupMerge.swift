@@ -54,6 +54,10 @@ enum LibraryBackupMerge {
             imported: imported.titleMetadata,
             into: current.titleMetadata
         )
+        merged.sharedLists = mergeSharedLists(
+            imported: imported.sharedLists,
+            into: current.sharedLists
+        )
         return merged
     }
 
@@ -95,6 +99,18 @@ enum LibraryBackupMerge {
     ) -> [Element]? where Element.ID: Hashable {
         guard imported != nil || current != nil else { return nil }
         return mergeByID(imported: imported ?? [], into: current ?? [])
+    }
+
+    private static func mergeSharedLists(
+        imported: [SharedMediaList]?,
+        into current: [SharedMediaList]?
+    ) -> [SharedMediaList]? {
+        guard imported != nil || current != nil else { return nil }
+        var valuesByID = Dictionary(uniqueKeysWithValues: (current ?? []).map { ($0.id, $0) })
+        for list in imported ?? [] where list.updatedAt > (valuesByID[list.id]?.updatedAt ?? .distantPast) {
+            valuesByID[list.id] = list
+        }
+        return valuesByID.values.sorted { $0.id < $1.id }
     }
 
     private static func applyConversation(

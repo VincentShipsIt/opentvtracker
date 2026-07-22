@@ -45,6 +45,9 @@ struct LibraryDataView: View {
                     Button("Export private conversations CSV", systemImage: "bubble.left.and.bubble.right") {
                         prepareExport(.conversationsCSV)
                     }
+                    Button("Export custom lists CSV", systemImage: "list.bullet.rectangle") {
+                        prepareExport(.listsCSV)
+                    }
                 }
 
                 Section {
@@ -70,6 +73,10 @@ struct LibraryDataView: View {
                         }
                         if importPreview.watchEventCount > 0 {
                             LabeledContent("Dated watches", value: String(importPreview.watchEventCount))
+                        }
+                        if importPreview.listCount > 0 {
+                            LabeledContent("Custom lists", value: String(importPreview.listCount))
+                            LabeledContent("List memberships", value: String(importPreview.listMembershipCount))
                         }
                         LabeledContent("Duplicates", value: String(importPreview.duplicateCount))
                         LabeledContent("Skipped", value: String(importPreview.skippedCount))
@@ -223,6 +230,10 @@ private extension LibraryDataView {
                 data = LibraryTransferService.exportPrivateConversationsCSV(model.snapshot)
                 exportContentType = .commaSeparatedText
                 exportFilename = "OpenTV-private-conversations.csv"
+            case .listsCSV:
+                data = LibraryTransferService.exportListsCSV(model.snapshot)
+                exportContentType = .commaSeparatedText
+                exportFilename = "OpenTV-lists.csv"
             }
             exportDocument = LibraryExportDocument(data: data)
             pendingExportKind = kind
@@ -346,6 +357,7 @@ enum LibraryExportKind: Equatable {
     case eventsCSV
     case diaryCSV
     case conversationsCSV
+    case listsCSV
     case preImportRollback
 
     var completesBackup: Bool {
@@ -356,7 +368,7 @@ enum LibraryExportKind: Equatable {
         switch self {
         case .json:
             "Complete backup exported."
-        case .titlesCSV, .eventsCSV, .diaryCSV, .conversationsCSV:
+        case .titlesCSV, .eventsCSV, .diaryCSV, .conversationsCSV, .listsCSV:
             "CSV exported. Complete JSON is the restorable backup."
         case .preImportRollback:
             "Rollback backup saved. Export complete JSON to protect your updated library."

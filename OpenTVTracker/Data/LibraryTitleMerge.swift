@@ -10,6 +10,26 @@ extension LibraryTransferService {
         title.catalogID > 0 ? "catalog:\(title.catalogID)" : "title:\(normalizedTitle(title.title)):\(title.year)"
     }
 
+    static func matchingTitleIndex(
+        _ values: [String: String],
+        titles: [MediaTitle]
+    ) -> Array<MediaTitle>.Index? {
+        if let titleID = stringValue(in: values, keys: ["title_id"]),
+           let index = titles.firstIndex(where: { $0.id == titleID }) {
+            return index
+        }
+        let catalogID = intValue(in: values, keys: ["catalog_id", "tmdb_id", "id"])
+        let titleName = stringValue(in: values, keys: ["title", "name", "series_name", "movie_name"])
+        let year = intValue(in: values, keys: ["year", "release_year"])
+
+        return titles.firstIndex { title in
+            if let catalogID, catalogID > 0 { return title.catalogID == catalogID }
+            guard let titleName else { return false }
+            return normalizedTitle(title.title) == normalizedTitle(titleName)
+                && (year == nil || title.year == year)
+        }
+    }
+
     static func normalizedTitle(_ title: String) -> String {
         title.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
             .trimmingCharacters(in: .whitespacesAndNewlines)

@@ -344,4 +344,5 @@ final class LibraryTransferTests: XCTestCase {
         XCTAssertEqual(loaded?.selectedProviderIDs, [StreamingProvider.appleTV.id])
         XCTAssertEqual(loaded?.schemaVersion, LibraryArchiveEnvelope.currentSchemaVersion)
     }
+
 }

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct LibraryView: View {
     @Environment(AppModel.self) private var model
+    @State private var section: LibrarySection = .titles
     @State private var filter: WatchState = .watching
     @State private var presentedSheet: LibrarySheet?
 
@@ -11,35 +12,47 @@ struct LibraryView: View {
                 AmbientBackdrop()
 
                 VStack(spacing: 12) {
-                    Picker("Library section", selection: $filter) {
-                        ForEach(WatchState.allCases, id: \.self) { state in
-                            Text(state.label).tag(state)
+                    Picker("Library view", selection: $section) {
+                        ForEach(LibrarySection.allCases) { section in
+                            Text(section.label).tag(section)
                         }
                     }
-                    .pickerStyle(.menu)
+                    .pickerStyle(.segmented)
                     .padding(.horizontal, AppTheme.horizontalPadding)
 
-                    Group {
-                        if filteredTitles.isEmpty {
-                            ContentUnavailableView(
-                                "Nothing \(filter.label.lowercased())",
-                                systemImage: "rectangle.stack.badge.plus",
-                                description: Text("Add something from Discover and it will appear here.")
-                            )
-                            .frame(maxHeight: .infinity)
-                        } else {
-                            List(filteredTitles) { title in
-                                NavigationLink(value: title) {
-                                    LibraryRow(title: title)
-                                }
-                                .listRowBackground(Color.clear)
-                                .listRowSeparator(.hidden)
+                    if section == .lists {
+                        CustomListsView()
+                    } else {
+                        Picker("Tracking state", selection: $filter) {
+                            ForEach(WatchState.allCases, id: \.self) { state in
+                                Text(state.label).tag(state)
                             }
-                            .listStyle(.plain)
-                            .scrollContentBackground(.hidden)
                         }
+                        .pickerStyle(.menu)
+                        .padding(.horizontal, AppTheme.horizontalPadding)
+
+                        Group {
+                            if filteredTitles.isEmpty {
+                                ContentUnavailableView(
+                                    "Nothing \(filter.label.lowercased())",
+                                    systemImage: "rectangle.stack.badge.plus",
+                                    description: Text("Add something from Discover and it will appear here.")
+                                )
+                                .frame(maxHeight: .infinity)
+                            } else {
+                                List(filteredTitles) { title in
+                                    NavigationLink(value: title) {
+                                        LibraryRow(title: title)
+                                    }
+                                    .listRowBackground(Color.clear)
+                                    .listRowSeparator(.hidden)
+                                }
+                                .listStyle(.plain)
+                                .scrollContentBackground(.hidden)
+                            }
+                        }
+                        .transaction { $0.disablesAnimations = true }
                     }
-                    .transaction { $0.disablesAnimations = true }
                 }
                 .padding(.top, 8)
             }
@@ -84,7 +97,7 @@ private enum LibrarySheet: String, Identifiable {
     var id: Self { self }
 }
 
-private struct LibraryRow: View {
+struct LibraryRow: View {
     let title: MediaTitle
 
     var body: some View {
@@ -109,6 +122,20 @@ private struct LibraryRow: View {
         }
         .padding(.vertical, 4)
         .accessibilityElement(children: .combine)
+    }
+}
+
+private enum LibrarySection: String, CaseIterable, Identifiable {
+    case titles
+    case lists
+
+    var id: Self { self }
+
+    var label: String {
+        switch self {
+        case .titles: "Titles"
+        case .lists: "Lists"
+        }
     }
 }
 

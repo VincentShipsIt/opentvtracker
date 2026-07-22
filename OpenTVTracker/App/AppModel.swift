@@ -16,6 +16,7 @@ final class AppModel {
     var titles: [MediaTitle]
     var sharedSpace: SharedSpace
     var diaryEntries: [ViewingDiaryEntry]
+    var lists: [MediaList]
     private(set) var selectedProviderIDs: Set<StreamingProvider.ID>
     private(set) var allowsAIReranking: Bool
     private(set) var streamingRegionOverride: StreamingRegion?
@@ -79,6 +80,7 @@ final class AppModel {
         titles = seed.titles
         sharedSpace = seed.sharedSpace
         diaryEntries = Self.resolvedDiaryEntries(from: seed)
+        lists = seed.lists ?? []
         selectedProviderIDs = seed.selectedProviderIDs ?? Self.defaultProviderIDs
         allowsAIReranking = seed.allowsAIReranking ?? false
         streamingRegionOverride = seed.streamingRegionCode.flatMap(StreamingRegion.init(code:))
@@ -125,7 +127,8 @@ final class AppModel {
             reminderSettings: reminderSettings,
             importResolutionAliases: importResolutionAliases,
             traktSyncState: traktSyncState,
-            hasCompletedFirstRun: hasCompletedFirstRun
+            hasCompletedFirstRun: hasCompletedFirstRun,
+            lists: lists
         )
     }
 
@@ -154,6 +157,7 @@ final class AppModel {
                 )
                 sharedSpace = snapshot.sharedSpace
                 diaryEntries = Self.resolvedDiaryEntries(from: snapshot)
+                lists = snapshot.lists ?? []
                 selectedProviderIDs = snapshot.selectedProviderIDs ?? Self.defaultProviderIDs
                 allowsAIReranking = snapshot.allowsAIReranking ?? false
                 streamingRegionOverride = snapshot.streamingRegionCode.flatMap(StreamingRegion.init(code:))
@@ -176,7 +180,6 @@ final class AppModel {
         publishWidgetSnapshot()
     }
 }
-
 extension AppModel {
     func setWatchState(_ state: WatchState, for id: MediaTitle.ID) {
         if state == .completed || state == .caughtUp {
@@ -299,6 +302,7 @@ extension AppModel {
         )
         sharedSpace = snapshot.sharedSpace
         diaryEntries = Self.resolvedDiaryEntries(from: snapshot)
+        lists = snapshot.lists ?? []
         selectedProviderIDs = snapshot.selectedProviderIDs ?? Self.defaultProviderIDs
         allowsAIReranking = snapshot.allowsAIReranking ?? false
         streamingRegionOverride = snapshot.streamingRegionCode.flatMap(StreamingRegion.init(code:))
@@ -336,11 +340,9 @@ extension AppModel {
     func flushPendingPersistence() async {
         await saveTask?.value
     }
-
     func flushPendingReminders() async {
         await reminderTask?.value
     }
-
     func refreshRecommendations() async {
         guard allowsAIReranking else {
             remoteRankedRecommendations = []

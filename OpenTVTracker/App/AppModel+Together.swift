@@ -219,7 +219,11 @@ extension AppModel {
         let existingByID = Dictionary(
             uniqueKeysWithValues: (sharedSpace.titleMetadata ?? []).map { ($0.id, $0) }
         )
-        sharedSpace.titleMetadata = sharedSpace.titleIDs.compactMap { id in
+        let listTitleIDs = (sharedSpace.sharedLists ?? [])
+            .filter { !$0.isDeleted }
+            .flatMap(\.titleIDs)
+        let sharedTitleIDs = Array(Set(sharedSpace.titleIDs + listTitleIDs)).sorted()
+        sharedSpace.titleMetadata = sharedTitleIDs.compactMap { id in
             if let title = titles.first(where: { $0.id == id }) {
                 return sharedMetadataCopy(of: title)
             }

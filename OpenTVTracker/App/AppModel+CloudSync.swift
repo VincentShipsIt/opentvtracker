@@ -61,6 +61,10 @@ extension AppModel {
         remoteSpace.titleIDs = Array(Set(remoteSpace.titleIDs + sharedSpace.titleIDs)).sorted()
         remoteSpace.activity = merging(remoteSpace.activity, sharedSpace.activity)
         remoteSpace.watchEvents = merging(remoteSpace.watchEvents ?? [], sharedSpace.watchEvents ?? [])
+        remoteSpace.sharedLists = mergingSharedLists(
+            remote: remoteSpace.sharedLists ?? [],
+            local: sharedSpace.sharedLists ?? []
+        )
         let retainedConversationEvents = reconcileConversation(
             in: &remoteSpace,
             newEvents: newConversationEvents
@@ -143,6 +147,17 @@ extension AppModel {
                 )
             }
             .sorted { $0.id < $1.id }
+    }
+
+    private func mergingSharedLists(
+        remote: [SharedMediaList],
+        local: [SharedMediaList]
+    ) -> [SharedMediaList] {
+        var valuesByID = Dictionary(uniqueKeysWithValues: local.map { ($0.id, $0) })
+        for list in remote where list.updatedAt > (valuesByID[list.id]?.updatedAt ?? .distantPast) {
+            valuesByID[list.id] = list
+        }
+        return valuesByID.values.sorted { $0.id < $1.id }
     }
 
     private func merging<Value: Identifiable>(_ remote: [Value], _ local: [Value]) -> [Value] {

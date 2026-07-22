@@ -49,9 +49,13 @@ enum LibraryTransferService {
             throw LibraryTransferError.unreadableFile
         }
         let rows = parseCSV(csv)
-        if let header = rows.first?.map(normalizedHeaderName),
-           header.contains("entry_id"), header.contains("scope") {
-            return try mergeDiaryCSV(rows, into: current)
+        if let listPreview = previewListImport(rows, into: current) {
+            return listPreview
+        }
+        if let header = rows.first?.map(normalizedHeaderName) {
+            if header.contains("entry_id"), header.contains("scope") {
+                return try mergeDiaryCSV(rows, into: current)
+            }
         }
         return try mergeCSV(csv, into: current)
     }
@@ -104,22 +108,22 @@ extension LibraryTransferService {
             titleIDMap: importedTitleIDMap,
             into: &merged
         )
+        let listCounts = mergeLists(
+            imported: imported,
+            titleIDMap: importedTitleIDMap,
+            into: &merged
+        )
 
-        return LibraryImportPreview(
+        return backupPreview(
             snapshot: merged,
-            matchedCount: matched,
-            addedCount: added,
-            duplicateCount: duplicates,
-            skippedCount: 0,
-            sourceName: "OpenTV backup",
-            watchedEpisodeCount: imported.titles.reduce(0) {
-                $0 + ($1.watchedEpisodeIDs?.count ?? 0)
-            },
-            watchEventCount: imported.sharedSpace.watchEvents?.count ?? 0,
-            importNotice: LibraryBackupMerge.importNotice(
-                for: imported,
-                current: current
-            )
+            imported: imported,
+            current: current,
+            titleCounts: LibraryTitleImportCounts(
+                matched: matched,
+                added: added,
+                duplicates: duplicates
+            ),
+            listCounts: listCounts
         )
     }
 
@@ -214,22 +218,6 @@ extension LibraryTransferService {
         applyCSVTracking(values, title: &titles[index])
         applyCSVProgress(values, title: &titles[index])
         return .matched
-    }
-
-    private static func matchingTitleIndex(
-        _ values: [String: String],
-        titles: [MediaTitle]
-    ) -> Array<MediaTitle>.Index? {
-        let catalogID = intValue(in: values, keys: ["catalog_id", "tmdb_id", "id"])
-        let titleName = stringValue(in: values, keys: ["title", "name", "series_name", "movie_name"])
-        let year = intValue(in: values, keys: ["year", "release_year"])
-
-        return titles.firstIndex { title in
-            if let catalogID, catalogID > 0 { return title.catalogID == catalogID }
-            guard let titleName else { return false }
-            return normalizedTitle(title.title) == normalizedTitle(titleName)
-                && (year == nil || title.year == year)
-        }
     }
 
     private static func applyCSVTracking(_ values: [String: String], title: inout MediaTitle) {

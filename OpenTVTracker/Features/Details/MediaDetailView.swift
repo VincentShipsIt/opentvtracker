@@ -4,6 +4,7 @@ struct MediaDetailView: View {
     @Environment(AppModel.self) private var model
     let titleID: MediaTitle.ID
     @State private var presentedTrailer: TrailerPresentation?
+    @State private var listPickerTitle: MediaTitle?
     @State private var showsTrackingEditor = false
     @State private var showsSharedNoteEditor = false
     @State private var showsReminderEditor = false
@@ -41,6 +42,9 @@ struct MediaDetailView: View {
         }
         .sheet(item: $presentedTrailer) { trailer in
             TrailerPlayerView(trailer: trailer)
+        }
+        .sheet(item: $listPickerTitle) { title in
+            AddToListsView(title: title)
         }
         .sheet(isPresented: $showsTrackingEditor) {
             if let title {
@@ -178,6 +182,14 @@ struct MediaDetailView: View {
                 showsTrackingEditor = true
             } label: {
                 Label("Your activity", systemImage: "checkmark.rectangle.stack")
+                    .frame(maxWidth: .infinity)
+            }
+            .adaptiveGlassButton()
+
+            Button {
+                listPickerTitle = title
+            } label: {
+                Label("Add to custom list", systemImage: "list.bullet.rectangle")
                     .frame(maxWidth: .infinity)
             }
             .adaptiveGlassButton()
