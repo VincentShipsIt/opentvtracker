@@ -6,6 +6,7 @@ import Observation
 final class TVTimeImportCoordinator {
     private let session: TVTimeImportSession
     private var manualResolutions: [ImportResolutionIssue.ID: MediaTitle] = [:]
+    private var resolutionWaiters: [CheckedContinuation<Void, Never>] = []
 
     private(set) var preview: LibraryImportPreview?
     private(set) var isRefreshing = false
@@ -26,9 +27,8 @@ final class TVTimeImportCoordinator {
         _ issue: ImportResolutionIssue,
         with title: MediaTitle
     ) async -> Bool {
-        guard !isRefreshing else { return false }
-        isRefreshing = true
-        defer { isRefreshing = false }
+        await acquireResolutionSlot()
+        defer { releaseResolutionSlot() }
         do {
             let detailedTitle = try await session.detailedTitle(title)
             manualResolutions[issue.id] = detailedTitle
@@ -39,6 +39,24 @@ final class TVTimeImportCoordinator {
             errorMessage = error.localizedDescription
             return false
         }
+    }
+
+    private func acquireResolutionSlot() async {
+        guard isRefreshing else {
+            isRefreshing = true
+            return
+        }
+        await withCheckedContinuation { continuation in
+            resolutionWaiters.append(continuation)
+        }
+    }
+
+    private func releaseResolutionSlot() {
+        guard !resolutionWaiters.isEmpty else {
+            isRefreshing = false
+            return
+        }
+        resolutionWaiters.removeFirst().resume()
     }
 
     func search(
