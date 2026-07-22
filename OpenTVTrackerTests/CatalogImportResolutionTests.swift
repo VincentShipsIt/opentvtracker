@@ -28,7 +28,7 @@ final class CatalogImportResolutionTests: XCTestCase {
         XCTAssertEqual(first.addedCount, 1)
         XCTAssertEqual(
             first.snapshot.importResolutionAliases?["series:tvdb:371980"],
-            resolved.id
+            ImportResolutionAlias(kind: resolved.kind, catalogID: resolved.catalogID)
         )
         let firstCounts = await catalog.callCounts()
         XCTAssertEqual(firstCounts.resolve, 1)
@@ -159,7 +159,10 @@ final class CatalogImportResolutionTests: XCTestCase {
         let resolved = await session.preview(manualResolutions: [issue.id: remake])
         XCTAssertTrue(resolved.resolutionIssues.isEmpty)
         XCTAssertEqual(resolved.addedCount, 1)
-        XCTAssertEqual(resolved.snapshot.importResolutionAliases?[issue.id], remake.id)
+        XCTAssertEqual(
+            resolved.snapshot.importResolutionAliases?[issue.id],
+            ImportResolutionAlias(kind: remake.kind, catalogID: remake.catalogID)
+        )
     }
 
     func testExplicitAnimeSeasonMapsSourceSeasonOneToCatalogSeason() async throws {
@@ -244,6 +247,32 @@ final class CatalogImportResolutionTests: XCTestCase {
             XCTAssertTrue(detail.contains("display, original, or localized title"))
         case .resolved:
             XCTFail("Catalog misses must not use an unrelated first result")
+        }
+    }
+
+    func testAnimeSeasonRequiresTheResolvedCatalogSeason() {
+        let anime = makeTitle(
+            id: "tmdb-series-1",
+            catalogID: 1,
+            title: "Demon Slayer",
+            year: 2019,
+            genres: ["Animation"],
+            seasons: []
+        )
+        let entity = TVTimeEntity(
+            identity: "series:source:anime-season",
+            sourceID: "anime-season",
+            source: nil,
+            title: "Demon Slayer Season 2",
+            kind: .series
+        )
+
+        switch CatalogImportMatcher.select(entity: entity, candidates: [anime]) {
+        case .issue(let reason, let detail):
+            XCTAssertEqual(reason, .unsafeAnimeRelation)
+            XCTAssertTrue(detail.contains("does not contain the numbered season"))
+        case .resolved:
+            XCTFail("Anime season labels must map to an existing catalog season")
         }
     }
 

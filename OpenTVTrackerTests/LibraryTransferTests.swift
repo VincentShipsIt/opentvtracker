@@ -223,7 +223,9 @@ final class LibraryTransferTests: XCTestCase {
 extension LibraryTransferTests {
     func testJSONImportDiscardsResolutionAliasesWithoutRetainedTitles() throws {
         var snapshot = LibrarySnapshot.sample
-        snapshot.importResolutionAliases = ["series:legacy:missing": "missing-title"]
+        snapshot.importResolutionAliases = [
+            "series:legacy:missing": ImportResolutionAlias(kind: .series, catalogID: 999_999)
+        ]
 
         let preview = try LibraryTransferService.previewImport(
             LibraryTransferService.exportJSON(snapshot),

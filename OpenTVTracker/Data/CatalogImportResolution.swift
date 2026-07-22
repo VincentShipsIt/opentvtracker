@@ -126,6 +126,12 @@ enum CatalogImportMatcher {
             mismatchDetail: "The anime season label matched several releases. Choose the intended catalog title."
         ) {
         case .resolved(let resolved):
+            guard resolved.title.seasons?.contains(where: { $0.number == seasonNumber }) == true else {
+                return .issue(
+                    .unsafeAnimeRelation,
+                    "The catalog title does not contain the numbered season from the imported anime label. Choose the intended catalog title."
+                )
+            }
             return .resolved(
                 CatalogResolvedTitle(
                     title: resolved.title,
