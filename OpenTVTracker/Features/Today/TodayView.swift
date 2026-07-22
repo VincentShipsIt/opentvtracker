@@ -15,7 +15,7 @@ struct TodayView: View {
                     LazyVStack(spacing: AppTheme.sectionSpacing) {
                         TodayHeader(
                             memberName: currentMember.name,
-                            onOpenProfile: { presentedSheet = .profile }
+                            onOpenLibrary: { selectedTab = .library }
                         )
 
                         if let first = model.activeUpNext.first {
@@ -70,8 +70,6 @@ struct TodayView: View {
             }
             .sheet(item: $presentedSheet) { sheet in
                 switch sheet {
-                case .profile:
-                    ProfileView()
                 case .services:
                     ServiceManagerView()
                 }
@@ -185,7 +183,6 @@ struct TodayView: View {
 }
 
 private enum TodaySheet: Hashable, Identifiable {
-    case profile
     case services
 
     var id: Self { self }

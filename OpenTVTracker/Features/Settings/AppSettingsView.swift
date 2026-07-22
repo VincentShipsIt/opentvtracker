@@ -12,6 +12,21 @@ struct AppSettingsView: View {
         NavigationStack {
             Form {
                 Section {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Label(currentMember.name, systemImage: "person.crop.circle.fill")
+                            .font(.headline)
+                        Label("Personal history", systemImage: "lock.fill")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.indigo)
+                    }
+                    .accessibilityElement(children: .combine)
+                } header: {
+                    Text("Profile")
+                } footer: {
+                    Text("Your viewing history stays private and is stored on this iPhone unless you explicitly share or export it.")
+                }
+
+                Section {
                     NavigationLink {
                         StreamingRegionPickerView()
                     } label: {
@@ -116,6 +131,11 @@ struct AppSettingsView: View {
     private var subscriptionSummary: String {
         let count = model.selectedProviders.count
         return count == 1 ? "1 service" : "\(count) services"
+    }
+
+    private var currentMember: SpaceMember {
+        model.sharedSpace.members.first(where: \.isCurrentUser)
+            ?? SpaceMember(id: "local-user", name: "You", initials: "YOU", isCurrentUser: true)
     }
 }
 
