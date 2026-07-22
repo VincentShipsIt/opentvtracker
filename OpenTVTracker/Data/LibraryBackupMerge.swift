@@ -13,7 +13,20 @@ enum LibraryBackupMerge {
         imported: SharedSpace,
         into current: SharedSpace
     ) -> SharedSpace {
-        guard current != LibrarySnapshot.empty.sharedSpace else { return imported }
+        if current == LibrarySnapshot.empty.sharedSpace {
+            var restored = imported
+            let conversation = SharedConversationReconciler.reconcile(
+                remote: imported,
+                local: current
+            )
+            applyConversation(
+                conversation,
+                imported: imported,
+                current: nil,
+                to: &restored
+            )
+            return restored
+        }
 
         var merged = current
         merged.members = mergeByID(imported: imported.members, into: current.members)
@@ -27,17 +40,23 @@ enum LibraryBackupMerge {
             imported: imported.tasteProfiles,
             into: current.tasteProfiles
         )
-        merged.reactions = mergeOptionalByID(
-            imported: imported.reactions,
-            into: current.reactions
+        let conversation = SharedConversationReconciler.reconcile(
+            remote: imported,
+            local: current
         )
-        merged.notes = mergeOptionalByID(
-            imported: imported.notes,
-            into: current.notes
+        applyConversation(
+            conversation,
+            imported: imported,
+            current: current,
+            to: &merged
         )
         merged.titleMetadata = mergeOptionalByID(
             imported: imported.titleMetadata,
             into: current.titleMetadata
+        )
+        merged.sharedLists = mergeSharedLists(
+            imported: imported.sharedLists,
+            into: current.sharedLists
         )
         return merged
     }
@@ -80,6 +99,50 @@ enum LibraryBackupMerge {
     ) -> [Element]? where Element.ID: Hashable {
         guard imported != nil || current != nil else { return nil }
         return mergeByID(imported: imported ?? [], into: current ?? [])
+    }
+
+    private static func mergeSharedLists(
+        imported: [SharedMediaList]?,
+        into current: [SharedMediaList]?
+    ) -> [SharedMediaList]? {
+        guard imported != nil || current != nil else { return nil }
+        var valuesByID = Dictionary(uniqueKeysWithValues: (current ?? []).map { ($0.id, $0) })
+        for list in imported ?? [] where list.updatedAt > (valuesByID[list.id]?.updatedAt ?? .distantPast) {
+            valuesByID[list.id] = list
+        }
+        return valuesByID.values.sorted { $0.id < $1.id }
+    }
+
+    private static func applyConversation(
+        _ conversation: SharedConversationState,
+        imported: SharedSpace,
+        current: SharedSpace?,
+        to merged: inout SharedSpace
+    ) {
+        merged.reactions = preserveOptionality(
+            conversation.reactions,
+            imported: imported.reactions,
+            current: current?.reactions
+        )
+        merged.notes = preserveOptionality(
+            conversation.notes,
+            imported: imported.notes,
+            current: current?.notes
+        )
+        merged.conversationDeletions = preserveOptionality(
+            conversation.deletions,
+            imported: imported.conversationDeletions,
+            current: current?.conversationDeletions
+        )
+    }
+
+    private static func preserveOptionality<Element>(
+        _ merged: [Element],
+        imported: [Element]?,
+        current: [Element]?
+    ) -> [Element]? {
+        guard imported != nil || current != nil else { return nil }
+        return merged
     }
 
     private static func mergeValues<Value: Hashable>(

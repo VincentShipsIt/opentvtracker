@@ -48,6 +48,15 @@ enum LibraryTransferService {
         guard let csv = String(data: data, encoding: .utf8) else {
             throw LibraryTransferError.unreadableFile
         }
+        let rows = parseCSV(csv)
+        if let listPreview = previewListImport(rows, into: current) {
+            return listPreview
+        }
+        if let header = rows.first?.map(normalizedHeaderName) {
+            if header.contains("entry_id"), header.contains("scope") {
+                return try mergeDiaryCSV(rows, into: current)
+            }
+        }
         return try mergeCSV(csv, into: current)
     }
 }
@@ -62,6 +71,7 @@ extension LibraryTransferService {
         var added = 0
         var duplicates = 0
         var seen = Set<String>()
+        var importedTitleIDMap: [MediaTitle.ID: MediaTitle.ID] = [:]
 
         for sourceTitle in imported.titles {
             let importedTitle = sourceTitle.migratedTrackingState(
@@ -69,36 +79,74 @@ extension LibraryTransferService {
             )
             let identity = identityKey(for: importedTitle)
             guard seen.insert(identity).inserted else {
+                if let destination = merged.titles.first(where: { titlesMatch($0, importedTitle) }) {
+                    importedTitleIDMap[importedTitle.id] = destination.id
+                }
                 duplicates += 1
                 continue
             }
 
             if let index = merged.titles.firstIndex(where: { titlesMatch($0, importedTitle) }) {
-                merged.titles[index] = mergingTracking(from: importedTitle, into: merged.titles[index])
+                importedTitleIDMap[importedTitle.id] = merged.titles[index].id
+                merged.titles[index] = mergingTracking(
+                    from: importedTitle,
+                    into: merged.titles[index],
+                    fromSchemaVersion: imported.schemaVersion
+                )
                 matched += 1
             } else {
+                importedTitleIDMap[importedTitle.id] = importedTitle.id
                 merged.titles.append(importedTitle)
                 added += 1
             }
         }
 
         mergeLibraryMetadata(imported: imported, current: current, into: &merged)
+        mergeDiaryMetadata(
+            imported: imported,
+            current: current,
+            titleIDMap: importedTitleIDMap,
+            into: &merged
+        )
+        let listCounts = mergeLists(
+            imported: imported,
+            titleIDMap: importedTitleIDMap,
+            into: &merged
+        )
 
-        return LibraryImportPreview(
+        return backupPreview(
             snapshot: merged,
-            matchedCount: matched,
-            addedCount: added,
-            duplicateCount: duplicates,
-            skippedCount: 0,
-            sourceName: "OpenTV backup",
-            watchedEpisodeCount: imported.titles.reduce(0) {
-                $0 + ($1.watchedEpisodeIDs?.count ?? 0)
-            },
-            watchEventCount: imported.sharedSpace.watchEvents?.count ?? 0,
-            importNotice: LibraryBackupMerge.importNotice(
-                for: imported,
-                current: current
-            )
+            imported: imported,
+            current: current,
+            titleCounts: LibraryTitleImportCounts(
+                matched: matched,
+                added: added,
+                duplicates: duplicates
+            ),
+            listCounts: listCounts
+        )
+    }
+
+    private static func mergeDiaryMetadata(
+        imported: LibrarySnapshot,
+        current: LibrarySnapshot,
+        titleIDMap: [MediaTitle.ID: MediaTitle.ID],
+        into merged: inout LibrarySnapshot
+    ) {
+        guard imported.diaryEntries != nil || imported.sharedSpace.watchEvents?.isEmpty == false else {
+            if current.titles.isEmpty, current.diaryEntries?.isEmpty != false {
+                merged.diaryEntries = nil
+            }
+            return
+        }
+        let importedEntries = remappingDiaryEntries(
+            ViewingDiaryMigration.resolvedEntries(from: imported),
+            titleIDMap: titleIDMap,
+            destinationTitles: merged.titles
+        )
+        merged.diaryEntries = mergedDiaryEntries(
+            current: merged.diaryEntries ?? [],
+            imported: importedEntries
         )
     }
 
@@ -153,7 +201,7 @@ extension LibraryTransferService {
         )
     }
 
-    private static func csvValues(header: [String], row: [String]) -> [String: String] {
+    static func csvValues(header: [String], row: [String]) -> [String: String] {
         let paddedRow = row + Array(repeating: "", count: max(0, header.count - row.count))
         return zip(header, paddedRow).reduce(into: [String: String]()) { result, pair in
             result[pair.0] = pair.1
@@ -170,22 +218,6 @@ extension LibraryTransferService {
         applyCSVTracking(values, title: &titles[index])
         applyCSVProgress(values, title: &titles[index])
         return .matched
-    }
-
-    private static func matchingTitleIndex(
-        _ values: [String: String],
-        titles: [MediaTitle]
-    ) -> Array<MediaTitle>.Index? {
-        let catalogID = intValue(in: values, keys: ["catalog_id", "tmdb_id", "id"])
-        let titleName = stringValue(in: values, keys: ["title", "name", "series_name", "movie_name"])
-        let year = intValue(in: values, keys: ["year", "release_year"])
-
-        return titles.firstIndex { title in
-            if let catalogID, catalogID > 0 { return title.catalogID == catalogID }
-            guard let titleName else { return false }
-            return normalizedTitle(title.title) == normalizedTitle(titleName)
-                && (year == nil || title.year == year)
-        }
     }
 
     private static func applyCSVTracking(_ values: [String: String], title: inout MediaTitle) {
@@ -238,24 +270,6 @@ extension LibraryTransferService {
         )
     }
 
-    private static func mergingTracking(from imported: MediaTitle, into catalog: MediaTitle) -> MediaTitle {
-        var result = catalog
-        result.state = imported.state
-        result.progress = imported.progress
-        result.userRating = imported.userRating
-        result.notes = imported.notes
-        result.rewatchCount = imported.rewatchCount
-        result.lastWatchedAt = imported.lastWatchedAt
-        result.isDismissed = imported.isDismissed
-        result.isDisliked = imported.isDisliked
-        result.personalWatchlist = imported.personalWatchlist
-        result.watchedEpisodeIDs = imported.watchedEpisodeIDs
-        result.seriesLifecycle = imported.seriesLifecycle ?? catalog.seriesLifecycle
-        result.isUpNextPinned = imported.isUpNextPinned
-        result.upNextSnoozedUntil = imported.upNextSnoozedUntil
-        result.upNextManualOrder = imported.upNextManualOrder
-        return result
-    }
 }
 
 extension LibraryTransferService {
@@ -279,21 +293,7 @@ extension LibraryTransferService {
         ]
     }
 
-    private static func titlesMatch(_ lhs: MediaTitle, _ rhs: MediaTitle) -> Bool {
-        if lhs.catalogID > 0, rhs.catalogID > 0 { return lhs.catalogID == rhs.catalogID }
-        return normalizedTitle(lhs.title) == normalizedTitle(rhs.title) && lhs.year == rhs.year
-    }
-
-    private static func identityKey(for title: MediaTitle) -> String {
-        title.catalogID > 0 ? "catalog:\(title.catalogID)" : "title:\(normalizedTitle(title.title)):\(title.year)"
-    }
-
-    private static func normalizedTitle(_ title: String) -> String {
-        title.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    private static func csvData(header: [String], rows: [[String]]) -> Data {
+    static func csvData(header: [String], rows: [[String]]) -> Data {
         ([header] + rows)
             .map { $0.map(escapedCSVField).joined(separator: ",") }
             .joined(separator: "\n")
@@ -302,7 +302,10 @@ extension LibraryTransferService {
     }
 
     private static func escapedCSVField(_ field: String) -> String {
-        guard field.contains(",") || field.contains("\"") || field.contains("\n") else { return field }
+        guard field.contains(",") || field.contains("\"")
+                || field.contains("\n") || field.contains("\r") else {
+            return field
+        }
         return "\"\(field.replacingOccurrences(of: "\"", with: "\"\""))\""
     }
 
@@ -344,25 +347,25 @@ extension LibraryTransferService {
         return rows
     }
 
-    private static func normalizedHeaderName(_ header: String) -> String {
+    static func normalizedHeaderName(_ header: String) -> String {
         header.trimmingCharacters(in: .whitespacesAndNewlines)
             .lowercased()
             .replacingOccurrences(of: " ", with: "_")
     }
 
-    private static func stringValue(in values: [String: String], keys: [String]) -> String? {
+    static func stringValue(in values: [String: String], keys: [String]) -> String? {
         keys.lazy.compactMap { values[$0] }.first { !$0.isEmpty }
     }
 
-    private static func intValue(in values: [String: String], keys: [String]) -> Int? {
+    static func intValue(in values: [String: String], keys: [String]) -> Int? {
         stringValue(in: values, keys: keys).flatMap(Int.init)
     }
 
-    private static func doubleValue(in values: [String: String], keys: [String]) -> Double? {
+    static func doubleValue(in values: [String: String], keys: [String]) -> Double? {
         stringValue(in: values, keys: keys).flatMap(Double.init)
     }
 
-    private static func boolValue(in values: [String: String], keys: [String]) -> Bool? {
+    static func boolValue(in values: [String: String], keys: [String]) -> Bool? {
         guard let value = stringValue(in: values, keys: keys)?.lowercased() else { return nil }
         switch value {
         case "true", "yes", "1": return true
@@ -371,19 +374,18 @@ extension LibraryTransferService {
         }
     }
 
-    private static func iso8601String(_ date: Date) -> String {
-        ISO8601DateFormatter().string(from: date)
+    static func iso8601String(_ date: Date) -> String {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter.string(from: date)
     }
 
-    private static func iso8601Date(_ value: String) -> Date? {
-        ISO8601DateFormatter().date(from: value)
+    static func iso8601Date(_ value: String) -> Date? {
+        let fractionalFormatter = ISO8601DateFormatter()
+        fractionalFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return fractionalFormatter.date(from: value) ?? ISO8601DateFormatter().date(from: value)
     }
-}
 
-private enum CSVRowResult {
-    case matched
-    case duplicate
-    case skipped
 }
 
 enum LibraryTransferError: LocalizedError {

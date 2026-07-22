@@ -2,11 +2,15 @@ import Foundation
 
 struct TVTimeMergeState {
     var existingEventIDs: Set<String>
+    var existingDiaryIDs: Set<String>
+    let memberID: String
     var titleIDs: Set<MediaTitle.ID>
     var titleLookup: TVTimeMediaTitleLookup
 
     init(snapshot: LibrarySnapshot) {
         existingEventIDs = Set((snapshot.sharedSpace.watchEvents ?? []).map(\.id))
+        existingDiaryIDs = Set((snapshot.diaryEntries ?? []).map(\.id))
+        memberID = snapshot.sharedSpace.members.first(where: \.isCurrentUser)?.id ?? "local-user"
         titleIDs = Set(snapshot.sharedSpace.titleIDs)
         titleLookup = TVTimeMediaTitleLookup(snapshot.titles)
     }

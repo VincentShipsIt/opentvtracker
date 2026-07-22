@@ -63,5 +63,7 @@ enum TVTimeZIPReader {
             || filename.contains("tvtime-series-episodes")
             || filename.contains("tvtime-movies-")
             || filename.contains("tvtime-series-")
+            || filename.contains("tvtime-lists-")
+            || filename == "lists-prod-lists.csv"
     }
 }

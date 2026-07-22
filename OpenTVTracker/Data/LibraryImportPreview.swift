@@ -7,6 +7,8 @@ struct LibraryImportPreview: Sendable {
     let sourceName: String
     let watchedEpisodeCount: Int
     let watchEventCount: Int
+    let listCount: Int
+    let listMembershipCount: Int
     let integrityCounts: [ImportCountComparison]
     let resolutionIssues: [ImportResolutionIssue]
     let warnings: [ImportWarning]
@@ -21,6 +23,8 @@ struct LibraryImportPreview: Sendable {
         sourceName: String = "OpenTV",
         watchedEpisodeCount: Int = 0,
         watchEventCount: Int = 0,
+        listCount: Int = 0,
+        listMembershipCount: Int = 0,
         integrityCounts: [ImportCountComparison] = [],
         resolutionIssues: [ImportResolutionIssue] = [],
         warnings: [ImportWarning] = [],
@@ -34,6 +38,8 @@ struct LibraryImportPreview: Sendable {
         self.sourceName = sourceName
         self.watchedEpisodeCount = watchedEpisodeCount
         self.watchEventCount = watchEventCount
+        self.listCount = listCount
+        self.listMembershipCount = listMembershipCount
         self.integrityCounts = integrityCounts
         self.resolutionIssues = resolutionIssues
         self.warnings = warnings

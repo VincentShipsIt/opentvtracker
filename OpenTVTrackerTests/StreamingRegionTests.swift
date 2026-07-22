@@ -23,9 +23,12 @@ final class StreamingRegionTests: XCTestCase {
             for: MediaSearchQuery(text: "Severance", kind: .series, page: 2, region: region)
         )
         let detailURL = try service.titleURL(kind: .series, catalogID: 95_396, region: region)
+        let reviewsURL = try service.reviewsURL(kind: .series, catalogID: 95_396, page: 3)
 
         XCTAssertEqual(queryValue("region", in: searchURL), "US")
         XCTAssertEqual(queryValue("region", in: detailURL), "US")
+        XCTAssertEqual(queryValue("page", in: reviewsURL), "3")
+        XCTAssertEqual(reviewsURL.path, "/v1/catalog/series/95396/reviews")
     }
 
     func testRegionOverridePersistsWithoutReplacingAutomaticDefault() async throws {

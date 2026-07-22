@@ -253,6 +253,11 @@ struct SpaceMember: Codable, Hashable, Identifiable, Sendable {
     let isCurrentUser: Bool
 }
 
+enum SharedActivityKind: String, Codable, Sendable {
+    case general
+    case watchedTogether
+}
+
 struct SharedActivity: Codable, Hashable, Identifiable, Sendable {
     let id: String
     let memberID: String
@@ -260,8 +265,12 @@ struct SharedActivity: Codable, Hashable, Identifiable, Sendable {
     let relativeDate: String
     let symbol: String
     var titleID: MediaTitle.ID? = nil
+    var kind: SharedActivityKind? = nil
+    var occurredAt: Date? = nil
+    var watchEventID: SharedWatchEvent.ID? = nil
+    var season: Int? = nil
+    var episode: Int? = nil
 }
-
 enum SharedMembershipState: String, Codable, Sendable {
     case local
     case pending
@@ -270,14 +279,12 @@ enum SharedMembershipState: String, Codable, Sendable {
     case expired
     case left
 }
-
 enum WatchEventKind: String, Codable, Sendable {
     case watched
     case correction
     case rewatch
     case watchedTogether
 }
-
 struct SharedWatchEvent: Codable, Hashable, Identifiable, Sendable {
     let id: String
     let titleID: MediaTitle.ID
@@ -288,28 +295,11 @@ struct SharedWatchEvent: Codable, Hashable, Identifiable, Sendable {
     let occurredAt: Date
     let supersedesEventID: String?
 }
-
 struct MemberTasteProfile: Codable, Hashable, Identifiable, Sendable {
     let id: SpaceMember.ID
     var preferredGenres: [String]
     var preferredMoods: [Mood]
     var maximumRuntimeMinutes: Int?
-}
-
-struct SharedReaction: Codable, Hashable, Identifiable, Sendable {
-    let id: String
-    let activityID: SharedActivity.ID
-    let memberID: SpaceMember.ID
-    let symbol: String
-    let occurredAt: Date
-}
-
-struct SharedNote: Codable, Hashable, Identifiable, Sendable {
-    let id: String
-    let titleID: MediaTitle.ID
-    let memberID: SpaceMember.ID
-    let text: String
-    let createdAt: Date
 }
 
 struct SharedSpace: Codable, Hashable, Identifiable, Sendable {
@@ -324,10 +314,12 @@ struct SharedSpace: Codable, Hashable, Identifiable, Sendable {
     var tasteProfiles: [MemberTasteProfile]? = nil
     var reactions: [SharedReaction]? = nil
     var notes: [SharedNote]? = nil
+    var conversationDeletions: [SharedConversationDeletion]? = nil
     var cloudZoneName: String? = nil
     var cloudOwnerName: String? = nil
     var isCurrentUserShareOwner: Bool? = nil
     var titleMetadata: [MediaTitle]? = nil
+    var sharedLists: [SharedMediaList]? = nil
 
     var resolvedMembershipState: SharedMembershipState {
         membershipState ?? (isCloudSharingEnabled ? .accepted : .local)
@@ -347,9 +339,12 @@ struct LibrarySnapshot: Codable, Hashable, Sendable {
     var selectedProviderIDs: Set<StreamingProvider.ID>?
     var allowsAIReranking: Bool?
     var streamingRegionCode: String?
+    var diaryEntries: [ViewingDiaryEntry]?
+    var traktSyncState: TraktSyncState?
     var reminderSettings: ReminderSettings?
     var importResolutionAliases: [String: ImportResolutionAlias]?
     var hasCompletedFirstRun: Bool?
+    var lists: [MediaList]?
 
     init(
         titles: [MediaTitle],
@@ -357,9 +352,12 @@ struct LibrarySnapshot: Codable, Hashable, Sendable {
         selectedProviderIDs: Set<StreamingProvider.ID>? = nil,
         allowsAIReranking: Bool = false,
         streamingRegionCode: String? = nil,
+        diaryEntries: [ViewingDiaryEntry]? = nil,
         reminderSettings: ReminderSettings = ReminderSettings(),
         importResolutionAliases: [String: ImportResolutionAlias]? = nil,
+        traktSyncState: TraktSyncState? = nil,
         hasCompletedFirstRun: Bool? = nil,
+        lists: [MediaList] = [],
         schemaVersion: Int = 6
     ) {
         self.schemaVersion = schemaVersion
@@ -368,9 +366,12 @@ struct LibrarySnapshot: Codable, Hashable, Sendable {
         self.selectedProviderIDs = selectedProviderIDs
         self.allowsAIReranking = allowsAIReranking
         self.streamingRegionCode = streamingRegionCode
+        self.diaryEntries = diaryEntries
+        self.traktSyncState = traktSyncState
         self.reminderSettings = reminderSettings
         self.importResolutionAliases = importResolutionAliases
         self.hasCompletedFirstRun = hasCompletedFirstRun
+        self.lists = lists
     }
 }
 
@@ -391,7 +392,9 @@ extension LibrarySnapshot {
             tasteProfiles: [],
             reactions: [],
             notes: [],
+            conversationDeletions: [],
             isCurrentUserShareOwner: true
-        )
+        ),
+        diaryEntries: []
     )
 }

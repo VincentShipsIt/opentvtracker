@@ -208,6 +208,12 @@ struct TrackingRatingSection: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Rate \(star) out of 5 stars")
+        .accessibilityValue(rating.map { currentRating in
+            let threshold = Double(star * 2)
+            if currentRating >= threshold { return "Selected" }
+            if currentRating >= threshold - 1 { return "Half selected" }
+            return "Not selected"
+        } ?? "Not selected")
     }
 
     private var ratingLabel: String {

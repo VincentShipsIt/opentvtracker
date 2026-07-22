@@ -6,13 +6,11 @@ enum TVTimeArchiveParser {
     }
 
     private static func parse(files: [String: Data]) throws -> TVTimeArchive {
-        var entities: [String: TVTimeEntity] = [:]
-        var duplicateCount = 0
-        var diagnostics = TVTimeImportDiagnostics()
+        var state = TVTimeArchiveParseState()
 
         for (path, data) in files.sorted(by: { filePriority($0.key) < filePriority($1.key) }) {
             guard let csv = String(data: data, encoding: .utf8) else {
-                diagnostics.unreadableFileCount += 1
+                state.diagnostics.unreadableFileCount += 1
                 continue
             }
             let rows = TVTimeCSV.rows(csv)
@@ -22,79 +20,92 @@ enum TVTimeArchiveParser {
                 parseRecord(
                     filename,
                     values: TVTimeCSV.record(header: header, row: row),
-                    entities: &entities,
-                    duplicates: &duplicateCount,
-                    diagnostics: &diagnostics
+                    state: &state
                 )
             }
         }
 
-        guard !entities.isEmpty || diagnostics.hasReportableFailures else {
+        guard !state.entities.isEmpty || !state.lists.isEmpty || state.diagnostics.hasReportableFailures else {
             throw TVTimeImportError.noSupportedData
         }
         return TVTimeArchive(
-            entities: entities.values.sorted { $0.identity < $1.identity },
-            duplicateCount: duplicateCount,
-            diagnostics: diagnostics
+            entities: state.entities.values.sorted { $0.identity < $1.identity },
+            lists: state.lists.values.sorted { $0.id < $1.id },
+            duplicateCount: state.duplicateCount,
+            diagnostics: state.diagnostics
         )
     }
 
     private static func parseRecord(
         _ filename: String,
         values: [String: String],
-        entities: inout [String: TVTimeEntity],
-        duplicates: inout Int,
-        diagnostics: inout TVTimeImportDiagnostics
+        state: inout TVTimeArchiveParseState
     ) {
         if filename == "tracking-prod-records-v2.csv" {
             parseEpisodeRecord(
                 values,
-                entities: &entities,
-                duplicates: &duplicates,
-                diagnostics: &diagnostics
+                entities: &state.entities,
+                duplicates: &state.duplicateCount,
+                diagnostics: &state.diagnostics
             )
         } else if filename == "tracking-prod-records.csv" {
             parseLegacyRecord(
                 values,
-                entities: &entities,
-                duplicates: &duplicates,
-                diagnostics: &diagnostics
+                entities: &state.entities,
+                duplicates: &state.duplicateCount,
+                diagnostics: &state.diagnostics
             )
         } else if filename.contains("tvtime-series-episodes") {
             TVTimeNativeRecordParser.parseEpisodeRecord(
                 values,
-                entities: &entities,
-                duplicates: &duplicates,
-                diagnostics: &diagnostics
+                entities: &state.entities,
+                duplicates: &state.duplicateCount,
+                diagnostics: &state.diagnostics
             )
         } else if filename.contains("tvtime-movies-") {
             TVTimeNativeRecordParser.parseMovieRecord(
                 values,
-                entities: &entities,
-                duplicates: &duplicates,
-                diagnostics: &diagnostics
+                entities: &state.entities,
+                duplicates: &state.duplicateCount,
+                diagnostics: &state.diagnostics
             )
         } else if filename == "followed_tv_show.csv" {
-            parseFollowedShow(values, entities: &entities, diagnostics: &diagnostics)
+            parseFollowedShow(values, entities: &state.entities, diagnostics: &state.diagnostics)
         } else if filename.contains("tvtime-series-") {
             TVTimeNativeRecordParser.parseSeriesRecord(
                 values,
-                entities: &entities,
-                diagnostics: &diagnostics
+                entities: &state.entities,
+                diagnostics: &state.diagnostics
             )
         } else if filename == "tv_show_rate.csv" {
-            parseShowRating(values, entities: &entities, diagnostics: &diagnostics)
+            parseShowRating(values, entities: &state.entities, diagnostics: &state.diagnostics)
         } else if filename == "ratings-live-votes.csv" {
-            parseRatingVote(values, entities: &entities, diagnostics: &diagnostics)
+            parseRatingVote(values, entities: &state.entities, diagnostics: &state.diagnostics)
+        } else if filename == "lists-prod-lists.csv" {
+            TVTimeListParser.parseGDPR([values], lists: &state.lists)
+        } else if filename.contains("tvtime-lists-") {
+            TVTimeListParser.parseNative(
+                [values],
+                entities: &state.entities,
+                lists: &state.lists
+            )
         }
     }
 
     private static func filePriority(_ path: String) -> Int {
         let filename = URL(fileURLWithPath: path).lastPathComponent.lowercased()
         if filename.contains("rating") || filename == "tv_show_rate.csv" { return 2 }
+        if filename == "lists-prod-lists.csv" || filename.contains("tvtime-lists-") { return 3 }
         if filename == "followed_tv_show.csv" || filename.contains("tvtime-series-") { return 1 }
         return 0
     }
+}
+
+private struct TVTimeArchiveParseState {
+    var entities: [String: TVTimeEntity] = [:]
+    var lists: [MediaList.ID: TVTimeList] = [:]
+    var duplicateCount = 0
+    var diagnostics = TVTimeImportDiagnostics()
 }
 
 private extension TVTimeImportDiagnostics {
@@ -146,6 +157,7 @@ private extension TVTimeArchiveParser {
                     season: season,
                     episode: episode,
                     occurredAt: TVTimeCSV.date(values, ["watch_date_range_key", "watched_at", "created_at"]),
+                    rating: TVTimeCSV.double(values, ["episode_rating", "rating", "rate"]),
                     isRewatch: key.contains("rewatch")
                 ),
                 to: &entities[identity, default: initial],
@@ -199,6 +211,7 @@ private extension TVTimeArchiveParser {
                     season: kind == .series ? TVTimeCSV.int(values, ["season_number", "season", "s_no"]) : nil,
                     episode: kind == .series ? TVTimeCSV.int(values, ["episode_number", "episode", "ep_no"]) : nil,
                     occurredAt: TVTimeCSV.date(values, ["watch_date_range_key", "watched_at", "created_at"]),
+                    rating: TVTimeCSV.double(values, ["episode_rating", "rating", "rate"]),
                     isRewatch: false
                 ),
                 to: &entities[identity, default: initial],
@@ -305,8 +318,11 @@ private extension TVTimeArchiveParser {
         to entity: inout TVTimeEntity,
         duplicates: inout Int
     ) {
-        if !entity.watchKeys.insert(watch).inserted {
+        if let index = entity.watches.firstIndex(where: { $0.hasSameIdentity(as: watch) }) {
             duplicates += 1
+            if let rating = watch.rating {
+                entity.watches[index].rating = rating
+            }
         } else {
             entity.watches.append(watch)
         }
