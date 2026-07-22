@@ -9,6 +9,11 @@ extension AppModel {
         await syncSharedState()
     }
 
+    func applyLatestCloudSharedState() async {
+        guard sharedSpace.isCloudSharingEnabled else { return }
+        await applyCachedSharedState()
+    }
+
     func syncSharedStateSoon() {
         guard sharedSpace.isCloudSharingEnabled else { return }
         Task { await syncSharedState() }
@@ -47,6 +52,7 @@ extension AppModel {
               ),
               var remoteSpace = try? JSONDecoder.openTV.decode(SharedSpace.self, from: payload) else { return }
         let currentMemberID = sharedSpace.members.first(where: \.isCurrentUser)?.id
+        let newConversationEvents = newConversationEvents(in: remoteSpace)
         remoteSpace.members = mergingMembers(
             remote: remoteSpace.members,
             local: sharedSpace.members,
@@ -55,8 +61,10 @@ extension AppModel {
         remoteSpace.titleIDs = Array(Set(remoteSpace.titleIDs + sharedSpace.titleIDs)).sorted()
         remoteSpace.activity = merging(remoteSpace.activity, sharedSpace.activity)
         remoteSpace.watchEvents = merging(remoteSpace.watchEvents ?? [], sharedSpace.watchEvents ?? [])
-        remoteSpace.reactions = merging(remoteSpace.reactions ?? [], sharedSpace.reactions ?? [])
-        remoteSpace.notes = merging(remoteSpace.notes ?? [], sharedSpace.notes ?? [])
+        let retainedConversationEvents = reconcileConversation(
+            in: &remoteSpace,
+            newEvents: newConversationEvents
+        )
         let remoteMetadata = remoteSpace.titleMetadata ?? []
         let localMetadata = sharedSpace.titleMetadata ?? []
         remoteSpace.titleMetadata = mergingTitleMetadata(remote: remoteMetadata, local: localMetadata)
@@ -71,6 +79,49 @@ extension AppModel {
         remoteSpace.isCurrentUserShareOwner = sharedSpace.isCurrentUserShareOwner
         sharedSpace = remoteSpace
         persist()
+        await sharedConversationNotifier.notify(
+            about: retainedConversationEvents,
+            in: remoteSpace
+        )
+    }
+
+    private func newConversationEvents(
+        in remoteSpace: SharedSpace
+    ) -> [SharedConversationNotificationEvent] {
+        let localNoteIDs = Set((sharedSpace.notes ?? []).map(\.id))
+        let localReactionsByID = (sharedSpace.reactions ?? []).reduce(
+            into: [SharedReaction.ID: SharedReaction]()
+        ) { $0[$1.id] = $1 }
+        let notes = (remoteSpace.notes ?? [])
+            .filter { !localNoteIDs.contains($0.id) }
+            .map(SharedConversationNotificationEvent.note)
+        let reactions = (remoteSpace.reactions ?? [])
+            .filter { remoteReaction in
+                guard let localReaction = localReactionsByID[remoteReaction.id] else { return true }
+                return remoteReaction.occurredAt > localReaction.occurredAt
+            }
+            .map(SharedConversationNotificationEvent.reaction)
+        return notes + reactions
+    }
+
+    private func reconcileConversation(
+        in remoteSpace: inout SharedSpace,
+        newEvents: [SharedConversationNotificationEvent]
+    ) -> [SharedConversationNotificationEvent] {
+        let conversation = SharedConversationReconciler.reconcile(
+            remote: remoteSpace,
+            local: sharedSpace
+        )
+        remoteSpace.reactions = conversation.reactions
+        remoteSpace.notes = conversation.notes
+        remoteSpace.conversationDeletions = conversation.deletions
+        let retainedNoteEventIDs = Set(conversation.notes.map { "note:\($0.id)" })
+        let retainedReactionEventIDs = Set(conversation.reactions.map {
+            "reaction:\($0.id):\($0.occurredAt.timeIntervalSince1970)"
+        })
+        return newEvents.filter {
+            retainedNoteEventIDs.contains($0.id) || retainedReactionEventIDs.contains($0.id)
+        }
     }
 
     private func mergingMembers(

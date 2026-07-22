@@ -5,6 +5,7 @@ import Observation
 final class AppModel {
     let store: any LibraryPersisting
     private let recommendationService: any RecommendationProviding
+    let sharedConversationNotifier: any SharedConversationNotifying
     let reminderScheduler: any ReminderScheduling
     let catalogService: any CatalogProviding
     private let seed: LibrarySnapshot
@@ -43,12 +44,14 @@ final class AppModel {
     init(
         store: any LibraryPersisting = LibraryStoreFactory.makeDefault(),
         recommendationService: any RecommendationProviding = ProviderNeutralRecommendationService(),
+        sharedConversationNotifier: any SharedConversationNotifying = SharedConversationNotificationService(),
         reminderScheduler: (any ReminderScheduling)? = nil,
         catalogService: (any CatalogProviding)? = nil,
         seed: LibrarySnapshot = .empty
     ) {
         self.store = store
         self.recommendationService = recommendationService
+        self.sharedConversationNotifier = sharedConversationNotifier
         if let reminderScheduler {
             self.reminderScheduler = reminderScheduler
         } else if seed == .empty {

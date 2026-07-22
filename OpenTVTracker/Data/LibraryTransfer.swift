@@ -380,12 +380,6 @@ extension LibraryTransferService {
     }
 }
 
-private enum CSVRowResult {
-    case matched
-    case duplicate
-    case skipped
-}
-
 enum LibraryTransferError: LocalizedError {
     case emptyFile
     case unreadableFile

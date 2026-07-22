@@ -19,15 +19,20 @@ Optional partner sharing depends on the viewer's iCloud account and Apple's Clou
 
 OpenTV provides a complete, versioned JSON export of the current local library snapshot without an account, subscription, or support request. It includes the locally retained title and tracking data, preferences needed to restore the library, and the locally retained Together-space snapshot. The same JSON format can be imported into OpenTV.
 
-OpenTV also provides two narrower, human-readable CSV exports:
+OpenTV also provides three narrower, human-readable CSV exports:
 
 | Format | Purpose | Contents |
 | --- | --- | --- |
 | Versioned JSON | Restorable backup | Current local library snapshot and supported settings |
 | Titles CSV | Inspection and interoperability | Titles, year, media kind, state, watchlist membership, progress, rating, notes, rewatches, and last-watched date |
 | Watch events CSV | Event-level inspection | Shared watched, watched-together, correction, and rewatch events retained in the local snapshot |
+| Private conversations CSV | Shared-space inspection | Episode watch-event IDs, member IDs, bounded reaction asset IDs, private notes, and timestamps retained in the local snapshot |
 
 Exports never include Keychain secrets, App Attest credentials, provider credentials, or an undisclosed server-side profile. A complete JSON export is a snapshot of data currently available to the app; it cannot recover CloudKit records that are no longer accessible or third-party data OpenTV never stored.
+
+The owner of a private shared space can delete its retained episode notes and reactions without deleting watch history. OpenTV syncs timestamped deletion tombstones to invited members so an older offline copy cannot silently restore deleted conversation data. Leaving or revoking a space continues to purge the device's retained CloudKit state.
+
+Episode reactions are limited to five Unicode emoji and three GIFs bundled with OpenTV. Shared records contain only the bounded asset identifier; they never contain arbitrary media URLs, uploaded files, or third-party tracking requests. Optional local notifications are generated only for entries authored by another member of the accepted invitation-only space, and their text never includes the private note, reaction, title, or episode spoiler.
 
 The importer accepts supported older archive schemas and rejects a newer unsupported schema instead of silently applying a partial restore. On a fresh install, the JSON restores the archived local snapshot. On an existing library, titles added after the backup remain, matching titles use the archived tracking values, and Together history merges by stable identity without deleting newer shared entries. The preview states these rules and identifies settings restored from the archive, including whether optional AI reranking will be enabled. If a future migration cannot preserve a field, the release must document that limitation before changing the export format.
 

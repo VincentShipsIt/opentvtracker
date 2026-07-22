@@ -209,28 +209,53 @@ extension AppModel {
         episode: EpisodeSummary
     ) {
         guard let index = trackableTitleIndex(for: titleID) else { return }
-        var watchedIDs = resolvedWatchedEpisodeIDs(for: titles[index])
-        guard watchedIDs.insert(episode.id).inserted else { return }
+        let existingEvents = (sharedSpace.watchEvents ?? []).filter { event in
+            event.titleID == titleID
+                && event.kind == .watchedTogether
+                && event.season == season.number
+                && event.episode == episode.number
+        }
 
-        titles[index].watchedEpisodeIDs = watchedIDs
-        updateEpisodeProgress(at: index, watchedIDs: watchedIDs)
-        titles[index].lastWatchedAt = .now
-        for member in sharedSpace.members {
-            appendWatchEvent(
+        var watchedIDs = resolvedWatchedEpisodeIDs(for: titles[index])
+        let markedEpisodeWatched = watchedIDs.insert(episode.id).inserted
+        if markedEpisodeWatched {
+            titles[index].watchedEpisodeIDs = watchedIDs
+            updateEpisodeProgress(at: index, watchedIDs: watchedIDs)
+        }
+        let currentMemberID = sharedSpace.members.first(where: \.isCurrentUser)?.id
+        var conversationWatchEvent = existingEvents.first { $0.memberID == currentMemberID }
+            ?? existingEvents.first
+        var addedWatchEvent = false
+        let membersWithEvents = Set(existingEvents.map(\.memberID))
+        for member in sharedSpace.members where !membersWithEvents.contains(member.id) {
+            let event = appendWatchEvent(
                 title: titles[index],
                 kind: .watchedTogether,
                 memberID: member.id,
                 season: season.number,
                 episode: episode.number
             )
+            if member.id == currentMemberID || conversationWatchEvent == nil {
+                conversationWatchEvent = event
+            }
+            addedWatchEvent = true
         }
-        addActivity(
-            description: "watched \(titles[index].title) S\(season.number) E\(episode.number) together",
-            titleID: titles[index].id
-        )
+        guard markedEpisodeWatched || addedWatchEvent else { return }
+        titles[index].lastWatchedAt = .now
+        if addedWatchEvent {
+            addActivity(
+                description: "watched \(titles[index].title) S\(season.number) E\(episode.number) together",
+                titleID: titles[index].id,
+                kind: .watchedTogether,
+                watchEventID: conversationWatchEvent?.id,
+                season: season.number,
+                episode: episode.number
+            )
+        }
         persist()
         syncSharedStateSoon()
     }
+
 }
 
 private extension AppModel {
@@ -367,16 +392,5 @@ private extension AppModel {
                 supersedesEventID: event.id
             )
         }
-    }
-}
-
-extension AppModel {
-    func resolvedWatchedEpisodeIDs(for title: MediaTitle) -> Set<EpisodeSummary.ID> {
-        if let watchedEpisodeIDs = title.watchedEpisodeIDs { return watchedEpisodeIDs }
-        if title.progress != nil { return title.episodeIDsThroughProgress }
-        if title.state.isCurrentViewingComplete {
-            return Set(releasedEpisodes(for: title).map(\.id))
-        }
-        return []
     }
 }
