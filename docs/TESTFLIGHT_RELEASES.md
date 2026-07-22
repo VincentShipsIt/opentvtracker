@@ -4,15 +4,23 @@ Publishing a GitHub release from a `vX.Y.Z` tag archives the tagged commit and u
 
 ## One-time setup
 
-Create a GitHub environment named `testflight`. Allow deployments only from `v*` tags and the `main` branch (for manual retries), then add any desired required reviewers. Store these environment secrets:
+Create a GitHub environment named `testflight`. Allow deployments only from `v*` tags and the `main` branch (for manual retries), then add any desired required reviewers.
 
-- `APPLE_DISTRIBUTION_CERTIFICATE_BASE64`: base64-encoded Apple Distribution `.p12` certificate and private key.
-- `APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD`: password used when exporting the `.p12`.
-- `APP_STORE_CONNECT_API_KEY_BASE64`: base64-encoded App Store Connect `AuthKey_<KEY_ID>.p8` file.
-- `APP_STORE_CONNECT_KEY_ID`: App Store Connect API key ID.
-- `APP_STORE_CONNECT_ISSUER_ID`: App Store Connect issuer ID.
+Use the same non-sensitive repository variables as ShipCode, MeterBar, and MacSweep:
 
-Use a team App Store Connect API key that can upload builds and access Certificates, Identifiers & Profiles. The App ID and widget extension must already exist for team `C76R5DRH64`, with automatic signing able to create or download their App Store provisioning profiles.
+- `APPLE_TEAM_ID`
+- `APPLE_API_KEY_ID`
+- `APPLE_API_ISSUER_ID`
+
+Store the shared App Store Connect key and iOS-specific signing certificate as environment secrets:
+
+- `APPLE_API_PRIVATE_KEY_P8_BASE64`: the same base64-encoded App Store Connect API key used by the other release workflows.
+- `APPLE_DISTRIBUTION_P12_BASE64`: base64-encoded Apple Distribution `.p12` certificate and private key.
+- `APPLE_DISTRIBUTION_P12_PASSWORD`: password used when exporting the Apple Distribution `.p12`.
+
+Do not reuse `DEVELOPER_ID_P12_BASE64` or `DEVELOPER_ID_P12_PASSWORD`: those contain the macOS Developer ID identity used outside the App Store and cannot sign an iOS TestFlight build.
+
+Use a team App Store Connect API key that can upload builds and access Certificates, Identifiers & Profiles. The App ID and widget extension must already exist for `APPLE_TEAM_ID`, with automatic signing able to create or download their App Store provisioning profiles.
 
 Encode binary and key files without line wrapping:
 
