@@ -174,7 +174,6 @@ extension AppModel {
             watchedAt: watchedAt,
             isRewatch: true
         )
-        titles[index].rewatchCount = titles[index].completedRewatches + 1
         titles[index].lastWatchedAt = max(
             titles[index].lastWatchedAt ?? .distantPast,
             watchedAt

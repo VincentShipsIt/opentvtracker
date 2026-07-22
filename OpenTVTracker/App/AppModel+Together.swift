@@ -139,11 +139,12 @@ extension AppModel {
             appendDiaryWatch(title: titles[index], watchedAt: watchedAt, isRewatch: isRewatch)
         }
         let currentMemberID = sharedSpace.members.first(where: \.isCurrentUser)?.id
+        let watchEventKind: WatchEventKind = isRewatch ? .rewatch : .watchedTogether
         var conversationWatchEvent: SharedWatchEvent?
         for member in sharedSpace.members {
             let event = appendWatchEvent(
                 title: titles[index],
-                kind: .watchedTogether,
+                kind: watchEventKind,
                 memberID: member.id,
                 occurredAt: watchedAt
             )

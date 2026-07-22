@@ -84,7 +84,11 @@ extension LibraryTransferService {
 
             if let index = merged.titles.firstIndex(where: { titlesMatch($0, importedTitle) }) {
                 importedTitleIDMap[importedTitle.id] = merged.titles[index].id
-                merged.titles[index] = mergingTracking(from: importedTitle, into: merged.titles[index])
+                merged.titles[index] = mergingTracking(
+                    from: importedTitle,
+                    into: merged.titles[index],
+                    fromSchemaVersion: imported.schemaVersion
+                )
                 matched += 1
             } else {
                 importedTitleIDMap[importedTitle.id] = importedTitle.id

@@ -50,6 +50,10 @@ struct TraktRefreshRequest: Encodable {
     }
 }
 
+struct TraktOAuthErrorResponse: Decodable {
+    let error: String
+}
+
 struct TraktRevokeRequest: Encodable {
     let token: String
     let clientID: String

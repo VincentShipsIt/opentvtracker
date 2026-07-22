@@ -128,6 +128,7 @@ final class ViewingDiaryTests: XCTestCase {
         let model = try makeModel()
         model.setEpisodeWatched(true, titleID: "severance", seasonNumber: 1, episodeID: "s1e1")
         let latestWatch = try XCTUnwrap(model.mediaTitle(withID: "severance")?.lastWatchedAt)
+        let completedRewatches = model.mediaTitle(withID: "severance")?.completedRewatches
 
         model.recordEpisodeRewatch(
             titleID: "severance",
@@ -137,6 +138,7 @@ final class ViewingDiaryTests: XCTestCase {
         )
 
         XCTAssertEqual(model.mediaTitle(withID: "severance")?.lastWatchedAt, latestWatch)
+        XCTAssertEqual(model.mediaTitle(withID: "severance")?.completedRewatches, completedRewatches)
     }
 
     func testLegacyWatchEventsMigrateOnceAndIgnoreCorrectionsAndOtherMembers() throws {
@@ -265,6 +267,10 @@ final class ViewingDiaryTests: XCTestCase {
         let title = try XCTUnwrap(model.mediaTitle(withID: "past-lives"))
         XCTAssertEqual(title.completedRewatches, 2)
         XCTAssertFalse(title.isOnPersonalWatchlist)
+        XCTAssertTrue(model.diaryEntries(for: .title(titleID: title.id)).contains { $0.isRewatch })
+        XCTAssertTrue(model.sharedSpace.watchEvents?.contains {
+            $0.titleID == title.id && $0.kind == .rewatch
+        } == true)
     }
 
     private func makeModel() throws -> AppModel {

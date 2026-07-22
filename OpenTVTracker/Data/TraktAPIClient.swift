@@ -208,7 +208,7 @@ extension TraktAPIClient {
 
     private func refresh(_ token: TraktOAuthToken) async throws -> TraktOAuthToken {
         do {
-            let refreshed: TraktOAuthToken = try await send(
+            let request = try makeRequest(
                 path: "/oauth/token",
                 method: "POST",
                 body: TraktRefreshRequest(
@@ -219,6 +219,14 @@ extension TraktAPIClient {
                 ),
                 token: nil
             )
+            let (data, response) = try await data(for: request)
+            if response.statusCode == 400,
+               (try? Self.decoder.decode(TraktOAuthErrorResponse.self, from: data))?.error == "invalid_grant" {
+                try? credentials.remove(account: Self.tokenAccount)
+                throw TraktSyncError.notAuthorized
+            }
+            try validate(response)
+            let refreshed = try Self.decoder.decode(TraktOAuthToken.self, from: data)
             try store(refreshed)
             return refreshed
         } catch TraktSyncError.notAuthorized {

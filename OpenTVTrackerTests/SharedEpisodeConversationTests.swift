@@ -230,7 +230,7 @@ extension SharedEpisodeConversationTests {
                 id: "note",
                 titleID: "severance",
                 memberID: "partner",
-                text: "=HYPERLINK(\"https://tracker.example\")\rPrivate note",
+                text: "\t=HYPERLINK(\"https://tracker.example\")\rPrivate note",
                 createdAt: Date(timeIntervalSince1970: 10),
                 watchEventID: Self.watchEvent.id,
                 season: 1,
@@ -258,7 +258,7 @@ extension SharedEpisodeConversationTests {
 
         XCTAssertTrue(csv.contains("reaction,reaction,\(Self.watchEvent.id)"))
         XCTAssertTrue(csv.contains("note,note,\(Self.watchEvent.id)"))
-        XCTAssertTrue(csv.contains("\"'=HYPERLINK(\"\"https://tracker.example\"\")\rPrivate note\""))
+        XCTAssertTrue(csv.contains("\"'\t=HYPERLINK(\"\"https://tracker.example\"\")\rPrivate note\""))
         XCTAssertEqual(decoded.sharedSpace.notes?.first?.id, "note")
         XCTAssertEqual(decoded.sharedSpace.reactions?.first?.id, "reaction")
     }
