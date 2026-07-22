@@ -35,24 +35,29 @@ extension LibraryTransferService {
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    static func mergingTracking(from imported: MediaTitle, into catalog: MediaTitle) -> MediaTitle {
+    static func mergingTracking(
+        from imported: MediaTitle,
+        into catalog: MediaTitle,
+        fromSchemaVersion schemaVersion: Int?
+    ) -> MediaTitle {
+        let preservesMissingLegacyValues = (schemaVersion ?? 1) < LibraryArchiveEnvelope.currentSchemaVersion
         var result = catalog
         result.state = imported.state
-        result.progress = imported.progress
-        result.userRating = imported.userRating
-        result.notes = imported.notes
-        result.rewatchCount = imported.rewatchCount
-        result.lastWatchedAt = imported.lastWatchedAt
-        result.isDismissed = imported.isDismissed
-        result.isDisliked = imported.isDisliked
-        result.personalWatchlist = imported.personalWatchlist
+        result.progress = preservesMissingLegacyValues ? imported.progress ?? catalog.progress : imported.progress
+        result.userRating = preservesMissingLegacyValues ? imported.userRating ?? catalog.userRating : imported.userRating
+        result.notes = preservesMissingLegacyValues ? imported.notes ?? catalog.notes : imported.notes
+        result.rewatchCount = preservesMissingLegacyValues ? imported.rewatchCount ?? catalog.rewatchCount : imported.rewatchCount
+        result.lastWatchedAt = preservesMissingLegacyValues ? imported.lastWatchedAt ?? catalog.lastWatchedAt : imported.lastWatchedAt
+        result.isDismissed = preservesMissingLegacyValues ? imported.isDismissed ?? catalog.isDismissed : imported.isDismissed
+        result.isDisliked = preservesMissingLegacyValues ? imported.isDisliked ?? catalog.isDisliked : imported.isDisliked
+        result.personalWatchlist = preservesMissingLegacyValues ? imported.personalWatchlist ?? catalog.personalWatchlist : imported.personalWatchlist
         if let watchedEpisodeIDs = imported.watchedEpisodeIDs {
             result.watchedEpisodeIDs = watchedEpisodeIDs
         }
         result.seriesLifecycle = imported.seriesLifecycle ?? catalog.seriesLifecycle
-        result.isUpNextPinned = imported.isUpNextPinned
-        result.upNextSnoozedUntil = imported.upNextSnoozedUntil
-        result.upNextManualOrder = imported.upNextManualOrder
+        result.isUpNextPinned = preservesMissingLegacyValues ? imported.isUpNextPinned ?? catalog.isUpNextPinned : imported.isUpNextPinned
+        result.upNextSnoozedUntil = preservesMissingLegacyValues ? imported.upNextSnoozedUntil ?? catalog.upNextSnoozedUntil : imported.upNextSnoozedUntil
+        result.upNextManualOrder = preservesMissingLegacyValues ? imported.upNextManualOrder ?? catalog.upNextManualOrder : imported.upNextManualOrder
         return result
     }
 }

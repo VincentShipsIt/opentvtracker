@@ -123,6 +123,16 @@ describe("mapReviews", () => {
       "tmdb-review-2-1",
     ]);
   });
+
+  test("keeps the requested review page when TMDB reports a mismatched page", () => {
+    const page = mapReviewPage(
+      { page: 1, total_pages: 4, results: [{ content: "Review" }] },
+      3,
+    );
+
+    expect(page.page).toBe(3);
+    expect(page.results[0]?.id).toBe("tmdb-review-3-0");
+  });
 });
 
 describe("mapEpisodeSummary", () => {

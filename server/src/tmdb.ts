@@ -501,7 +501,7 @@ export function mapReviewPage(
   payload: Record<string, unknown>,
   requestedPage: number,
 ): CommunityReviewPage {
-  const page = boundedInteger(payload.page, requestedPage, 1, 100);
+  const page = boundedInteger(requestedPage, 1, 1, 100);
   const rawTotalPages = numberValue(payload.total_pages);
   const totalPages =
     rawTotalPages !== null && Number.isSafeInteger(rawTotalPages)

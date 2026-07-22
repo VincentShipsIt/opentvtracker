@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 import WebKit
 
@@ -215,11 +216,13 @@ private struct InlineTrailerWebView: UIViewRepresentable {
             onStateChange(.ready)
         }
 
-        func webView(_: WKWebView, didFail _: WKNavigation?, withError _: Error) {
+        func webView(_: WKWebView, didFail _: WKNavigation?, withError error: Error) {
+            guard (error as NSError).code != NSURLErrorCancelled else { return }
             onStateChange(.failed)
         }
 
-        func webView(_: WKWebView, didFailProvisionalNavigation _: WKNavigation?, withError _: Error) {
+        func webView(_: WKWebView, didFailProvisionalNavigation _: WKNavigation?, withError error: Error) {
+            guard (error as NSError).code != NSURLErrorCancelled else { return }
             onStateChange(.failed)
         }
 
