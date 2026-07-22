@@ -65,7 +65,9 @@ enum DiscoverCategory: String, CaseIterable, Hashable, Identifiable {
     }
 
     func titles(from catalog: [MediaTitle]) -> [MediaTitle] {
-        let matchingTitles = catalog.filter { $0.state != .completed && matches($0) }
+        let matchingTitles = catalog.filter {
+            !$0.state.isCurrentViewingComplete && $0.state != .dropped && matches($0)
+        }
         if self == .topRated {
             return matchingTitles.sorted {
                 if $0.rating != $1.rating { return $0.rating > $1.rating }

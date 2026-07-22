@@ -11,7 +11,7 @@ enum TVTimeHistoryApplier {
         let importedWatchlist = !entity.isArchived
             && (entity.isForLater || (entity.isFollowed && entity.watches.isEmpty))
         if entity.isArchived {
-            title.state = .paused
+            title.state = .dropped
             title.personalWatchlist = false
         } else if entity.isForLater || (entity.isFollowed && entity.watches.isEmpty) {
             title.personalWatchlist = true
@@ -101,7 +101,7 @@ enum TVTimeHistoryApplier {
 
         let releasedEpisodeIDs = releasedEpisodeIDs(in: title)
         title.state = !releasedEpisodeIDs.isEmpty && releasedEpisodeIDs.isSubset(of: watchedIDs)
-            ? .completed : .watching
+            ? title.finishedWatchState : .watching
 
         let rewatchCounts = rewatchCounts(for: matchedWatches)
         title.rewatchCount = max(title.completedRewatches, rewatchCounts.title)
@@ -130,7 +130,7 @@ enum TVTimeHistoryApplier {
         Set((title.seasons ?? []).flatMap { season in
             guard season.number > 0 else { return [EpisodeSummary.ID]() }
             return season.episodes.compactMap { episode in
-                guard let airDate = episode.airDate, airDate <= Date() else { return nil }
+                guard episode.airDate.map({ $0 <= Date() }) ?? true else { return nil }
                 return episode.id
             }
         })

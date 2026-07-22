@@ -101,7 +101,6 @@ enum DiscoveryAssistantEngine {
         selectedProviderIDs: Set<StreamingProvider.ID>
     ) -> Bool {
         guard title.isRecommendationEligible,
-              title.state != .completed,
               !selectedProviderIDs.isEmpty,
               !selectedProviderIDs.isDisjoint(with: Set(title.providers.map(\.id))) else {
             return false

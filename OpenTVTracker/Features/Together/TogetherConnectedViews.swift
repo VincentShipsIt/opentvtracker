@@ -143,12 +143,25 @@ struct TogetherSharedWatchlistSection: View {
                         MediaProgressRow(
                             title: title,
                             summary: model.togetherProgressSummary(for: title),
-                            subtitle: title.kind == .movie ? "Shared movie" : "In your shared queue"
+                            subtitle: sharedTitleSubtitle(for: title)
                         )
                     }
                     .buttonStyle(.plain)
                 }
             }
+        }
+    }
+    private func sharedTitleSubtitle(for title: MediaTitle) -> String {
+        if title.kind == .movie { return "Shared movie" }
+        switch title.state {
+        case .planned:
+            return "Shared watchlist"
+        case .caughtUp:
+            return "Caught up together"
+        case .paused, .dropped:
+            return title.state == .paused ? "Paused together" : "Dropped together"
+        default:
+            return "Watching together"
         }
     }
 }
@@ -209,7 +222,9 @@ private struct SharedTitlePickerView: View {
         model.titles
             .filter { !model.isShared($0.id) }
             .sorted { lhs, rhs in
-                if lhs.state != rhs.state { return lhs.state == .watching }
+                if (lhs.state == .watching) != (rhs.state == .watching) {
+                    return lhs.state == .watching
+                }
                 return lhs.title.localizedStandardCompare(rhs.title) == .orderedAscending
             }
     }

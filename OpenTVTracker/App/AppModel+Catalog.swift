@@ -181,6 +181,9 @@ extension AppModel {
                 && title.userRating == nil
                 && title.notes == nil
                 && title.completedRewatches == 0
+                && title.isUpNextPinned != true
+                && title.upNextSnoozedUntil == nil
+                && title.upNextManualOrder == nil
                 && !sharedTitleIDs.contains(title.id)
         }
     }
@@ -206,6 +209,7 @@ extension AppModel {
         result.nextEpisodeAirDate = details.nextEpisodeAirDate
         result.releaseDate = details.releaseDate
         result.seasons = details.seasons
-        return result
+        result.seriesLifecycle = details.seriesLifecycle ?? existing.seriesLifecycle
+        return refreshedTrackingTitle(result)
     }
 }
