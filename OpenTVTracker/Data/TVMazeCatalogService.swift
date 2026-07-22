@@ -53,6 +53,10 @@ struct TVMazeCatalogService: CatalogProviding {
         return show.mediaTitle
     }
 
+    func reviews(kind _: MediaKind, catalogID _: Int, page: Int) async throws -> CommunityReviewPage {
+        CommunityReviewPage(page: max(page, 1), totalPages: 1, results: [])
+    }
+
     private func endpoint(path: String, queryItems: [URLQueryItem]) throws -> URL {
         guard var components = URLComponents(
             url: baseURL.appending(path: path),

@@ -67,7 +67,7 @@ type StreamingProvider = {
   brandHex: string | null;
 };
 
-type CommunityReview = {
+export type CommunityReview = {
   id: string;
   author: string;
   excerpt: string;
@@ -79,6 +79,12 @@ type CommunityReview = {
   sourceURL: string | null;
   createdAt: string | null;
   updatedAt: string | null;
+};
+
+export type CommunityReviewPage = {
+  page: number;
+  totalPages: number;
+  results: CommunityReview[];
 };
 
 export type EpisodeSummary = {
@@ -175,6 +181,19 @@ export class TMDBClient {
     );
     const seasons = kind === "series" ? await this.seasons(id, details) : null;
     return mapDetails(details, kind, region, seasons);
+  }
+
+  async reviews(
+    kind: MediaKind,
+    id: number,
+    page: number,
+  ): Promise<CommunityReviewPage> {
+    const namespace = kind === "movie" ? "movie" : "tv";
+    const requestedPage = Math.max(page, 1);
+    const payload = await this.get<Record<string, unknown>>(
+      `/${namespace}/${id}/reviews?language=en-US&page=${requestedPage}`,
+    );
+    return mapReviewPage(payload, requestedPage);
   }
 
   private async seasons(
@@ -410,6 +429,23 @@ export function mapEpisodeSummary(
   };
 }
 
+export function mapReviewPage(
+  payload: Record<string, unknown>,
+  requestedPage: number,
+): CommunityReviewPage {
+  const page = boundedInteger(payload.page, requestedPage, 1, 100);
+  const rawTotalPages = numberValue(payload.total_pages);
+  const totalPages =
+    rawTotalPages !== null && Number.isSafeInteger(rawTotalPages)
+      ? Math.min(Math.max(rawTotalPages, page), 100)
+      : page;
+  return {
+    page,
+    totalPages,
+    results: mapReviews(payload, page, 20),
+  };
+}
+
 function episodeReleaseType(
   value: unknown,
 ): "standard" | "mid_season" | "finale" | null {
@@ -421,16 +457,21 @@ function episodeReleaseType(
 
 export function mapReviews(
   payload: Record<string, unknown>,
+  page = 1,
+  maximum = 8,
 ): CommunityReview[] {
   return (Array.isArray(payload.results) ? payload.results : [])
-    .slice(0, 8)
+    .slice(0, maximum)
     .map((value, index): CommunityReview => {
       const review = asRecord(value);
       const authorDetails = asRecord(review.author_details);
       const content =
         stringValue(review.content)?.replace(/\s+/g, " ").trim() ?? "";
+      const providerID = stringValue(review.id);
       return {
-        id: `tmdb-review-${stringValue(review.id) ?? index}`,
+        id: providerID
+          ? `tmdb-review-${providerID}`
+          : `tmdb-review-${page}-${index}`,
         author: stringValue(review.author) ?? "TMDB member",
         excerpt: content,
         rating: numberValue(authorDetails.rating),
@@ -513,4 +554,19 @@ function stringValue(value: unknown): string | null {
 
 function numberValue(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function boundedInteger(
+  value: unknown,
+  fallback: number,
+  minimum: number,
+  maximum: number,
+): number {
+  const parsed = numberValue(value);
+  return parsed !== null &&
+    Number.isSafeInteger(parsed) &&
+    parsed >= minimum &&
+    parsed <= maximum
+    ? parsed
+    : fallback;
 }

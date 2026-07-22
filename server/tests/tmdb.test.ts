@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   mapEpisodeSummary,
+  mapReviewPage,
   mapReviews,
   mapSeriesLifecycle,
   mapStreamingProvider,
@@ -52,6 +53,27 @@ describe("mapReviews", () => {
       createdAt: "2026-07-14T10:30:15Z",
       updatedAt: "2026-07-15T11:45:00Z",
     });
+  });
+
+  test("maps bounded review pages with stable cross-page identities", () => {
+    const page = mapReviewPage(
+      {
+        page: 2,
+        total_pages: 120,
+        results: [
+          { id: "stable", content: "First" },
+          { content: "No provider identifier" },
+        ],
+      },
+      2,
+    );
+
+    expect(page.page).toBe(2);
+    expect(page.totalPages).toBe(100);
+    expect(page.results.map((review) => review.id)).toEqual([
+      "tmdb-review-stable",
+      "tmdb-review-2-1",
+    ]);
   });
 });
 

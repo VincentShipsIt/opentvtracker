@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   readJSONBody,
+  validateCatalogReviews,
   validateCatalogSearch,
   validateCatalogTitle,
   validateCinemaShowings,
@@ -17,6 +18,12 @@ describe("request validation", () => {
       "/v1/catalog/movie/42".match(/^\/v1\/catalog\/(movie|series)\/(\d+)$/)!,
       new URL("https://example.test/v1/catalog/movie/42?region=US"),
     );
+    const reviews = validateCatalogReviews(
+      "/v1/catalog/series/42/reviews".match(
+        /^\/v1\/catalog\/(movie|series)\/(\d+)\/reviews$/,
+      )!,
+      new URL("https://example.test/v1/catalog/series/42/reviews?page=3"),
+    );
 
     expect(search).toEqual({
       query: "Drama",
@@ -25,6 +32,7 @@ describe("request validation", () => {
       region: "MT",
     });
     expect(title).toEqual({ kind: "movie", id: 42, region: "US" });
+    expect(reviews).toEqual({ kind: "series", id: 42, page: 3 });
   });
 
   test("rejects unknown, oversized, and out-of-range catalog inputs", () => {
@@ -53,6 +61,14 @@ describe("request validation", () => {
         new URL("https://example.test/v1/catalog/search?region=MALTA"),
       ),
     ).toThrow("invalid_region");
+    expect(() =>
+      validateCatalogReviews(
+        "/v1/catalog/movie/42/reviews".match(
+          /^\/v1\/catalog\/(movie|series)\/(\d+)\/reviews$/,
+        )!,
+        new URL("https://example.test/v1/catalog/movie/42/reviews?page=101"),
+      ),
+    ).toThrow("invalid_page");
   });
 
   test("bounds cinema dates and region", () => {
