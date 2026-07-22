@@ -78,7 +78,32 @@ extension AppModel {
             guard let currentTitle = currentByID[syncedTitle.id] else {
                 return nil
             }
-            return currentTitle == baselineTitle ? syncedTitle : currentTitle
+            var mergedTitle = currentTitle
+            if currentTitle.state == baselineTitle.state {
+                mergedTitle.state = syncedTitle.state
+            }
+            if currentTitle.progress == baselineTitle.progress {
+                mergedTitle.progress = syncedTitle.progress
+            }
+            if currentTitle.userRating == baselineTitle.userRating {
+                mergedTitle.userRating = syncedTitle.userRating
+            }
+            if currentTitle.rewatchCount == baselineTitle.rewatchCount {
+                mergedTitle.rewatchCount = syncedTitle.rewatchCount
+            }
+            if currentTitle.lastWatchedAt == baselineTitle.lastWatchedAt {
+                mergedTitle.lastWatchedAt = syncedTitle.lastWatchedAt
+            }
+            if currentTitle.personalWatchlist == baselineTitle.personalWatchlist {
+                mergedTitle.personalWatchlist = syncedTitle.personalWatchlist
+            }
+            if currentTitle.watchedEpisodeIDs == baselineTitle.watchedEpisodeIDs {
+                mergedTitle.watchedEpisodeIDs = syncedTitle.watchedEpisodeIDs
+            }
+            if currentTitle.seasons == baselineTitle.seasons {
+                mergedTitle.seasons = syncedTitle.seasons
+            }
+            return mergedTitle
         }
         let mergedIDs = Set(merged.map(\.id))
         merged.append(contentsOf: current.filter { baselineByID[$0.id] == nil && !mergedIDs.contains($0.id) })

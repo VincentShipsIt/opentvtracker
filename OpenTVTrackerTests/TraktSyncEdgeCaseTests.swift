@@ -185,4 +185,42 @@ final class TraktSyncEdgeCaseTests: XCTestCase {
         XCTAssertFalse(isAuthorized)
         XCTAssertNotNil(try credentials.data(for: TraktAPIClient.tokenAccount))
     }
+
+    func testInvalidGrantRefreshRemovesStoredCredential() async throws {
+        let credentials = MemorySecureCredentialStore()
+        let token = TraktOAuthToken(
+            accessToken: "expired-access-token",
+            tokenType: "bearer",
+            expiresIn: 1,
+            refreshToken: "revoked-refresh-token",
+            scope: "public",
+            createdAt: 1
+        )
+        try credentials.set(JSONEncoder().encode(token), for: TraktAPIClient.tokenAccount)
+        TestURLProtocol.handler = { request in
+            (
+                HTTPURLResponse(
+                    url: request.url!,
+                    statusCode: 400,
+                    httpVersion: nil,
+                    headerFields: nil
+                )!,
+                Data(#"{"error":"invalid_grant"}"#.utf8)
+            )
+        }
+        let client = TraktAPIClient(
+            configuration: TraktConfiguration(
+                clientID: "client-id",
+                clientSecret: "client-secret"
+            ),
+            credentials: credentials,
+            session: TestURLProtocol.session(),
+            now: { Date(timeIntervalSince1970: 2_000_000_000) }
+        )
+
+        let isAuthorized = await client.isAuthorized()
+
+        XCTAssertFalse(isAuthorized)
+        XCTAssertNil(try credentials.data(for: TraktAPIClient.tokenAccount))
+    }
 }

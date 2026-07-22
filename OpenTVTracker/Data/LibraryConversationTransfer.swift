@@ -49,7 +49,7 @@ extension LibraryTransferService {
     }
 
     private static func escapedConversationCSVField(_ field: String) -> String {
-        let sanitized = field.first.map { "=+-@".contains($0) } == true
+        let sanitized = field.first.map { "=+-@\t\r".contains($0) } == true
             ? "'\(field)"
             : field
         guard sanitized.contains(",")

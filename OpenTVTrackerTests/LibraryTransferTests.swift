@@ -64,6 +64,51 @@ final class LibraryTransferTests: XCTestCase {
         XCTAssertEqual(preview.matchedCount, snapshot.titles.count)
     }
 
+    func testLegacyBackupMissingTrackingFieldsPreservesCatalogValues() throws {
+        var imported = try XCTUnwrap(LibrarySnapshot.sample.titles.first)
+        var catalog = imported
+        imported.progress = nil
+        imported.userRating = nil
+        imported.notes = nil
+        imported.rewatchCount = nil
+        imported.lastWatchedAt = nil
+        imported.isDismissed = nil
+        imported.isDisliked = nil
+        imported.personalWatchlist = nil
+        imported.isUpNextPinned = nil
+        imported.upNextSnoozedUntil = nil
+        imported.upNextManualOrder = nil
+        catalog.progress = EpisodeProgress(season: 2, episode: 1, totalEpisodes: 10)
+        catalog.userRating = 9
+        catalog.notes = "Keep"
+        catalog.rewatchCount = 2
+        catalog.lastWatchedAt = Date(timeIntervalSince1970: 100)
+        catalog.isDismissed = true
+        catalog.isDisliked = true
+        catalog.personalWatchlist = true
+        catalog.isUpNextPinned = true
+        catalog.upNextSnoozedUntil = Date(timeIntervalSince1970: 200)
+        catalog.upNextManualOrder = 4
+
+        let merged = LibraryTransferService.mergingTracking(
+            from: imported,
+            into: catalog,
+            fromSchemaVersion: LibraryArchiveEnvelope.currentSchemaVersion - 1
+        )
+
+        XCTAssertEqual(merged.progress, catalog.progress)
+        XCTAssertEqual(merged.userRating, catalog.userRating)
+        XCTAssertEqual(merged.notes, catalog.notes)
+        XCTAssertEqual(merged.completedRewatches, catalog.completedRewatches)
+        XCTAssertEqual(merged.lastWatchedAt, catalog.lastWatchedAt)
+        XCTAssertEqual(merged.isDismissed, catalog.isDismissed)
+        XCTAssertEqual(merged.isDisliked, catalog.isDisliked)
+        XCTAssertEqual(merged.personalWatchlist, catalog.personalWatchlist)
+        XCTAssertEqual(merged.isUpNextPinned, catalog.isUpNextPinned)
+        XCTAssertEqual(merged.upNextSnoozedUntil, catalog.upNextSnoozedUntil)
+        XCTAssertEqual(merged.upNextManualOrder, catalog.upNextManualOrder)
+    }
+
     func testCSVImportRestoresExpandedStateAndQueueIntent() throws {
         let csv = """
         catalog_id,title,year,state,series_lifecycle,is_up_next_pinned,up_next_snoozed_until,up_next_manual_order

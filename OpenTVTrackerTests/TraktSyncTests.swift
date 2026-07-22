@@ -190,7 +190,7 @@ final class TraktSyncTests: XCTestCase {
 
         let title = try XCTUnwrap(merged.first(where: { $0.id == "past-lives" }))
         XCTAssertEqual(title.notes, "Watch with Alex")
-        XCTAssertEqual(title.personalWatchlist, current[index].personalWatchlist)
+        XCTAssertEqual(title.personalWatchlist, synced[index].personalWatchlist)
     }
 
     private static var episodeSnapshot: LibrarySnapshot {
