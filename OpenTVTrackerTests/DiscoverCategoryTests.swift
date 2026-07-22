@@ -34,10 +34,35 @@ final class DiscoverCategoryTests: XCTestCase {
         XCTAssertTrue(titles.allSatisfy { $0.rating >= 7.5 })
     }
 
-    func testAvailableCategoriesAlwaysHaveAnIllustratedLatestTitle() {
+    func testAvailableCategoriesUseDistinctLeadTitles() {
         let sections = DiscoverCategorySection.available(in: LibrarySnapshot.sample.titles)
+        let leadTitleIDs = sections.compactMap(\.leadTitle?.id)
 
         XCTAssertFalse(sections.isEmpty)
-        XCTAssertTrue(sections.allSatisfy { $0.latestTitle != nil })
+        XCTAssertEqual(Set(leadTitleIDs).count, leadTitleIDs.count)
+    }
+
+    func testAvailableCategoriesExcludeFeaturedTitleFromLeads() throws {
+        let originalSections = DiscoverCategorySection.available(in: LibrarySnapshot.sample.titles)
+        let featuredTitleID = try XCTUnwrap(originalSections.compactMap(\.leadTitle?.id).first)
+
+        let sections = DiscoverCategorySection.available(
+            in: LibrarySnapshot.sample.titles,
+            excludingLeadTitleIDs: [featuredTitleID]
+        )
+
+        XCTAssertFalse(sections.compactMap(\.leadTitle?.id).contains(featuredTitleID))
+    }
+
+    func testLeadDeduplicationPreservesCategoryOrdering() throws {
+        let sections = DiscoverCategorySection.available(in: LibrarySnapshot.sample.titles)
+        let scienceFiction = try XCTUnwrap(
+            sections.first(where: { $0.category == .scienceFiction })
+        )
+
+        XCTAssertEqual(
+            scienceFiction.titles,
+            DiscoverCategory.scienceFiction.titles(from: LibrarySnapshot.sample.titles)
+        )
     }
 }

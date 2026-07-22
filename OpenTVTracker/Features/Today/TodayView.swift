@@ -3,7 +3,6 @@ import SwiftUI
 struct TodayView: View {
     @Environment(AppModel.self) private var model
     @Binding var selectedTab: AppTab
-    @State private var presentsAssistant = false
     @State private var presentedSheet: TodaySheet?
 
     var body: some View {
@@ -59,17 +58,18 @@ struct TodayView: View {
                     .accessibilityIdentifier("home.upcoming-calendar")
 
                     Button("Ask OpenTV", systemImage: "sparkles") {
-                        presentsAssistant = true
+                        presentedSheet = .assistant
                     }
                     .accessibilityHint("Opens personalized viewing suggestions")
                     .accessibilityIdentifier("today.ask-opentv")
                 }
             }
-            .fullScreenCover(isPresented: $presentsAssistant) {
-                DiscoveryAssistantView()
-            }
             .sheet(item: $presentedSheet) { sheet in
                 switch sheet {
+                case .assistant:
+                    DiscoveryAssistantView()
+                        .presentationDetents([.medium, .large])
+                        .presentationDragIndicator(.visible)
                 case .profile:
                     ProfileView()
                 case .services:
@@ -185,6 +185,7 @@ struct TodayView: View {
 }
 
 private enum TodaySheet: Hashable, Identifiable {
+    case assistant
     case profile
     case services
 
