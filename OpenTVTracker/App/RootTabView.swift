@@ -38,7 +38,7 @@ struct RootTabView: View {
     var body: some View {
         TabView(selection: $selection) {
             Tab("Today", systemImage: "sun.max.fill", value: .today) {
-                SpaceModePager(selection: $spaceMode) {
+                SpaceModeContainer(selection: $spaceMode) {
                     TodayView(selectedTab: $selection)
                 } shared: {
                     TogetherView(
@@ -55,7 +55,7 @@ struct RootTabView: View {
                 value: .discover,
                 role: .search
             ) {
-                SpaceModePager(selection: $spaceMode) {
+                SpaceModeContainer(selection: $spaceMode) {
                     DiscoverView(
                         spaceMode: .personal,
                         searchText: $discoverSearchText
@@ -73,7 +73,7 @@ struct RootTabView: View {
             }
 
             Tab("Library", systemImage: "rectangle.stack.fill", value: .library) {
-                SpaceModePager(selection: $spaceMode) {
+                SpaceModeContainer(selection: $spaceMode) {
                     LibraryView(selectedTab: $selection)
                 } shared: {
                     TogetherView(
@@ -96,8 +96,10 @@ struct RootTabView: View {
     }
 }
 
-private struct SpaceModePager<PersonalContent: View, SharedContent: View>: View {
+private struct SpaceModeContainer<PersonalContent: View, SharedContent: View>: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Binding var selection: AppSpaceMode
+    @State private var availableWidth: CGFloat = 0
     private let personalContent: PersonalContent
     private let sharedContent: SharedContent
 
@@ -112,23 +114,57 @@ private struct SpaceModePager<PersonalContent: View, SharedContent: View>: View 
     }
 
     var body: some View {
-        TabView(selection: $selection) {
-            personalContent
-                .tag(AppSpaceMode.personal)
-                .allowsHitTesting(selection == .personal)
-                .accessibilityHidden(selection != .personal)
-
-            sharedContent
-                .tag(AppSpaceMode.shared)
-                .allowsHitTesting(selection == .shared)
-                .accessibilityHidden(selection != .shared)
+        Group {
+            switch selection {
+            case .personal:
+                personalContent
+                    .transition(spaceTransition(edge: .leading))
+            case .shared:
+                sharedContent
+                    .transition(spaceTransition(edge: .trailing))
+            }
         }
-        .tabViewStyle(.page(indexDisplayMode: .never))
         .safeAreaInset(edge: .top, spacing: 0) {
             SpaceModePicker(selection: $selection)
         }
+        .contentShape(.rect)
+        .simultaneousGesture(spaceSwipe)
+        .onGeometryChange(for: CGFloat.self) { geometry in
+            geometry.size.width
+        } action: { width in
+            availableWidth = width
+        }
+        .animation(reduceMotion ? nil : .snappy(duration: 0.25), value: selection)
         .sensoryFeedback(.selection, trigger: selection)
-        .accessibilityIdentifier("space-mode-pager")
+        .accessibilityIdentifier("space-mode-container")
+    }
+
+    private var spaceSwipe: some Gesture {
+        DragGesture(minimumDistance: 24, coordinateSpace: .local)
+            .onEnded { value in
+                let horizontalDistance = value.translation.width
+                let verticalDistance = value.translation.height
+
+                guard abs(horizontalDistance) > 60,
+                      abs(horizontalDistance) > abs(verticalDistance) * 1.25
+                else {
+                    return
+                }
+
+                if selection == .personal,
+                   horizontalDistance < 0,
+                   value.startLocation.x >= availableWidth - 44 {
+                    selection = .shared
+                } else if selection == .shared,
+                          horizontalDistance > 0,
+                          value.startLocation.x <= 44 {
+                    selection = .personal
+                }
+            }
+    }
+
+    private func spaceTransition(edge: Edge) -> AnyTransition {
+        reduceMotion ? .identity : .move(edge: edge).combined(with: .opacity)
     }
 }
 

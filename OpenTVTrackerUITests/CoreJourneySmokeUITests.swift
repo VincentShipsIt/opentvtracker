@@ -89,7 +89,7 @@ final class CoreJourneySmokeUITests: XCTestCase {
         launchCoreJourneys()
         XCTAssertFalse(app.tabBars.buttons["Together"].exists)
         XCTAssertEqual(app.tabBars.buttons.count, 3)
-        app.swipeLeft()
+        swipeToSharedSpace()
 
         assertExists(app.staticTexts["Test couch"])
         app.tabBars.buttons["Library"].tap()
@@ -132,6 +132,16 @@ final class CoreJourneySmokeUITests: XCTestCase {
         let button = app.buttons["first-run.continue"]
         assertExists(button)
         button.tap()
+    }
+
+    private func swipeToSharedSpace() {
+        let start = app.coordinate(
+            withNormalizedOffset: CGVector(dx: 0.98, dy: 0.5)
+        )
+        let end = app.coordinate(
+            withNormalizedOffset: CGVector(dx: 0.2, dy: 0.5)
+        )
+        start.press(forDuration: 0.05, thenDragTo: end)
     }
 
     private func openFirstEpisode() {
