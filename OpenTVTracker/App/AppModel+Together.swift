@@ -10,6 +10,11 @@ enum TogetherConnectionPhase: Hashable, Sendable {
 }
 
 extension AppModel {
+    var currentMember: SpaceMember {
+        sharedSpace.members.first(where: \.isCurrentUser)
+            ?? SpaceMember(id: "local-user", name: "You", initials: "YOU", isCurrentUser: true)
+    }
+
     var togetherConnectionPhase: TogetherConnectionPhase {
         switch sharedSpace.resolvedMembershipState {
         case .local: .unconnected

@@ -69,7 +69,7 @@ final class BulkEpisodeTrackingUITests: XCTestCase {
         XCTAssertTrue(app.buttons["season.1"].waitForExistence(timeout: 2))
 
         app.tabBars.buttons["Library"].tap()
-        XCTAssertTrue(app.buttons["library.profile"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.buttons["library.settings"].waitForExistence(timeout: 2))
 
         app.tabBars.buttons["Today"].tap()
         XCTAssertTrue(app.buttons["season.1"].waitForExistence(timeout: 2))
