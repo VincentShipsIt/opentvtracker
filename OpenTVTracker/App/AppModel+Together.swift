@@ -69,11 +69,11 @@ extension AppModel {
             sharedSpace.titleIDs.remove(at: index)
             sharedSpace.titleMetadata?.removeAll { $0.id == id }
         } else {
+            guard let titleIndex = trackableTitleIndex(for: id) else { return }
+            let title = titles[titleIndex]
             sharedSpace.titleIDs.append(id)
-            if let title = titles.first(where: { $0.id == id }) {
-                storeSharedTitleMetadata(title)
-                addActivity(description: "added \(title.title)", titleID: title.id, symbol: "plus")
-            }
+            storeSharedTitleMetadata(title)
+            addActivity(description: "added \(title.title)", titleID: title.id, symbol: "plus")
         }
         persist()
         syncSharedStateSoon()

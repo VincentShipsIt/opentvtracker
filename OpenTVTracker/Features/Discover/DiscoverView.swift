@@ -3,9 +3,18 @@ import SwiftUI
 struct DiscoverView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    @State private var searchText = ""
+    let spaceMode: AppSpaceMode
+    @Binding private var searchText: String
     @State private var surpriseOffset = 0
     @State private var presentedSheet: DiscoverSheet?
+
+    init(
+        spaceMode: AppSpaceMode,
+        searchText: Binding<String>
+    ) {
+        self.spaceMode = spaceMode
+        _searchText = searchText
+    }
 
     var body: some View {
         NavigationStack {
@@ -31,16 +40,15 @@ struct DiscoverView: View {
                     .padding(.bottom, 36)
                 }
             }
-            .navigationTitle("Discover")
+            .navigationTitle(spaceMode == .personal ? "Discover" : "Discover Together")
             .navigationBarTitleDisplayMode(.large)
             .searchable(
                 text: $searchText,
                 placement: .navigationBarDrawer(displayMode: .always),
-                prompt: "Shows, movies, genres"
+                prompt: spaceMode == .personal
+                    ? "Shows, movies, genres"
+                    : "Shows and movies for your space"
             )
-            .task(id: searchText) {
-                await model.searchCatalog(text: searchText)
-            }
             .navigationDestination(for: MediaTitle.self) { title in
                 MediaDetailView(titleID: title.id)
             }
@@ -76,7 +84,7 @@ struct DiscoverView: View {
     }
 
     private var serviceManagerControl: some View {
-        ServiceManagerControl {
+        ServiceManagerControl(spaceMode: spaceMode) {
             presentedSheet = .services
         }
     }
@@ -99,8 +107,10 @@ struct DiscoverView: View {
         let recommendations = Array(rotatedRecommendations.dropFirst())
         if !recommendations.isEmpty {
             MediaShelf(
-                title: "Made for tonight",
-                subtitle: "Strong matches on your subscriptions",
+                title: spaceMode == .personal ? "Made for tonight" : "Made for both of you",
+                subtitle: spaceMode == .personal
+                    ? "Strong matches on your subscriptions"
+                    : "Matches both taste profiles on your subscriptions",
                 titles: recommendations,
                 showsRecommendationReasons: true
             )
@@ -188,7 +198,7 @@ struct DiscoverView: View {
                     spacing: 18
                 ) {
                     ForEach(model.catalogSearchResults) { title in
-                        CatalogSearchCard(result: title)
+                        CatalogSearchCard(result: title, spaceMode: spaceMode)
                             .task {
                                 if title.id == model.catalogSearchResults.last?.id {
                                     await model.loadMoreCatalogResults(text: searchText)
@@ -289,6 +299,7 @@ private extension DiscoverView {
 }
 
 private struct ServiceManagerControl: View {
+    let spaceMode: AppSpaceMode
     let action: () -> Void
 
     var body: some View {
@@ -303,7 +314,11 @@ private struct ServiceManagerControl: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Manage streaming services")
                             .font(.headline)
-                        Text("Personalize recommendations and highlight availability")
+                        Text(
+                            spaceMode == .personal
+                                ? "Personalize recommendations and highlight availability"
+                                : "Use your subscriptions to filter shared picks"
+                        )
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.leading)
@@ -320,73 +335,22 @@ private struct ServiceManagerControl: View {
         }
         .buttonStyle(.plain)
         .padding(.horizontal, AppTheme.horizontalPadding)
-        .accessibilityHint("Changes recommendations and availability labels, not catalog search results")
+        .accessibilityHint(
+            spaceMode == .personal
+                ? "Changes recommendations and availability labels, not catalog search results"
+                : "Changes shared recommendations and availability labels, not catalog search results"
+        )
         .accessibilityIdentifier("discover.manage-services")
     }
 }
 
-private struct CatalogSearchCard: View {
-    @Environment(AppModel.self) private var model
-    let result: MediaTitle
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 9) {
-            NavigationLink(value: title) {
-                PosterShelfCard(title: title)
-            }
-            .buttonStyle(.plain)
-
-            Label(availabilityLabel, systemImage: availabilitySymbol)
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(availabilityColor)
-                .lineLimit(1)
-
-            if title.state.isCurrentViewingComplete {
-                Label(title.state == .completed ? "Watched" : "Caught up", systemImage: title.state.symbol)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.green)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .accessibilityLabel(title.state == .completed ? "Already watched" : "Currently caught up")
-            } else {
-                Button("Mark watched", systemImage: "checkmark.circle") {
-                    model.markWatched(title.id)
-                }
-                .font(.caption.weight(.semibold))
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .accessibilityHint("Adds this title to your viewing history and recommendation profile")
-            }
-        }
-    }
-
-    private var title: MediaTitle {
-        model.mediaTitle(withID: result.id) ?? result
-    }
-
-    private var selectedProviders: [StreamingProvider] {
-        title.providers.filter { model.selectedProviderIDs.contains($0.id) }
-    }
-
-    private var availabilityLabel: String {
-        if let provider = selectedProviders.first { return "On \(provider.name)" }
-        if !title.providers.isEmpty { return "On other services" }
-        return "Availability unknown"
-    }
-
-    private var availabilitySymbol: String {
-        if !selectedProviders.isEmpty { return "checkmark.circle.fill" }
-        if !title.providers.isEmpty { return "play.tv" }
-        return "questionmark.circle"
-    }
-
-    private var availabilityColor: Color {
-        selectedProviders.isEmpty ? .secondary : .green
-    }
-}
-
 #Preview {
-    DiscoverView()
+    @Previewable @State var searchText = ""
+
+    DiscoverView(
+        spaceMode: .personal,
+        searchText: $searchText
+    )
         .environment(AppModel(store: MemoryLibraryStore(), seed: .sample))
         .environment(\.allowsRemoteArtwork, false)
 }

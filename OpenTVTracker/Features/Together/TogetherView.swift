@@ -1,13 +1,23 @@
 import SwiftUI
 
+enum SharedSpacePage: Equatable {
+    case today
+    case library
+}
+
 struct TogetherView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.scenePhase) private var scenePhase
+    private let page: SharedSpacePage
     private let sharingService: any PartnerSharingProviding
     @State private var presentedSheet: TogetherSheet?
     @State private var sharingAvailability: PartnerSharingAvailability?
 
-    init(sharingService: any PartnerSharingProviding) {
+    init(
+        page: SharedSpacePage = .today,
+        sharingService: any PartnerSharingProviding
+    ) {
+        self.page = page
         self.sharingService = sharingService
     }
 
@@ -75,11 +85,11 @@ struct TogetherView: View {
                 TogetherSharedUpNextSection(title: sharedUpNextTitle, space: model.sharedSpace)
             }
 
-            if !remainingSharedTitles.isEmpty {
+            if page == .library, !remainingSharedTitles.isEmpty {
                 TogetherSharedWatchlistSection(titles: remainingSharedTitles)
             }
 
-            if !model.togetherActivity.isEmpty {
+            if page == .today, !model.togetherActivity.isEmpty {
                 TogetherRecentActivitySection(
                     activities: model.togetherActivity,
                     space: model.sharedSpace
@@ -87,7 +97,9 @@ struct TogetherView: View {
             }
         }
 
-        analyticsLink
+        if page == .library {
+            analyticsLink
+        }
     }
 
     private var sharedUpNextTitle: MediaTitle? {

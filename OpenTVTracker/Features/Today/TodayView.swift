@@ -39,7 +39,6 @@ struct TodayView: View {
                         remainingQueue
                         staleQueue
                         newReleases
-                        partnerActivity
                     }
                     .padding(.bottom, 32)
                 }
@@ -154,25 +153,6 @@ struct TodayView: View {
                 }
                 .scrollIndicators(.hidden)
             }
-        }
-    }
-
-    @ViewBuilder
-    private var partnerActivity: some View {
-        if !model.togetherActivity.isEmpty {
-            VStack(alignment: .leading, spacing: 14) {
-                SectionHeading(title: "Together", subtitle: "Latest from \(model.sharedSpace.name)")
-                VStack(spacing: 12) {
-                    ForEach(model.togetherActivity.prefix(2)) { activity in
-                        ActivityCard(
-                            activity: activity,
-                            space: model.sharedSpace,
-                            title: model.mediaTitle(for: activity)
-                        )
-                    }
-                }
-            }
-            .padding(.horizontal, AppTheme.horizontalPadding)
         }
     }
 

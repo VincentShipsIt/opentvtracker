@@ -28,6 +28,31 @@ final class CloudSharingModelTests: XCTestCase {
         XCTAssertNil(sharedTitle?.upNextManualOrder)
     }
 
+    func testTogetherTogglePersistsCatalogOnlyTitleBeforeSharing() async throws {
+        let catalogTitle = try XCTUnwrap(
+            LibrarySnapshot.sample.titles.first(where: { $0.id == "past-lives" })
+        )
+        let store = MemoryLibraryStore()
+        let model = AppModel(
+            store: store,
+            catalogService: LocalCatalogService(titles: [catalogTitle]),
+            seed: .empty
+        )
+
+        await model.searchCatalog(text: "Past Lives")
+        XCTAssertTrue(model.titles.isEmpty)
+
+        model.toggleTogether(catalogTitle.id)
+        await model.flushPendingPersistence()
+
+        let loaded = try await store.load()
+        let saved = try XCTUnwrap(loaded)
+        let savedTitle = try XCTUnwrap(saved.titles.first(where: { $0.id == catalogTitle.id }))
+        XCTAssertEqual(savedTitle.title, catalogTitle.title)
+        XCTAssertEqual(saved.sharedSpace.titleIDs, [catalogTitle.id])
+        XCTAssertEqual(saved.sharedSpace.titleMetadata?.first?.id, catalogTitle.id)
+    }
+
     func testSharedTitleMetadataHydratesPartnerLibraryWithEpisodes() throws {
         var ownerSnapshot = LibrarySnapshot.sample
         let ownerIndex = try XCTUnwrap(ownerSnapshot.titles.firstIndex(where: { $0.id == "severance" }))
