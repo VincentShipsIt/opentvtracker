@@ -115,9 +115,13 @@ private struct SpaceModePager<PersonalContent: View, SharedContent: View>: View 
         TabView(selection: $selection) {
             personalContent
                 .tag(AppSpaceMode.personal)
+                .allowsHitTesting(selection == .personal)
+                .accessibilityHidden(selection != .personal)
 
             sharedContent
                 .tag(AppSpaceMode.shared)
+                .allowsHitTesting(selection == .shared)
+                .accessibilityHidden(selection != .shared)
         }
         .tabViewStyle(.page(indexDisplayMode: .never))
         .safeAreaInset(edge: .top, spacing: 0) {
