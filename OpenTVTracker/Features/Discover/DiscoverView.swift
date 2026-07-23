@@ -4,12 +4,16 @@ struct DiscoverView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let spaceMode: AppSpaceMode
-    @State private var searchText = ""
+    @Binding private var searchText: String
     @State private var surpriseOffset = 0
     @State private var presentedSheet: DiscoverSheet?
 
-    init(spaceMode: AppSpaceMode = .personal) {
+    init(
+        spaceMode: AppSpaceMode,
+        searchText: Binding<String>
+    ) {
         self.spaceMode = spaceMode
+        _searchText = searchText
     }
 
     var body: some View {
@@ -45,9 +49,6 @@ struct DiscoverView: View {
                     ? "Shows, movies, genres"
                     : "Shows and movies for your space"
             )
-            .task(id: searchText) {
-                await model.searchCatalog(text: searchText)
-            }
             .navigationDestination(for: MediaTitle.self) { title in
                 MediaDetailView(titleID: title.id)
             }
@@ -344,7 +345,12 @@ private struct ServiceManagerControl: View {
 }
 
 #Preview {
-    DiscoverView()
+    @Previewable @State var searchText = ""
+
+    DiscoverView(
+        spaceMode: .personal,
+        searchText: $searchText
+    )
         .environment(AppModel(store: MemoryLibraryStore(), seed: .sample))
         .environment(\.allowsRemoteArtwork, false)
 }

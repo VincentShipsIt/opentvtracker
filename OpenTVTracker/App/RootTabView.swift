@@ -31,6 +31,7 @@ struct RootTabView: View {
     @Environment(AppModel.self) private var model
     @State private var selection: AppTab = .today
     @State private var spaceMode: AppSpaceMode = .personal
+    @State private var discoverSearchText = ""
     @State private var presentsFirstRun = false
     let partnerSharingService: any PartnerSharingProviding
 
@@ -55,10 +56,19 @@ struct RootTabView: View {
                 role: .search
             ) {
                 SpaceModePager(selection: $spaceMode) {
-                    DiscoverView(spaceMode: .personal)
+                    DiscoverView(
+                        spaceMode: .personal,
+                        searchText: $discoverSearchText
+                    )
                 } shared: {
-                    DiscoverView(spaceMode: .shared)
+                    DiscoverView(
+                        spaceMode: .shared,
+                        searchText: $discoverSearchText
+                    )
                 }
+                    .task(id: discoverSearchText) {
+                        await model.searchCatalog(text: discoverSearchText)
+                    }
                     .accessibilityIdentifier("tab.discover")
             }
 
