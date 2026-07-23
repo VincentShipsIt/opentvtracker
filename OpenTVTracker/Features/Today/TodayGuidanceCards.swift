@@ -21,6 +21,7 @@ struct TodayHeader: View {
             }
             .accessibilityHint("Opens your private profile and settings")
             .accessibilityIdentifier("today.profile")
+            .minimumTouchTarget()
         }
         .padding(.horizontal, AppTheme.horizontalPadding)
         .padding(.top, 12)

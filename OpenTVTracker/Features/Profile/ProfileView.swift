@@ -172,33 +172,53 @@ private struct ViewingDiaryPreviewCard: View {
 }
 
 private struct ProfileHeader: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @ScaledMetric(relativeTo: .title2) private var avatarSize: CGFloat = 72
     let member: SpaceMember
 
     var body: some View {
         GlassSurface(tint: .indigo) {
-            HStack(spacing: 18) {
-                Text(member.initials)
-                    .font(.title2.weight(.bold))
-                    .foregroundStyle(.white)
-                    .frame(width: 72, height: 72)
-                    .background(Color.indigo.gradient, in: Circle())
-                    .accessibilityHidden(true)
-
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(member.name)
-                        .font(.title2.weight(.bold))
-                    Text("Your private viewing profile")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    Label("Personal history", systemImage: "lock.fill")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.indigo)
+            Group {
+                if dynamicTypeSize.isAccessibilitySize {
+                    VStack(alignment: .leading, spacing: 14) {
+                        avatar
+                        metadata
+                    }
+                } else {
+                    HStack(spacing: 18) {
+                        avatar
+                        metadata
+                    }
                 }
-                Spacer(minLength: 0)
             }
             .padding(18)
         }
         .accessibilityElement(children: .combine)
+    }
+
+    private var avatar: some View {
+        Text(AppAccessibility.displayedInitials(member.initials))
+            .font(.title2.weight(.bold))
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            .foregroundStyle(.white)
+            .frame(width: avatarSize, height: avatarSize)
+            .background(Color.indigo.gradient, in: Circle())
+            .accessibilityHidden(true)
+    }
+
+    private var metadata: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(member.name)
+                .font(.title2.weight(.bold))
+            Text("Your private viewing profile")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            Label("Personal history", systemImage: "lock.fill")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.indigo)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

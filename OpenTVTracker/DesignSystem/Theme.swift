@@ -7,6 +7,52 @@ enum AppTheme {
     static let sectionSpacing: CGFloat = 28
 }
 
+enum AccessibleForeground: Equatable {
+    case dark
+    case light
+
+    var color: Color {
+        switch self {
+        case .dark: .black
+        case .light: .white
+        }
+    }
+}
+
+enum AppAccessibility {
+    static let minimumTouchTarget: CGFloat = 44
+
+    static func displayedInitials(_ initials: String) -> String {
+        String(initials.filter { !$0.isWhitespace }.prefix(2)).uppercased()
+    }
+
+    static func readableForeground(forHex hex: String?) -> AccessibleForeground {
+        guard let luminance = relativeLuminance(forHex: hex) else { return .light }
+        let darkContrast = (luminance + 0.05) / 0.05
+        let lightContrast = 1.05 / (luminance + 0.05)
+        return darkContrast >= lightContrast ? .dark : .light
+    }
+
+    private static func relativeLuminance(forHex hex: String?) -> Double? {
+        guard let hex else { return nil }
+        let normalized = hex.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
+        guard normalized.count == 6 else { return nil }
+
+        var value: UInt64 = 0
+        guard Scanner(string: normalized).scanHexInt64(&value) else { return nil }
+        let red = linearized(Double((value >> 16) & 0xFF) / 255)
+        let green = linearized(Double((value >> 8) & 0xFF) / 255)
+        let blue = linearized(Double(value & 0xFF) / 255)
+        return (0.2126 * red) + (0.7152 * green) + (0.0722 * blue)
+    }
+
+    private static func linearized(_ channel: Double) -> Double {
+        channel <= 0.03928
+            ? channel / 12.92
+            : pow((channel + 0.055) / 1.055, 2.4)
+    }
+}
+
 extension Color {
     init(hex: String) {
         var value: UInt64 = 0
@@ -18,6 +64,83 @@ extension Color {
             blue: Double(value & 0xFF) / 255,
             opacity: 1
         )
+    }
+}
+
+struct AdaptiveHeroSurface<Artwork: View, Content: View>: View {
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
+    private let minimumHeight: CGFloat
+    private let cornerRadius: CGFloat
+    private let contentInsets: EdgeInsets
+    private let artwork: Artwork
+    private let content: Content
+
+    init(
+        minimumHeight: CGFloat,
+        cornerRadius: CGFloat = AppTheme.cardRadius,
+        contentInsets: EdgeInsets = EdgeInsets(top: 18, leading: 18, bottom: 18, trailing: 18),
+        @ViewBuilder artwork: () -> Artwork,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.minimumHeight = minimumHeight
+        self.cornerRadius = cornerRadius
+        self.contentInsets = contentInsets
+        self.artwork = artwork()
+        self.content = content()
+    }
+
+    var body: some View {
+        ZStack(alignment: .bottomLeading) {
+            Color.clear
+                .aspectRatio(16 / 9, contentMode: .fit)
+                .frame(minHeight: minimumHeight)
+
+            artwork
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .clipped()
+
+            LinearGradient(
+                colors: gradientColors,
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .accessibilityHidden(true)
+
+            content
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(contentInsets)
+        }
+        .frame(maxWidth: .infinity)
+        .compositingGroup()
+        .clipShape(.rect(cornerRadius: cornerRadius))
+    }
+
+    private var gradientColors: [Color] {
+        if reduceTransparency {
+            return [.black.opacity(0.55), .black.opacity(0.92), .black]
+        }
+        if contrast == .increased {
+            return [.clear, .black.opacity(0.78), .black]
+        }
+        return [.clear, .black.opacity(0.32), .black.opacity(0.94)]
+    }
+}
+
+private struct MinimumTouchTargetModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .frame(
+                minWidth: AppAccessibility.minimumTouchTarget,
+                minHeight: AppAccessibility.minimumTouchTarget
+            )
+            .contentShape(.rect)
+    }
+}
+
+extension View {
+    func minimumTouchTarget() -> some View {
+        modifier(MinimumTouchTargetModifier())
     }
 }
 
@@ -58,6 +181,7 @@ struct SectionHeading: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
     }
 }
 

@@ -50,6 +50,7 @@ struct BackdropArtwork: View {
 
 private struct NetworkArtwork: View {
     @Environment(\.allowsRemoteArtwork) private var allowsRemoteArtwork
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let url: URL?
     let title: MediaTitle
     let style: ArtworkStyle
@@ -57,7 +58,7 @@ private struct NetworkArtwork: View {
     var body: some View {
         Group {
             if allowsRemoteArtwork, let url {
-                AsyncImage(url: url, transaction: Transaction(animation: .easeInOut(duration: 0.25))) { phase in
+                AsyncImage(url: url, transaction: artworkTransaction) { phase in
                     switch phase {
                     case .empty:
                         placeholder
@@ -66,7 +67,7 @@ private struct NetworkArtwork: View {
                         image
                             .resizable()
                             .scaledToFill()
-                            .transition(.opacity)
+                            .transition(reduceMotion ? .identity : .opacity)
                     case .failure:
                         placeholder
                     @unknown default:
@@ -77,6 +78,10 @@ private struct NetworkArtwork: View {
                 placeholder
             }
         }
+    }
+
+    private var artworkTransaction: Transaction {
+        Transaction(animation: reduceMotion ? nil : .easeInOut(duration: 0.25))
     }
 
     private var placeholder: some View {

@@ -3,6 +3,19 @@ import XCTest
 
 @MainActor
 final class FirstRunTests: XCTestCase {
+    func testProviderBadgeForegroundMaximizesContrast() {
+        XCTAssertEqual(AppAccessibility.readableForeground(forHex: "#FFFFFF"), .dark)
+        XCTAssertEqual(AppAccessibility.readableForeground(forHex: "000000"), .light)
+        XCTAssertEqual(AppAccessibility.readableForeground(forHex: "F5C518"), .dark)
+        XCTAssertEqual(AppAccessibility.readableForeground(forHex: "invalid"), .light)
+    }
+
+    func testAvatarInitialsStayInsideCompactCircularBadges() {
+        XCTAssertEqual(AppAccessibility.displayedInitials("YOU"), "YO")
+        XCTAssertEqual(AppAccessibility.displayedInitials(" v s "), "VS")
+        XCTAssertEqual(AppAccessibility.displayedInitials("Å"), "Å")
+    }
+
     func testFirstRunCompletionPersistsForFreshLibrary() async throws {
         let store = MemoryLibraryStore()
         let model = AppModel(store: store, seed: .empty)

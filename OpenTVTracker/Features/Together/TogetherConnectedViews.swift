@@ -96,33 +96,56 @@ struct TogetherSharedUpNextSection: View {
 }
 
 private struct TogetherMemberProgressRow: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @ScaledMetric(relativeTo: .caption2) private var avatarSize: CGFloat = 34
     let member: SpaceMember
     let summary: MediaProgressSummary
 
     var body: some View {
-        HStack(spacing: 10) {
-            Text(member.initials)
-                .font(.caption2.weight(.bold))
-                .minimumScaleFactor(0.7)
-                .frame(width: 34, height: 34)
-                .background(Color.accentColor.opacity(0.16), in: Circle())
-                .accessibilityHidden(true)
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(member.isCurrentUser ? "You" : member.name)
-                    .font(.subheadline.weight(.semibold))
-                ProgressView(value: summary.fraction)
-                    .tint(Color.accentColor)
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 10) {
+                avatar
+                progress
+                summaryText
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
 
-            Text(summary.label)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.trailing)
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 10) {
+                    avatar
+                    progress
+                }
+                summaryText
+            }
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(member.isCurrentUser ? "You" : member.name), \(summary.label)")
+    }
+
+    private var avatar: some View {
+        Text(AppAccessibility.displayedInitials(member.initials))
+            .font(.caption2.weight(.bold))
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            .frame(width: avatarSize, height: avatarSize)
+            .background(Color.accentColor.opacity(0.16), in: Circle())
+            .accessibilityHidden(true)
+    }
+
+    private var progress: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(member.isCurrentUser ? "You" : member.name)
+                .font(.subheadline.weight(.semibold))
+            ProgressView(value: summary.fraction)
+                .tint(Color.accentColor)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var summaryText: some View {
+        Text(summary.label)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .multilineTextAlignment(dynamicTypeSize.isAccessibilitySize ? .leading : .trailing)
     }
 }
 
@@ -255,6 +278,7 @@ private struct SharedTitlePickerRow: View {
             }
             .labelStyle(.iconOnly)
             .adaptiveGlassButton(prominent: true)
+            .minimumTouchTarget()
             .accessibilityLabel("Add \(title.title) to the shared watchlist")
         }
         .padding(.vertical, 4)

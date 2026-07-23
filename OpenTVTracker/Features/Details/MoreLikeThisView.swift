@@ -86,13 +86,9 @@ private struct MoreLikeThisContextCard: View {
 }
 
 private struct MoreLikeThisGrid: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let matches: [SimilarTitleMatch]
     let selectedProviderIDs: Set<StreamingProvider.ID>
-
-    private let columns = [
-        GridItem(.flexible(), spacing: 14),
-        GridItem(.flexible(), spacing: 14)
-    ]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -113,6 +109,13 @@ private struct MoreLikeThisGrid: View {
                 }
             }
         }
+    }
+
+    private var columns: [GridItem] {
+        Array(
+            repeating: GridItem(.flexible(), spacing: 14),
+            count: dynamicTypeSize.isAccessibilitySize ? 1 : 2
+        )
     }
 }
 

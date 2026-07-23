@@ -93,7 +93,7 @@ struct EpisodeDetailView: View {
             seasonNumber: season.number,
             episodeID: episode.id
         )
-        Group {
+        AdaptiveHeroSurface(minimumHeight: 210, cornerRadius: 10) {
             if isWatched {
                 EpisodeStillArtwork(
                     url: episode.stillURL,
@@ -105,28 +105,16 @@ struct EpisodeDetailView: View {
             } else {
                 EpisodeSpoilerArtworkPlaceholder(label: "Artwork hidden until watched")
             }
-        }
-        .frame(maxWidth: .infinity)
-        .frame(height: 210)
-        .overlay(alignment: .bottomLeading) {
-            LinearGradient(
-                colors: [.clear, .black.opacity(0.88)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .clipShape(.rect(cornerRadius: 10))
-            .accessibilityHidden(true)
-
+        } content: {
             VStack(alignment: .leading, spacing: 5) {
                 Text("\(season.title) · Episode \(episode.number)")
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.78))
+                    .foregroundStyle(.white)
                 Text(isWatched ? episode.title : "Episode title hidden until watched")
                     .font(.title2.weight(.black))
                     .foregroundStyle(.white)
                     .lineLimit(2)
             }
-            .padding(16)
         }
         .accessibilityElement(children: .combine)
     }

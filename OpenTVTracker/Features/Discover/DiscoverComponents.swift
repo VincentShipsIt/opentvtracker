@@ -5,61 +5,58 @@ struct FeaturedMediaCard: View {
     let onTrailer: () -> Void
 
     var body: some View {
-        GeometryReader { geometry in
-            ZStack(alignment: .bottomLeading) {
-                BackdropArtwork(title: title)
-                    .frame(width: geometry.size.width, height: geometry.size.height)
+        AdaptiveHeroSurface(minimumHeight: 270) {
+            BackdropArtwork(title: title, cornerRadius: 0)
+                .accessibilityHidden(true)
+        } content: {
+            VStack(alignment: .leading, spacing: 10) {
+                if let provider = title.providers.first {
+                    ProviderBadge(provider: provider)
+                }
+                Text(title.title)
+                    .font(.largeTitle.weight(.black))
+                    .foregroundStyle(.white)
+                Text(title.recommendationReason ?? title.synopsis)
+                    .font(.subheadline)
+                    .foregroundStyle(.white)
+                    .lineLimit(2, reservesSpace: false)
 
-                LinearGradient(
-                    colors: [.clear, .black.opacity(0.32), .black.opacity(0.92)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-
-                VStack(alignment: .leading, spacing: 10) {
-                    if let provider = title.providers.first {
-                        ProviderBadge(provider: provider)
-                    }
-                    Text(title.title)
-                        .font(.largeTitle.weight(.black))
-                        .foregroundStyle(.white)
-                    Text(title.recommendationReason ?? title.synopsis)
-                        .font(.subheadline)
-                        .foregroundStyle(.white.opacity(0.86))
-                        .lineLimit(2)
-
+                ViewThatFits(in: .horizontal) {
                     HStack(spacing: 10) {
-                        if let sourceURL = title.trailerURL,
-                           TrailerPresentation(title: title.title, sourceURL: sourceURL) != nil {
-                            Button("Trailer", systemImage: "play.fill", action: onTrailer)
-                                .buttonStyle(.borderedProminent)
-                                .tint(.white)
-                                .foregroundStyle(.black)
-                        } else if let sourceURL = title.trailerURL,
-                                  let externalURL = TrailerURLNormalizer.safeExternalURL(sourceURL) {
-                            Link(destination: externalURL) {
-                                Label("Open trailer", systemImage: "arrow.up.right.square")
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .tint(.white)
-                            .foregroundStyle(.black)
-                        }
-
-                        NavigationLink(value: title) {
-                            Label("Details", systemImage: "info.circle")
-                        }
-                        .buttonStyle(.bordered)
-                        .tint(.white)
+                        actionButtons
+                    }
+                    VStack(alignment: .leading, spacing: 10) {
+                        actionButtons
                     }
                 }
-                .padding(18)
             }
-            .frame(width: geometry.size.width, height: geometry.size.height)
-            .compositingGroup()
-            .clipShape(.rect(cornerRadius: AppTheme.cardRadius))
         }
-        .frame(height: 270)
         .accessibilityElement(children: .contain)
+    }
+
+    @ViewBuilder
+    private var actionButtons: some View {
+        if let sourceURL = title.trailerURL,
+           TrailerPresentation(title: title.title, sourceURL: sourceURL) != nil {
+            Button("Trailer", systemImage: "play.fill", action: onTrailer)
+                .buttonStyle(.borderedProminent)
+                .tint(.white)
+                .foregroundStyle(.black)
+        } else if let sourceURL = title.trailerURL,
+                  let externalURL = TrailerURLNormalizer.safeExternalURL(sourceURL) {
+            Link(destination: externalURL) {
+                Label("Open trailer", systemImage: "arrow.up.right.square")
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(.white)
+            .foregroundStyle(.black)
+        }
+
+        NavigationLink(value: title) {
+            Label("Details", systemImage: "info.circle")
+        }
+        .buttonStyle(.bordered)
+        .tint(.white)
     }
 }
 
@@ -120,6 +117,7 @@ struct PosterShelfCard: View {
 }
 
 struct ProviderBadge: View {
+    @Environment(\.colorSchemeContrast) private var contrast
     let provider: StreamingProvider
     var compact = false
 
@@ -133,12 +131,27 @@ struct ProviderBadge: View {
         .font(.caption.weight(.bold))
         .padding(.horizontal, compact ? 8 : 10)
         .padding(.vertical, 7)
-        .background(brandColor, in: Capsule())
-        .foregroundStyle(.white)
+        .background(badgeBackground, in: Capsule())
+        .foregroundStyle(badgeForeground)
+        .overlay {
+            Capsule()
+                .strokeBorder(contrast == .increased ? Color.white : .clear, lineWidth: 1)
+        }
         .accessibilityLabel("Available on \(provider.name)")
     }
 
     private var brandColor: Color {
         provider.brandHex.map { Color(hex: $0) } ?? .accentColor
+    }
+
+    private var badgeBackground: Color {
+        contrast == .increased ? .black : brandColor
+    }
+
+    private var badgeForeground: Color {
+        if contrast == .increased {
+            return .white
+        }
+        return AppAccessibility.readableForeground(forHex: provider.brandHex).color
     }
 }
