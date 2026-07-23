@@ -24,26 +24,26 @@ struct LibraryHistoryView: View {
                         Button("Find something to watch", systemImage: "magnifyingglass", action: onOpenDiscover)
                             .adaptiveGlassButton(prominent: true)
                     }
-                }
+                } else {
+                    NavigationLink {
+                        ViewingDiaryView()
+                    } label: {
+                        ViewingDiaryPreviewCard(
+                            entryCount: diaryRecords.count,
+                            latestDate: diaryRecords.first?.entry.watchedAt
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("library.viewing-diary")
 
-                NavigationLink {
-                    ViewingDiaryView()
-                } label: {
-                    ViewingDiaryPreviewCard(
-                        entryCount: diaryRecords.count,
-                        latestDate: diaryRecords.first?.entry.watchedAt
-                    )
+                    NavigationLink {
+                        ViewingAnalyticsView(scope: .personal)
+                    } label: {
+                        ViewingAnalyticsPreviewCard(summary: summary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("library.viewing-analytics")
                 }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("library.viewing-diary")
-
-                NavigationLink {
-                    ViewingAnalyticsView(scope: .personal)
-                } label: {
-                    ViewingAnalyticsPreviewCard(summary: summary)
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("library.viewing-analytics")
 
                 LibraryDataOwnershipCard(
                     backupHealth: backupHealth,
