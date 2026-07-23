@@ -111,15 +111,25 @@ enum DiscoverCategory: String, CaseIterable, Hashable, Identifiable {
 struct DiscoverCategorySection: Identifiable {
     let category: DiscoverCategory
     let titles: [MediaTitle]
+    let leadTitle: MediaTitle?
 
     var id: DiscoverCategory.ID { category.id }
-    var latestTitle: MediaTitle? { titles.first }
 
-    static func available(in catalog: [MediaTitle]) -> [DiscoverCategorySection] {
-        DiscoverCategory.allCases.compactMap { category in
+    static func available(
+        in catalog: [MediaTitle],
+        excludingLeadTitleIDs: Set<MediaTitle.ID> = []
+    ) -> [DiscoverCategorySection] {
+        var usedLeadTitleIDs = excludingLeadTitleIDs
+
+        return DiscoverCategory.allCases.compactMap { category in
             let titles = category.titles(from: catalog)
             guard !titles.isEmpty else { return nil }
-            return DiscoverCategorySection(category: category, titles: titles)
+            let leadTitle = titles.first { usedLeadTitleIDs.insert($0.id).inserted }
+            return DiscoverCategorySection(
+                category: category,
+                titles: titles,
+                leadTitle: leadTitle
+            )
         }
     }
 }

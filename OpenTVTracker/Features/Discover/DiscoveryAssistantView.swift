@@ -22,6 +22,7 @@ struct DiscoveryAssistantView: View {
 
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 22) {
+                        AssistantScopeNotice()
                         AssistantPromptSuggestions(suggestions: suggestions, onSelect: useSuggestion)
 
                         if let response {
@@ -33,7 +34,7 @@ struct DiscoveryAssistantView: View {
                                 description: Text("Mention a mood, genre, runtime, rating, movie or show. I only pick from services you selected.")
                             )
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, 34)
+                            .padding(.vertical, 18)
                         }
                     }
                     .padding(.horizontal, AppTheme.horizontalPadding)
@@ -88,22 +89,50 @@ struct DiscoveryAssistantView: View {
     }
 }
 
+private struct AssistantScopeNotice: View {
+    var body: some View {
+        GlassSurface(cornerRadius: AppTheme.compactRadius, tint: .indigo) {
+            VStack(alignment: .leading, spacing: 6) {
+                Label("Your services only", systemImage: "play.tv.fill")
+                    .font(.headline)
+                Text("Ask by mood, genre, runtime, or rating. OpenTV only suggests titles available on streaming services you selected.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(14)
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
 private struct AssistantPromptSuggestions: View {
     let suggestions: [String]
     let onSelect: (String) -> Void
 
     var body: some View {
-        ScrollView(.horizontal) {
-            LazyHStack(spacing: 10) {
-                ForEach(suggestions, id: \.self) { suggestion in
-                    Button(suggestion) { onSelect(suggestion) }
-                        .adaptiveGlassButton()
-                }
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Try a request")
+                    .font(.subheadline.weight(.semibold))
+                Spacer()
+                Label("Swipe for more", systemImage: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
-            .padding(.vertical, 2)
+
+            ScrollView(.horizontal) {
+                LazyHStack(spacing: 10) {
+                    ForEach(suggestions, id: \.self) { suggestion in
+                        Button(suggestion) { onSelect(suggestion) }
+                            .adaptiveGlassButton()
+                    }
+                }
+                .padding(.vertical, 2)
+            }
+            .scrollIndicators(.visible)
+            .accessibilityLabel("Suggested requests")
         }
-        .scrollIndicators(.hidden)
-        .accessibilityLabel("Suggested requests")
     }
 }
 
