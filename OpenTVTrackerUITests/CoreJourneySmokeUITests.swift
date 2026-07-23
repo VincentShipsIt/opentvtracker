@@ -87,9 +87,15 @@ final class CoreJourneySmokeUITests: XCTestCase {
 
     func testPrivatePartnerJourneyOpensEpisodeConversation() {
         launchCoreJourneys()
-        app.tabBars.buttons["Together"].tap()
+        XCTAssertFalse(app.tabBars.buttons["Together"].exists)
+        XCTAssertEqual(app.tabBars.buttons.count, 3)
+        app.swipeLeft()
 
         assertExists(app.staticTexts["Test couch"])
+        app.tabBars.buttons["Library"].tap()
+        assertExists(app.buttons["together.viewing-analytics"])
+        app.tabBars.buttons["Today"].tap()
+
         let manageSharing = app.buttons["together.manage-sharing"]
         assertExists(manageSharing)
         manageSharing.tap()

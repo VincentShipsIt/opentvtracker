@@ -191,3 +191,85 @@ struct ProviderBadge: View {
         return AppAccessibility.readableForeground(forHex: provider.brandHex).color
     }
 }
+
+struct CatalogSearchCard: View {
+    @Environment(AppModel.self) private var model
+    let result: MediaTitle
+    let spaceMode: AppSpaceMode
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            NavigationLink(value: title) {
+                PosterShelfCard(title: title)
+            }
+            .buttonStyle(.plain)
+
+            Label(availabilityLabel, systemImage: availabilitySymbol)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(availabilityColor)
+                .lineLimit(1)
+
+            if spaceMode == .shared {
+                sharedSpaceAction
+            } else if title.state.isCurrentViewingComplete {
+                Label(title.state == .completed ? "Watched" : "Caught up", systemImage: title.state.symbol)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.green)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityLabel(title.state == .completed ? "Already watched" : "Currently caught up")
+            } else {
+                Button("Mark watched", systemImage: "checkmark.circle") {
+                    model.markWatched(title.id)
+                }
+                .font(.caption.weight(.semibold))
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityHint("Adds this title to your viewing history and recommendation profile")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var sharedSpaceAction: some View {
+        if model.isShared(title.id) {
+            Label("In shared space", systemImage: "person.2.fill")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.green)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        } else {
+            Button("Add to shared", systemImage: "person.2.badge.plus") {
+                model.toggleTogether(title.id)
+            }
+            .font(.caption.weight(.semibold))
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityHint("Adds this title to your private shared space")
+        }
+    }
+
+    private var title: MediaTitle {
+        model.mediaTitle(withID: result.id) ?? result
+    }
+
+    private var selectedProviders: [StreamingProvider] {
+        title.providers.filter { model.selectedProviderIDs.contains($0.id) }
+    }
+
+    private var availabilityLabel: String {
+        if let provider = selectedProviders.first { return "On \(provider.name)" }
+        if !title.providers.isEmpty { return "On other services" }
+        return "Availability unknown"
+    }
+
+    private var availabilitySymbol: String {
+        if !selectedProviders.isEmpty { return "checkmark.circle.fill" }
+        if !title.providers.isEmpty { return "play.tv" }
+        return "questionmark.circle"
+    }
+
+    private var availabilityColor: Color {
+        selectedProviders.isEmpty ? .secondary : .green
+    }
+}
