@@ -80,7 +80,8 @@ final class CoreJourneySmokeUITests: XCTestCase {
         assertExists(diaryEntry)
         XCTAssertTrue(
             diaryEntry.label.contains("Test Show")
-                && diaryEntry.label.contains("S1 E1 · Episode 1")
+                && diaryEntry.label.contains("S1 E1")
+                && diaryEntry.label.contains("Episode 1")
         )
     }
 
