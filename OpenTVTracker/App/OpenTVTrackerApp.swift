@@ -65,23 +65,49 @@ struct OpenTVTrackerApp: App {
     @Environment(\.scenePhase) private var scenePhase
     @State private var model: AppModel
     private let partnerSharingService: any PartnerSharingProviding
+    private let allowsRemoteArtwork: Bool
+    private let forcesTrailerPlaybackFailure: Bool
 
     init() {
         #if DEBUG
         let processInfo = ProcessInfo.processInfo
         let isBulkWatchUITest = processInfo.arguments.contains("-ui-testing-bulk-watch")
-        if isBulkWatchUITest {
-            _model = State(initialValue: AppModel(store: MemoryLibraryStore(), seed: .bulkWatchUITest))
+        let isFirstRunUITest = processInfo.arguments.contains("-ui-testing-first-run")
+        let isCoreJourneyUITest = processInfo.arguments.contains("-ui-testing-core-journeys")
+        let uiTestSeed: LibrarySnapshot? = if isBulkWatchUITest {
+            .bulkWatchUITest
+        } else if isFirstRunUITest {
+            .firstRunUITest
+        } else if isCoreJourneyUITest {
+            .coreJourneyUITest
+        } else {
+            nil
+        }
+
+        if let uiTestSeed {
+            _model = State(initialValue: AppModel(
+                store: MemoryLibraryStore(),
+                recommendationService: DeterministicRecommendationService(),
+                sharedConversationNotifier: NoopSharedConversationNotifier(),
+                reminderScheduler: NoopReminderScheduler(),
+                catalogService: LocalCatalogService(titles: uiTestSeed.titles),
+                traktService: UnconfiguredTraktSyncService(),
+                seed: uiTestSeed
+            ))
         } else {
             _model = State(initialValue: AppModel())
         }
-        partnerSharingService = isBulkWatchUITest
+        partnerSharingService = uiTestSeed != nil
             || processInfo.environment["XCTestConfigurationFilePath"] != nil
             ? PreviewPartnerSharingService()
             : CloudKitPartnerSharingService()
+        allowsRemoteArtwork = uiTestSeed == nil
+        forcesTrailerPlaybackFailure = isCoreJourneyUITest
         #else
         _model = State(initialValue: AppModel())
         partnerSharingService = CloudKitPartnerSharingService()
+        allowsRemoteArtwork = true
+        forcesTrailerPlaybackFailure = false
         #endif
     }
 
@@ -89,6 +115,8 @@ struct OpenTVTrackerApp: App {
         WindowGroup {
             RootTabView(partnerSharingService: partnerSharingService)
                 .environment(model)
+                .environment(\.allowsRemoteArtwork, allowsRemoteArtwork)
+                .environment(\.forcesTrailerPlaybackFailure, forcesTrailerPlaybackFailure)
                 .task {
                     await model.load()
                     await model.startCloudSyncIfNeeded()

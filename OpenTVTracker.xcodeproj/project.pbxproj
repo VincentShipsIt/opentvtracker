@@ -190,6 +190,7 @@
 		EC8A748CE8C4B6F11A622A78 /* OpenTVWidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26C95F6168D463F58164BA67 /* OpenTVWidgetSnapshot.swift */; };
 		EFBB149EA4657D63845E3A42 /* PartnerInvitationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 128907B5F9F0250ACB9F57FB /* PartnerInvitationView.swift */; };
 		F174771646994C976737EF5F /* TVTimeZIPReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2F8946DC4EE1DAE49DC50DC /* TVTimeZIPReader.swift */; };
+		F241CFEAF9E1D4EA6E004FDA /* CoreJourneySmokeUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8366B23313D1C553E7665A82 /* CoreJourneySmokeUITests.swift */; };
 		F2FDF5B2ACE328B3D76AA3EF /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = 8CA6FFEE4B4AF6A9653F654A /* ZIPFoundation */; };
 		F301BCF6258EEA4BF0731AC9 /* TitleSimilarityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D071796CAD784E5EE144A4F /* TitleSimilarityTests.swift */; };
 		F3DD1DA113A9A0DCF1077EE6 /* TodayGuidanceCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72FACEDC8DFCC3CC42391525 /* TodayGuidanceCards.swift */; };
@@ -331,6 +332,7 @@
 		7B01B66031A7491BB62CBCC2 /* ReminderSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderSettingsView.swift; sourceTree = "<group>"; };
 		7C6625EEC34FF7E5EDF691B6 /* VoiceSearchTranscriber.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceSearchTranscriber.swift; sourceTree = "<group>"; };
 		8153EDA09ACF660FCCC5731E /* TVTimeNativeRecordParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVTimeNativeRecordParser.swift; sourceTree = "<group>"; };
+		8366B23313D1C553E7665A82 /* CoreJourneySmokeUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreJourneySmokeUITests.swift; sourceTree = "<group>"; };
 		837B100C8B46F5CDF28CBCA3 /* ReminderPlannerBoundsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderPlannerBoundsTests.swift; sourceTree = "<group>"; };
 		859256F3B9EF0624D5110D5A /* TitleSimilarity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TitleSimilarity.swift; sourceTree = "<group>"; };
 		85B0DEBE6FA007C4AD395D0A /* GlassSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassSurface.swift; sourceTree = "<group>"; };
@@ -625,6 +627,7 @@
 			isa = PBXGroup;
 			children = (
 				A1149FB539DE3092CD0E5999 /* BulkEpisodeTrackingUITests.swift */,
+				8366B23313D1C553E7665A82 /* CoreJourneySmokeUITests.swift */,
 			);
 			path = OpenTVTrackerUITests;
 			sourceTree = "<group>";
@@ -1199,6 +1202,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				37A4DE36629ADAF568FAA41C /* BulkEpisodeTrackingUITests.swift in Sources */,
+				F241CFEAF9E1D4EA6E004FDA /* CoreJourneySmokeUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
