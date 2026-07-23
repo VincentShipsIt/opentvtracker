@@ -103,38 +103,6 @@ enum TrailerPlaybackState: Equatable {
     }
 }
 
-struct TrailerActionView: View {
-    let title: MediaTitle
-    let onPresent: (TrailerPresentation) -> Void
-
-    @ViewBuilder
-    var body: some View {
-        if let trailerURL = title.trailerURL,
-           let trailer = TrailerPresentation(title: title.title, sourceURL: trailerURL) {
-            Button {
-                onPresent(trailer)
-            } label: {
-                Label("Watch trailer", systemImage: "play.fill")
-                    .frame(maxWidth: .infinity)
-            }
-            .controlSize(.large)
-            .adaptiveGlassButton(prominent: true)
-        } else if let trailerURL = title.trailerURL,
-                  let externalURL = TrailerURLNormalizer.safeExternalURL(trailerURL) {
-            Link(destination: externalURL) {
-                Label("Open trailer externally", systemImage: "arrow.up.right.square")
-                    .frame(maxWidth: .infinity)
-            }
-            .controlSize(.large)
-            .adaptiveGlassButton(prominent: true)
-        } else if title.trailerURL != nil {
-            Label("Trailer unavailable", systemImage: "play.slash.fill")
-                .frame(maxWidth: .infinity)
-                .foregroundStyle(.secondary)
-        }
-    }
-}
-
 struct TrailerPlayerView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.forcesTrailerPlaybackFailure) private var forcesTrailerPlaybackFailure

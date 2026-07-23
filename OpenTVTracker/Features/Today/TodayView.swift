@@ -3,7 +3,6 @@ import SwiftUI
 struct TodayView: View {
     @Environment(AppModel.self) private var model
     @Binding var selectedTab: AppTab
-    @State private var presentsAssistant = false
     @State private var presentedSheet: TodaySheet?
 
     var body: some View {
@@ -14,8 +13,8 @@ struct TodayView: View {
                 ScrollView {
                     LazyVStack(spacing: AppTheme.sectionSpacing) {
                         TodayHeader(
-                            memberName: currentMember.name,
-                            onOpenProfile: { presentedSheet = .profile }
+                            memberName: model.currentMember.name,
+                            onOpenLibrary: { selectedTab = .library }
                         )
 
                         if let first = model.activeUpNext.first {
@@ -59,19 +58,18 @@ struct TodayView: View {
                     .accessibilityIdentifier("home.upcoming-calendar")
 
                     Button("Ask OpenTV", systemImage: "sparkles") {
-                        presentsAssistant = true
+                        presentedSheet = .assistant
                     }
                     .accessibilityHint("Opens personalized viewing suggestions")
                     .accessibilityIdentifier("today.ask-opentv")
                 }
             }
-            .fullScreenCover(isPresented: $presentsAssistant) {
-                DiscoveryAssistantView()
-            }
             .sheet(item: $presentedSheet) { sheet in
                 switch sheet {
-                case .profile:
-                    ProfileView()
+                case .assistant:
+                    DiscoveryAssistantView()
+                        .presentationDetents([.medium, .large])
+                        .presentationDragIndicator(.visible)
                 case .services:
                     ServiceManagerView()
                 }
@@ -178,14 +176,10 @@ struct TodayView: View {
         }
     }
 
-    private var currentMember: SpaceMember {
-        model.sharedSpace.members.first(where: \.isCurrentUser)
-            ?? SpaceMember(id: "local-user", name: "You", initials: "YOU", isCurrentUser: true)
-    }
 }
 
 private enum TodaySheet: Hashable, Identifiable {
-    case profile
+    case assistant
     case services
 
     var id: Self { self }

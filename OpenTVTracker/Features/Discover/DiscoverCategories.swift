@@ -56,18 +56,38 @@ struct DiscoverCategoryTile: View {
                 .clipped()
                 .overlay {
                     LinearGradient(
-                        colors: [.clear, .black.opacity(0.18), .black.opacity(0.82)],
+                        colors: [
+                            Color(hex: section.category.palette.primaryHex).opacity(0.10),
+                            Color(hex: section.category.palette.secondaryHex).opacity(0.50),
+                            .black.opacity(0.88)
+                        ],
                         startPoint: .top,
                         endPoint: .bottom
                     )
                 }
-                .overlay(alignment: .bottomLeading) {
-                    Text(section.category.title)
-                        .font(.headline.weight(.semibold))
+                .overlay(alignment: .topLeading) {
+                    Image(systemName: section.category.symbol)
+                        .font(.headline)
                         .foregroundStyle(.white)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-                        .padding(12)
+                        .padding(9)
+                        .background(
+                            Color(hex: section.category.palette.primaryHex).opacity(0.82),
+                            in: Circle()
+                        )
+                        .padding(10)
+                        .accessibilityHidden(true)
+                }
+                .overlay(alignment: .bottomLeading) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(section.category.title)
+                            .font(.headline.weight(.semibold))
+                        Text(section.category.subtitle)
+                            .font(.caption2)
+                            .lineLimit(1)
+                    }
+                    .foregroundStyle(.white)
+                    .minimumScaleFactor(0.8)
+                    .padding(12)
                 }
                 .compositingGroup()
                 .clipShape(.rect(cornerRadius: AppTheme.compactRadius))
@@ -85,27 +105,29 @@ struct DiscoverCategoryTile: View {
 
     @ViewBuilder
     private var categoryArtwork: some View {
-        Group {
-            if let latestTitle = section.latestTitle {
-                BackdropArtwork(title: latestTitle, cornerRadius: 0)
-            } else {
-                LinearGradient(
-                    colors: [
-                        Color(hex: section.category.palette.primaryHex),
-                        Color(hex: section.category.palette.secondaryHex)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            }
+        if let leadTitle = section.leadTitle {
+            BackdropArtwork(title: leadTitle, cornerRadius: 0)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .clipped()
+        } else {
+            LinearGradient(
+                colors: [
+                    Color(hex: section.category.palette.primaryHex),
+                    Color(hex: section.category.palette.secondaryHex)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .clipped()
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .clipped()
     }
 
     private var accessibilityLabel: String {
-        guard let latestTitle = section.latestTitle else { return section.category.title }
-        return "\(section.category.title). Latest: \(latestTitle.title), \(latestTitle.year)."
+        guard let leadTitle = section.leadTitle else {
+            return "\(section.category.title). \(section.category.subtitle)."
+        }
+        return "\(section.category.title). Featuring \(leadTitle.title), \(leadTitle.year). \(section.category.subtitle)."
     }
 }
 

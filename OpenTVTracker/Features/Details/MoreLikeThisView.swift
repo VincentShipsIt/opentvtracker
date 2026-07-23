@@ -1,9 +1,5 @@
 import SwiftUI
 
-struct MoreLikeThisRoute: Hashable {
-    let sourceTitleID: MediaTitle.ID
-}
-
 struct MoreLikeThisView: View {
     @Environment(AppModel.self) private var model
     let sourceTitleID: MediaTitle.ID
