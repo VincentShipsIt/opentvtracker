@@ -278,7 +278,6 @@ private struct SharedTitlePickerRow: View {
             }
             .labelStyle(.iconOnly)
             .adaptiveGlassButton(prominent: true)
-            .minimumTouchTarget()
             .accessibilityLabel("Add \(title.title) to the shared watchlist")
         }
         .padding(.vertical, 4)

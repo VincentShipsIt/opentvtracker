@@ -42,6 +42,7 @@ struct FeaturedMediaCard: View {
                 .buttonStyle(.borderedProminent)
                 .tint(.white)
                 .foregroundStyle(.black)
+                .minimumTouchTarget()
         } else if let sourceURL = title.trailerURL,
                   let externalURL = TrailerURLNormalizer.safeExternalURL(sourceURL) {
             Link(destination: externalURL) {
@@ -50,6 +51,7 @@ struct FeaturedMediaCard: View {
             .buttonStyle(.borderedProminent)
             .tint(.white)
             .foregroundStyle(.black)
+            .minimumTouchTarget()
         }
 
         NavigationLink(value: title) {
@@ -57,6 +59,7 @@ struct FeaturedMediaCard: View {
         }
         .buttonStyle(.bordered)
         .tint(.white)
+        .minimumTouchTarget()
     }
 }
 

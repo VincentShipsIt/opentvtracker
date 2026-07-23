@@ -93,18 +93,24 @@ struct EpisodeDetailView: View {
             seasonNumber: season.number,
             episodeID: episode.id
         )
+        let accessibilityLabel = isWatched
+            ? "\(season.title), episode \(episode.number), \(episode.title), still from \(title.title)"
+            : "\(season.title), episode \(episode.number), title and artwork hidden until watched"
         AdaptiveHeroSurface(minimumHeight: 210, cornerRadius: 10) {
-            if isWatched {
-                EpisodeStillArtwork(
-                    url: episode.stillURL,
-                    fallbackURL: title.backdropURL ?? title.posterURL,
-                    showTitle: title.title,
-                    episodeLabel: "Season \(season.number), episode \(episode.number)",
-                    palette: title.palette
-                )
-            } else {
-                EpisodeSpoilerArtworkPlaceholder(label: "Artwork hidden until watched")
+            Group {
+                if isWatched {
+                    EpisodeStillArtwork(
+                        url: episode.stillURL,
+                        fallbackURL: title.backdropURL ?? title.posterURL,
+                        showTitle: title.title,
+                        episodeLabel: "Season \(season.number), episode \(episode.number)",
+                        palette: title.palette
+                    )
+                } else {
+                    EpisodeSpoilerArtworkPlaceholder(label: "Artwork hidden until watched")
+                }
             }
+            .accessibilityHidden(true)
         } content: {
             VStack(alignment: .leading, spacing: 5) {
                 Text("\(season.title) · Episode \(episode.number)")
@@ -116,7 +122,8 @@ struct EpisodeDetailView: View {
                     .lineLimit(2)
             }
         }
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityLabel)
     }
 
     private func trackingActions(

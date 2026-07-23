@@ -69,12 +69,7 @@ struct GlassButtonModifier: ViewModifier {
     }
 
     private func touchSized(_ content: Content) -> some View {
-        content
-            .frame(
-                minWidth: AppAccessibility.minimumTouchTarget,
-                minHeight: AppAccessibility.minimumTouchTarget
-            )
-            .contentShape(.rect)
+        content.minimumTouchTarget()
     }
 }
 
