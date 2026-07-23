@@ -13,8 +13,8 @@ struct TodayView: View {
                 ScrollView {
                     LazyVStack(spacing: AppTheme.sectionSpacing) {
                         TodayHeader(
-                            memberName: currentMember.name,
-                            onOpenProfile: { presentedSheet = .profile }
+                            memberName: model.currentMember.name,
+                            onOpenLibrary: { selectedTab = .library }
                         )
 
                         if let first = model.activeUpNext.first {
@@ -70,8 +70,6 @@ struct TodayView: View {
                     DiscoveryAssistantView()
                         .presentationDetents([.medium, .large])
                         .presentationDragIndicator(.visible)
-                case .profile:
-                    ProfileView()
                 case .services:
                     ServiceManagerView()
                 }
@@ -178,15 +176,10 @@ struct TodayView: View {
         }
     }
 
-    private var currentMember: SpaceMember {
-        model.sharedSpace.members.first(where: \.isCurrentUser)
-            ?? SpaceMember(id: "local-user", name: "You", initials: "YOU", isCurrentUser: true)
-    }
 }
 
 private enum TodaySheet: Hashable, Identifiable {
     case assistant
-    case profile
     case services
 
     var id: Self { self }

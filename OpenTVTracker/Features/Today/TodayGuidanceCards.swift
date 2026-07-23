@@ -2,7 +2,7 @@ import SwiftUI
 
 struct TodayHeader: View {
     let memberName: String
-    let onOpenProfile: () -> Void
+    let onOpenLibrary: () -> Void
 
     var body: some View {
         HStack(alignment: .top, spacing: 16) {
@@ -14,13 +14,13 @@ struct TodayHeader: View {
                     .foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
-            Button(action: onOpenProfile) {
-                Label("Open profile", systemImage: "person.crop.circle.fill")
+            Button(action: onOpenLibrary) {
+                Label("Open Library", systemImage: "person.crop.circle.fill")
                     .labelStyle(.iconOnly)
                     .font(.system(size: 34))
             }
-            .accessibilityHint("Opens your private profile and settings")
-            .accessibilityIdentifier("today.profile")
+            .accessibilityHint("Opens your private history, library, and settings")
+            .accessibilityIdentifier("today.library")
         }
         .padding(.horizontal, AppTheme.horizontalPadding)
         .padding(.top, 12)
