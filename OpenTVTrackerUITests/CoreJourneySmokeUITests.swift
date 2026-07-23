@@ -75,13 +75,13 @@ final class CoreJourneySmokeUITests: XCTestCase {
         openViewingDiary()
 
         let diaryEntry = app.buttons.matching(
-            NSPredicate(
-                format: "label CONTAINS %@ AND label CONTAINS %@",
-                "Test Show",
-                "S1 E1 · Episode 1"
-            )
+            NSPredicate(format: "identifier BEGINSWITH %@", "diary.entry.")
         ).firstMatch
         assertExists(diaryEntry)
+        XCTAssertTrue(
+            diaryEntry.label.contains("Test Show")
+                && diaryEntry.label.contains("S1 E1 · Episode 1")
+        )
     }
 
     func testPrivatePartnerJourneyOpensEpisodeConversation() {
