@@ -82,6 +82,7 @@ struct TogetherSharedUpNextSection: View {
             }
             .buttonStyle(.plain)
             .accessibilityHint("Opens \(title.title)")
+            .accessibilityIdentifier("together.shared-title.\(title.id)")
 
             NavigationLink {
                 SharedTitlePickerView()

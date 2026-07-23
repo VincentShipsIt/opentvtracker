@@ -27,4 +27,13 @@ jobs:
           -scheme OpenTVTracker
           -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=latest'
           -derivedDataPath "$RUNNER_TEMP/DerivedData"
+          -resultBundlePath "$RUNNER_TEMP/OpenTVTrackerTests.xcresult"
           CODE_SIGNING_ALLOWED=NO
+      - name: Upload failed test diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: opentvtracker-test-diagnostics-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/OpenTVTrackerTests.xcresult
+          if-no-files-found: ignore
+          retention-days: 7
