@@ -29,7 +29,7 @@ final class EpisodeTrackingTests: XCTestCase {
         XCTAssertTrue(model.togetherActivity.contains(where: { $0.id == "activity-3" }))
     }
 
-    func testProfileHistorySortsMostRecentlyWatchedFirst() throws {
+    func testLibraryHistorySortsMostRecentlyWatchedFirst() throws {
         var snapshot = LibrarySnapshot.sample
         let olderIndex = try XCTUnwrap(snapshot.titles.firstIndex(where: { $0.id == "severance" }))
         let newerIndex = try XCTUnwrap(snapshot.titles.firstIndex(where: { $0.id == "arrival" }))

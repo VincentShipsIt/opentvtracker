@@ -2,6 +2,7 @@ import AuthenticationServices
 import SwiftUI
 
 enum DiscoverSheet: Identifiable {
+    case assistant
     case categories
     case services
     case aiRanking
@@ -9,6 +10,7 @@ enum DiscoverSheet: Identifiable {
 
     var id: String {
         switch self {
+        case .assistant: "assistant"
         case .categories: "categories"
         case .services: "services"
         case .aiRanking: "ai-ranking"

@@ -67,6 +67,7 @@ struct MediaShelf: View {
     let title: String
     let subtitle: String
     let titles: [MediaTitle]
+    var showsRecommendationReasons = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -74,11 +75,16 @@ struct MediaShelf: View {
                 .padding(.horizontal, AppTheme.horizontalPadding)
 
             ScrollView(.horizontal) {
-                LazyHStack(spacing: 14) {
+                LazyHStack(alignment: .top, spacing: 14) {
                     ForEach(titles) { title in
                         NavigationLink(value: title) {
-                            PosterShelfCard(title: title)
-                                .frame(width: 152)
+                            if showsRecommendationReasons {
+                                RecommendationShelfCard(title: title)
+                                    .frame(width: 176)
+                            } else {
+                                PosterShelfCard(title: title)
+                                    .frame(width: 152)
+                            }
                         }
                         .buttonStyle(.plain)
                     }
@@ -88,6 +94,33 @@ struct MediaShelf: View {
             }
             .scrollIndicators(.hidden)
         }
+    }
+}
+
+private struct RecommendationShelfCard: View {
+    let title: MediaTitle
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            PosterArtwork(title: title)
+                .aspectRatio(0.68, contentMode: .fit)
+                .overlay(alignment: .topLeading) {
+                    if let provider = title.providers.first {
+                        ProviderBadge(provider: provider, compact: true)
+                            .padding(8)
+                    }
+                }
+
+            Text(title.title)
+                .font(.headline)
+                .lineLimit(1)
+            Text(title.recommendationReason ?? "A strong match on one of your selected services.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(2, reservesSpace: true)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityHint("Opens details for this recommendation")
     }
 }
 

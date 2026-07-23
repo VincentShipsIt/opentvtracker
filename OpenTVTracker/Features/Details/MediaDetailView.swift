@@ -5,6 +5,7 @@ struct MediaDetailView: View {
     let titleID: MediaTitle.ID
     @State private var presentedTrailer: TrailerPresentation?
     @State private var listPickerTitle: MediaTitle?
+    @State private var presentsMoreLikeThis = false
     @State private var showsTrackingEditor = false
     @State private var showsSharedNoteEditor = false
     @State private var showsReminderEditor = false
@@ -62,8 +63,8 @@ struct MediaDetailView: View {
                 )
             }
         }
-        .navigationDestination(for: MoreLikeThisRoute.self) { route in
-            MoreLikeThisView(sourceTitleID: route.sourceTitleID)
+        .navigationDestination(isPresented: $presentsMoreLikeThis) {
+            MoreLikeThisView(sourceTitleID: titleID)
         }
         .navigationDestination(for: SeasonEpisodesRoute.self) { route in
             SeasonEpisodesView(route: route)
@@ -81,79 +82,15 @@ struct MediaDetailView: View {
     }
 
     private func actions(_ title: MediaTitle) -> some View {
-        VStack(spacing: 10) {
-            TrailerActionView(title: title) { trailer in
-                presentedTrailer = trailer
-            }
-
-            Button {
-                model.markNextWatched(title.id)
-            } label: {
-                Label(
-                    title.nextWatchActionLabel,
-                    systemImage: "checkmark.circle.fill"
-                )
-                    .frame(maxWidth: .infinity)
-            }
-            .controlSize(.large)
-            .adaptiveGlassButton(prominent: title.trailerURL == nil)
-            .disabled(title.state.isCurrentViewingComplete)
-
-            MediaDetailWatchlistActions(title: title)
-
-            MediaDetailReminderAction(
-                title: title,
-                showsReminderEditor: $showsReminderEditor
-            )
-
-            recommendationAndTrackingActions(title)
-
-            if model.isShared(title.id) {
-                sharedActions(title)
-            }
-        }
-    }
-
-    private func sharedActions(_ title: MediaTitle) -> some View {
-        HStack(spacing: 10) {
-            Button("Watched together", systemImage: "person.2.fill") {
-                model.markWatchedTogether(title.id)
-            }
-            .adaptiveGlassButton()
-
-            Button("Shared note", systemImage: "note.text.badge.plus") {
-                showsSharedNoteEditor = true
-            }
-            .adaptiveGlassButton()
-        }
-    }
-
-    private func recommendationAndTrackingActions(_ title: MediaTitle) -> some View {
-        VStack(spacing: 10) {
-            NavigationLink(value: MoreLikeThisRoute(sourceTitleID: title.id)) {
-                Label("More like this", systemImage: "sparkles")
-                    .frame(maxWidth: .infinity)
-            }
-            .controlSize(.large)
-            .adaptiveGlassButton()
-            .accessibilityHint("Finds similar unwatched titles on your selected streaming services")
-
-            Button {
-                showsTrackingEditor = true
-            } label: {
-                Label("Your activity", systemImage: "checkmark.rectangle.stack")
-                    .frame(maxWidth: .infinity)
-            }
-            .adaptiveGlassButton()
-
-            Button {
-                listPickerTitle = title
-            } label: {
-                Label("Add to custom list", systemImage: "list.bullet.rectangle")
-                    .frame(maxWidth: .infinity)
-            }
-            .adaptiveGlassButton()
-        }
+        MediaDetailActions(
+            title: title,
+            presentedTrailer: $presentedTrailer,
+            listPickerTitle: $listPickerTitle,
+            presentsMoreLikeThis: $presentsMoreLikeThis,
+            showsTrackingEditor: $showsTrackingEditor,
+            showsSharedNoteEditor: $showsSharedNoteEditor,
+            showsReminderEditor: $showsReminderEditor
+        )
     }
 
     private func story(_ title: MediaTitle) -> some View {
@@ -230,14 +167,6 @@ struct MediaDetailView: View {
                 .font(.footnote.weight(.semibold))
             }
         }
-    }
-}
-
-private extension MediaTitle {
-    var nextWatchActionLabel: String {
-        if state == .completed { return "Watched" }
-        if state == .caughtUp { return "Caught up" }
-        return kind == .movie ? "Mark watched" : "Mark next watched"
     }
 }
 

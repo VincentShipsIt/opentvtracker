@@ -36,7 +36,7 @@ struct RootTabView: View {
             }
 
             Tab("Library", systemImage: "rectangle.stack.fill", value: .library) {
-                LibraryView()
+                LibraryView(selectedTab: $selection)
                     .accessibilityIdentifier("tab.library")
             }
         }

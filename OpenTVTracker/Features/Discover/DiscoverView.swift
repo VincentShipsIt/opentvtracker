@@ -6,7 +6,6 @@ struct DiscoverView: View {
     @State private var searchText = ""
     @State private var surpriseOffset = 0
     @State private var presentedSheet: DiscoverSheet?
-    @State private var presentsAssistant = false
 
     var body: some View {
         NavigationStack {
@@ -51,7 +50,7 @@ struct DiscoverView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Ask OpenTV", systemImage: "sparkles") {
-                        presentsAssistant = true
+                        presentedSheet = .assistant
                     }
                     .accessibilityHint("Opens personalized viewing suggestions")
                     .accessibilityIdentifier("discover.ask-opentv")
@@ -59,6 +58,10 @@ struct DiscoverView: View {
             }
             .sheet(item: $presentedSheet) { sheet in
                 switch sheet {
+                case .assistant:
+                    DiscoveryAssistantView()
+                        .presentationDetents([.medium, .large])
+                        .presentationDragIndicator(.visible)
                 case .categories:
                     DiscoveryCategoryPickerView()
                 case .services:
@@ -68,9 +71,6 @@ struct DiscoverView: View {
                 case .trailer(let trailer):
                     TrailerPlayerView(trailer: trailer)
                 }
-            }
-            .fullScreenCover(isPresented: $presentsAssistant) {
-                DiscoveryAssistantView()
             }
         }
     }
@@ -101,7 +101,8 @@ struct DiscoverView: View {
             MediaShelf(
                 title: "Made for tonight",
                 subtitle: "Strong matches on your subscriptions",
-                titles: recommendations
+                titles: recommendations,
+                showsRecommendationReasons: true
             )
         }
     }
@@ -125,7 +126,7 @@ struct DiscoverView: View {
             VStack(alignment: .leading, spacing: 14) {
                 Label("Still can't decide?", systemImage: "wand.and.stars")
                     .font(.title2.weight(.bold))
-                Text("Browse illustrated categories, each led by the newest title available on services you already have.")
+                Text("Browse distinct categories with fresh leads from services you already have.")
                     .foregroundStyle(.secondary)
                 HStack {
                     Button("Browse categories", systemImage: "square.grid.2x2.fill") {
@@ -272,7 +273,10 @@ private extension DiscoverView {
     }
 
     var categorySections: [DiscoverCategorySection] {
-        DiscoverCategorySection.available(in: model.titlesOnSelectedProviders)
+        DiscoverCategorySection.available(
+            in: model.titlesOnSelectedProviders,
+            excludingLeadTitleIDs: Set(rotatedRecommendations.prefix(1).map(\.id))
+        )
     }
 
     func presentTrailer(for title: MediaTitle) {
