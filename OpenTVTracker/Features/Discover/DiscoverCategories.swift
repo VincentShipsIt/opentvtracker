@@ -25,12 +25,8 @@ struct DiscoverCategoryCarousel: View {
 }
 
 struct DiscoverCategoryGrid: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let sections: [DiscoverCategorySection]
-
-    private let columns = [
-        GridItem(.flexible(minimum: 0), spacing: 12),
-        GridItem(.flexible(minimum: 0), spacing: 12)
-    ]
 
     var body: some View {
         LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
@@ -43,6 +39,13 @@ struct DiscoverCategoryGrid: View {
                 .clipped()
             }
         }
+    }
+
+    private var columns: [GridItem] {
+        Array(
+            repeating: GridItem(.flexible(minimum: 0), spacing: 12),
+            count: dynamicTypeSize.isAccessibilitySize ? 1 : 2
+        )
     }
 }
 
@@ -167,6 +170,7 @@ struct DiscoveryCategoryPickerView: View {
 
 struct DiscoverCategoryShelfView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let category: DiscoverCategory
 
     var body: some View {
@@ -204,26 +208,18 @@ struct DiscoverCategoryShelfView: View {
     }
 
     private var columns: [GridItem] {
-        [
-            GridItem(.flexible(), spacing: 14),
-            GridItem(.flexible(), spacing: 14)
-        ]
+        Array(
+            repeating: GridItem(.flexible(), spacing: 14),
+            count: dynamicTypeSize.isAccessibilitySize ? 1 : 2
+        )
     }
 
     private func latestCard(title: MediaTitle) -> some View {
         NavigationLink(value: title) {
-            ZStack(alignment: .bottomLeading) {
-                BackdropArtwork(title: title)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 250)
-
-                LinearGradient(
-                    colors: [.clear, .black.opacity(0.90)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .clipShape(.rect(cornerRadius: AppTheme.cardRadius))
-
+            AdaptiveHeroSurface(minimumHeight: 250) {
+                BackdropArtwork(title: title, cornerRadius: 0)
+                    .accessibilityHidden(true)
+            } content: {
                 VStack(alignment: .leading, spacing: 7) {
                     Label(category == .topRated ? "Highest rated" : "Latest in \(category.title)", systemImage: category.symbol)
                         .font(.caption.weight(.bold))
@@ -231,12 +227,10 @@ struct DiscoverCategoryShelfView: View {
                         .font(.title.weight(.black))
                     Text(category.subtitle)
                         .font(.subheadline)
-                        .lineLimit(1)
                     Text("\(title.year) · \(title.kind.label) · \(title.providers.first?.name ?? "Your services")")
                         .font(.caption)
                 }
                 .foregroundStyle(.white)
-                .padding(18)
             }
         }
         .buttonStyle(.plain)

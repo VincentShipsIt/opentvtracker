@@ -32,24 +32,44 @@ struct GlassSurface<Content: View>: View {
                         .regular.tint(tint.opacity(0.22)),
                         in: .rect(cornerRadius: cornerRadius)
                     )
+                    .overlay {
+                        RoundedRectangle(cornerRadius: cornerRadius)
+                            .strokeBorder(.primary.opacity(contrast == .increased ? 0.38 : 0))
+                    }
             } else {
                 content
                     .glassEffect(.regular, in: .rect(cornerRadius: cornerRadius))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: cornerRadius)
+                            .strokeBorder(.primary.opacity(contrast == .increased ? 0.38 : 0))
+                    }
             }
         }
     }
 }
 
 struct GlassButtonModifier: ViewModifier {
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
     let prominent: Bool
 
     @ViewBuilder
     func body(content: Content) -> some View {
-        if prominent {
-            content.buttonStyle(.glassProminent)
+        if reduceTransparency || contrast == .increased {
+            if prominent {
+                touchSized(content).buttonStyle(.borderedProminent)
+            } else {
+                touchSized(content).buttonStyle(.bordered)
+            }
+        } else if prominent {
+            touchSized(content).buttonStyle(.glassProminent)
         } else {
-            content.buttonStyle(.glass)
+            touchSized(content).buttonStyle(.glass)
         }
+    }
+
+    private func touchSized(_ content: Content) -> some View {
+        content.minimumTouchTarget()
     }
 }
 

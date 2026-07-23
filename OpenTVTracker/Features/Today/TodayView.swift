@@ -199,71 +199,76 @@ private struct UpNextHero: View {
             SectionHeading(title: "Up next", subtitle: title.nextReleaseDescription)
                 .padding(.horizontal, AppTheme.horizontalPadding)
 
-            GeometryReader { geometry in
-                ZStack(alignment: .bottomLeading) {
-                    BackdropArtwork(title: title, cornerRadius: 0)
-                        .frame(width: geometry.size.width, height: geometry.size.height)
-
-                    LinearGradient(
-                        colors: [.clear, .black.opacity(0.28), .black.opacity(0.96)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-
-                    VStack(alignment: .leading, spacing: 13) {
-                        NavigationLink(value: title) {
-                            VStack(alignment: .leading, spacing: 7) {
-                                Text(title.title)
-                                    .font(.largeTitle.weight(.black))
-                                    .foregroundStyle(.white)
-                                    .lineLimit(2)
-                                Text("\(title.kind.label) · \(title.genres.prefix(2).joined(separator: " · ")) · \(title.runtimeMinutes) min")
-                                    .font(.subheadline.weight(.medium))
-                                    .foregroundStyle(.white.opacity(0.82))
-                                    .lineLimit(2)
-                                Text(progressSummary.label)
-                                    .font(.headline)
-                                    .foregroundStyle(.white)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
+            AdaptiveHeroSurface(
+                minimumHeight: 430,
+                cornerRadius: 0,
+                contentInsets: EdgeInsets(
+                    top: 24,
+                    leading: AppTheme.horizontalPadding,
+                    bottom: 24,
+                    trailing: AppTheme.horizontalPadding
+                )
+            ) {
+                BackdropArtwork(title: title, cornerRadius: 0)
+                    .accessibilityHidden(true)
+            } content: {
+                VStack(alignment: .leading, spacing: 13) {
+                    NavigationLink(value: title) {
+                        VStack(alignment: .leading, spacing: 7) {
+                            Text(title.title)
+                                .font(.largeTitle.weight(.black))
+                                .foregroundStyle(.white)
+                                .lineLimit(2)
+                            Text("\(title.kind.label) · \(title.genres.prefix(2).joined(separator: " · ")) · \(title.runtimeMinutes) min")
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(.white)
+                                .lineLimit(2)
+                            Text(progressSummary.label)
+                                .font(.headline)
+                                .foregroundStyle(.white)
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityIdentifier("home.up-next-title")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("home.up-next-title")
 
-                        ProgressView(value: progressSummary.fraction)
-                            .tint(.white)
-                            .accessibilityLabel("Viewing progress")
-                            .accessibilityValue(progressSummary.label)
+                    ProgressView(value: progressSummary.fraction)
+                        .tint(.white)
+                        .accessibilityLabel("Viewing progress")
+                        .accessibilityValue(progressSummary.label)
 
+                    ViewThatFits(in: .horizontal) {
                         HStack(spacing: 10) {
-                            Button {
-                                model.markNextWatched(title.id)
-                                progressTrigger += 1
-                            } label: {
-                                Label(watchedActionTitle, systemImage: "checkmark.circle.fill")
-                                    .frame(maxWidth: .infinity)
-                            }
-                            .controlSize(.large)
-                            .buttonStyle(.borderedProminent)
-                            .tint(.white)
-                            .foregroundStyle(.black)
-                            .sensoryFeedback(.success, trigger: progressTrigger)
-
-                            QueueActionsMenu(title: title)
-                                .controlSize(.large)
-                                .buttonStyle(.bordered)
-                                .tint(.white)
+                            heroActionButtons
+                        }
+                        VStack(alignment: .leading, spacing: 10) {
+                            heroActionButtons
                         }
                     }
-                    .frame(width: max(geometry.size.width - (AppTheme.horizontalPadding * 2), 0))
-                    .padding(.horizontal, AppTheme.horizontalPadding)
-                    .padding(.bottom, 24)
                 }
-                .frame(width: geometry.size.width, height: geometry.size.height)
-                .clipped()
             }
-            .frame(height: 430)
         }
+    }
+
+    @ViewBuilder
+    private var heroActionButtons: some View {
+        Button {
+            model.markNextWatched(title.id)
+            progressTrigger += 1
+        } label: {
+            Label(watchedActionTitle, systemImage: "checkmark.circle.fill")
+                .frame(maxWidth: .infinity)
+        }
+        .controlSize(.large)
+        .buttonStyle(.borderedProminent)
+        .tint(.white)
+        .foregroundStyle(.black)
+        .sensoryFeedback(.success, trigger: progressTrigger)
+
+        QueueActionsMenu(title: title)
+            .controlSize(.large)
+            .buttonStyle(.bordered)
+            .tint(.white)
     }
 
     private var watchedActionTitle: String {
@@ -341,6 +346,7 @@ private struct QueueActionsMenu: View {
                 .labelStyle(.iconOnly)
         }
         .accessibilityLabel("Queue actions for \(title.title)")
+        .minimumTouchTarget()
     }
 
     private var snoozeDate: Date {

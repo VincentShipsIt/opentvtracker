@@ -240,13 +240,14 @@ private struct AssistantComposer: View {
                     )
                     .labelStyle(.iconOnly)
                     .foregroundStyle(voice.isRecording ? Color.red : Color.accentColor)
-                    .frame(width: 36, height: 36)
+                    .minimumTouchTarget()
                     .accessibilityValue(voice.isRecording ? "Listening" : "Not listening")
 
                     Button("Find picks", systemImage: "arrow.up", action: onSubmit)
                         .labelStyle(.iconOnly)
                         .buttonStyle(.borderedProminent)
                         .buttonBorderShape(.circle)
+                        .minimumTouchTarget()
                         .disabled(prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
                 .padding(.horizontal, 12)

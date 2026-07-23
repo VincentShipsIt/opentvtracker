@@ -138,8 +138,8 @@ private struct AnalyticsHero: View {
 }
 
 private struct AnalyticsStatGrid: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let summary: ViewingAnalyticsSummary
-    private let columns = [GridItem(.flexible()), GridItem(.flexible())]
 
     var body: some View {
         LazyVGrid(columns: columns, spacing: 12) {
@@ -148,6 +148,13 @@ private struct AnalyticsStatGrid: View {
             AnalyticsStatTile(value: summary.movieCount, label: "Movies", symbol: "film.fill")
             AnalyticsStatTile(value: summary.seriesCount, label: "Series", symbol: "tv.fill")
         }
+    }
+
+    private var columns: [GridItem] {
+        Array(
+            repeating: GridItem(.flexible()),
+            count: dynamicTypeSize.isAccessibilitySize ? 1 : 2
+        )
     }
 }
 

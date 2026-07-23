@@ -21,6 +21,7 @@ struct TodayHeader: View {
             }
             .accessibilityHint("Opens your private history, library, and settings")
             .accessibilityIdentifier("today.library")
+            .minimumTouchTarget()
         }
         .padding(.horizontal, AppTheme.horizontalPadding)
         .padding(.top, 12)

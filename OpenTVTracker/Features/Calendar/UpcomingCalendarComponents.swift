@@ -12,6 +12,7 @@ struct DateRangeNavigator: View {
         HStack(spacing: 10) {
             Button(previousLabel, systemImage: "chevron.left", action: onPrevious)
                 .labelStyle(.iconOnly)
+                .minimumTouchTarget()
 
             Button(action: onToday) {
                 VStack(spacing: 2) {
@@ -31,6 +32,7 @@ struct DateRangeNavigator: View {
 
             Button(nextLabel, systemImage: "chevron.right", action: onNext)
                 .labelStyle(.iconOnly)
+                .minimumTouchTarget()
         }
         .padding(.horizontal, 12)
         .frame(minHeight: 52)

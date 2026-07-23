@@ -131,6 +131,7 @@ struct TrackingSummaryCard: View {
 }
 
 struct TrackingStatusSection: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let states: [WatchState]
     let selectedState: WatchState
     let onSelect: (WatchState) -> Void
@@ -151,16 +152,17 @@ struct TrackingStatusSection: View {
                     }
                     .adaptiveGlassButton(prominent: selectedState == state)
                     .accessibilityValue(selectedState == state ? "Selected" : "Not selected")
+                    .accessibilityAddTraits(selectedState == state ? .isSelected : [])
                 }
             }
         }
     }
 
     private var columns: [GridItem] {
-        [
-            GridItem(.flexible(minimum: 0), spacing: 10),
-            GridItem(.flexible(minimum: 0), spacing: 10)
-        ]
+        Array(
+            repeating: GridItem(.flexible(minimum: 0), spacing: 10),
+            count: dynamicTypeSize.isAccessibilitySize ? 1 : 2
+        )
     }
 }
 

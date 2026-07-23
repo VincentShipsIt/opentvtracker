@@ -2,6 +2,7 @@ import SwiftUI
 
 struct EpisodeStillArtwork: View {
     @Environment(\.allowsRemoteArtwork) private var allowsRemoteArtwork
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let url: URL?
     let fallbackURL: URL?
     let showTitle: String
@@ -27,7 +28,7 @@ struct EpisodeStillArtwork: View {
             if allowsRemoteArtwork, let artworkURL = url ?? fallbackURL {
                 AsyncImage(
                     url: artworkURL,
-                    transaction: Transaction(animation: .easeInOut(duration: 0.2))
+                    transaction: artworkTransaction
                 ) { phase in
                     switch phase {
                     case .empty:
@@ -36,7 +37,7 @@ struct EpisodeStillArtwork: View {
                         image
                             .resizable()
                             .scaledToFill()
-                            .transition(.opacity)
+                            .transition(reduceMotion ? .identity : .opacity)
                     case .failure:
                         placeholder
                     @unknown default:
@@ -57,6 +58,10 @@ struct EpisodeStillArtwork: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Still from \(showTitle), \(episodeLabel)")
+    }
+
+    private var artworkTransaction: Transaction {
+        Transaction(animation: reduceMotion ? nil : .easeInOut(duration: 0.2))
     }
 
     private var placeholder: some View {

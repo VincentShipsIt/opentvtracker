@@ -65,35 +65,53 @@ struct LibraryHistoryView: View {
 }
 
 private struct LibraryPrivacyHeader: View {
-    @ScaledMetric(relativeTo: .title2) private var avatarSize = 64.0
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @ScaledMetric(relativeTo: .title2) private var avatarSize: CGFloat = 64
     let member: SpaceMember
 
     var body: some View {
         GlassSurface(tint: .indigo) {
-            HStack(spacing: 16) {
-                Text(member.initials)
-                    .font(.title2.weight(.bold))
-                    .foregroundStyle(.white)
-                    .minimumScaleFactor(0.6)
-                    .frame(width: avatarSize, height: avatarSize)
-                    .background(Color.indigo.gradient, in: Circle())
-                    .accessibilityHidden(true)
-
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(member.name)
-                        .font(.title2.weight(.bold))
-                    Text("Your private viewing history")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    Label("Visible only to you unless you export it", systemImage: "lock.fill")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.indigo)
+            Group {
+                if dynamicTypeSize.isAccessibilitySize {
+                    VStack(alignment: .leading, spacing: 14) {
+                        avatar
+                        metadata
+                    }
+                } else {
+                    HStack(spacing: 16) {
+                        avatar
+                        metadata
+                    }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding(18)
         }
         .accessibilityElement(children: .combine)
+    }
+
+    private var avatar: some View {
+        Text(AppAccessibility.displayedInitials(member.initials))
+            .font(.title2.weight(.bold))
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            .foregroundStyle(.white)
+            .frame(width: avatarSize, height: avatarSize)
+            .background(Color.indigo.gradient, in: Circle())
+            .accessibilityHidden(true)
+    }
+
+    private var metadata: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(member.name)
+                .font(.title2.weight(.bold))
+            Text("Your private viewing history")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            Label("Visible only to you unless you export it", systemImage: "lock.fill")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.indigo)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

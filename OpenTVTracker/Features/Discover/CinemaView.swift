@@ -7,14 +7,10 @@ struct CinemaDiscoveryCard: View {
         NavigationLink {
             CinemaView()
         } label: {
-            ZStack(alignment: .bottomLeading) {
+            AdaptiveHeroSurface(minimumHeight: 190) {
                 artwork
-                LinearGradient(
-                    colors: [.clear, .black.opacity(0.88)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-
+                    .accessibilityHidden(true)
+            } content: {
                 VStack(alignment: .leading, spacing: 6) {
                     Label("IN CINEMAS", systemImage: "ticket.fill")
                         .font(.caption.weight(.black))
@@ -24,11 +20,7 @@ struct CinemaDiscoveryCard: View {
                         .font(.subheadline)
                 }
                 .foregroundStyle(.white)
-                .padding(18)
             }
-            .frame(maxWidth: .infinity)
-            .frame(height: 190)
-            .clipShape(.rect(cornerRadius: AppTheme.cardRadius))
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Movies in cinemas around Malta")
@@ -92,6 +84,11 @@ struct CinemaView: View {
                         }
                         .adaptiveGlassButton(prominent: Calendar.current.isDate(day.date, inSameDayAs: selectedDate))
                         .accessibilityLabel(day.date.formatted(date: .complete, time: .omitted))
+                        .accessibilityAddTraits(
+                            Calendar.current.isDate(day.date, inSameDayAs: selectedDate)
+                                ? .isSelected
+                                : []
+                        )
                     }
                 }
                 .padding(.horizontal, AppTheme.horizontalPadding)

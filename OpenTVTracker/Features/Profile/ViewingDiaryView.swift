@@ -125,6 +125,7 @@ private struct ViewingDiaryCalendar: View {
                 moveMonth(by: -1)
             }
             .labelStyle(.iconOnly)
+            .minimumTouchTarget()
 
             Spacer()
             Text(month.formatted(.dateTime.month(.wide).year()))
@@ -135,6 +136,7 @@ private struct ViewingDiaryCalendar: View {
                 moveMonth(by: 1)
             }
             .labelStyle(.iconOnly)
+            .minimumTouchTarget()
         }
         .padding(.horizontal, 4)
     }

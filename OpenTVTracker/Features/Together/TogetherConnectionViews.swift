@@ -212,15 +212,18 @@ private struct SharingStatusStyle {
 }
 
 private struct TogetherMemberStack: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @ScaledMetric(relativeTo: .caption2) private var avatarSize: CGFloat = 38
     let members: [SpaceMember]
 
     var body: some View {
-        HStack(spacing: -8) {
+        HStack(spacing: dynamicTypeSize.isAccessibilitySize ? 6 : -8) {
             ForEach(members) { member in
-                Text(member.initials)
+                Text(AppAccessibility.displayedInitials(member.initials))
                     .font(.caption2.weight(.bold))
-                    .minimumScaleFactor(0.7)
-                    .frame(width: 38, height: 38)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .frame(width: avatarSize, height: avatarSize)
                     .background(Color.accentColor.gradient, in: Circle())
                     .foregroundStyle(.white)
                     .overlay { Circle().stroke(.background, lineWidth: 2) }

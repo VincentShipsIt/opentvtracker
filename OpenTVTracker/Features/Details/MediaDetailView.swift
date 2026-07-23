@@ -78,47 +78,7 @@ struct MediaDetailView: View {
     private var title: MediaTitle? { model.mediaTitle(withID: titleID) }
 
     private func hero(_ title: MediaTitle) -> some View {
-        ZStack(alignment: .bottomLeading) {
-            BackdropArtwork(title: title)
-                .frame(maxWidth: .infinity)
-                .frame(height: 300)
-
-            LinearGradient(
-                colors: [.clear, .black.opacity(0.28), .black.opacity(0.92)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .clipShape(.rect(cornerRadius: AppTheme.cardRadius))
-
-            HStack(alignment: .bottom, spacing: 14) {
-                PosterArtwork(title: title, cornerRadius: 12)
-                    .frame(width: 104, height: 154)
-
-                VStack(alignment: .leading, spacing: 8) {
-                    if let provider = title.providers.first {
-                        ProviderBadge(provider: provider)
-                    }
-                    Text(title.title)
-                        .font(.title.weight(.black))
-                        .foregroundStyle(.white)
-                    Text("\(title.year) · \(title.kind.label) · \(title.runtimeMinutes) min")
-                        .font(.caption)
-                        .foregroundStyle(.white.opacity(0.78))
-                    HStack {
-                        RatingLabel(rating: title.rating)
-                        if let progress = title.progress {
-                            Text(progress.label)
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.white)
-                        }
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .padding(16)
-        }
-        .padding(.top, 12)
-        .accessibilityElement(children: .contain)
+        MediaDetailHero(title: title)
     }
 
     private func actions(_ title: MediaTitle) -> some View {
@@ -207,6 +167,66 @@ struct MediaDetailView: View {
                 .font(.footnote.weight(.semibold))
             }
         }
+    }
+}
+
+private struct MediaDetailHero: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    let title: MediaTitle
+
+    var body: some View {
+        AdaptiveHeroSurface(minimumHeight: 300) {
+            BackdropArtwork(title: title, cornerRadius: 0)
+                .accessibilityHidden(true)
+        } content: {
+            content
+        }
+        .padding(.top, 12)
+        .accessibilityElement(children: .contain)
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        if dynamicTypeSize.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: 14) {
+                poster(width: 88, height: 130)
+                metadata
+            }
+        } else {
+            HStack(alignment: .bottom, spacing: 14) {
+                poster(width: 104, height: 154)
+                metadata
+            }
+        }
+    }
+
+    private func poster(width: CGFloat, height: CGFloat) -> some View {
+        PosterArtwork(title: title, cornerRadius: 12)
+            .frame(width: width, height: height)
+            .accessibilityHidden(true)
+    }
+
+    private var metadata: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if let provider = title.providers.first {
+                ProviderBadge(provider: provider)
+            }
+            Text(title.title)
+                .font(.title.weight(.black))
+                .foregroundStyle(.white)
+            Text("\(title.year) · \(title.kind.label) · \(title.runtimeMinutes) min")
+                .font(.caption)
+                .foregroundStyle(.white)
+            HStack {
+                RatingLabel(rating: title.rating)
+                if let progress = title.progress {
+                    Text(progress.label)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.white)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
