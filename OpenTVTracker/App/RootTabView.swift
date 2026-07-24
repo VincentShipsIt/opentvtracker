@@ -26,8 +26,8 @@ enum AppSpaceMode: String, CaseIterable, Hashable, Identifiable {
         }
     }
 
-    /// Primary ambient hue. The backdrop is the only "where am I" signal now that
-    /// the segmented picker is gone, so the two modes must read as different rooms.
+    /// Primary ambient hue. The picker names the current space; the backdrop
+    /// reinforces it so the two modes also *read* as different rooms.
     var ambientTint: Color {
         switch self {
         case .personal: .accentColor
@@ -41,10 +41,6 @@ enum AppSpaceMode: String, CaseIterable, Hashable, Identifiable {
         case .personal: .indigo
         case .shared: .purple
         }
-    }
-
-    var other: AppSpaceMode {
-        self == .personal ? .shared : .personal
     }
 }
 
@@ -121,12 +117,16 @@ struct RootTabView: View {
     }
 }
 
-/// Personal and Shared are two pages of one horizontally paged surface — there is no
-/// picker chrome. A page `TabView` gives a finger-tracking swipe that also cooperates
-/// with the horizontal shelves inside each page (an inner shelf consumes the pan until
-/// it reaches its content edge), which a raw `DragGesture` could not do.
+/// Personal and Shared swap in place behind an explicit picker.
+///
+/// A page-styled `TabView` was tried here and rejected: wrapping each tab's
+/// `NavigationStack` in a paged scroll container left pushed content resolving to an
+/// empty frame, so controls inside a detail screen became unhittable. It also left the
+/// Shared space reachable only by an undiscoverable swipe. The picker stays.
 private struct SpaceModeContainer<PersonalContent: View, SharedContent: View>: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Binding var selection: AppSpaceMode
+    @State private var availableWidth: CGFloat = 0
     private let personalContent: PersonalContent
     private let sharedContent: SharedContent
 
@@ -141,23 +141,97 @@ private struct SpaceModeContainer<PersonalContent: View, SharedContent: View>: V
     }
 
     var body: some View {
-        TabView(selection: $selection) {
-            personalContent
-                .environment(\.appSpaceMode, .personal)
-                .tag(AppSpaceMode.personal)
-
-            sharedContent
-                .environment(\.appSpaceMode, .shared)
-                .tag(AppSpaceMode.shared)
+        Group {
+            switch selection {
+            case .personal:
+                personalContent
+                    .environment(\.appSpaceMode, .personal)
+                    .transition(spaceTransition(edge: .leading))
+            case .shared:
+                sharedContent
+                    .environment(\.appSpaceMode, .shared)
+                    .transition(spaceTransition(edge: .trailing))
+            }
         }
-        .tabViewStyle(.page(indexDisplayMode: .never))
+        .safeAreaInset(edge: .top, spacing: 0) {
+            SpaceModePicker(selection: $selection)
+        }
+        .contentShape(.rect)
+        .simultaneousGesture(spaceSwipe)
+        .onGeometryChange(for: CGFloat.self) { geometry in
+            geometry.size.width
+        } action: { width in
+            availableWidth = width
+        }
+        .animation(reduceMotion ? nil : .snappy(duration: 0.25), value: selection)
         .sensoryFeedback(.selection, trigger: selection)
-        // The swipe is the only way to change space, so VoiceOver (which cannot
-        // deliver the page pan) gets an explicit rotor action instead.
-        .accessibilityAction(named: Text("Switch to \(selection.other.label) space")) {
-            selection = selection.other
-        }
         .accessibilityIdentifier("space-mode-container")
+    }
+
+    /// Edge-started only: a drag beginning mid-screen belongs to whatever horizontal
+    /// shelf is under the finger, not to the space switch.
+    private var spaceSwipe: some Gesture {
+        DragGesture(minimumDistance: 24, coordinateSpace: .local)
+            .onEnded { value in
+                let horizontalDistance = value.translation.width
+                let verticalDistance = value.translation.height
+
+                guard abs(horizontalDistance) > 60,
+                      abs(horizontalDistance) > abs(verticalDistance) * 1.25
+                else {
+                    return
+                }
+
+                if selection == .personal,
+                   horizontalDistance < 0,
+                   value.startLocation.x >= availableWidth - 44 {
+                    selection = .shared
+                } else if selection == .shared,
+                          horizontalDistance > 0,
+                          value.startLocation.x <= 44 {
+                    selection = .personal
+                }
+            }
+    }
+
+    private func spaceTransition(edge: Edge) -> AnyTransition {
+        reduceMotion ? .identity : .move(edge: edge).combined(with: .opacity)
+    }
+}
+
+private struct SpaceModePicker: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Binding var selection: AppSpaceMode
+
+    var body: some View {
+        GlassSurface(cornerRadius: AppTheme.compactRadius) {
+            if dynamicTypeSize.isAccessibilitySize {
+                Picker("Viewing space", selection: $selection) {
+                    modes
+                }
+                .pickerStyle(.menu)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 12)
+            } else {
+                Picker("Viewing space", selection: $selection) {
+                    modes
+                }
+                .pickerStyle(.segmented)
+                .padding(6)
+            }
+        }
+        .padding(.horizontal, AppTheme.horizontalPadding)
+        .padding(.vertical, 8)
+        .accessibilityHint("Swipe left or right from the screen edge to change space")
+        .accessibilityIdentifier("space-mode-picker")
+    }
+
+    @ViewBuilder
+    private var modes: some View {
+        ForEach(AppSpaceMode.allCases) { mode in
+            Label(mode.label, systemImage: mode.symbol)
+                .tag(mode)
+        }
     }
 }
 
