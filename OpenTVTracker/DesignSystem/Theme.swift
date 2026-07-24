@@ -127,6 +127,48 @@ struct AdaptiveHeroSurface<Artwork: View, Content: View>: View {
     }
 }
 
+/// Every poster / card / tile grid in the app shares one shape: two flexible columns
+/// that collapse to a single column at accessibility text sizes. Six call sites each
+/// re-derived this `[GridItem]` array by hand and had already drifted apart on column
+/// `minimum` and spacing. This is the single source of truth — callers vary only the
+/// spacing and the cells, never the collapse rule.
+struct AdaptiveGrid<Content: View>: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    private let rowSpacing: CGFloat?
+    private let columnSpacing: CGFloat?
+    private let minimumColumnWidth: CGFloat
+    private let alignment: HorizontalAlignment
+    private let content: Content
+
+    init(
+        rowSpacing: CGFloat? = nil,
+        columnSpacing: CGFloat? = nil,
+        minimumColumnWidth: CGFloat = 10,
+        alignment: HorizontalAlignment = .center,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.rowSpacing = rowSpacing
+        self.columnSpacing = columnSpacing
+        self.minimumColumnWidth = minimumColumnWidth
+        self.alignment = alignment
+        self.content = content()
+    }
+
+    var body: some View {
+        LazyVGrid(columns: columns, alignment: alignment, spacing: rowSpacing) {
+            content
+        }
+    }
+
+    private var columns: [GridItem] {
+        Array(
+            repeating: GridItem(.flexible(minimum: minimumColumnWidth), spacing: columnSpacing),
+            count: dynamicTypeSize.isAccessibilitySize ? 1 : 2
+        )
+    }
+}
+
 private struct MinimumTouchTargetModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
@@ -145,22 +187,26 @@ extension View {
 }
 
 struct AmbientBackdrop: View {
+    @Environment(\.appSpaceMode) private var spaceMode
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
         ZStack {
             Color(.systemBackground)
             RadialGradient(
-                colors: [Color.accentColor.opacity(0.18), .clear],
+                colors: [spaceMode.ambientTint.opacity(0.22), .clear],
                 center: .topTrailing,
                 startRadius: 20,
                 endRadius: 420
             )
             LinearGradient(
-                colors: [Color.clear, Color.indigo.opacity(0.08)],
+                colors: [Color.clear, spaceMode.ambientWash.opacity(0.12)],
                 startPoint: .top,
                 endPoint: .bottomLeading
             )
         }
         .ignoresSafeArea()
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: spaceMode)
         .accessibilityHidden(true)
     }
 }

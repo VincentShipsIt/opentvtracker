@@ -268,7 +268,7 @@ private struct SharedTitlePickerRow: View {
                 Text(title.title)
                     .font(.headline)
                     .lineLimit(2)
-                Text("\(title.year) · \(title.kind.label) · \(title.state.label)")
+                Text("\(title.displayYear) · \(title.kind.label) · \(title.state.label)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

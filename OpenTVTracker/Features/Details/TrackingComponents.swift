@@ -113,7 +113,7 @@ struct TrackingSummaryCard: View {
     @ViewBuilder
     private var progress: some View {
         if title.kind == .series, totalEpisodeCount > 0 {
-            Text("\(watchedEpisodeCount) of \(totalEpisodeCount) episodes watched")
+            Text("\(watchedEpisodeCount) of \(totalEpisodeCount) \(totalEpisodeCount == 1 ? "episode" : "episodes") watched")
                 .font(.caption)
                 .foregroundStyle(.secondary)
             ProgressView(value: Double(watchedEpisodeCount), total: Double(totalEpisodeCount))
@@ -131,7 +131,6 @@ struct TrackingSummaryCard: View {
 }
 
 struct TrackingStatusSection: View {
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let states: [WatchState]
     let selectedState: WatchState
     let onSelect: (WatchState) -> Void
@@ -140,7 +139,7 @@ struct TrackingStatusSection: View {
         VStack(alignment: .leading, spacing: 12) {
             SectionHeading(title: "Status")
 
-            LazyVGrid(columns: columns, spacing: 10) {
+            AdaptiveGrid(rowSpacing: 10, columnSpacing: 10, minimumColumnWidth: 0) {
                 ForEach(states, id: \.self) { state in
                     Button {
                         onSelect(state)
@@ -156,13 +155,6 @@ struct TrackingStatusSection: View {
                 }
             }
         }
-    }
-
-    private var columns: [GridItem] {
-        Array(
-            repeating: GridItem(.flexible(minimum: 0), spacing: 10),
-            count: dynamicTypeSize.isAccessibilitySize ? 1 : 2
-        )
     }
 }
 

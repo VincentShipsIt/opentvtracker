@@ -82,7 +82,6 @@ private struct MoreLikeThisContextCard: View {
 }
 
 private struct MoreLikeThisGrid: View {
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let matches: [SimilarTitleMatch]
     let selectedProviderIDs: Set<StreamingProvider.ID>
 
@@ -93,7 +92,7 @@ private struct MoreLikeThisGrid: View {
                 subtitle: "Available on your selected services"
             )
 
-            LazyVGrid(columns: columns, spacing: 20) {
+            AdaptiveGrid(rowSpacing: 20, columnSpacing: 14) {
                 ForEach(matches) { match in
                     NavigationLink(value: match.title) {
                         SimilarTitleCard(
@@ -106,13 +105,6 @@ private struct MoreLikeThisGrid: View {
             }
         }
     }
-
-    private var columns: [GridItem] {
-        Array(
-            repeating: GridItem(.flexible(), spacing: 14),
-            count: dynamicTypeSize.isAccessibilitySize ? 1 : 2
-        )
-    }
 }
 
 private struct SimilarTitleCard: View {
@@ -121,8 +113,14 @@ private struct SimilarTitleCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
+            // A filled poster is taller than the 200pt slot at this column width, and
+            // `PosterArtwork` clips at its own (oversized) bounds — so the crop has to
+            // happen here or the artwork paints over the heading above it.
             PosterArtwork(title: match.title)
-                .aspectRatio(0.68, contentMode: .fit)
+                .frame(maxWidth: .infinity)
+                .frame(height: 200)
+                .clipped()
+                .clipShape(.rect(cornerRadius: AppTheme.compactRadius))
                 .overlay(alignment: .topLeading) {
                     if let provider {
                         ProviderBadge(provider: provider, compact: true)

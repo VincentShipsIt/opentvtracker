@@ -297,7 +297,7 @@ private struct ListTitleRow: View {
                 Text(title.title)
                     .font(.headline)
                     .lineLimit(2)
-                Text("\(title.year) · \(title.kind.label)")
+                Text("\(title.displayYear) · \(title.kind.label)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

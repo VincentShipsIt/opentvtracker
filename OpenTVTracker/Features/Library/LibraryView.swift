@@ -13,6 +13,8 @@ struct LibraryView: View {
                 AmbientBackdrop()
 
                 VStack(spacing: 12) {
+                    LibraryHeader(onOpenSettings: { presentedSheet = .settings })
+
                     LibrarySectionPicker(selection: $section)
 
                     switch section {
@@ -32,16 +34,6 @@ struct LibraryView: View {
                             onOpenDataTools: { presentedSheet = .dataTools }
                         )
                     }
-                }
-                .padding(.top, 8)
-            }
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Profile and settings", systemImage: "person.crop.circle") {
-                        presentedSheet = .settings
-                    }
-                    .accessibilityHint("Opens your private profile, app settings, and backup status")
-                    .accessibilityIdentifier("library.settings")
                 }
             }
             .sheet(item: $presentedSheet) { sheet in
@@ -183,6 +175,28 @@ enum LibraryShelf: String, CaseIterable, Identifiable {
     }
 }
 
+private struct LibraryHeader: View {
+    let onOpenSettings: () -> Void
+
+    var body: some View {
+        HStack(spacing: 16) {
+            Text("Library")
+                .font(.largeTitle.weight(.bold))
+            Spacer(minLength: 0)
+            Button(action: onOpenSettings) {
+                Label("Profile and settings", systemImage: "person.crop.circle.fill")
+                    .labelStyle(.iconOnly)
+                    .font(.system(size: 34))
+            }
+            .accessibilityHint("Opens your private profile, app settings, and backup status")
+            .accessibilityIdentifier("library.settings")
+            .minimumTouchTarget()
+        }
+        .padding(.horizontal, AppTheme.horizontalPadding)
+        .padding(.top, 12)
+    }
+}
+
 private struct LibrarySectionPicker: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Binding var selection: LibrarySection
@@ -307,7 +321,7 @@ struct LibraryRow: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text(title.title)
                     .font(.headline)
-                Text("\(title.year) · \(title.kind.label)")
+                Text("\(title.displayYear) · \(title.kind.label)")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                 Label(title.progressLabel, systemImage: title.state.symbol)

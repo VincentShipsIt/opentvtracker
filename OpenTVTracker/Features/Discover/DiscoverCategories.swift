@@ -25,11 +25,10 @@ struct DiscoverCategoryCarousel: View {
 }
 
 struct DiscoverCategoryGrid: View {
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let sections: [DiscoverCategorySection]
 
     var body: some View {
-        LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
+        AdaptiveGrid(rowSpacing: 12, columnSpacing: 12, minimumColumnWidth: 0, alignment: .leading) {
             ForEach(sections) { section in
                 NavigationLink(value: section.category) {
                     DiscoverCategoryTile(section: section)
@@ -39,13 +38,6 @@ struct DiscoverCategoryGrid: View {
                 .clipped()
             }
         }
-    }
-
-    private var columns: [GridItem] {
-        Array(
-            repeating: GridItem(.flexible(minimum: 0), spacing: 12),
-            count: dynamicTypeSize.isAccessibilitySize ? 1 : 2
-        )
     }
 }
 
@@ -130,7 +122,7 @@ struct DiscoverCategoryTile: View {
         guard let leadTitle = section.leadTitle else {
             return "\(section.category.title). \(section.category.subtitle)."
         }
-        return "\(section.category.title). Featuring \(leadTitle.title), \(leadTitle.year). \(section.category.subtitle)."
+        return "\(section.category.title). Featuring \(leadTitle.title), \(leadTitle.displayYear). \(section.category.subtitle)."
     }
 }
 
@@ -170,7 +162,6 @@ struct DiscoveryCategoryPickerView: View {
 
 struct DiscoverCategoryShelfView: View {
     @Environment(AppModel.self) private var model
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let category: DiscoverCategory
 
     var body: some View {
@@ -188,7 +179,7 @@ struct DiscoverCategoryShelfView: View {
                         subtitle: "\(categoryTitles.count) picks on your selected services"
                     )
 
-                    LazyVGrid(columns: columns, spacing: 18) {
+                    AdaptiveGrid(rowSpacing: 18, columnSpacing: 14) {
                         ForEach(categoryTitles) { title in
                             NavigationLink(value: title) {
                                 PosterShelfCard(title: title)
@@ -207,13 +198,6 @@ struct DiscoverCategoryShelfView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    private var columns: [GridItem] {
-        Array(
-            repeating: GridItem(.flexible(), spacing: 14),
-            count: dynamicTypeSize.isAccessibilitySize ? 1 : 2
-        )
-    }
-
     private func latestCard(title: MediaTitle) -> some View {
         NavigationLink(value: title) {
             AdaptiveHeroSurface(minimumHeight: 250) {
@@ -227,7 +211,7 @@ struct DiscoverCategoryShelfView: View {
                         .font(.title.weight(.black))
                     Text(category.subtitle)
                         .font(.subheadline)
-                    Text("\(title.year) · \(title.kind.label) · \(title.providers.first?.name ?? "Your services")")
+                    Text("\(title.displayYear) · \(title.kind.label) · \(title.providers.first?.name ?? "Your services")")
                         .font(.caption)
                 }
                 .foregroundStyle(.white)
@@ -235,7 +219,7 @@ struct DiscoverCategoryShelfView: View {
         }
         .buttonStyle(.plain)
         .padding(.horizontal, AppTheme.horizontalPadding)
-        .accessibilityLabel("Latest in \(category.title): \(title.title), \(title.year)")
+        .accessibilityLabel("Latest in \(category.title): \(title.title), \(title.displayYear)")
     }
 }
 

@@ -67,16 +67,26 @@ struct TodayRecommendationCard: View {
                 }
                 .buttonStyle(.plain)
 
-                HStack {
-                    Button("Add to watchlist", systemImage: "plus", action: onAdd)
-                        .adaptiveGlassButton(prominent: true)
-                    Button("Explore Discover", systemImage: "magnifyingglass", action: onOpenDiscover)
-                        .adaptiveGlassButton()
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 10) { actionButtons }
+                    VStack(spacing: 10) { actionButtons }
                 }
             }
             .padding(18)
         }
         .accessibilityIdentifier("today.recommendation")
+    }
+
+    @ViewBuilder
+    private var actionButtons: some View {
+        Button("Add to watchlist", systemImage: "plus", action: onAdd)
+            .adaptiveGlassButton(prominent: true)
+            .lineLimit(1)
+            .frame(maxWidth: .infinity)
+        Button("Explore Discover", systemImage: "magnifyingglass", action: onOpenDiscover)
+            .adaptiveGlassButton()
+            .lineLimit(1)
+            .frame(maxWidth: .infinity)
     }
 }
 
@@ -91,15 +101,26 @@ struct TodayRecoveryCard: View {
             VStack(spacing: 14) {
                 ContentUnavailableView(title, systemImage: "sparkles.tv", description: Text(description))
 
-                HStack {
-                    Button("Manage services", systemImage: "slider.horizontal.3", action: onManageServices)
-                        .adaptiveGlassButton(prominent: !hasSelectedServices)
-                    Button("Open Discover", systemImage: "magnifyingglass", action: onOpenDiscover)
-                        .adaptiveGlassButton(prominent: hasSelectedServices)
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 10) { actionButtons }
+                    VStack(spacing: 10) { actionButtons }
                 }
+                .padding(.horizontal, 18)
             }
             .padding(.vertical, 20)
         }
+    }
+
+    @ViewBuilder
+    private var actionButtons: some View {
+        Button("Manage services", systemImage: "slider.horizontal.3", action: onManageServices)
+            .adaptiveGlassButton(prominent: !hasSelectedServices)
+            .lineLimit(1)
+            .frame(maxWidth: .infinity)
+        Button("Open Discover", systemImage: "magnifyingglass", action: onOpenDiscover)
+            .adaptiveGlassButton(prominent: hasSelectedServices)
+            .lineLimit(1)
+            .frame(maxWidth: .infinity)
     }
 
     private var title: String {
