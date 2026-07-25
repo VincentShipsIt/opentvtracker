@@ -6,6 +6,12 @@ enum AppTheme {
     static let compactRadius: CGFloat = 16
     static let sectionSpacing: CGFloat = 28
 
+    /// Gap between stacked chrome controls that belong to one another — a screen title
+    /// and the pickers that scope it. Deliberately tighter than `sectionSpacing`, which
+    /// separates unrelated content sections: a picker pushed 28pt off its own title
+    /// stops reading as part of that title.
+    static let controlSpacing: CGFloat = 12
+
     /// Standard poster ratio. `PosterArtwork` fills whatever bounds it is offered and
     /// clips at them, so a caller that constrains only width has to supply a ratio —
     /// an unbounded height lets the artwork paint over its neighbours. Use this rather

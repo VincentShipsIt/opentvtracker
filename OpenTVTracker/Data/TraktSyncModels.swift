@@ -60,7 +60,7 @@ struct TraktSyncSummary: Hashable, Sendable {
 
     var description: String {
         let importedCount = importedHistoryCount + importedRatingCount + importedWatchlistCount
-        return "\(importedCount) imported · \(uploadedChangeCount) uploaded · \(importedListCount) lists preserved"
+        return "\(importedCount) imported · \(uploadedChangeCount) uploaded · \(CountLabel.lists(importedListCount)) preserved"
     }
 }
 

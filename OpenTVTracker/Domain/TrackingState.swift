@@ -21,6 +21,21 @@ enum CountLabel {
         inflected(AttributedString(localized: "^[\(count) more title](inflect: true)"))
     }
 
+    /// "1 service" / "6 services".
+    static func services(_ count: Int) -> String {
+        inflected(AttributedString(localized: "^[\(count) service](inflect: true)"))
+    }
+
+    /// "1 list" / "6 lists".
+    static func lists(_ count: Int) -> String {
+        inflected(AttributedString(localized: "^[\(count) list](inflect: true)"))
+    }
+
+    /// "1 minute" / "6 minutes".
+    static func minutes(_ count: Int) -> String {
+        inflected(AttributedString(localized: "^[\(count) minute](inflect: true)"))
+    }
+
     /// Returns a plain `String` so accessibility labels, share text and `Text` can all
     /// share one source — `Text` re-inflects an `AttributedString`, the others cannot.
     private static func inflected(_ value: AttributedString) -> String {

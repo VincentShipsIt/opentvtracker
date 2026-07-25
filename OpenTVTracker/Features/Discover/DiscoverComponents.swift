@@ -224,6 +224,7 @@ struct CatalogSearchCard: View {
                 .font(.caption.weight(.semibold))
                 .buttonStyle(.bordered)
                 .controlSize(.small)
+                .minimumTouchTarget()
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .accessibilityHint("Adds this title to your viewing history and recommendation profile")
             }
@@ -244,6 +245,7 @@ struct CatalogSearchCard: View {
             .font(.caption.weight(.semibold))
             .buttonStyle(.bordered)
             .controlSize(.small)
+            .minimumTouchTarget()
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityHint("Adds this title to your private shared space")
         }
