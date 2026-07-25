@@ -8,6 +8,7 @@ final class AppModel {
     let traktService: any TraktSyncProviding
     let sharedConversationNotifier: any SharedConversationNotifying
     let reminderScheduler: any ReminderScheduling
+    let partnerActivityNotifier: any PartnerActivityNotifying
     let catalogService: any CatalogProviding
     private let seed: LibrarySnapshot
     var saveTask: Task<Void, Never>?
@@ -54,6 +55,7 @@ final class AppModel {
         recommendationService: any RecommendationProviding = ProviderNeutralRecommendationService(),
         sharedConversationNotifier: any SharedConversationNotifying = SharedConversationNotificationService(),
         reminderScheduler: (any ReminderScheduling)? = nil,
+        partnerActivityNotifier: (any PartnerActivityNotifying)? = nil,
         catalogService: (any CatalogProviding)? = nil,
         traktService: any TraktSyncProviding = TraktSyncServiceFactory.makeDefault(),
         seed: LibrarySnapshot = .empty
@@ -68,6 +70,13 @@ final class AppModel {
             self.reminderScheduler = LocalNotificationReminderService()
         } else {
             self.reminderScheduler = NoopReminderScheduler()
+        }
+        if let partnerActivityNotifier {
+            self.partnerActivityNotifier = partnerActivityNotifier
+        } else if seed == .empty {
+            self.partnerActivityNotifier = PartnerActivityNotificationService()
+        } else {
+            self.partnerActivityNotifier = NoopPartnerActivityNotifier()
         }
         if let catalogService {
             self.catalogService = catalogService
@@ -169,6 +178,9 @@ final class AppModel {
         } catch {
             persistenceError = "Your saved library could not be opened. Your catalog and saved data remain separate."
             canReconcileReminders = false
+        }
+        if sharedSpace.isCloudSharingEnabled {
+            await partnerActivityNotifier.requestAuthorization()
         }
         await refreshDiscoveryCatalog()
         await refreshRecommendations()

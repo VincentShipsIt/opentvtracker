@@ -103,6 +103,7 @@ extension AppModel {
         sharedSpace.membershipState = .pending
         sharedSpace.isCloudSharingEnabled = true
         persist()
+        Task { await partnerActivityNotifier.requestAuthorization() }
     }
 
     func acceptPartnerShare(_ location: PartnerShareLocation) {
@@ -113,7 +114,10 @@ extension AppModel {
         sharedSpace.membershipState = .accepted
         sharedSpace.isCloudSharingEnabled = true
         persist()
-        Task { await startCloudSyncIfNeeded() }
+        Task {
+            await partnerActivityNotifier.requestAuthorization()
+            await startCloudSyncIfNeeded()
+        }
     }
 
     func markWatchedTogether(_ id: MediaTitle.ID) {
