@@ -12,7 +12,7 @@ struct LibraryView: View {
             ZStack {
                 AmbientBackdrop()
 
-                VStack(spacing: 12) {
+                VStack(spacing: AppTheme.controlSpacing) {
                     LibraryHeader(onOpenSettings: { presentedSheet = .settings })
 
                     LibrarySectionPicker(selection: $section)

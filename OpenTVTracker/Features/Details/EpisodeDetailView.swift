@@ -258,7 +258,7 @@ struct EpisodeDetailView: View {
     }
 
     private func runtimeLabel(for episode: EpisodeSummary) -> String {
-        episode.runtimeMinutes.map { "\($0) minutes" } ?? "Not available"
+        episode.runtimeMinutes.map(CountLabel.minutes) ?? "Not available"
     }
 }
 

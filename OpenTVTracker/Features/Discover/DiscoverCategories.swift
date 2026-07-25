@@ -74,8 +74,12 @@ struct DiscoverCategoryTile: View {
                 }
                 .overlay(alignment: .bottomLeading) {
                     VStack(alignment: .leading, spacing: 2) {
+                        // The tile is aspect-locked, so this label cannot grow with the
+                        // artwork. Cap the lines rather than let an accessibility size
+                        // push the subtitle out through the clip shape.
                         Text(section.category.title)
                             .font(.headline.weight(.semibold))
+                            .lineLimit(2)
                         Text(section.category.subtitle)
                             .font(.caption2)
                             .lineLimit(1)

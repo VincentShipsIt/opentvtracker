@@ -89,7 +89,7 @@ final class CoreJourneySmokeUITests: XCTestCase {
         launchCoreJourneys()
         XCTAssertFalse(app.tabBars.buttons["Together"].exists)
         XCTAssertEqual(app.tabBars.buttons.count, 3)
-        swipeToSharedSpace()
+        swipeAcrossSpaceEdge()
 
         assertExists(app.staticTexts["Test couch"])
         app.tabBars.buttons["Library"].tap()
@@ -116,6 +116,20 @@ final class CoreJourneySmokeUITests: XCTestCase {
         assertExists(app.textFields["Add a private note"])
     }
 
+    /// Guards the return leg specifically. Only the outbound swipe was covered, so a
+    /// regression that anchored the return gesture where a finger could not physically
+    /// reach it disabled the swipe entirely and still left CI green.
+    func testSpaceSwipeCarriesBackToPersonal() {
+        launchCoreJourneys()
+
+        swipeAcrossSpaceEdge()
+        assertExists(app.staticTexts["Test couch"])
+
+        swipeAcrossSpaceEdge()
+        assertExists(app.buttons["home.up-next-title"])
+        assertDisappears(app.staticTexts["Test couch"])
+    }
+
     private func launchCoreJourneys() {
         launch(with: "-ui-testing-core-journeys")
         assertExists(app.buttons["home.up-next-title"])
@@ -134,7 +148,10 @@ final class CoreJourneySmokeUITests: XCTestCase {
         button.tap()
     }
 
-    private func swipeToSharedSpace() {
+    /// The space switch is a toggle anchored on the trailing edge, so the same drag
+    /// carries you in both directions. Keep it one helper — a second "swipe back"
+    /// helper that dragged the other way would encode a gesture the app does not have.
+    private func swipeAcrossSpaceEdge() {
         let start = app.coordinate(
             withNormalizedOffset: CGVector(dx: 0.98, dy: 0.5)
         )
@@ -193,6 +210,29 @@ final class CoreJourneySmokeUITests: XCTestCase {
         XCTAssertTrue(
             element.waitForExistence(timeout: timeout),
             "Expected \(element) to exist",
+            file: file,
+            line: line
+        )
+    }
+
+    /// The negative counterpart to `assertExists`, and it has to poll for the same
+    /// reason that one does. A removal transition keeps the outgoing view mounted —
+    /// and therefore still queryable — for the length of the animation, so a bare
+    /// `exists` check taken the instant the incoming view appears can still see it.
+    private func assertDisappears(
+        _ element: XCUIElement,
+        timeout: TimeInterval = 5,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        let gone = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false"),
+            object: element
+        )
+        XCTAssertEqual(
+            XCTWaiter().wait(for: [gone], timeout: timeout),
+            .completed,
+            "Expected \(element) to go away",
             file: file,
             line: line
         )

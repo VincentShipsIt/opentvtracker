@@ -129,8 +129,7 @@ struct AppSettingsView: View {
     }
 
     private var subscriptionSummary: String {
-        let count = model.selectedProviders.count
-        return count == 1 ? "1 service" : "\(count) services"
+        CountLabel.services(model.selectedProviders.count)
     }
 
 }

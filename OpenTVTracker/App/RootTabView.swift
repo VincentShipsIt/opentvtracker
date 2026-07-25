@@ -153,6 +153,14 @@ private struct SpaceModeContainer<PersonalContent: View, SharedContent: View>: V
                     .transition(spaceTransition(edge: .trailing))
             }
         }
+        // Both branches carry their own `AmbientBackdrop`, and the cross-fade dips both
+        // below full opacity at once — without an opaque layer of our own underneath,
+        // the window backdrop reads through as black gutters for the length of the
+        // transition. One persistent backdrop here keeps every frame composited.
+        .background {
+            AmbientBackdrop()
+                .environment(\.appSpaceMode, selection)
+        }
         .safeAreaInset(edge: .top, spacing: 0) {
             SpaceModePicker(selection: $selection)
         }
@@ -170,6 +178,16 @@ private struct SpaceModeContainer<PersonalContent: View, SharedContent: View>: V
 
     /// Edge-started only: a drag beginning mid-screen belongs to whatever horizontal
     /// shelf is under the finger, not to the space switch.
+    ///
+    /// This is a *toggle*, not a pair of directional swipes: pull in from the trailing
+    /// edge to flip to the other space, whichever one you are in. The leading edge is
+    /// reserved for `NavigationStack`'s interactive pop, and this gesture is installed
+    /// with `simultaneousGesture` above a stack that every space pushes onto — a
+    /// leading-edge start would fire both recognizers, popping the detail screen *and*
+    /// throwing the user into the other space in one swipe. That rules out a rightward
+    /// return swipe entirely: anchored trailing it has no room to travel (the finger
+    /// would have to leave the screen to clear the distance threshold), and anchored
+    /// leading it collides with the pop. Symmetry is the only reachable shape left.
     private var spaceSwipe: some Gesture {
         DragGesture(minimumDistance: 24, coordinateSpace: .local)
             .onEnded { value in
@@ -187,8 +205,8 @@ private struct SpaceModeContainer<PersonalContent: View, SharedContent: View>: V
                    value.startLocation.x >= availableWidth - 44 {
                     selection = .shared
                 } else if selection == .shared,
-                          horizontalDistance > 0,
-                          value.startLocation.x <= 44 {
+                          horizontalDistance < 0,
+                          value.startLocation.x >= availableWidth - 44 {
                     selection = .personal
                 }
             }
@@ -222,7 +240,9 @@ private struct SpaceModePicker: View {
         }
         .padding(.horizontal, AppTheme.horizontalPadding)
         .padding(.vertical, 8)
-        .accessibilityHint("Swipe left or right from the screen edge to change space")
+        // No gesture hint here: VoiceOver claims single-finger horizontal swipes for its
+        // own element navigation, so the edge swipe is unreachable under it. The picker
+        // itself is the accessible path and needs no explaining.
         .accessibilityIdentifier("space-mode-picker")
     }
 
