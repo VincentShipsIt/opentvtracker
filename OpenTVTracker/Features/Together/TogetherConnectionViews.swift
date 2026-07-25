@@ -11,7 +11,7 @@ struct PartnerSetupHero: View {
             VStack(alignment: .leading, spacing: 20) {
                 Image(systemName: heroSymbol)
                     .font(.system(.largeTitle, design: .rounded, weight: .bold))
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(.tint)
                     .accessibilityHidden(true)
 
                 VStack(alignment: .leading, spacing: 8) {
@@ -213,6 +213,9 @@ private struct SharingStatusStyle {
 
 private struct TogetherMemberStack: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    // The avatar fill is a gradient, and `ShapeStyle.tint` cannot produce one, so this
+    // reads the space directly rather than inheriting the tint like every other control.
+    @Environment(\.appSpaceMode) private var spaceMode
     @ScaledMetric(relativeTo: .caption2) private var avatarSize: CGFloat = 38
     let members: [SpaceMember]
 
@@ -224,7 +227,7 @@ private struct TogetherMemberStack: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
                     .frame(width: avatarSize, height: avatarSize)
-                    .background(Color.accentColor.gradient, in: Circle())
+                    .background(spaceMode.accent.gradient, in: Circle())
                     .foregroundStyle(.white)
                     .overlay { Circle().stroke(.background, lineWidth: 2) }
                     .accessibilityLabel(member.name)

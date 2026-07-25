@@ -64,7 +64,7 @@ private struct MoreLikeThisContextCard: View {
                 VStack(alignment: .leading, spacing: 7) {
                     Label("Because you liked", systemImage: "sparkles")
                         .font(.caption.weight(.bold))
-                        .foregroundStyle(Color.accentColor)
+                        .foregroundStyle(.tint)
                     Text(title.title)
                         .font(.title2.weight(.black))
                         .lineLimit(2)

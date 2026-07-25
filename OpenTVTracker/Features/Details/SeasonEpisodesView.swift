@@ -189,7 +189,6 @@ private struct SeasonProgressHeader: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 ProgressView(value: Double(watchedCount), total: Double(max(season.episodes.count, 1)))
-                    .tint(.accentColor)
                 Text("Tap an episode for details, or swipe it for watch actions.")
                     .font(.caption)
                     .foregroundStyle(.secondary)

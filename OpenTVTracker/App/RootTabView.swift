@@ -26,9 +26,15 @@ enum AppSpaceMode: String, CaseIterable, Hashable, Identifiable {
         }
     }
 
-    /// Primary ambient hue. The picker names the current space; the backdrop
-    /// reinforces it so the two modes also *read* as different rooms.
-    var ambientTint: Color {
+    /// The hue of this space. The picker names the current space; the backdrop and
+    /// every tinted control reinforce it so the two modes also *read* as different
+    /// rooms.
+    ///
+    /// `SpaceModeContainer` installs this as the SwiftUI tint for the space it wraps,
+    /// so controls inside must resolve their accent from `.tint` rather than reaching
+    /// for `Color.accentColor` — that resolves to the asset-catalog accent and stays
+    /// blue in a magenta room.
+    var accent: Color {
         switch self {
         case .personal: .accentColor
         case .shared: .pink
@@ -105,6 +111,9 @@ struct RootTabView: View {
                     .accessibilityIdentifier("tab.library")
             }
         }
+        // Tab-bar chrome is app-level, not space-level: it stays put while the picker
+        // swaps rooms underneath it. `SpaceModeContainer` re-tints the content it wraps,
+        // which sits deeper and therefore wins inside each tab.
         .tint(.accentColor)
         .fullScreenCover(isPresented: $presentsFirstRun) {
             FirstRunView(partnerSharingService: partnerSharingService)
@@ -146,10 +155,12 @@ private struct SpaceModeContainer<PersonalContent: View, SharedContent: View>: V
             case .personal:
                 personalContent
                     .environment(\.appSpaceMode, .personal)
+                    .tint(AppSpaceMode.personal.accent)
                     .transition(spaceTransition(edge: .leading))
             case .shared:
                 sharedContent
                     .environment(\.appSpaceMode, .shared)
+                    .tint(AppSpaceMode.shared.accent)
                     .transition(spaceTransition(edge: .trailing))
             }
         }

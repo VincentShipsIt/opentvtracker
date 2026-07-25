@@ -19,7 +19,7 @@ struct PartnerInvitationView: View {
                 VStack(spacing: 24) {
                     Image(systemName: "person.2.badge.gearshape.fill")
                         .font(.system(size: 54))
-                        .foregroundStyle(Color.accentColor)
+                        .foregroundStyle(.tint)
                         .accessibilityHidden(true)
 
                     VStack(spacing: 8) {
@@ -103,6 +103,11 @@ struct PartnerInvitationView: View {
                 }
             }
         }
+        // A sheet inherits the environment of whatever presented it, and this one is
+        // presented from onboarding as well as from the shared space. It belongs to the
+        // shared space either way, so it declares that tint rather than inheriting a
+        // personal one.
+        .tint(AppSpaceMode.shared.accent)
     }
 
     private var nearbyPairingActions: some View {

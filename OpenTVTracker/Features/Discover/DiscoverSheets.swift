@@ -169,7 +169,11 @@ struct StreamingServicesSettingsView: View {
                                 .foregroundStyle(.primary)
                             Spacer()
                             Image(systemName: model.isProviderSelected(provider.id) ? "checkmark.circle.fill" : "circle")
-                                .foregroundStyle(model.isProviderSelected(provider.id) ? Color.accentColor : Color.secondary)
+                                .foregroundStyle(
+                                    model.isProviderSelected(provider.id)
+                                        ? AnyShapeStyle(.tint)
+                                        : AnyShapeStyle(.secondary)
+                                )
                         }
                     }
                 }

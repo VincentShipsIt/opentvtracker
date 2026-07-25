@@ -167,7 +167,7 @@ struct FirstRunView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     Image(systemName: "person.2.badge.gearshape.fill")
                         .font(.system(size: 46))
-                        .foregroundStyle(.pink)
+                        .foregroundStyle(.tint)
                         .accessibilityHidden(true)
 
                     Text("One invitation-only space")
@@ -197,6 +197,10 @@ struct FirstRunView: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
+        // Onboarding runs outside `SpaceModeContainer`, so this step has to install the
+        // shared-space tint itself — otherwise the prominent invite button renders in the
+        // asset-catalog accent and reads blue inside an otherwise pink partner card.
+        .tint(AppSpaceMode.shared.accent)
     }
 
     private var selectedTitles: [MediaTitle] {

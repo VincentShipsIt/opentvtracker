@@ -114,7 +114,7 @@ struct AdaptiveHeroSurface<Artwork: View, Content: View>: View {
                 .clipped()
 
             LinearGradient(
-                colors: gradientColors,
+                stops: scrimStops,
                 startPoint: .top,
                 endPoint: .bottom
             )
@@ -129,14 +129,27 @@ struct AdaptiveHeroSurface<Artwork: View, Content: View>: View {
         .clipShape(.rect(cornerRadius: cornerRadius))
     }
 
-    private var gradientColors: [Color] {
+    /// A bottom-anchored scrim, not an even top-to-bottom wash.
+    ///
+    /// Content in this surface is bottom-aligned, and the artwork behind it is a
+    /// promotional backdrop — those routinely carry the title treatment baked into the
+    /// image. An evenly distributed gradient only reaches ~32% black at mid-height, so a
+    /// bright baked-in logo read straight through the overlaid title and the two
+    /// collided. Holding the top third nearly clear keeps the artwork legible while the
+    /// lower half ramps hard enough that the app's own text is unambiguously the top
+    /// layer, whatever the image happens to contain.
+    private var scrimStops: [Gradient.Stop] {
         if reduceTransparency {
-            return [.black.opacity(0.55), .black.opacity(0.92), .black]
+            return stops([(0, 0.55), (0.45, 0.78), (0.75, 0.94), (1, 1)])
         }
         if contrast == .increased {
-            return [.clear, .black.opacity(0.78), .black]
+            return stops([(0, 0.16), (0.3, 0.48), (0.62, 0.86), (1, 1)])
         }
-        return [.clear, .black.opacity(0.32), .black.opacity(0.94)]
+        return stops([(0, 0), (0.32, 0.08), (0.58, 0.55), (0.8, 0.86), (1, 0.97)])
+    }
+
+    private func stops(_ values: [(location: CGFloat, opacity: Double)]) -> [Gradient.Stop] {
+        values.map { Gradient.Stop(color: .black.opacity($0.opacity), location: $0.location) }
     }
 }
 
@@ -207,7 +220,7 @@ struct AmbientBackdrop: View {
         ZStack {
             Color(.systemBackground)
             RadialGradient(
-                colors: [spaceMode.ambientTint.opacity(0.22), .clear],
+                colors: [spaceMode.accent.opacity(0.22), .clear],
                 center: .topTrailing,
                 startRadius: 20,
                 endRadius: 420

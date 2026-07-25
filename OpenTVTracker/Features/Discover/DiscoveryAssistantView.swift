@@ -239,7 +239,7 @@ private struct AssistantComposer: View {
                         action: onToggleVoice
                     )
                     .labelStyle(.iconOnly)
-                    .foregroundStyle(voice.isRecording ? Color.red : Color.accentColor)
+                    .foregroundStyle(voice.isRecording ? AnyShapeStyle(.red) : AnyShapeStyle(.tint))
                     .minimumTouchTarget()
                     .accessibilityValue(voice.isRecording ? "Listening" : "Not listening")
 

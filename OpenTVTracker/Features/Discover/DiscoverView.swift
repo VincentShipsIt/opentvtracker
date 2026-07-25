@@ -298,7 +298,7 @@ private struct ServiceManagerControl: View {
                     Image(systemName: "play.tv.fill")
                         .font(.title3)
                         .frame(width: 40, height: 40)
-                        .background(Color.accentColor.opacity(0.14), in: Circle())
+                        .background(.tint.opacity(0.14), in: Circle())
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Manage streaming services")

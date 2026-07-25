@@ -128,7 +128,7 @@ struct CinemaView: View {
                             Image(systemName: venue.symbol)
                                 .font(.title2)
                                 .frame(width: 46, height: 46)
-                                .background(Color.accentColor.opacity(0.14), in: Circle())
+                                .background(.tint.opacity(0.14), in: Circle())
                             VStack(alignment: .leading, spacing: 3) {
                                 Text(venue.name).font(.headline)
                                 Text(venue.locality).font(.subheadline).foregroundStyle(.secondary)
