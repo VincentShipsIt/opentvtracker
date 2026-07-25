@@ -179,11 +179,15 @@ private struct SpaceModeContainer<PersonalContent: View, SharedContent: View>: V
     /// Edge-started only: a drag beginning mid-screen belongs to whatever horizontal
     /// shelf is under the finger, not to the space switch.
     ///
-    /// Both directions start from the *trailing* edge. The leading edge is reserved for
-    /// `NavigationStack`'s interactive pop, and this gesture is installed with
-    /// `simultaneousGesture` above a stack that every space pushes onto — a leading-edge
-    /// start would fire both recognizers, popping the detail screen *and* throwing the
-    /// user into the other space in one swipe.
+    /// This is a *toggle*, not a pair of directional swipes: pull in from the trailing
+    /// edge to flip to the other space, whichever one you are in. The leading edge is
+    /// reserved for `NavigationStack`'s interactive pop, and this gesture is installed
+    /// with `simultaneousGesture` above a stack that every space pushes onto — a
+    /// leading-edge start would fire both recognizers, popping the detail screen *and*
+    /// throwing the user into the other space in one swipe. That rules out a rightward
+    /// return swipe entirely: anchored trailing it has no room to travel (the finger
+    /// would have to leave the screen to clear the distance threshold), and anchored
+    /// leading it collides with the pop. Symmetry is the only reachable shape left.
     private var spaceSwipe: some Gesture {
         DragGesture(minimumDistance: 24, coordinateSpace: .local)
             .onEnded { value in
@@ -201,7 +205,7 @@ private struct SpaceModeContainer<PersonalContent: View, SharedContent: View>: V
                    value.startLocation.x >= availableWidth - 44 {
                     selection = .shared
                 } else if selection == .shared,
-                          horizontalDistance > 0,
+                          horizontalDistance < 0,
                           value.startLocation.x >= availableWidth - 44 {
                     selection = .personal
                 }
