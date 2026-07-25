@@ -233,7 +233,7 @@ private struct SeasonProgressHeader: View {
 
     private var episodeCountLabel: String {
         let count = season.episodes.count
-        return "\(count) \(count == 1 ? "episode" : "episodes")"
+        return CountLabel.episodes(count)
     }
 }
 

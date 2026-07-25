@@ -58,7 +58,7 @@ struct MediaProgressPosterCard: View {
         VStack(alignment: .leading, spacing: 8) {
             ZStack(alignment: .bottom) {
                 PosterArtwork(title: title, cornerRadius: 14)
-                    .aspectRatio(0.68, contentMode: .fit)
+                    .aspectRatio(AppTheme.posterAspectRatio, contentMode: .fit)
 
                 ProgressView(value: summary.fraction)
                     .tint(Color.accentColor)
@@ -113,7 +113,7 @@ struct TrackingSummaryCard: View {
     @ViewBuilder
     private var progress: some View {
         if title.kind == .series, totalEpisodeCount > 0 {
-            Text("\(watchedEpisodeCount) of \(totalEpisodeCount) \(totalEpisodeCount == 1 ? "episode" : "episodes") watched")
+            Text("\(watchedEpisodeCount) of \(CountLabel.episodes(totalEpisodeCount)) watched")
                 .font(.caption)
                 .foregroundStyle(.secondary)
             ProgressView(value: Double(watchedEpisodeCount), total: Double(totalEpisodeCount))

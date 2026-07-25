@@ -33,13 +33,13 @@ struct ViewingAnalyticsSummary: Hashable, Sendable {
     var shareText: String {
         let hours = Double(totalMinutes) / 60
         let duration = hours.formatted(.number.precision(.fractionLength(hours < 10 ? 1 : 0)))
-        let noun = titleCount == 1 ? "title" : "titles"
+        let titles = CountLabel.titles(titleCount)
         let genre = topGenre.map { " Top genre: \($0)." } ?? ""
         switch scope {
         case .personal:
-            return "I've tracked \(duration) hours across \(titleCount) \(noun) on OpenTV.\(genre) 🍿"
+            return "I've tracked \(duration) hours across \(titles) on OpenTV.\(genre) 🍿"
         case .together:
-            return "We've watched \(duration) hours together across \(titleCount) \(noun) on OpenTV.\(genre) 🍿"
+            return "We've watched \(duration) hours together across \(titles) on OpenTV.\(genre) 🍿"
         }
     }
 }

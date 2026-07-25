@@ -72,7 +72,7 @@ struct SeasonNavigationRow: View {
     private var progressLabel: String {
         let episodeCount = season.episodes.count
         guard watchedCount > 0 else {
-            return "\(episodeCount) \(episodeCount == 1 ? "episode" : "episodes")"
+            return CountLabel.episodes(episodeCount)
         }
         return "\(watchedCount) of \(episodeCount) watched"
     }

@@ -5,6 +5,13 @@ enum AppTheme {
     static let cardRadius: CGFloat = 24
     static let compactRadius: CGFloat = 16
     static let sectionSpacing: CGFloat = 28
+
+    /// Standard poster ratio. `PosterArtwork` fills whatever bounds it is offered and
+    /// clips at them, so a caller that constrains only width has to supply a ratio —
+    /// an unbounded height lets the artwork paint over its neighbours. Use this rather
+    /// than inventing a fixed height, which stops scaling once Dynamic Type collapses
+    /// a grid to a single, much wider column.
+    static let posterAspectRatio: CGFloat = 0.68
 }
 
 enum AccessibleForeground: Equatable {

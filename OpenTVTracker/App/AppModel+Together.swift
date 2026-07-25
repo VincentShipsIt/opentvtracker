@@ -206,7 +206,7 @@ extension AppModel {
 
         if totalEpisodeCount > 0, !watchedEpisodes.isEmpty {
             return MediaProgressSummary(
-                label: "\(watchedEpisodes.count) of \(totalEpisodeCount) \(totalEpisodeCount == 1 ? "episode" : "episodes")",
+                label: "\(watchedEpisodes.count) of \(CountLabel.episodes(totalEpisodeCount))",
                 fraction: Double(watchedEpisodes.count) / Double(totalEpisodeCount)
             )
         }

@@ -275,7 +275,7 @@ struct CustomListRow: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(name)
                     .font(.headline)
-                Text("\(count) \(count == 1 ? "title" : "titles")")
+                Text(CountLabel.titles(count))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

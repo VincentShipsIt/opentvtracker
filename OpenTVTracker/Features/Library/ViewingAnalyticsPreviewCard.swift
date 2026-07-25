@@ -44,9 +44,7 @@ struct ViewingAnalyticsPreviewCard: View {
                 ? "Your watched hours, genres, movies and episodes"
                 : "Hours, genres, movies and episodes watched together"
         }
-        let titleLabel = summary.titleCount == 1 ? "title" : "titles"
-        let episodeLabel = summary.episodeCount == 1 ? "episode" : "episodes"
-        return "\(duration) · \(summary.titleCount) \(titleLabel) · \(summary.episodeCount) \(episodeLabel)"
+        return "\(duration) · \(CountLabel.titles(summary.titleCount)) · \(CountLabel.episodes(summary.episodeCount))"
     }
 
     private var duration: String {

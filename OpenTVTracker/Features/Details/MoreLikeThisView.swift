@@ -113,14 +113,8 @@ private struct SimilarTitleCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // A filled poster is taller than the 200pt slot at this column width, and
-            // `PosterArtwork` clips at its own (oversized) bounds — so the crop has to
-            // happen here or the artwork paints over the heading above it.
             PosterArtwork(title: match.title)
-                .frame(maxWidth: .infinity)
-                .frame(height: 200)
-                .clipped()
-                .clipShape(.rect(cornerRadius: AppTheme.compactRadius))
+                .aspectRatio(AppTheme.posterAspectRatio, contentMode: .fit)
                 .overlay(alignment: .topLeading) {
                     if let provider {
                         ProviderBadge(provider: provider, compact: true)

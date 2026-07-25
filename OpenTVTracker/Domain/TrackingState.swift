@@ -1,5 +1,33 @@
 import Foundation
 
+/// Counted nouns, pluralized by automatic grammar agreement rather than by a hardcoded
+/// English ternary. Twelve call sites each wrote their own `count == 1 ? "x" : "xs"`,
+/// which bakes English plural rules into view code and breaks the moment the app is
+/// translated. `inflect: true` hands the rule to the localization engine instead.
+enum CountLabel {
+    /// "1 episode" / "6 episodes".
+    static func episodes(_ count: Int) -> String {
+        inflected(AttributedString(localized: "^[\(count) episode](inflect: true)"))
+    }
+
+    /// "1 title" / "6 titles".
+    static func titles(_ count: Int) -> String {
+        inflected(AttributedString(localized: "^[\(count) title](inflect: true)"))
+    }
+
+    /// "1 more title" / "6 more titles". The count and the noun are split by "more", so
+    /// this needs its own inflected phrase rather than a prefix bolted onto `titles(_:)`.
+    static func moreTitles(_ count: Int) -> String {
+        inflected(AttributedString(localized: "^[\(count) more title](inflect: true)"))
+    }
+
+    /// Returns a plain `String` so accessibility labels, share text and `Text` can all
+    /// share one source — `Text` re-inflects an `AttributedString`, the others cannot.
+    private static func inflected(_ value: AttributedString) -> String {
+        String(value.characters)
+    }
+}
+
 enum SeriesLifecycle: String, Codable, Sendable {
     case continuing
     case ended
