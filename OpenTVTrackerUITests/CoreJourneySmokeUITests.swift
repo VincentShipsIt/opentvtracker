@@ -127,10 +127,7 @@ final class CoreJourneySmokeUITests: XCTestCase {
 
         swipeAcrossSpaceEdge()
         assertExists(app.buttons["home.up-next-title"])
-        XCTAssertFalse(
-            app.staticTexts["Test couch"].exists,
-            "Expected the shared space to be gone after swiping back to Personal"
-        )
+        assertDisappears(app.staticTexts["Test couch"])
     }
 
     private func launchCoreJourneys() {
@@ -213,6 +210,29 @@ final class CoreJourneySmokeUITests: XCTestCase {
         XCTAssertTrue(
             element.waitForExistence(timeout: timeout),
             "Expected \(element) to exist",
+            file: file,
+            line: line
+        )
+    }
+
+    /// The negative counterpart to `assertExists`, and it has to poll for the same
+    /// reason that one does. A removal transition keeps the outgoing view mounted —
+    /// and therefore still queryable — for the length of the animation, so a bare
+    /// `exists` check taken the instant the incoming view appears can still see it.
+    private func assertDisappears(
+        _ element: XCUIElement,
+        timeout: TimeInterval = 5,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        let gone = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == false"),
+            object: element
+        )
+        XCTAssertEqual(
+            XCTWaiter().wait(for: [gone], timeout: timeout),
+            .completed,
+            "Expected \(element) to go away",
             file: file,
             line: line
         )
