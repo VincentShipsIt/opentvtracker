@@ -90,6 +90,7 @@ struct OpenTVTrackerApp: App {
                 recommendationService: DeterministicRecommendationService(),
                 sharedConversationNotifier: NoopSharedConversationNotifier(),
                 reminderScheduler: NoopReminderScheduler(),
+                partnerActivityNotifier: NoopPartnerActivityNotifier(),
                 catalogService: LocalCatalogService(titles: uiTestSeed.titles),
                 traktService: UnconfiguredTraktSyncService(),
                 seed: uiTestSeed

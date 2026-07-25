@@ -143,6 +143,23 @@ struct NoopReminderScheduler: ReminderScheduling {
     ) async throws {}
 }
 
+protocol PartnerActivityNotifying: Sendable {
+    func requestAuthorization() async
+    func notify(
+        about activities: [SharedActivity],
+        in space: SharedSpace
+    ) async
+}
+
+struct NoopPartnerActivityNotifier: PartnerActivityNotifying {
+    func requestAuthorization() async {}
+
+    func notify(
+        about _: [SharedActivity],
+        in _: SharedSpace
+    ) async {}
+}
+
 enum PartnerSharingAvailability: Hashable, Sendable {
     case available
     case iCloudAccountRequired

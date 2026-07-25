@@ -87,6 +87,10 @@ extension AppModel {
             about: retainedConversationEvents,
             in: remoteSpace
         )
+        await partnerActivityNotifier.notify(
+            about: remoteSpace.activity,
+            in: remoteSpace
+        )
     }
 
     private func newConversationEvents(
