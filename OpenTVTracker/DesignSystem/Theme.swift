@@ -109,10 +109,6 @@ struct AdaptiveHeroSurface<Artwork: View, Content: View>: View {
                 .aspectRatio(16 / 9, contentMode: .fit)
                 .frame(minHeight: minimumHeight)
 
-            artwork
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .clipped()
-
             LinearGradient(
                 stops: scrimStops,
                 startPoint: .top,
@@ -125,19 +121,31 @@ struct AdaptiveHeroSurface<Artwork: View, Content: View>: View {
                 .padding(contentInsets)
         }
         .frame(maxWidth: .infinity)
+        // The artwork fills whatever the hero turns out to be and never argues about that
+        // size — which is why it sits behind the stack rather than inside it. As a sibling
+        // it *did* argue: `scaledToFill` reports the scaled image's size, so a portrait
+        // poster standing in for a missing 16:9 backdrop stretched the hero to roughly
+        // three times its declared height and slid the poster's own baked-in title down
+        // into the content band, where it collided with the title this view draws. Behind
+        // the stack the artwork is proposed the resolved size and centre-crops into it, so
+        // the aspect ratio and `minimumHeight` above are what actually govern.
+        .background {
+            artwork
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .clipped()
+        }
         .compositingGroup()
         .clipShape(.rect(cornerRadius: cornerRadius))
     }
 
     /// A bottom-anchored scrim, not an even top-to-bottom wash.
     ///
-    /// Content in this surface is bottom-aligned, and the artwork behind it is a
-    /// promotional backdrop — those routinely carry the title treatment baked into the
-    /// image. An evenly distributed gradient only reaches ~32% black at mid-height, so a
-    /// bright baked-in logo read straight through the overlaid title and the two
-    /// collided. Holding the top third nearly clear keeps the artwork legible while the
-    /// lower half ramps hard enough that the app's own text is unambiguously the top
-    /// layer, whatever the image happens to contain.
+    /// Content here is bottom-aligned over a promotional still, and those routinely carry
+    /// a title treatment or a billing block baked into the image. An evenly distributed
+    /// gradient only reaches ~32% black at mid-height, which is not enough separation to
+    /// guarantee the app's own text reads as the top layer. Holding the top third nearly
+    /// clear keeps the artwork legible while the lower half ramps hard enough to settle
+    /// that question whatever the image happens to contain.
     private var scrimStops: [Gradient.Stop] {
         if reduceTransparency {
             return stops([(0, 0.55), (0.45, 0.78), (0.75, 0.94), (1, 1)])

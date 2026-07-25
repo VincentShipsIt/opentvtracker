@@ -31,6 +31,12 @@ struct BackdropArtwork: View {
     var cornerRadius: CGFloat = AppTheme.cardRadius
 
     var body: some View {
+        // Not every catalog source carries a backdrop — `TVMazeCatalogService` never does —
+        // so a portrait poster stands in. It has to be the caller's frame that decides how
+        // tall this gets, never the image: filling a landscape slot with a 2:3 poster
+        // centre-crops away the bottom third, which is exactly where posters put their
+        // title treatment. Callers that let the image size itself get that title back, in
+        // the one band where overlaid text sits.
         NetworkArtwork(
             url: title.backdropURL ?? title.posterURL,
             title: title,
