@@ -26,9 +26,9 @@ enum AppSpaceMode: String, CaseIterable, Hashable, Identifiable {
         }
     }
 
-    /// The hue of this space. The picker names the current space; the backdrop and
-    /// every tinted control reinforce it so the two modes also *read* as different
-    /// rooms.
+    /// The hue of this space. With no persistent label on screen, colour is what tells
+    /// you which room you are in — the backdrop and every tinted control carry it, so a
+    /// glance is enough.
     ///
     /// `SpaceModeContainer` installs this as the SwiftUI tint for the space it wraps,
     /// so controls inside must resolve their accent from `.tint` rather than reaching
@@ -52,6 +52,53 @@ enum AppSpaceMode: String, CaseIterable, Hashable, Identifiable {
 
 extension EnvironmentValues {
     @Entry var appSpaceMode: AppSpaceMode = .personal
+
+    /// The live space selection, published so any screen can offer a way across.
+    ///
+    /// A segmented picker used to carry this, but it sat above every tab's content on
+    /// every screen — permanent chrome for a control most sessions never touch. The
+    /// edge swipe is the switch now; this binding is what lets each root screen put a
+    /// single toolbar button behind the same action.
+    @Entry var appSpaceModeSelection: Binding<AppSpaceMode>?
+}
+
+/// The visible half of the space switch.
+///
+/// The swipe is the primary path, but a gesture with nothing on screen naming it is not
+/// a feature anyone finds, and VoiceOver claims single-finger horizontal swipes for its
+/// own element navigation — leaving the gesture alone would put the Shared space out of
+/// reach under it entirely. Every root screen carries this button so both hold: the
+/// swipe stays fast, and the switch stays discoverable and operable without it.
+struct SpaceModeToggleButton: View {
+    @Environment(\.appSpaceModeSelection) private var selection
+
+    var body: some View {
+        if let selection {
+            let destination = selection.wrappedValue == .personal
+                ? AppSpaceMode.shared
+                : AppSpaceMode.personal
+
+            Button {
+                selection.wrappedValue = destination
+            } label: {
+                Label("Switch to \(destination.label)", systemImage: destination.symbol)
+            }
+            .accessibilityHint("You can also swipe in from the right edge of the screen")
+            .accessibilityIdentifier("space-mode-toggle")
+        }
+    }
+}
+
+extension View {
+    /// Root screens only. Detail screens pushed onto a stack inherit their own back
+    /// button and should not offer a second, sideways exit from the same bar.
+    func spaceModeToolbar() -> some View {
+        toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                SpaceModeToggleButton()
+            }
+        }
+    }
 }
 
 struct RootTabView: View {
@@ -111,8 +158,8 @@ struct RootTabView: View {
                     .accessibilityIdentifier("tab.library")
             }
         }
-        // Tab-bar chrome is app-level, not space-level: it stays put while the picker
-        // swaps rooms underneath it. `SpaceModeContainer` re-tints the content it wraps,
+        // Tab-bar chrome is app-level, not space-level: it stays put while the rooms
+        // swap underneath it. `SpaceModeContainer` re-tints the content it wraps,
         // which sits deeper and therefore wins inside each tab.
         .tint(.accentColor)
         .fullScreenCover(isPresented: $presentsFirstRun) {
@@ -126,12 +173,14 @@ struct RootTabView: View {
     }
 }
 
-/// Personal and Shared swap in place behind an explicit picker.
+/// Personal and Shared swap in place. The edge swipe is the switch; each root screen's
+/// `spaceModeToolbar()` button is the same switch made visible.
 ///
-/// A page-styled `TabView` was tried here and rejected: wrapping each tab's
+/// A page-styled `TabView` was tried for this and rejected: wrapping each tab's
 /// `NavigationStack` in a paged scroll container left pushed content resolving to an
-/// empty frame, so controls inside a detail screen became unhittable. It also left the
-/// Shared space reachable only by an undiscoverable swipe. The picker stays.
+/// empty frame, so controls inside a detail screen became unhittable. That is why the
+/// gesture below is an edge-started `DragGesture` over a normal container rather than
+/// real horizontal paging.
 private struct SpaceModeContainer<PersonalContent: View, SharedContent: View>: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Binding var selection: AppSpaceMode
@@ -164,6 +213,7 @@ private struct SpaceModeContainer<PersonalContent: View, SharedContent: View>: V
                     .transition(spaceTransition(edge: .trailing))
             }
         }
+        .environment(\.appSpaceModeSelection, $selection)
         // Both branches carry their own `AmbientBackdrop`, and the cross-fade dips both
         // below full opacity at once — without an opaque layer of our own underneath,
         // the window backdrop reads through as black gutters for the length of the
@@ -171,9 +221,6 @@ private struct SpaceModeContainer<PersonalContent: View, SharedContent: View>: V
         .background {
             AmbientBackdrop()
                 .environment(\.appSpaceMode, selection)
-        }
-        .safeAreaInset(edge: .top, spacing: 0) {
-            SpaceModePicker(selection: $selection)
         }
         .contentShape(.rect)
         .simultaneousGesture(spaceSwipe)
@@ -199,70 +246,28 @@ private struct SpaceModeContainer<PersonalContent: View, SharedContent: View>: V
     /// return swipe entirely: anchored trailing it has no room to travel (the finger
     /// would have to leave the screen to clear the distance threshold), and anchored
     /// leading it collides with the pop. Symmetry is the only reachable shape left.
+    ///
+    /// `SpaceModeToggleButton` covers what a gesture cannot: naming itself on screen,
+    /// and working under VoiceOver, which reserves horizontal swipes for its own use.
     private var spaceSwipe: some Gesture {
         DragGesture(minimumDistance: 24, coordinateSpace: .local)
             .onEnded { value in
                 let horizontalDistance = value.translation.width
                 let verticalDistance = value.translation.height
 
-                guard abs(horizontalDistance) > 60,
-                      abs(horizontalDistance) > abs(verticalDistance) * 1.25
+                guard horizontalDistance < -60,
+                      abs(horizontalDistance) > abs(verticalDistance) * 1.25,
+                      value.startLocation.x >= availableWidth - 44
                 else {
                     return
                 }
 
-                if selection == .personal,
-                   horizontalDistance < 0,
-                   value.startLocation.x >= availableWidth - 44 {
-                    selection = .shared
-                } else if selection == .shared,
-                          horizontalDistance < 0,
-                          value.startLocation.x >= availableWidth - 44 {
-                    selection = .personal
-                }
+                selection = selection == .personal ? .shared : .personal
             }
     }
 
     private func spaceTransition(edge: Edge) -> AnyTransition {
         reduceMotion ? .identity : .move(edge: edge).combined(with: .opacity)
-    }
-}
-
-private struct SpaceModePicker: View {
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    @Binding var selection: AppSpaceMode
-
-    var body: some View {
-        GlassSurface(cornerRadius: AppTheme.compactRadius) {
-            if dynamicTypeSize.isAccessibilitySize {
-                Picker("Viewing space", selection: $selection) {
-                    modes
-                }
-                .pickerStyle(.menu)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 12)
-            } else {
-                Picker("Viewing space", selection: $selection) {
-                    modes
-                }
-                .pickerStyle(.segmented)
-                .padding(6)
-            }
-        }
-        .padding(.horizontal, AppTheme.horizontalPadding)
-        .padding(.vertical, 8)
-        // No gesture hint here: VoiceOver claims single-finger horizontal swipes for its
-        // own element navigation, so the edge swipe is unreachable under it. The picker
-        // itself is the accessible path and needs no explaining.
-        .accessibilityIdentifier("space-mode-picker")
-    }
-
-    @ViewBuilder
-    private var modes: some View {
-        ForEach(AppSpaceMode.allCases) { mode in
-            Label(mode.label, systemImage: mode.symbol)
-                .tag(mode)
-        }
     }
 }
 

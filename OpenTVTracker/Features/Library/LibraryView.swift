@@ -36,6 +36,7 @@ struct LibraryView: View {
                     }
                 }
             }
+            .spaceModeToolbar()
             .sheet(item: $presentedSheet) { sheet in
                 switch sheet {
                 case .dataTools:

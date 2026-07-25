@@ -35,6 +35,7 @@ struct TogetherView: View {
                     .padding(.bottom, 32)
                 }
             }
+            .spaceModeToolbar()
             .sheet(item: $presentedSheet) { sheet in
                 switch sheet {
                 case .invite:

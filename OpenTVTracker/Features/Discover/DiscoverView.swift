@@ -54,6 +54,7 @@ struct DiscoverView: View {
             .navigationDestination(for: DiscoverCategory.self) { category in
                 DiscoverCategoryShelfView(category: category)
             }
+            .spaceModeToolbar()
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Ask OpenTV", systemImage: "sparkles") {

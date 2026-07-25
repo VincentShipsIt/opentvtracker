@@ -193,6 +193,8 @@ struct FirstRunView: View {
             .adaptiveGlassButton(prominent: true)
             .accessibilityIdentifier("first-run.invite-partner")
 
+            spaceSwitchHint
+
             Text("You can finish setup without inviting anyone.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
@@ -201,6 +203,37 @@ struct FirstRunView: View {
         // shared-space tint itself — otherwise the prominent invite button renders in the
         // asset-catalog accent and reads blue inside an otherwise pink partner card.
         .tint(AppSpaceMode.shared.accent)
+    }
+
+    /// The only place the space switch is ever spelled out.
+    ///
+    /// Nothing on the main screens names the swipe — a gesture with no label is a gesture
+    /// nobody finds — so onboarding has to say it once, plainly, next to the explanation of
+    /// what the shared space even is. The toolbar button is named too, because that is the
+    /// path that survives VoiceOver claiming horizontal swipes for its own navigation.
+    private var spaceSwitchHint: some View {
+        GlassSurface(cornerRadius: AppTheme.compactRadius) {
+            VStack(alignment: .leading, spacing: 12) {
+                Label("Moving between the two spaces", systemImage: "arrow.left.arrow.right")
+                    .font(.headline)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("Swipe in from the right edge of any screen", systemImage: "hand.draw")
+                    // The toolbar button renders icon-only, so naming its label here would
+                    // point at text the user never sees. Describe the glyph instead.
+                    Label(
+                        "Or tap the people icon at the top left",
+                        systemImage: AppSpaceMode.shared.symbol
+                    )
+                }
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(16)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("first-run.space-switch-hint")
     }
 
     private var selectedTitles: [MediaTitle] {
