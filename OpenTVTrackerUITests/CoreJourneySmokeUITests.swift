@@ -89,7 +89,7 @@ final class CoreJourneySmokeUITests: XCTestCase {
         launchCoreJourneys()
         XCTAssertFalse(app.tabBars.buttons["Together"].exists)
         XCTAssertEqual(app.tabBars.buttons.count, 3)
-        swipeToSharedSpace()
+        swipeAcrossSpaceEdge()
 
         assertExists(app.staticTexts["Test couch"])
         app.tabBars.buttons["Library"].tap()
@@ -116,6 +116,23 @@ final class CoreJourneySmokeUITests: XCTestCase {
         assertExists(app.textFields["Add a private note"])
     }
 
+    /// Guards the return leg specifically. Only the outbound swipe was covered, so a
+    /// regression that anchored the return gesture where a finger could not physically
+    /// reach it disabled the swipe entirely and still left CI green.
+    func testSpaceSwipeCarriesBackToPersonal() {
+        launchCoreJourneys()
+
+        swipeAcrossSpaceEdge()
+        assertExists(app.staticTexts["Test couch"])
+
+        swipeAcrossSpaceEdge()
+        assertExists(app.buttons["home.up-next-title"])
+        XCTAssertFalse(
+            app.staticTexts["Test couch"].exists,
+            "Expected the shared space to be gone after swiping back to Personal"
+        )
+    }
+
     private func launchCoreJourneys() {
         launch(with: "-ui-testing-core-journeys")
         assertExists(app.buttons["home.up-next-title"])
@@ -134,7 +151,10 @@ final class CoreJourneySmokeUITests: XCTestCase {
         button.tap()
     }
 
-    private func swipeToSharedSpace() {
+    /// The space switch is a toggle anchored on the trailing edge, so the same drag
+    /// carries you in both directions. Keep it one helper — a second "swipe back"
+    /// helper that dragged the other way would encode a gesture the app does not have.
+    private func swipeAcrossSpaceEdge() {
         let start = app.coordinate(
             withNormalizedOffset: CGVector(dx: 0.98, dy: 0.5)
         )
