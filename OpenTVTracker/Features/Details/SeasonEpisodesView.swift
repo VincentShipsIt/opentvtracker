@@ -181,7 +181,7 @@ private struct SeasonProgressHeader: View {
                 Text(title.title)
                     .font(.title2.weight(.black))
                 HStack {
-                    Label("\(season.episodes.count) episodes", systemImage: "play.rectangle.on.rectangle")
+                    Label(episodeCountLabel, systemImage: "play.rectangle.on.rectangle")
                     Spacer()
                     Text("\(watchedCount) watched")
                         .fontWeight(.semibold)
@@ -229,6 +229,11 @@ private struct SeasonProgressHeader: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Season progress")
+    }
+
+    private var episodeCountLabel: String {
+        let count = season.episodes.count
+        return CountLabel.episodes(count)
     }
 }
 

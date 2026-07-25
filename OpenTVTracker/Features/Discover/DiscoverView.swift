@@ -2,7 +2,6 @@ import SwiftUI
 
 struct DiscoverView: View {
     @Environment(AppModel.self) private var model
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let spaceMode: AppSpaceMode
     @Binding private var searchText: String
     @State private var surpriseOffset = 0
@@ -193,10 +192,7 @@ struct DiscoverView: View {
                         .padding(.vertical, 24)
                 }
             } else {
-                LazyVGrid(
-                    columns: searchResultColumns,
-                    spacing: 18
-                ) {
+                AdaptiveGrid(rowSpacing: 18, columnSpacing: 14) {
                     ForEach(model.catalogSearchResults) { title in
                         CatalogSearchCard(result: title, spaceMode: spaceMode)
                             .task {
@@ -228,13 +224,6 @@ struct DiscoverView: View {
             }
         }
         .padding(.horizontal, AppTheme.horizontalPadding)
-    }
-
-    private var searchResultColumns: [GridItem] {
-        Array(
-            repeating: GridItem(.flexible(), spacing: 14),
-            count: dynamicTypeSize.isAccessibilitySize ? 1 : 2
-        )
     }
 
     private var noServiceMatches: some View {

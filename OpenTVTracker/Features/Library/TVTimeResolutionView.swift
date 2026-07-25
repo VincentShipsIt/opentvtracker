@@ -99,7 +99,7 @@ private struct TVTimeResolutionView: View {
                                 VStack(alignment: .leading, spacing: 3) {
                                     Text(title.title)
                                         .foregroundStyle(.primary)
-                                    Text("\(title.year) · \(title.kind.label)")
+                                    Text("\(title.displayYear) · \(title.kind.label)")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }

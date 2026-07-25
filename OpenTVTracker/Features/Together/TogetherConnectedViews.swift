@@ -158,7 +158,7 @@ struct TogetherSharedWatchlistSection: View {
         VStack(alignment: .leading, spacing: 14) {
             SectionHeading(
                 title: "Shared watchlist",
-                subtitle: "\(titles.count) more \(titles.count == 1 ? "title" : "titles")"
+                subtitle: CountLabel.moreTitles(titles.count)
             )
 
             LazyVStack(spacing: 12) {
@@ -268,7 +268,7 @@ private struct SharedTitlePickerRow: View {
                 Text(title.title)
                     .font(.headline)
                     .lineLimit(2)
-                Text("\(title.year) · \(title.kind.label) · \(title.state.label)")
+                Text("\(title.displayYear) · \(title.kind.label) · \(title.state.label)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

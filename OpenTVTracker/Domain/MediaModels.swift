@@ -199,6 +199,10 @@ struct MediaTitle: Codable, Hashable, Identifiable, Sendable {
     var upNextSnoozedUntil: Date? = nil
     var upNextManualOrder: Int? = nil
 
+    /// A year is an identifier, not a quantity. Interpolating the raw `Int` into a
+    /// `Text` runs it through the locale number formatter and renders "2,024".
+    var displayYear: String { String(year) }
+
     var progressLabel: String {
         switch kind {
         case .movie:

@@ -103,7 +103,7 @@ private struct RecommendationShelfCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             PosterArtwork(title: title)
-                .aspectRatio(0.68, contentMode: .fit)
+                .aspectRatio(AppTheme.posterAspectRatio, contentMode: .fit)
                 .overlay(alignment: .topLeading) {
                     if let provider = title.providers.first {
                         ProviderBadge(provider: provider, compact: true)
@@ -131,7 +131,7 @@ struct PosterShelfCard: View {
         VStack(alignment: .leading, spacing: 8) {
             ZStack(alignment: .topLeading) {
                 PosterArtwork(title: title)
-                    .aspectRatio(0.68, contentMode: .fit)
+                    .aspectRatio(AppTheme.posterAspectRatio, contentMode: .fit)
                 if let provider = title.providers.first {
                     ProviderBadge(provider: provider, compact: true)
                         .padding(8)

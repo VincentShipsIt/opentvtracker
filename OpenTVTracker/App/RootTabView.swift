@@ -25,6 +25,27 @@ enum AppSpaceMode: String, CaseIterable, Hashable, Identifiable {
         case .shared: "person.2.fill"
         }
     }
+
+    /// Primary ambient hue. The picker names the current space; the backdrop
+    /// reinforces it so the two modes also *read* as different rooms.
+    var ambientTint: Color {
+        switch self {
+        case .personal: .accentColor
+        case .shared: .pink
+        }
+    }
+
+    /// Secondary wash layered under the primary tint.
+    var ambientWash: Color {
+        switch self {
+        case .personal: .indigo
+        case .shared: .purple
+        }
+    }
+}
+
+extension EnvironmentValues {
+    @Entry var appSpaceMode: AppSpaceMode = .personal
 }
 
 struct RootTabView: View {
@@ -96,6 +117,12 @@ struct RootTabView: View {
     }
 }
 
+/// Personal and Shared swap in place behind an explicit picker.
+///
+/// A page-styled `TabView` was tried here and rejected: wrapping each tab's
+/// `NavigationStack` in a paged scroll container left pushed content resolving to an
+/// empty frame, so controls inside a detail screen became unhittable. It also left the
+/// Shared space reachable only by an undiscoverable swipe. The picker stays.
 private struct SpaceModeContainer<PersonalContent: View, SharedContent: View>: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Binding var selection: AppSpaceMode
@@ -118,9 +145,11 @@ private struct SpaceModeContainer<PersonalContent: View, SharedContent: View>: V
             switch selection {
             case .personal:
                 personalContent
+                    .environment(\.appSpaceMode, .personal)
                     .transition(spaceTransition(edge: .leading))
             case .shared:
                 sharedContent
+                    .environment(\.appSpaceMode, .shared)
                     .transition(spaceTransition(edge: .trailing))
             }
         }
@@ -139,6 +168,8 @@ private struct SpaceModeContainer<PersonalContent: View, SharedContent: View>: V
         .accessibilityIdentifier("space-mode-container")
     }
 
+    /// Edge-started only: a drag beginning mid-screen belongs to whatever horizontal
+    /// shelf is under the finger, not to the space switch.
     private var spaceSwipe: some Gesture {
         DragGesture(minimumDistance: 24, coordinateSpace: .local)
             .onEnded { value in
@@ -191,7 +222,7 @@ private struct SpaceModePicker: View {
         }
         .padding(.horizontal, AppTheme.horizontalPadding)
         .padding(.vertical, 8)
-        .accessibilityHint("Swipe left or right on the content to change space")
+        .accessibilityHint("Swipe left or right from the screen edge to change space")
         .accessibilityIdentifier("space-mode-picker")
     }
 

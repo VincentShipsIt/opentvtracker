@@ -124,7 +124,7 @@ struct FirstRunView: View {
 
             if !selectedTitles.isEmpty {
                 Label(
-                    "\(selectedTitles.count) \(selectedTitles.count == 1 ? "title" : "titles") added",
+                    "\(CountLabel.titles(selectedTitles.count)) added",
                     systemImage: "checkmark.circle.fill"
                 )
                 .font(.subheadline.weight(.semibold))

@@ -34,7 +34,7 @@ extension AppModel {
 
         let watchedCount = releasedEpisodeIDs.intersection(resolvedWatchedEpisodeIDs(for: title)).count
         return MediaProgressSummary(
-            label: "\(watchedCount) of \(totalEpisodeCount) episodes",
+            label: "\(watchedCount) of \(CountLabel.episodes(totalEpisodeCount))",
             fraction: Double(watchedCount) / Double(totalEpisodeCount)
         )
     }
@@ -60,7 +60,7 @@ extension AppModel {
             return MediaProgressSummary(label: "Watched together", fraction: title.state.isCurrentViewingComplete ? 1 : 0)
         }
         return MediaProgressSummary(
-            label: "\(watchedEpisodes.count) of \(totalEpisodeCount) episodes together",
+            label: "\(watchedEpisodes.count) of \(CountLabel.episodes(totalEpisodeCount)) together",
             fraction: Double(watchedEpisodes.count) / Double(totalEpisodeCount)
         )
     }

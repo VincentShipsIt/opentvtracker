@@ -214,7 +214,7 @@ private struct MediaDetailHero: View {
             Text(title.title)
                 .font(.title.weight(.black))
                 .foregroundStyle(.white)
-            Text("\(title.year) · \(title.kind.label) · \(title.runtimeMinutes) min")
+            Text("\(title.displayYear) · \(title.kind.label) · \(title.runtimeMinutes) min")
                 .font(.caption)
                 .foregroundStyle(.white)
             HStack {
