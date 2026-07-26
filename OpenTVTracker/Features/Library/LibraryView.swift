@@ -13,10 +13,6 @@ struct LibraryView: View {
                 AmbientBackdrop()
 
                 VStack(spacing: AppTheme.controlSpacing) {
-                    LibraryHeader(onOpenSettings: { presentedSheet = .settings })
-
-                    LibrarySectionPicker(selection: $section)
-
                     switch section {
                     case .titles:
                         LibraryShelfPicker(selection: $shelf)
@@ -36,7 +32,24 @@ struct LibraryView: View {
                     }
                 }
             }
+            // Same shape as Today and Discover: system large title, one row of icons in
+            // the trailing toolbar group, nothing duplicated in the scroll content. The
+            // old screen stacked a hand-rolled title bar, a segmented control, and the
+            // shelf pills into four tiers of chrome before a single title appeared.
+            .navigationTitle("Library")
+            .navigationBarTitleDisplayMode(.large)
             .spaceModeToolbar()
+            .toolbar {
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    LibrarySectionMenu(selection: $section)
+
+                    Button("Profile and settings", systemImage: "person.crop.circle") {
+                        presentedSheet = .settings
+                    }
+                    .accessibilityHint("Opens your private profile, app settings, and backup status")
+                    .accessibilityIdentifier("library.settings")
+                }
+            }
             .sheet(item: $presentedSheet) { sheet in
                 switch sheet {
                 case .dataTools:
@@ -176,51 +189,29 @@ enum LibraryShelf: String, CaseIterable, Identifiable {
     }
 }
 
-private struct LibraryHeader: View {
-    let onOpenSettings: () -> Void
-
-    var body: some View {
-        HStack(spacing: 16) {
-            Text("Library")
-                .font(.largeTitle.weight(.bold))
-            Spacer(minLength: 0)
-            Button(action: onOpenSettings) {
-                Label("Profile and settings", systemImage: "person.crop.circle.fill")
-                    .labelStyle(.iconOnly)
-                    .font(.system(size: 34))
-            }
-            .accessibilityHint("Opens your private profile, app settings, and backup status")
-            .accessibilityIdentifier("library.settings")
-            .minimumTouchTarget()
-        }
-        .padding(.horizontal, AppTheme.horizontalPadding)
-        .padding(.top, 12)
-    }
-}
-
-private struct LibrarySectionPicker: View {
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+/// Titles / Lists / History, folded into one toolbar glyph.
+///
+/// A segmented control costs a full-width row of permanent chrome to switch between
+/// three views the user is mostly not switching between. An inline `Picker` inside a
+/// `Menu` keeps the native checkmark and the current selection in the glyph itself,
+/// and costs one icon in the row that already holds the profile button.
+private struct LibrarySectionMenu: View {
     @Binding var selection: LibrarySection
 
     var body: some View {
-        if dynamicTypeSize.isAccessibilitySize {
+        Menu {
             Picker("Library section", selection: $selection) {
                 ForEach(LibrarySection.allCases) { section in
                     Label(section.label, systemImage: section.symbol).tag(section)
                 }
             }
-            .pickerStyle(.menu)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, AppTheme.horizontalPadding)
-        } else {
-            Picker("Library section", selection: $selection) {
-                ForEach(LibrarySection.allCases) { section in
-                    Text(section.label).tag(section)
-                }
-            }
-            .pickerStyle(.segmented)
-            .padding(.horizontal, AppTheme.horizontalPadding)
+            .pickerStyle(.inline)
+        } label: {
+            Label("Library section", systemImage: selection.symbol)
         }
+        .accessibilityValue(selection.label)
+        .accessibilityHint("Switches between titles, lists, and history")
+        .accessibilityIdentifier("library.section-menu")
     }
 }
 

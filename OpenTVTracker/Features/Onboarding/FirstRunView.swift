@@ -43,13 +43,18 @@ struct FirstRunView: View {
                             .padding(.horizontal, AppTheme.horizontalPadding)
                             .padding(.vertical, 20)
                     }
-
-                    FirstRunFooter(
-                        step: step,
-                        selectedTitleCount: selectedTitles.count,
-                        onBack: moveBack,
-                        onContinue: moveForward
-                    )
+                    // The footer floats over the scroll region rather than sitting
+                    // beside it: an inset extends the scrollable area underneath, which
+                    // is what gives its glass something to refract and earns the scroll
+                    // edge effect. As a `VStack` sibling it had neither.
+                    .safeAreaInset(edge: .bottom, spacing: 0) {
+                        FirstRunFooter(
+                            step: step,
+                            selectedTitleCount: selectedTitles.count,
+                            onBack: moveBack,
+                            onContinue: moveForward
+                        )
+                    }
                 }
             }
             .navigationTitle("Welcome to OpenTV")

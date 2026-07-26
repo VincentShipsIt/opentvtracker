@@ -1,28 +1,20 @@
 import SwiftUI
 
+/// Greeting only. The account button used to live here, which put a second row of
+/// controls directly under the toolbar's own row — two tiers of icons for one screen.
+/// It sits in the trailing toolbar group now, level with the rest of the chrome.
 struct TodayHeader: View {
     let memberName: String
-    let onOpenLibrary: () -> Void
 
     var body: some View {
-        HStack(alignment: .top, spacing: 16) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(greeting)
-                    .font(.largeTitle.weight(.bold))
-                Text(.now, format: .dateTime.weekday(.wide).month(.wide).day())
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 0)
-            Button(action: onOpenLibrary) {
-                Label("Open Library", systemImage: "person.crop.circle.fill")
-                    .labelStyle(.iconOnly)
-                    .font(.system(size: 34))
-            }
-            .accessibilityHint("Opens your private history, library, and settings")
-            .accessibilityIdentifier("today.library")
-            .minimumTouchTarget()
+        VStack(alignment: .leading, spacing: 4) {
+            Text(greeting)
+                .font(.largeTitle.weight(.bold))
+            Text(.now, format: .dateTime.weekday(.wide).month(.wide).day())
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, AppTheme.horizontalPadding)
         .padding(.top, 12)
     }

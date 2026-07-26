@@ -12,10 +12,7 @@ struct TodayView: View {
 
                 ScrollView {
                     LazyVStack(spacing: AppTheme.sectionSpacing) {
-                        TodayHeader(
-                            memberName: model.currentMember.name,
-                            onOpenLibrary: { selectedTab = .library }
-                        )
+                        TodayHeader(memberName: model.currentMember.name)
 
                         if let first = model.activeUpNext.first {
                             UpNextHero(title: first)
@@ -39,6 +36,7 @@ struct TodayView: View {
                         remainingQueue
                         staleQueue
                         newReleases
+                        catalogShelf
                     }
                     .padding(.bottom, 32)
                 }
@@ -62,6 +60,15 @@ struct TodayView: View {
                     }
                     .accessibilityHint("Opens personalized viewing suggestions")
                     .accessibilityIdentifier("today.ask-opentv")
+
+                    // Same glyph, same corner, same meaning on Today, Discover, and
+                    // Library. It used to switch to the Library tab here and open
+                    // settings there, which is exactly the inconsistency it looked like.
+                    Button("Profile and settings", systemImage: "person.crop.circle") {
+                        presentedSheet = .settings
+                    }
+                    .accessibilityHint("Opens your private profile, app settings, and backup status")
+                    .accessibilityIdentifier("today.settings")
                 }
             }
             .sheet(item: $presentedSheet) { sheet in
@@ -72,9 +79,60 @@ struct TodayView: View {
                         .presentationDragIndicator(.visible)
                 case .services:
                     ServiceManagerView()
+                case .settings:
+                    AppSettingsView()
                 }
             }
         }
+    }
+
+    /// The list of things to watch, which Today used to be missing entirely.
+    ///
+    /// Everything above this point is drawn from the queue or from `recommendations`,
+    /// and both are empty on a new library — so the home screen was one card and a wall
+    /// of black. This is the browse pool: catalog titles the user has not tracked,
+    /// ordered so selected services come first. It sits below the personal shelves
+    /// because it is the least personal thing here, and on a full library that is
+    /// exactly where it should be.
+    @ViewBuilder
+    private var catalogShelf: some View {
+        let picks = model.browsableCatalogTitles(limit: 24, excluding: shownTitleIDs)
+        if !picks.isEmpty {
+            VStack(alignment: .leading, spacing: 14) {
+                SectionHeading(
+                    title: "Start watching",
+                    subtitle: "Highly rated titles you haven't tracked yet"
+                )
+                .padding(.horizontal, AppTheme.horizontalPadding)
+
+                ScrollView(.horizontal) {
+                    LazyHStack(spacing: 14) {
+                        ForEach(picks) { title in
+                            NavigationLink(value: title) {
+                                PosterShelfCard(title: title)
+                                    .frame(width: 144)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.horizontal, AppTheme.horizontalPadding)
+                    .padding(.bottom, 4)
+                }
+                .scrollIndicators(.hidden)
+            }
+            .accessibilityIdentifier("today.start-watching")
+        }
+    }
+
+    /// Titles already on screen above the browse shelf, so it never repeats one.
+    private var shownTitleIDs: Set<MediaTitle.ID> {
+        var identifiers = Set(model.activeUpNext.map(\.id))
+        identifiers.formUnion(model.staleUpNext.map(\.id))
+        identifiers.formUnion(model.newReleasesOnSelectedProviders().map(\.id))
+        if let recommendation = model.recommendations.first {
+            identifiers.insert(recommendation.id)
+        }
+        return identifiers
     }
 
     @ViewBuilder
@@ -162,6 +220,7 @@ struct TodayView: View {
 private enum TodaySheet: Hashable, Identifiable {
     case assistant
     case services
+    case settings
 
     var id: Self { self }
 }

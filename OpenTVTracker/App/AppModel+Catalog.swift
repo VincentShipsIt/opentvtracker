@@ -37,16 +37,70 @@ extension AppModel {
         titles = merging(savedTitles: titles, catalogTitles: catalogTitles)
     }
 
+    /// How many index titles a refresh keeps beyond today's premieres.
+    ///
+    /// `titles` is what gets persisted in the snapshot, and the catalog index returns
+    /// hundreds of shows per page, so the whole page cannot simply be merged. Untracked
+    /// catalog rows are disposable — `clearUntrackedCatalogTitles` already drops them on
+    /// a region change — but the cap is what keeps the store from growing every launch.
+    static let discoveryCatalogLimit = 90
+
+    /// Fills the browse pool the home and Discover screens read from.
+    ///
+    /// One day of premieres is not a catalog. `schedule/web` on a quiet day returns a
+    /// handful of shows, most on networks the provider mapping does not recognize, and
+    /// the recommendation filter then discards those for having no known service — which
+    /// is why Today rendered a single card above an empty screen. Pulling the catalog
+    /// index in behind the schedule gives every browse surface something real to show.
+    /// The index request is best-effort: losing it leaves the old, thin behaviour rather
+    /// than surfacing a catalog error for content the user never explicitly asked for.
     func refreshDiscoveryCatalog() async {
         do {
-            let results = try await catalogService.search(
+            let scheduled = try await catalogService.search(
                 MediaSearchQuery(text: "", kind: nil, page: 1, region: streamingRegion)
             )
-            mergeCatalogTitles(results)
+            let indexed = (try? await catalogService.search(
+                MediaSearchQuery(text: "", kind: nil, page: 2, region: streamingRegion)
+            )) ?? []
+
+            let scheduledIDs = Set(scheduled.map(\.id))
+            let browsable = indexed
+                .filter { !scheduledIDs.contains($0.id) && $0.posterURL != nil }
+                .sorted { $0.rating > $1.rating }
+                .prefix(Self.discoveryCatalogLimit)
+
+            mergeCatalogTitles(scheduled + browsable)
             catalogSearchError = nil
         } catch {
             catalogSearchError = error.localizedDescription
         }
+    }
+
+    /// Everything in the catalog the user has not touched, best first.
+    ///
+    /// Deliberately not filtered by streaming service. `recommendations` is a re-ranking
+    /// of the plan queue on selected subscriptions, so on a fresh library it is one or
+    /// two entries — and a title whose network we could not map to a service is unknown,
+    /// not unavailable. Hiding those is what left the home screen blank. Selected
+    /// services still win the ordering, they just no longer decide what exists.
+    func browsableCatalogTitles(limit: Int = 24, excluding excludedIDs: Set<MediaTitle.ID> = []) -> [MediaTitle] {
+        titles
+            .filter { title in
+                title.state == .planned
+                    && !title.isOnPersonalWatchlist
+                    && title.isDismissed != true
+                    && title.isDisliked != true
+                    && title.posterURL != nil
+                    && !excludedIDs.contains(title.id)
+            }
+            .sorted { lhs, rhs in
+                let lhsOnService = isAvailableOnSelectedProviders(lhs)
+                let rhsOnService = isAvailableOnSelectedProviders(rhs)
+                if lhsOnService != rhsOnService { return lhsOnService }
+                return lhs.rating > rhs.rating
+            }
+            .prefix(limit)
+            .map { $0 }
     }
 
     func mediaTitle(withID id: MediaTitle.ID) -> MediaTitle? {
