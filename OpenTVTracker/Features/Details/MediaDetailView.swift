@@ -174,7 +174,14 @@ private struct MediaDetailHero: View {
     let title: MediaTitle
 
     var body: some View {
-        AdaptiveHeroSurface(minimumHeight: 300) {
+        // A floor for narrow devices, not the hero's shape. Backdrops are 16:9 everywhere —
+        // TMDB serves `backdrop_path` at 1280×720, TVmaze backgrounds are 1920×1080 — and the
+        // surface declares that aspect, but a floor taller than the aspect yields overrides it.
+        // At 300 the hero came out ~362×300, so `scaledToFill` threw away a third of every
+        // still's width and the survivors read as a bad zoom. 200 clears the 190pt the poster
+        // and its insets need, and stays under the 203pt that 16:9 gives at full phone width,
+        // so the backdrop now lands uncropped and only genuinely narrow layouts pay for it.
+        AdaptiveHeroSurface(minimumHeight: 200) {
             BackdropArtwork(title: title, cornerRadius: 0)
                 .accessibilityHidden(true)
         } content: {

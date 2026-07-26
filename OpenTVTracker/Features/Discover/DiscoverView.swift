@@ -39,7 +39,7 @@ struct DiscoverView: View {
                     .padding(.bottom, 36)
                 }
             }
-            .suspendsSpaceSwipeWhenCovered()
+            .suspendsSpaceSwitchWhenCovered()
             .navigationTitle(spaceMode == .personal ? "Discover" : "Discover Together")
             .navigationBarTitleDisplayMode(.large)
             .searchable(

@@ -126,15 +126,22 @@ private struct TVMazeImageDTO: Decodable {
         let medium: Entry?
     }
 
+    let id: Int?
     let type: String?
     let main: Bool?
     let resolutions: Resolutions
 
     static func backdropURL(from images: [TVMazeImageDTO]) -> URL? {
         let backgrounds = images.filter { $0.type?.lowercased() == "background" }
-        // A show can carry a dozen backgrounds; the one flagged `main` is the art the show's
-        // own page leads with, so it is the closest thing to an editorial pick.
-        let preferred = backgrounds.first { $0.main == true } ?? backgrounds.first
+        // `main` flags the image a show's own page leads with, and TVmaze only ever sets it on
+        // a poster — no background carries it. Trusting it here meant the `?? first` arm always
+        // ran, and TVmaze returns images oldest-upload-first, so every show got its *earliest*
+        // background: 90 Day Diaries led with a 2021 branding card rather than the still that
+        // ships alongside its current poster. Newest wins instead, since contributors upload
+        // fresh art when a show is rebranded and leave the stale entries in place. Sorted on
+        // the id rather than trusting the response order, which TVmaze does not document.
+        let preferred = backgrounds.first { $0.main == true }
+            ?? backgrounds.max { ($0.id ?? .min) < ($1.id ?? .min) }
         return preferred?.resolutions.original?.url ?? preferred?.resolutions.medium?.url
     }
 }

@@ -17,12 +17,14 @@ struct TodayView: View {
                         if let first = model.activeUpNext.first {
                             UpNextHero(title: first)
                         } else if let recommendation = model.recommendations.first {
+                            // Full-bleed like the hero it stands in for, so no horizontal
+                            // padding here — the banner insets its own content instead.
                             TodayRecommendationCard(
                                 title: recommendation,
                                 onAdd: { model.setWatchState(.planned, for: recommendation.id) },
-                                onOpenDiscover: { selectedTab = .discover }
+                                onOpenDiscover: { selectedTab = .discover },
+                                onHide: { model.setRecommendationDismissed(true, for: recommendation.id) }
                             )
-                            .padding(.horizontal, AppTheme.horizontalPadding)
                         } else {
                             TodayRecoveryCard(
                                 hasSelectedServices: !model.selectedProviderIDs.isEmpty,
@@ -41,7 +43,7 @@ struct TodayView: View {
                     .padding(.bottom, 32)
                 }
             }
-            .suspendsSpaceSwipeWhenCovered()
+            .suspendsSpaceSwitchWhenCovered()
             .navigationDestination(for: MediaTitle.self) { title in
                 MediaDetailView(titleID: title.id)
             }

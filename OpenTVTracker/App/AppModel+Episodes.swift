@@ -130,6 +130,44 @@ extension AppModel {
         )
     }
 
+    /// Whether a series still has aired episodes left to mark, so callers can offer "mark the
+    /// whole show watched" only when it would do something.
+    func hasUnwatchedReleasedEpisodes(for title: MediaTitle) -> Bool {
+        guard title.kind == .series else { return false }
+        let watchedIDs = resolvedWatchedEpisodeIDs(for: title)
+        return releasedEpisodes(for: title).contains { !watchedIDs.contains($0.id) }
+    }
+
+    /// Marks every already-aired episode of a series watched in one pass.
+    ///
+    /// Deliberately goes through the same primitive as the episode and season toggles rather
+    /// than setting `watchedEpisodeIDs` wholesale: analytics counts watch *events*, not the
+    /// flag, and resolves each one's runtime from its own episode. A single series-scoped
+    /// event credited an entire show with one episode's runtime — Game of Thrones read as
+    /// about an hour watched instead of about seventy.
+    ///
+    /// Returns whether anything changed, so a caller can tell "marked the show watched" from
+    /// "the show was already watched" without re-deriving the set.
+    @discardableResult
+    func markAllReleasedEpisodesWatched(titleID: MediaTitle.ID) -> Bool {
+        guard let index = trackableTitleIndex(for: titleID) else { return false }
+        let releasedIDs = Set(releasedEpisodes(for: titles[index]).map(\.id))
+        let episodes = regularSeasons(for: titles[index]).flatMap { season in
+            season.episodes
+                .filter { releasedIDs.contains($0.id) }
+                .map { (season: season, episode: $0) }
+        }
+        guard !episodes.isEmpty else { return false }
+
+        return applyEpisodeWatchState(
+            true,
+            at: index,
+            episodes: episodes,
+            activityDescription: "watched all of \(titles[index].title)",
+            activitySymbol: "checkmark.seal.fill"
+        )
+    }
+
     func markEpisodesWatchedThrough(
         titleID: MediaTitle.ID,
         seasonNumber: Int,
@@ -206,16 +244,17 @@ extension AppModel {
 }
 
 private extension AppModel {
+    @discardableResult
     func applyEpisodeWatchState(
         _ watched: Bool,
         at index: Int,
         episodes: [(season: SeasonSummary, episode: EpisodeSummary)],
         activityDescription: String,
         activitySymbol: String
-    ) {
+    ) -> Bool {
         var watchedIDs = resolvedWatchedEpisodeIDs(for: titles[index])
         let changedEpisodes = episodes.filter { watchedIDs.contains($0.episode.id) != watched }
-        guard !changedEpisodes.isEmpty else { return }
+        guard !changedEpisodes.isEmpty else { return false }
         let watchedAt = Date.now
 
         for item in changedEpisodes {
@@ -263,6 +302,7 @@ private extension AppModel {
         persist()
         refreshRecommendationsSoon()
         syncSharedStateSoon()
+        return true
     }
 
     func episodesThrough(

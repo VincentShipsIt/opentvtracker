@@ -14,6 +14,10 @@ final class OpenTVAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificati
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         UNUserNotificationCenter.current().delegate = self
+        // A shake is the space switch, and UIKit's own shake-to-undo would otherwise eat
+        // the same gesture behind a system alert. Nothing in the app edits text outside a
+        // field that manages its own undo, so there is nothing to give up here.
+        application.applicationSupportsShakeToEdit = false
         return true
     }
 

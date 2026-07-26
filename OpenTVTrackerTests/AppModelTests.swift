@@ -236,6 +236,50 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(model.progressSummary(for: title).fraction, 1)
     }
 
+    /// Marking a show watched has to land in analytics as the whole show. It used to write one
+    /// series-scoped event, and analytics counts events — so a season's worth of viewing was
+    /// credited a single episode's runtime.
+    func testMarkWatchedCreditsEveryEpisodeToAnalytics() throws {
+        var snapshot = LibrarySnapshot.sample
+        let titleIndex = try XCTUnwrap(snapshot.titles.firstIndex(where: { $0.id == "severance" }))
+        snapshot.titles[titleIndex].seasons = Self.episodeTrackingSeasons
+        snapshot.titles[titleIndex].watchedEpisodeIDs = []
+        snapshot.titles = [snapshot.titles[titleIndex]]
+        snapshot.sharedSpace.watchEvents = []
+        let model = AppModel(store: MemoryLibraryStore(), seed: snapshot)
+
+        model.markWatched("severance")
+
+        let summary = ViewingAnalyticsEngine.summarize(snapshot: model.snapshot, scope: .personal)
+        XCTAssertEqual(summary.episodeCount, 4)
+        XCTAssertEqual(summary.totalMinutes, 50 + 52 + 48 + 54)
+        // Every event is episode-scoped, which is what lets analytics resolve real runtimes
+        // instead of falling back to the title's.
+        let events = try XCTUnwrap(model.sharedSpace.watchEvents)
+        XCTAssertEqual(events.count, 4)
+        XCTAssertTrue(events.allSatisfy { $0.season != nil && $0.episode != nil })
+    }
+
+    /// The whole-show action is offered from the details menu only while it would do something.
+    func testUnwatchedReleasedEpisodesDrivesTheWholeShowAction() throws {
+        var snapshot = LibrarySnapshot.sample
+        let titleIndex = try XCTUnwrap(snapshot.titles.firstIndex(where: { $0.id == "severance" }))
+        snapshot.titles[titleIndex].seasons = Self.episodeTrackingSeasons
+        snapshot.titles[titleIndex].watchedEpisodeIDs = []
+        let model = AppModel(store: MemoryLibraryStore(), seed: snapshot)
+
+        let title = try XCTUnwrap(model.mediaTitle(withID: "severance"))
+        XCTAssertTrue(model.hasUnwatchedReleasedEpisodes(for: title))
+
+        model.markWatched("severance")
+
+        let watched = try XCTUnwrap(model.mediaTitle(withID: "severance"))
+        XCTAssertFalse(model.hasUnwatchedReleasedEpisodes(for: watched))
+
+        let movie = try XCTUnwrap(model.mediaTitle(withID: "past-lives"))
+        XCTAssertFalse(model.hasUnwatchedReleasedEpisodes(for: movie))
+    }
+
     func testEpisodeSwipeTrackingPersistsExactEpisode() async throws {
         var snapshot = LibrarySnapshot.sample
         let titleIndex = try XCTUnwrap(snapshot.titles.firstIndex(where: { $0.id == "severance" }))

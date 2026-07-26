@@ -63,40 +63,29 @@ extension AppModel {
         titles(in: .planned).sorted(by: isMoreRecentlyWatched)
     }
 
+    /// Marks a whole title watched: a movie in one go, a series down to its last aired episode.
     func markWatched(_ id: MediaTitle.ID) {
         guard let index = trackableTitleIndex(for: id) else { return }
-        if titles[index].kind == .movie {
-            guard !titles[index].state.isCurrentViewingComplete else { return }
-        } else if titles[index].state.isCurrentViewingComplete {
-            let watchedIDs = resolvedWatchedEpisodeIDs(for: titles[index])
-            guard releasedEpisodes(for: titles[index]).contains(where: { !watchedIDs.contains($0.id) }) else {
-                return
-            }
+
+        // A series with episode data is recorded episode by episode, through the same path the
+        // season and episode toggles use, so the diary, the progress, the finished state and —
+        // the reason this changed — the analytics all match what watching it would have
+        // produced. Marking the flags directly and appending one series-scoped event left
+        // analytics crediting a whole show with a single episode's runtime.
+        if titles[index].kind == .series, !releasedEpisodes(for: titles[index]).isEmpty {
+            guard markAllReleasedEpisodesWatched(titleID: id) else { return }
+            // Not covered by the episode path, which has no opinion on the watchlist.
+            titles[index].personalWatchlist = false
+            persist()
+            return
         }
 
+        guard !titles[index].state.isCurrentViewingComplete else { return }
         let watchedAt = Date.now
-        let previouslyWatchedEpisodeIDs = resolvedWatchedEpisodeIDs(for: titles[index])
-        let releasedSeasons = releasedRegularSeasons(for: titles[index])
-        if titles[index].kind == .series, !releasedSeasons.isEmpty {
-            titles[index].watchedEpisodeIDs = Set(releasedSeasons.flatMap(\.episodes).map(\.id))
-            if let lastSeason = releasedSeasons.last {
-                titles[index].progress = EpisodeProgress(
-                    season: lastSeason.number,
-                    episode: lastSeason.episodes.count,
-                    totalEpisodes: lastSeason.episodes.count
-                )
-            }
-        }
-
         titles[index].state = finishedState(for: titles[index])
         titles[index].personalWatchlist = false
         titles[index].lastWatchedAt = watchedAt
-        appendCompletedWatchDiary(
-            title: titles[index],
-            releasedSeasons: releasedSeasons,
-            previouslyWatchedEpisodeIDs: previouslyWatchedEpisodeIDs,
-            watchedAt: watchedAt
-        )
+        appendDiaryWatch(title: titles[index], watchedAt: watchedAt, isRewatch: false)
         appendWatchEvent(title: titles[index], kind: .watched, occurredAt: watchedAt)
         persist()
         refreshRecommendationsSoon()
@@ -147,42 +136,3 @@ extension AppModel {
     }
 }
 
-private extension AppModel {
-    func releasedRegularSeasons(for title: MediaTitle) -> [SeasonSummary] {
-        let releasedIDs = Set(releasedEpisodes(for: title).map(\.id))
-        return regularSeasons(for: title).compactMap { season in
-            let episodes = season.episodes.filter { releasedIDs.contains($0.id) }
-            guard !episodes.isEmpty else { return nil }
-            return SeasonSummary(
-                id: season.id,
-                number: season.number,
-                title: season.title,
-                episodes: episodes,
-                artworkURL: season.artworkURL
-            )
-        }
-    }
-
-    func appendCompletedWatchDiary(
-        title: MediaTitle,
-        releasedSeasons: [SeasonSummary],
-        previouslyWatchedEpisodeIDs: Set<EpisodeSummary.ID>,
-        watchedAt: Date
-    ) {
-        guard title.kind == .series else {
-            appendDiaryWatch(title: title, watchedAt: watchedAt, isRewatch: false)
-            return
-        }
-        for season in releasedSeasons {
-            for episode in season.episodes where !previouslyWatchedEpisodeIDs.contains(episode.id) {
-                appendDiaryWatch(
-                    title: title,
-                    season: season,
-                    episode: episode,
-                    watchedAt: watchedAt,
-                    isRewatch: false
-                )
-            }
-        }
-    }
-}

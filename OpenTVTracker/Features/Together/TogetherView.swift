@@ -35,7 +35,7 @@ struct TogetherView: View {
                     .padding(.bottom, 32)
                 }
             }
-            .suspendsSpaceSwipeWhenCovered()
+            .suspendsSpaceSwitchWhenCovered()
             .spaceModeToolbar()
             .sheet(item: $presentedSheet) { sheet in
                 switch sheet {

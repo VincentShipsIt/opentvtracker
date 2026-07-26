@@ -89,7 +89,7 @@ final class CoreJourneySmokeUITests: XCTestCase {
         launchCoreJourneys()
         XCTAssertFalse(app.tabBars.buttons["Together"].exists)
         XCTAssertEqual(app.tabBars.buttons.count, 3)
-        swipeToSharedSpace()
+        switchToSharedSpace()
 
         assertExists(app.staticTexts["Test couch"])
         app.tabBars.buttons["Library"].tap()
@@ -116,36 +116,41 @@ final class CoreJourneySmokeUITests: XCTestCase {
         assertExists(app.textFields["Add a private note"])
     }
 
-    /// Guards the return leg specifically. Only the outbound swipe was covered, so a
-    /// regression that anchored the return gesture where a finger could not physically
-    /// reach it disabled the swipe entirely and still left CI green.
-    func testSpaceSwipeCarriesBackToPersonal() {
+    /// Guards the return leg specifically. Only the outbound crossing was covered, so a
+    /// regression that left the toolbar button pointing at the space it was already in
+    /// stranded anyone who crossed over, and still left CI green.
+    func testSpaceToggleCarriesBackToPersonal() {
         launchCoreJourneys()
 
-        swipeToSharedSpace()
+        switchToSharedSpace()
         assertExists(app.staticTexts["Test couch"])
 
-        swipeToPersonalSpace()
+        switchToPersonalSpace()
         assertExists(app.buttons["home.up-next-title"])
         assertDisappears(app.staticTexts["Test couch"])
     }
 
-    /// The case the two swipe tests above are built to avoid, and therefore the case that
-    /// shipped broken: a sideways flick across a carousel swapped the whole room out. Both
-    /// of them drag at `dy: 0.22` to stay clear of the shelves, so the one place the space
-    /// gesture has to *lose* was the one place nothing looked.
+    /// The shake that replaced the space swipe cannot be generated from XCUITest — the
+    /// Simulator only offers it from its own Hardware menu — so the switch itself is
+    /// exercised through the toolbar button above. What is testable here is the promise the
+    /// shake makes by *not* sharing a vocabulary with anything on screen: no drag anywhere,
+    /// on a shelf or across the middle of the room, may switch spaces any more.
     ///
     /// Checking that the space stayed put is only half a test. A drag that landed on nothing
     /// at all would leave the space alone too, so this also requires the shelf to have
     /// scrolled: the gesture must reach the carousel and be kept by it.
-    func testDragStartingInAShelfScrollsItAndKeepsTheSpace() {
+    func testNoSidewaysDragSwitchesSpaces() {
         launchCoreJourneys()
+
+        // Across open screen, well above the shelves — where the old space swipe lived, and
+        // where a leftover gesture would still be waiting.
+        dragAcrossSpaces(from: 0.8, to: 0.2)
+        assertNeverAppears(app.staticTexts["Test couch"])
 
         // The carousel, not the section around it — and it is what gets scrolled into view,
         // too. The section is hittable as soon as its heading clears the fold while the
         // posters are still below it, so scrolling to the section left the gesture landing
-        // offscreen. The section also holds that heading, where the space switch is entitled
-        // to win, so swiping the section would measure the wrong gesture either way.
+        // offscreen.
         let shelf = app.descendants(matching: .any)["today.start-watching"]
         let carousel = shelf.scrollViews.firstMatch
         assertExists(carousel)
@@ -155,9 +160,6 @@ final class CoreJourneySmokeUITests: XCTestCase {
         assertExists(firstPoster)
         let restingX = firstPoster.frame.minX
 
-        // A full swipe across the carousel, so this travels far past the space switch's own
-        // `max(80, width * 0.2)` threshold. It is not passing because the drag was too small
-        // to commit — it is passing because the shelf claimed it.
         carousel.swipeLeft()
 
         assertNeverAppears(app.staticTexts["Test couch"])
@@ -186,21 +188,27 @@ final class CoreJourneySmokeUITests: XCTestCase {
         button.tap()
     }
 
-    /// The space switch is directional now, matching the transition edges: dragging left
-    /// carries you into the shared space, dragging right carries you back. Both helpers
-    /// start well inside the screen — the gesture is no longer anchored to an edge, and
-    /// starting on one would hand the drag to the system's interactive pop instead.
-    private func swipeToSharedSpace() {
-        dragAcrossSpaces(from: 0.8, to: 0.2)
+    /// A shake is the switch in the hand, but XCUITest cannot generate one, so these drive
+    /// the toolbar button that stands for the same action. That button is not a test-only
+    /// affordance: it is what carries the switch for anyone who cannot shake the phone, and
+    /// the only path VoiceOver has to it.
+    private func switchToSharedSpace() {
+        tapSpaceToggle()
     }
 
-    private func swipeToPersonalSpace() {
-        dragAcrossSpaces(from: 0.2, to: 0.8)
+    private func switchToPersonalSpace() {
+        tapSpaceToggle()
     }
 
+    private func tapSpaceToggle() {
+        let toggle = app.buttons["space-mode-toggle"]
+        assertExists(toggle)
+        toggle.tap()
+    }
+
+    /// A sideways drag across open screen. Nothing should answer it any more — it is kept
+    /// as the negative guard for the gesture the shake replaced.
     private func dragAcrossSpaces(from startX: CGFloat, to endX: CGFloat) {
-        // Vertically above the shelves. A drag that begins on a horizontal carousel is
-        // claimed by that carousel and deliberately does not switch spaces.
         let start = app.coordinate(withNormalizedOffset: CGVector(dx: startX, dy: 0.22))
         let end = app.coordinate(withNormalizedOffset: CGVector(dx: endX, dy: 0.22))
         start.press(forDuration: 0.05, thenDragTo: end)

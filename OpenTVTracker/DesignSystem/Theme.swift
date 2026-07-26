@@ -205,11 +205,6 @@ struct AdaptiveGrid<Content: View>: View {
 
 /// The one way to build a horizontally scrolling shelf.
 ///
-/// Every such shelf has to register itself with the space switch, or a sideways drag
-/// across it swaps the whole room out from under the finger. A dozen call sites each
-/// remembering to add `claimsHorizontalDrag()` is a rule the thirteenth will break, so the
-/// registration lives here and arrives with the container.
-///
 /// The two flags exist because the modifiers they stand in for cannot be applied from
 /// outside: scroll configuration travels down the environment and the innermost value
 /// wins, so a shelf that hard-coded `scrollIndicators(.hidden)` could never be overridden
@@ -232,7 +227,6 @@ struct HorizontalShelf<Content: View>: View {
     var body: some View {
         shelf
             .scrollIndicators(showsIndicators ? .visible : .hidden)
-            .claimsHorizontalDrag()
     }
 
     /// Branched rather than parameterised: `scrollTargetBehavior(_:)` takes an opaque

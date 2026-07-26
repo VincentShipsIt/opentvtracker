@@ -32,7 +32,7 @@ struct LibraryView: View {
                     }
                 }
             }
-            .suspendsSpaceSwipeWhenCovered()
+            .suspendsSpaceSwitchWhenCovered()
             // Same shape as Today and Discover: system large title, one row of icons in
             // the trailing toolbar group, nothing duplicated in the scroll content. The
             // old screen stacked a hand-rolled title bar, a segmented control, and the
