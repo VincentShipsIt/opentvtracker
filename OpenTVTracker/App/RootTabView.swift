@@ -82,7 +82,28 @@ extension UIWindow {
     open override func motionEnded(_ motion: UIEvent.EventSubtype, with event: UIEvent?) {
         super.motionEnded(motion, with: event)
         guard motion == .motionShake else { return }
+        // A sheet or cover leaves the space's root mounted underneath it, so
+        // `CoveredSpaceSuspension` — which keys off the root disappearing — never fires for
+        // one. Asking the window instead covers every presentation in the app at once,
+        // including first run, which is presented above all three containers and so is
+        // reached by no suspension of theirs. It also means the next sheet somebody adds
+        // cannot forget to opt in.
+        guard !hasPresentedViewController else { return }
         NotificationCenter.default.post(name: .openTVSpaceShakeDetected, object: nil)
+    }
+
+    /// Whether anything anywhere beneath this window is presenting modally.
+    ///
+    /// SwiftUI picks the presenting controller itself, and for a `.sheet` deep inside a
+    /// navigation stack that is not the root — so the whole subtree has to be walked rather
+    /// than only `rootViewController.presentedViewController`. Runs once per shake.
+    private var hasPresentedViewController: Bool {
+        var pending = [rootViewController].compactMap { $0 }
+        while let controller = pending.popLast() {
+            if controller.presentedViewController != nil { return true }
+            pending.append(contentsOf: controller.children)
+        }
+        return false
     }
 }
 
