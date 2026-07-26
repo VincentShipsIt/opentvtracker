@@ -128,8 +128,24 @@ jobs:
           echo "KEYCHAIN_PASSWORD=$keychain_password" >> "$GITHUB_ENV"
           printf '%s' "$APPLE_DISTRIBUTION_P12_BASE64" | base64 --decode > "$CERTIFICATE_PATH"
           mkdir -p "$(dirname "$ASC_KEY_PATH")"
-          printf '%s' "$APPLE_API_PRIVATE_KEY_P8_BASE64" | base64 --decode > "$ASC_KEY_PATH"
+          # App Store Connect hands the key over as a .p8 PEM file, and it is easy to paste
+          # that text straight into the secret instead of base64 of it. Both are accepted:
+          # decoding PEM text yields silent garbage, and the only symptom is an
+          # "Authentication failed" from xcodebuild ten minutes later.
+          if [[ "$APPLE_API_PRIVATE_KEY_P8_BASE64" == *"BEGIN PRIVATE KEY"* ]]; then
+            printf '%s' "$APPLE_API_PRIVATE_KEY_P8_BASE64" > "$ASC_KEY_PATH"
+          else
+            printf '%s' "$APPLE_API_PRIVATE_KEY_P8_BASE64" | base64 --decode > "$ASC_KEY_PATH"
+          fi
           chmod 600 "$CERTIFICATE_PATH" "$ASC_KEY_PATH"
+          if ! grep -q 'BEGIN PRIVATE KEY' "$ASC_KEY_PATH"; then
+            echo "::error::APPLE_API_PRIVATE_KEY_P8_BASE64 did not yield a PEM private key. Store either the .p8 file's contents or its base64 encoding."
+            exit 1
+          fi
+          if ! openssl pkey -in "$ASC_KEY_PATH" -noout 2>/dev/null; then
+            echo "::error::The decoded App Store Connect key is not a valid private key."
+            exit 1
+          fi
 
           security create-keychain -p "$keychain_password" "$KEYCHAIN_PATH"
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
@@ -159,6 +175,27 @@ jobs:
             | grep -c 'Apple Distribution' || true)"
           if [[ "$identity_count" -ne 1 ]]; then
             echo "::error::Expected exactly one Apple Distribution identity; found $identity_count."
+            exit 1
+          fi
+
+      - name: Verify App Store Connect access
+        shell: bash
+        run: |
+          set -euo pipefail
+          # xcodebuild reports a rejected API key as a bare "Authentication failed", then
+          # blames the missing provisioning profile it could not fetch. Asking altool the
+          # same question first names the real cause before ten minutes of compiling.
+          cd "$(dirname "$(dirname "$ASC_KEY_PATH")")"
+          if ! output="$(xcrun altool --list-apps \
+            --apiKey "$APPLE_API_KEY_ID" \
+            --apiIssuer "$APPLE_API_ISSUER_ID" 2>&1)"; then
+            echo "$output"
+            echo "::error::App Store Connect rejected the API key. Confirm the key is active and that APPLE_API_KEY_ID/APPLE_API_ISSUER_ID match the key that APPLE_API_PRIVATE_KEY_P8_BASE64 was issued for."
+            exit 1
+          fi
+          if ! grep -q 'dev\.opentvtracker\.app' <<< "$output"; then
+            echo "$output"
+            echo "::error::The API key authenticated but sees no app record for dev.opentvtracker.app. Register the bundle identifier and create the App Store Connect app before archiving."
             exit 1
           fi
 
