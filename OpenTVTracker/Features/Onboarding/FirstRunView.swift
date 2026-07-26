@@ -57,6 +57,11 @@ struct FirstRunView: View {
                     }
                 }
             }
+            // The partner step and the invitation sheet it presents belong to the shared
+            // space, so the backdrop has to follow the step rather than stay personal.
+            // `AmbientBackdrop` animates on this value, so advancing to the last step
+            // cross-fades the ambient wash into the shared hue the controls already use.
+            .environment(\.appSpaceMode, step == .partner ? .shared : .personal)
             .navigationTitle("Welcome to OpenTV")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

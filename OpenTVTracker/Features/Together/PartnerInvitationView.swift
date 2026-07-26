@@ -76,6 +76,10 @@ struct PartnerInvitationView: View {
                 }
                 .padding(AppTheme.horizontalPadding)
             }
+            // This sheet is presented from its own environment root, so without this the
+            // backdrop falls back to the personal hue while every control on it is tinted
+            // for the shared space.
+            .environment(\.appSpaceMode, .shared)
             .navigationTitle("Connect partner")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
