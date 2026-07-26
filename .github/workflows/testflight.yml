@@ -182,22 +182,58 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # xcodebuild reports a rejected API key as a bare "Authentication failed", then
-          # blames the missing provisioning profile it could not fetch. Asking altool the
-          # same question first names the real cause before ten minutes of compiling.
-          cd "$(dirname "$(dirname "$ASC_KEY_PATH")")"
-          if ! output="$(xcrun altool --list-apps \
-            --apiKey "$APPLE_API_KEY_ID" \
-            --apiIssuer "$APPLE_API_ISSUER_ID" 2>&1)"; then
-            echo "$output"
-            echo "::error::App Store Connect rejected the API key. Confirm the key is active and that APPLE_API_KEY_ID/APPLE_API_ISSUER_ID match the key that APPLE_API_PRIVATE_KEY_P8_BASE64 was issued for."
-            exit 1
-          fi
-          if ! grep -q 'dev\.opentvtracker\.app' <<< "$output"; then
-            echo "$output"
-            echo "::error::The API key authenticated but sees no app record for dev.opentvtracker.app. Register the bundle identifier and create the App Store Connect app before archiving."
-            exit 1
-          fi
+          # xcodebuild reports a rejected key as a bare "Authentication failed", then blames
+          # the provisioning profile it could not fetch — which sends you back to signing
+          # settings that are already correct. Ask the provisioning API the same question
+          # first, because that is the one xcodebuild actually needs: a key can read App
+          # Store Connect happily and still be unable to see a bundle identifier.
+          b64url() { openssl base64 -A | tr '+/' '-_' | tr -d '='; }
+          now="$(date +%s)"
+          header="$(printf '{"alg":"ES256","kid":"%s","typ":"JWT"}' "$APPLE_API_KEY_ID" | b64url)"
+          payload="$(printf '{"iss":"%s","iat":%s,"exp":%s,"aud":"appstoreconnect-v1"}' \
+            "$APPLE_API_ISSUER_ID" "$now" "$((now + 600))" | b64url)"
+          # openssl emits a DER-wrapped ECDSA signature; a JWT wants the bare r‖s pair.
+          signature="$(printf '%s.%s' "$header" "$payload" \
+            | openssl dgst -sha256 -sign "$ASC_KEY_PATH" -binary \
+            | xxd -p \
+            | tr -d '\n' \
+            | python3 -c '
+import base64, sys
+der = bytes.fromhex(sys.stdin.read().strip())
+i = 2 if der[1] < 0x80 else 2 + (der[1] & 0x7F)
+def read_int(offset):
+    length = der[offset + 1]
+    return int.from_bytes(der[offset + 2:offset + 2 + length], "big"), offset + 2 + length
+r, i = read_int(i)
+s, _ = read_int(i)
+raw = r.to_bytes(32, "big") + s.to_bytes(32, "big")
+print(base64.urlsafe_b64encode(raw).decode().rstrip("="))
+')"
+          token="$header.$payload.$signature"
+          echo "::add-mask::$token"
+          body="$RUNNER_TEMP/bundle-ids.json"
+          status="$(curl -sS -o "$body" -w '%{http_code}' \
+            -H "Authorization: Bearer $token" \
+            'https://api.appstoreconnect.apple.com/v1/bundleIds?limit=200')"
+          case "$status" in
+            200) ;;
+            401)
+              echo "::error::App Store Connect rejected the API key (401). Confirm the key is active and that APPLE_API_KEY_ID and APPLE_API_ISSUER_ID belong to the key stored in APPLE_API_PRIVATE_KEY_P8_BASE64."
+              exit 1 ;;
+            403)
+              echo "::error::The key authenticated but is not allowed to read provisioning data (403). xcodebuild needs a team key with the App Manager or Admin role — an individual key, or a Developer-role key, authenticates and still cannot provision. Create one under App Store Connect > Users and Access > Integrations > Team Keys."
+              exit 1 ;;
+            *)
+              cat "$body"
+              echo "::error::Unexpected $status from the App Store Connect provisioning API."
+              exit 1 ;;
+          esac
+          for identifier in dev.opentvtracker.app dev.opentvtracker.app.widgets; do
+            if ! grep -q "\"$identifier\"" "$body"; then
+              echo "::error::No registered bundle identifier '$identifier'. Register it under Certificates, Identifiers & Profiles before archiving."
+              exit 1
+            fi
+          done
 
       - name: Archive release
         shell: bash
