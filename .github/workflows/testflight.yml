@@ -193,22 +193,13 @@ jobs:
           payload="$(printf '{"iss":"%s","iat":%s,"exp":%s,"aud":"appstoreconnect-v1"}' \
             "$APPLE_API_ISSUER_ID" "$now" "$((now + 600))" | b64url)"
           # openssl emits a DER-wrapped ECDSA signature; a JWT wants the bare r‖s pair.
+          # The unwrapping stays on one line because a block scalar ends at the first
+          # column-zero line, and an indented Python script is a syntax error.
           signature="$(printf '%s.%s' "$header" "$payload" \
             | openssl dgst -sha256 -sign "$ASC_KEY_PATH" -binary \
             | xxd -p \
             | tr -d '\n' \
-            | python3 -c '
-import base64, sys
-der = bytes.fromhex(sys.stdin.read().strip())
-i = 2 if der[1] < 0x80 else 2 + (der[1] & 0x7F)
-def read_int(offset):
-    length = der[offset + 1]
-    return int.from_bytes(der[offset + 2:offset + 2 + length], "big"), offset + 2 + length
-r, i = read_int(i)
-s, _ = read_int(i)
-raw = r.to_bytes(32, "big") + s.to_bytes(32, "big")
-print(base64.urlsafe_b64encode(raw).decode().rstrip("="))
-')"
+            | python3 -c 'import base64,sys; d=bytes.fromhex(sys.stdin.read().strip()); i=2 if d[1]<0x80 else 2+(d[1]&0x7f); lr=d[i+1]; r=int.from_bytes(d[i+2:i+2+lr],"big"); j=i+2+lr; ls=d[j+1]; s=int.from_bytes(d[j+2:j+2+ls],"big"); print(base64.urlsafe_b64encode(r.to_bytes(32,"big")+s.to_bytes(32,"big")).decode().rstrip("="))')"
           token="$header.$payload.$signature"
           echo "::add-mask::$token"
           body="$RUNNER_TEMP/bundle-ids.json"
