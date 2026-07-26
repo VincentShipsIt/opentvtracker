@@ -103,6 +103,12 @@ struct SeasonSummary: Codable, Hashable, Identifiable, Sendable {
     let number: Int
     let title: String
     let episodes: [EpisodeSummary]
+    /// Per-season key art, where the catalog publishes it. A `var` with no default so the
+    /// memberwise initializer keeps it optional and every existing four-argument call site
+    /// still compiles; decoding treats a snapshot written before this field as `nil`, so no
+    /// schema bump is needed. Seasons without art fall back to the show's poster at display
+    /// time rather than storing a duplicate URL per season.
+    var artworkURL: URL?
 }
 
 enum StreamingProviderID: String, Codable, CaseIterable, Sendable {

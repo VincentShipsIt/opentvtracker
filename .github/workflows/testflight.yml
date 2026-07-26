@@ -33,6 +33,10 @@ jobs:
       APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
       APPLE_API_KEY_ID: ${{ vars.APPLE_API_KEY_ID }}
       APPLE_API_ISSUER_ID: ${{ vars.APPLE_API_ISSUER_ID }}
+      # Config/Secrets.xcconfig is gitignored, so a CI archive would otherwise bake an
+      # empty OpenTVAPIBaseURL into Info.plist and silently fall back to the public
+      # TVMaze catalog. Not a credential: the proxy is guarded by App Attest.
+      CATALOG_PROXY_BASE_URL: ${{ vars.CATALOG_PROXY_BASE_URL }}
     steps:
       - name: Define temporary paths
         shell: bash
@@ -102,6 +106,14 @@ jobs:
             printf '::error::Missing TestFlight credential(s): %s\n' "${missing[*]}"
             exit 1
           fi
+          # A release archive must never carry an https-less proxy URL: the app drops any
+          # non-https base URL outside DEBUG, so a typo here degrades silently to TVMaze.
+          if [[ -z "${CATALOG_PROXY_BASE_URL:-}" ]]; then
+            echo "::warning::CATALOG_PROXY_BASE_URL is unset; this build will use the public TVMaze catalog."
+          elif [[ "$CATALOG_PROXY_BASE_URL" != https://* ]]; then
+            echo "::error::CATALOG_PROXY_BASE_URL must use https; received a non-https value."
+            exit 1
+          fi
 
       - name: Install signing material
         env:
@@ -165,6 +177,8 @@ jobs:
             -authenticationKeyID "$APPLE_API_KEY_ID" \
             -authenticationKeyIssuerID "$APPLE_API_ISSUER_ID" \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            CATALOG_PROXY_BASE_URL="$CATALOG_PROXY_BASE_URL" \
+            APP_ATTEST_DEVELOPMENT_TOKEN="" \
             CODE_SIGN_IDENTITY="$APPLE_DISTRIBUTION_IDENTITY" \
             CODE_SIGN_STYLE=Automatic \
             MARKETING_VERSION='${{ steps.release.outputs.marketing_version }}' \

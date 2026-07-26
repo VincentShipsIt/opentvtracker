@@ -21,6 +21,15 @@ struct FirstRunHeader: View {
     }
 }
 
+/// Floating glass controls, not a bar.
+///
+/// This used to paint `.ultraThinMaterial` behind a full-width strip that sat as a
+/// layout sibling *below* a bounded `ScrollView` — so nothing ever passed underneath
+/// it, the material had no content to refract, and it composited as a flat grey slab
+/// across the bottom of an otherwise glass app. The fix is structural, not cosmetic:
+/// `FirstRunView` hangs this off `.safeAreaInset(edge: .bottom)` so content scrolls
+/// beneath it, and the buttons' own `.glass` styles are the only surface. The system's
+/// scroll edge effect softens the hand-off where content passes under.
 struct FirstRunFooter: View {
     let step: FirstRunStep
     let selectedTitleCount: Int
@@ -30,23 +39,31 @@ struct FirstRunFooter: View {
     var body: some View {
         VStack(spacing: 10) {
             if step == .titles, selectedTitleCount < 2 {
-                Text("Add \(2 - selectedTitleCount) more, or continue and discover titles later.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                // Floating over live content, so this needs a surface of its own —
+                // secondary footnote text alone would sit unreadable on top of posters.
+                GlassSurface(cornerRadius: AppTheme.compactRadius) {
+                    Text("Add \(2 - selectedTitleCount) more, or continue and discover titles later.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 9)
+                }
             }
 
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 12) {
-                    actionButtons
-                }
-                VStack(spacing: 10) {
-                    actionButtons
+            GlassEffectContainer(spacing: 12) {
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 12) {
+                        actionButtons
+                    }
+                    VStack(spacing: 10) {
+                        actionButtons
+                    }
                 }
             }
         }
         .padding(.horizontal, AppTheme.horizontalPadding)
         .padding(.vertical, 14)
-        .background(.ultraThinMaterial)
     }
 
     @ViewBuilder

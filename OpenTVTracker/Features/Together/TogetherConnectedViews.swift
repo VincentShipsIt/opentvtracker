@@ -6,7 +6,7 @@ struct TogetherSharedLibraryEmptyState: View {
             VStack(spacing: 16) {
                 Image(systemName: "rectangle.stack.badge.plus")
                     .font(.system(.largeTitle, design: .rounded, weight: .bold))
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(.tint)
                     .accessibilityHidden(true)
                 Text("Choose your first shared title")
                     .font(.title2.weight(.bold))
@@ -57,7 +57,7 @@ struct TogetherSharedUpNextSection: View {
                                     .lineLimit(2)
                                 Text(title.kind == .movie ? "Shared movie" : "Continue together")
                                     .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(Color.accentColor)
+                                    .foregroundStyle(.tint)
                                 Text(model.togetherProgressSummary(for: title).label)
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
@@ -128,7 +128,7 @@ private struct TogetherMemberProgressRow: View {
             .lineLimit(1)
             .minimumScaleFactor(0.8)
             .frame(width: avatarSize, height: avatarSize)
-            .background(Color.accentColor.opacity(0.16), in: Circle())
+            .background(.tint.opacity(0.16), in: Circle())
             .accessibilityHidden(true)
     }
 
@@ -137,7 +137,6 @@ private struct TogetherMemberProgressRow: View {
             Text(member.isCurrentUser ? "You" : member.name)
                 .font(.subheadline.weight(.semibold))
             ProgressView(value: summary.fraction)
-                .tint(Color.accentColor)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

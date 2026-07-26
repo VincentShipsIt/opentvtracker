@@ -24,7 +24,7 @@ struct NearbyPartnerPairingView: View {
                     VStack(spacing: 24) {
                         Image(systemName: "dot.radiowaves.left.and.right")
                             .font(.system(size: 54))
-                            .foregroundStyle(Color.accentColor)
+                            .foregroundStyle(.tint)
                             .accessibilityHidden(true)
 
                         switch role {
@@ -138,7 +138,7 @@ struct NearbyPartnerPairingView: View {
                             HStack(spacing: 12) {
                                 Image(systemName: "iphone.radiowaves.left.and.right")
                                     .font(.title2)
-                                    .foregroundStyle(Color.accentColor)
+                                    .foregroundStyle(.tint)
                                 Text(partner.name)
                                     .font(.headline)
                                 Spacer()

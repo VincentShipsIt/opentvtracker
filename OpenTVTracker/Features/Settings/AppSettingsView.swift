@@ -5,6 +5,8 @@ struct AppSettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @AppStorage(BackupHealth.lastSuccessfulExportTimestampKey)
     private var lastSuccessfulBackupTimestamp = 0.0
+    @AppStorage(EpisodeSpoilerPolicy.hidesUnwatchedDetailsKey)
+    private var hidesUnwatchedEpisodeDetails = false
     @State private var showsCredits = false
     @State private var showsDataTools = false
 
@@ -70,6 +72,14 @@ struct AppSettingsView: View {
                 }
 
                 Section {
+                    Toggle("Hide details for unwatched episodes", isOn: $hidesUnwatchedEpisodeDetails)
+                } header: {
+                    Text("Spoilers")
+                } footer: {
+                    Text("Off by default. When on, episode stills, titles, and summaries stay hidden until you mark the episode watched. This setting stays on this iPhone.")
+                }
+
+                Section {
                     NavigationLink {
                         TraktSettingsView()
                     } label: {
@@ -85,8 +95,17 @@ struct AppSettingsView: View {
                     Button {
                         showsDataTools = true
                     } label: {
-                        LabeledContent("Portable backup") {
+                        // A plain row, laid out by hand. `LabeledContent`'s ViewBuilder
+                        // slot gives its content the row's full width *and* an unbounded
+                        // height, and a `Label` handed that grows to fill it — which is
+                        // what turned one line of backup status into a row several hundred
+                        // points tall next to the single-line Trakt row above.
+                        HStack {
+                            Text("Portable backup")
+                            Spacer()
                             Label(backupHealth.label, systemImage: backupHealth.systemImage)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
                         }
                     }
                     .accessibilityHint("Opens import and export tools")

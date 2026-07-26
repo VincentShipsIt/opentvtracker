@@ -103,6 +103,18 @@ struct MediaDetailActions: View {
 
     private var overflowMenu: some View {
         Menu {
+            // Only offered while it would change something, so it never reads as a no-op on a
+            // show that is already fully tracked.
+            if model.hasUnwatchedReleasedEpisodes(for: title) {
+                Button("Mark whole show watched", systemImage: "checkmark.seal.fill") {
+                    model.markWatched(title.id)
+                }
+                .accessibilityIdentifier("details.mark-show-watched")
+                .accessibilityHint("Marks every aired episode of every season watched")
+
+                Divider()
+            }
+
             Button("More like this", systemImage: "sparkles") {
                 presentsMoreLikeThis = true
             }
@@ -136,7 +148,9 @@ struct MediaDetailActions: View {
         }
         .adaptiveGlassButton()
         .accessibilityLabel("More actions for \(title.title)")
-        .accessibilityHint("Shows recommendations, activity, notes, lists, reminders, and shared actions")
+        .accessibilityHint(
+            "Marks the whole show watched, and shows recommendations, activity, notes, lists, reminders, and shared actions"
+        )
     }
 
     private var primaryAction: MediaDetailPrimaryAction {

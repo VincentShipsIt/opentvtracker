@@ -34,6 +34,7 @@ struct MediaEpisodeSection: View {
                     ) {
                         SeasonNavigationRow(
                             season: season,
+                            title: title,
                             watchedCount: model.watchedEpisodeCount(titleID: title.id, season: season)
                         )
                     }
@@ -47,10 +48,16 @@ struct MediaEpisodeSection: View {
 
 struct SeasonNavigationRow: View {
     let season: SeasonSummary
+    let title: MediaTitle
     let watchedCount: Int
 
     var body: some View {
         HStack(spacing: 12) {
+            // A list of seasons is otherwise a stack of near-identical text rows. Key art
+            // gives each one something to recognise it by before reading the label.
+            SeasonArtwork(season: season, title: title)
+                .frame(width: 44, height: 66)
+
             VStack(alignment: .leading, spacing: 3) {
                 Text(season.title)
                     .font(.body.weight(.medium))

@@ -189,7 +189,6 @@ private struct SeasonProgressHeader: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 ProgressView(value: Double(watchedCount), total: Double(max(season.episodes.count, 1)))
-                    .tint(.accentColor)
                 Text("Tap an episode for details, or swipe it for watch actions.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -238,6 +237,8 @@ private struct SeasonProgressHeader: View {
 }
 
 private struct EpisodeRow: View {
+    @AppStorage(EpisodeSpoilerPolicy.hidesUnwatchedDetailsKey)
+    private var hidesUnwatchedDetails = false
     let title: MediaTitle
     let seasonNumber: Int
     let episode: EpisodeSummary
@@ -246,7 +247,7 @@ private struct EpisodeRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: 13) {
             Group {
-                if isWatched {
+                if revealsDetails {
                     EpisodeStillArtwork(
                         url: episode.stillURL,
                         fallbackURL: title.backdropURL ?? title.posterURL,
@@ -269,7 +270,7 @@ private struct EpisodeRow: View {
             }
 
             VStack(alignment: .leading, spacing: 5) {
-                Text(isWatched
+                Text(revealsDetails
                     ? "E\(episode.number) · \(episode.title)"
                     : "E\(episode.number) · Title hidden until watched")
                     .font(.headline)
@@ -277,12 +278,12 @@ private struct EpisodeRow: View {
                 Text(metadata)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                if isWatched, let overview = episode.overview, !overview.isEmpty {
+                if revealsDetails, let overview = episode.overview, !overview.isEmpty {
                     Text(overview)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
-                } else if !isWatched, episode.overview?.isEmpty == false {
+                } else if !revealsDetails, episode.overview?.isEmpty == false {
                     Label("Summary hidden until watched", systemImage: "eye.slash")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -296,6 +297,13 @@ private struct EpisodeRow: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityLabel)
         .accessibilityHint("Opens episode details. Swipe for tracking actions")
+    }
+
+    private var revealsDetails: Bool {
+        EpisodeSpoilerPolicy.revealsDetails(
+            isWatched: isWatched,
+            hidesUnwatchedDetails: hidesUnwatchedDetails
+        )
     }
 
     private var metadata: String {
@@ -313,7 +321,7 @@ private struct EpisodeRow: View {
 
     private var accessibilityLabel: String {
         let watchedStatus = isWatched ? "Watched" : "Unwatched"
-        let titleLabel = isWatched ? episode.title : "title hidden until watched"
+        let titleLabel = revealsDetails ? episode.title : "title hidden until watched"
         return "Episode \(episode.number), \(titleLabel). \(metadata). \(watchedStatus)."
     }
 }

@@ -74,7 +74,7 @@ struct MediaShelf: View {
             SectionHeading(title: title, subtitle: subtitle)
                 .padding(.horizontal, AppTheme.horizontalPadding)
 
-            ScrollView(.horizontal) {
+            HorizontalShelf {
                 LazyHStack(alignment: .top, spacing: 14) {
                     ForEach(titles) { title in
                         NavigationLink(value: title) {
@@ -92,7 +92,6 @@ struct MediaShelf: View {
                 .padding(.horizontal, AppTheme.horizontalPadding)
                 .padding(.bottom, 4)
             }
-            .scrollIndicators(.hidden)
         }
     }
 }

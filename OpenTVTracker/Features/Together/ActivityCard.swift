@@ -55,9 +55,9 @@ struct ActivityCard: View {
             HStack(spacing: 14) {
                 Image(systemName: activity.symbol)
                     .font(.title2.weight(.semibold))
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(.tint)
                     .frame(width: 70, height: 70)
-                    .background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 14))
+                    .background(.tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 14))
                     .accessibilityHidden(true)
 
                 Text(activity.description)
@@ -94,7 +94,7 @@ struct ActivityCard: View {
                             .font(.caption2.weight(.semibold))
                     }
                 }
-                .foregroundStyle(currentReaction == nil ? Color.secondary : Color.accentColor)
+                .foregroundStyle(currentReaction == nil ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tint))
                 .frame(width: 44, height: 44)
             }
             .accessibilityLabel(currentReaction == nil ? "React to activity" : "Change reaction")

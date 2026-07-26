@@ -27,24 +27,87 @@ struct PosterArtwork: View {
 }
 
 struct BackdropArtwork: View {
+    @Environment(\.allowsRemoteArtwork) private var allowsRemoteArtwork
     let title: MediaTitle
     var cornerRadius: CGFloat = AppTheme.cardRadius
 
+    /// Latches the moment a poster has had to stand in for missing landscape art.
+    ///
+    /// Catalog enrichment fills `backdropURL` for titles that arrive without one, and it
+    /// lands while a detail screen is still animating in. Deriving the entire presentation
+    /// from that one field meant the hero tore itself down at exactly that moment: the
+    /// stand-in unblurred and unscaled from 1.22 back to 1, the `AsyncImage` reset to a
+    /// spinner because its URL had changed, and only then did the real artwork fade in.
+    /// Latching keeps the wash on screen as a floor, so the upgrade is a plain cross-fade
+    /// over something that never moves.
+    @State private var hasStoodInForBackdrop = false
+
     var body: some View {
-        NetworkArtwork(
-            url: title.backdropURL ?? title.posterURL,
-            title: title,
-            style: .backdrop
-        )
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        ZStack {
+            if showsPosterWash {
+                posterWash
+            }
+
+            if allowsRemoteArtwork, let backdropURL = title.backdropURL {
+                // Transparent until it has pixels, so the wash below is what shows during
+                // the load rather than a second placeholder and spinner stacked over it.
+                NetworkArtwork(
+                    url: backdropURL,
+                    title: title,
+                    style: .backdrop,
+                    showsPlaceholder: !showsPosterWash
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
         .clipped()
         .clipShape(.rect(cornerRadius: cornerRadius))
         .overlay {
-            RoundedRectangle(cornerRadius: cornerRadius)
-                .strokeBorder(.white.opacity(0.12))
+            // Only when this view rounds its own corners. Callers pass `cornerRadius: 0`
+            // when the artwork is a fill inside something else's clip, and a square stroke
+            // there draws a hard box straight across the container's rounded edge.
+            if cornerRadius > 0 {
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .strokeBorder(.white.opacity(0.12))
+            }
+        }
+        .onChange(of: title.backdropURL, initial: true) { _, resolved in
+            if resolved == nil { hasStoodInForBackdrop = true }
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Backdrop artwork for \(title.title)")
+    }
+
+    /// It has to be the caller's frame that decides how tall this gets, never the image:
+    /// a view that sizes itself from `scaledToFill` reports the scaled height and blows the
+    /// hero out of shape.
+    private var posterWash: some View {
+        NetworkArtwork(url: title.posterURL, title: title, style: .backdrop)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            // A 2:3 poster centre-cropped into a 16:9 slot loses its top and bottom thirds
+            // — exactly where posters put their title treatment and billing block — and
+            // what survives reads as a botched crop. Blurring the stand-in turns it into an
+            // ambient wash of the title's own colours: nothing is legible, so nothing looks
+            // cut off. Wherever a hero shows the poster inset, that copy is still sharp.
+            .blur(radius: blursPosterWash ? 26 : 0)
+            // Blur samples past the edges, so the outer band fades towards transparent.
+            // Scaling up pushes that soft margin outside the frame before `clipped` trims
+            // back to it.
+            .scaleEffect(blursPosterWash ? 1.22 : 1)
+    }
+
+    /// Present whenever there is no landscape art to show, and kept afterwards for any
+    /// hero that once had to stand one in — a floor costs nothing behind an opaque image,
+    /// and removing it is what used to make the swap visible.
+    private var showsPosterWash: Bool {
+        title.backdropURL == nil || hasStoodInForBackdrop
+    }
+
+    /// True only when a real portrait poster is filling a landscape slot. The gradient
+    /// placeholder has the show's name drawn into it and offline mode always renders it, so
+    /// blurring in either case would smear text rather than artwork.
+    private var blursPosterWash: Bool {
+        allowsRemoteArtwork && title.posterURL != nil
     }
 }
 
@@ -54,29 +117,64 @@ private struct NetworkArtwork: View {
     let url: URL?
     let title: MediaTitle
     let style: ArtworkStyle
+    /// Off for artwork layered over something that already fills the frame: a second
+    /// gradient and spinner on top of a visible image is noise, and dropping to it while a
+    /// better image loads is the swap this layering exists to hide.
+    var showsPlaceholder = true
 
+    /// `Color.clear` takes whatever size it is proposed and reports that back unchanged, so
+    /// the artwork in its overlay is handed a size it has no vote in.
+    ///
+    /// Sizing from the content instead is what put a zoom on every thumbnail in the app.
+    /// `AsyncImage` reports the size of whichever phase it is currently showing, and the
+    /// phases disagree: the placeholder reports the fixed circle drawn into it, while a
+    /// `scaledToFill` image reports the *scaled* image. The swap between them runs inside
+    /// `artworkTransaction`, so SwiftUI animated that disagreement, and a fill-scaled image
+    /// redrawn against a frame still in motion reads as zooming in and settling back.
+    /// `AdaptiveHeroSurface` moved its artwork into `.background` for the same reason —
+    /// doing it here fixes every poster, backdrop and thumbnail in one place. All callers
+    /// hand this view a bounded proposal (a fixed frame, a grid column, or an aspect ratio
+    /// over a definite width), so `Color.clear`'s ideal size is never consulted.
     var body: some View {
-        Group {
-            if allowsRemoteArtwork, let url {
-                AsyncImage(url: url, transaction: artworkTransaction) { phase in
-                    switch phase {
-                    case .empty:
+        Color.clear
+            .overlay { phases }
+            .clipped()
+    }
+
+    @ViewBuilder
+    private var phases: some View {
+        if allowsRemoteArtwork, let url {
+            AsyncImage(url: url, transaction: artworkTransaction) { phase in
+                switch phase {
+                case .empty:
+                    if showsPlaceholder {
                         placeholder
                             .overlay { ProgressView().tint(.white) }
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .scaledToFill()
-                            .transition(reduceMotion ? .identity : .opacity)
-                    case .failure:
-                        placeholder
-                    @unknown default:
-                        placeholder
+                    } else {
+                        Color.clear
                     }
+                case .success(let image):
+                    image
+                        .resizable()
+                        .scaledToFill()
+                        .transition(reduceMotion ? .identity : .opacity)
+                case .failure:
+                    unavailable
+                @unknown default:
+                    unavailable
                 }
-            } else {
-                placeholder
             }
+        } else {
+            unavailable
+        }
+    }
+
+    @ViewBuilder
+    private var unavailable: some View {
+        if showsPlaceholder {
+            placeholder
+        } else {
+            Color.clear
         }
     }
 
@@ -91,11 +189,16 @@ private struct NetworkArtwork: View {
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
-
-            Circle()
-                .fill(.white.opacity(0.10))
-                .frame(width: style == .poster ? 150 : 260, height: style == .poster ? 150 : 260)
-                .offset(x: 50, y: -90)
+            // Decoration, so it hangs off the gradient rather than standing in the stack.
+            // A fixed 150pt shape as a sibling made the whole placeholder report 150pt no
+            // matter how small the slot was — the size the artwork used to animate away
+            // from the moment the real image arrived.
+            .overlay {
+                Circle()
+                    .fill(.white.opacity(0.10))
+                    .frame(width: style == .poster ? 150 : 260, height: style == .poster ? 150 : 260)
+                    .offset(x: 50, y: -90)
+            }
 
             VStack(alignment: .leading, spacing: 8) {
                 Image(systemName: title.kind.symbol)

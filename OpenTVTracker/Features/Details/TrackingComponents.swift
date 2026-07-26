@@ -28,11 +28,10 @@ struct MediaProgressRow: View {
 
                     Text(summary.label)
                         .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(Color.accentColor)
+                        .foregroundStyle(.tint)
                         .lineLimit(2)
 
                     ProgressView(value: summary.fraction)
-                        .tint(Color.accentColor)
                         .accessibilityLabel("Viewing progress")
                         .accessibilityValue(summary.label)
                 }
@@ -61,7 +60,6 @@ struct MediaProgressPosterCard: View {
                     .aspectRatio(AppTheme.posterAspectRatio, contentMode: .fit)
 
                 ProgressView(value: summary.fraction)
-                    .tint(Color.accentColor)
                     .padding(.horizontal, 8)
                     .padding(.bottom, 7)
                     .accessibilityLabel("Viewing progress")
@@ -117,7 +115,6 @@ struct TrackingSummaryCard: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
             ProgressView(value: Double(watchedEpisodeCount), total: Double(totalEpisodeCount))
-                .tint(.accentColor)
         } else if title.kind == .series {
             Text(title.progress?.label ?? title.state.label)
                 .font(.caption)
@@ -240,6 +237,7 @@ struct EpisodeSeasonsView: View {
                         ) {
                             SeasonNavigationRow(
                                 season: season,
+                                title: title,
                                 watchedCount: model.watchedEpisodeCount(titleID: title.id, season: season)
                             )
                         }

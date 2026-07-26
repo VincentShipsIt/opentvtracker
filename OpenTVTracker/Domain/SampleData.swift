@@ -284,6 +284,7 @@ extension LibrarySnapshot {
         snapshot.titles[0].trailerURL = URL(
             string: "https://www.youtube.com/watch?v=abcdefghijk"
         )
+        snapshot.titles.append(contentsOf: catalogShelfPicks)
         snapshot.sharedSpace = SharedSpace(
             id: "ui-test-space",
             name: "Test couch",
@@ -304,6 +305,40 @@ extension LibrarySnapshot {
         snapshot.hasCompletedFirstRun = true
         return snapshot
     }()
+
+    /// Gives the core-journey seed a horizontal carousel to actually own.
+    ///
+    /// `browsableCatalogTitles` wants untouched, poster-bearing, planned titles, and the one
+    /// show this seed had is watching and on the watchlist — so Today's "Start watching" shelf
+    /// rendered zero times and the UI test that drags across a shelf had nothing to grab.
+    /// `personalWatchlist` is set explicitly because it defaults to `state == .planned`, which
+    /// would filter every one of these straight back out again.
+    ///
+    /// Six at 144pt wide overflow any iPhone, so the drag has somewhere to travel. They are
+    /// named so nothing matches the `label CONTAINS "Test Show"` search predicate.
+    private static let catalogShelfPicks: [MediaTitle] = (1...6).map { index in
+        MediaTitle(
+            id: "ui-test-catalog-\(index)",
+            catalogID: 99_100 + index,
+            title: "Catalog Pick \(index)",
+            year: 2019 + index,
+            kind: .movie,
+            synopsis: "A deterministic catalog title used to populate browsable shelves.",
+            genres: ["Drama"],
+            runtimeMinutes: 104,
+            state: .planned,
+            progress: nil,
+            rating: 8.4 - Double(index) / 10,
+            nextReleaseDescription: nil,
+            recommendationReason: nil,
+            mood: .thoughtful,
+            palette: PosterPalette(primaryHex: "3155A4", secondaryHex: "111831"),
+            providers: [.appleTV],
+            reviews: [],
+            posterURL: URL(string: "https://example.invalid/ui-test-catalog-\(index).jpg"),
+            personalWatchlist: false
+        )
+    }
 
     static let firstRunUITest: LibrarySnapshot = {
         var snapshot = coreJourneyUITest

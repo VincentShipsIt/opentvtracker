@@ -109,12 +109,8 @@ struct AdaptiveHeroSurface<Artwork: View, Content: View>: View {
                 .aspectRatio(16 / 9, contentMode: .fit)
                 .frame(minHeight: minimumHeight)
 
-            artwork
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .clipped()
-
             LinearGradient(
-                colors: gradientColors,
+                stops: scrimStops,
                 startPoint: .top,
                 endPoint: .bottom
             )
@@ -125,18 +121,43 @@ struct AdaptiveHeroSurface<Artwork: View, Content: View>: View {
                 .padding(contentInsets)
         }
         .frame(maxWidth: .infinity)
+        // The artwork fills whatever the hero turns out to be and never argues about that
+        // size — which is why it sits behind the stack rather than inside it. As a sibling
+        // it *did* argue: `scaledToFill` reports the scaled image's size, so a portrait
+        // poster standing in for a missing 16:9 backdrop stretched the hero to roughly
+        // three times its declared height and slid the poster's own baked-in title down
+        // into the content band, where it collided with the title this view draws. Behind
+        // the stack the artwork is proposed the resolved size and centre-crops into it, so
+        // the aspect ratio and `minimumHeight` above are what actually govern.
+        .background {
+            artwork
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .clipped()
+        }
         .compositingGroup()
         .clipShape(.rect(cornerRadius: cornerRadius))
     }
 
-    private var gradientColors: [Color] {
+    /// A bottom-anchored scrim, not an even top-to-bottom wash.
+    ///
+    /// Content here is bottom-aligned over a promotional still, and those routinely carry
+    /// a title treatment or a billing block baked into the image. An evenly distributed
+    /// gradient only reaches ~32% black at mid-height, which is not enough separation to
+    /// guarantee the app's own text reads as the top layer. Holding the top third nearly
+    /// clear keeps the artwork legible while the lower half ramps hard enough to settle
+    /// that question whatever the image happens to contain.
+    private var scrimStops: [Gradient.Stop] {
         if reduceTransparency {
-            return [.black.opacity(0.55), .black.opacity(0.92), .black]
+            return stops([(0, 0.55), (0.45, 0.78), (0.75, 0.94), (1, 1)])
         }
         if contrast == .increased {
-            return [.clear, .black.opacity(0.78), .black]
+            return stops([(0, 0.16), (0.3, 0.48), (0.62, 0.86), (1, 1)])
         }
-        return [.clear, .black.opacity(0.32), .black.opacity(0.94)]
+        return stops([(0, 0), (0.32, 0.08), (0.58, 0.55), (0.8, 0.86), (1, 0.97)])
+    }
+
+    private func stops(_ values: [(location: CGFloat, opacity: Double)]) -> [Gradient.Stop] {
+        values.map { Gradient.Stop(color: .black.opacity($0.opacity), location: $0.location) }
     }
 }
 
@@ -182,6 +203,45 @@ struct AdaptiveGrid<Content: View>: View {
     }
 }
 
+/// The one way to build a horizontally scrolling shelf.
+///
+/// The two flags exist because the modifiers they stand in for cannot be applied from
+/// outside: scroll configuration travels down the environment and the innermost value
+/// wins, so a shelf that hard-coded `scrollIndicators(.hidden)` could never be overridden
+/// by a caller wrapping it.
+struct HorizontalShelf<Content: View>: View {
+    private let showsIndicators: Bool
+    private let snapsToItems: Bool
+    private let content: Content
+
+    init(
+        showsIndicators: Bool = false,
+        snapsToItems: Bool = false,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.showsIndicators = showsIndicators
+        self.snapsToItems = snapsToItems
+        self.content = content()
+    }
+
+    var body: some View {
+        shelf
+            .scrollIndicators(showsIndicators ? .visible : .hidden)
+    }
+
+    /// Branched rather than parameterised: `scrollTargetBehavior(_:)` takes an opaque
+    /// `ScrollTargetBehavior`, so the two behaviours have no common type to pick between.
+    @ViewBuilder
+    private var shelf: some View {
+        if snapsToItems {
+            ScrollView(.horizontal) { content }
+                .scrollTargetBehavior(.viewAligned)
+        } else {
+            ScrollView(.horizontal) { content }
+        }
+    }
+}
+
 private struct MinimumTouchTargetModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
@@ -207,7 +267,7 @@ struct AmbientBackdrop: View {
         ZStack {
             Color(.systemBackground)
             RadialGradient(
-                colors: [spaceMode.ambientTint.opacity(0.22), .clear],
+                colors: [spaceMode.accent.opacity(0.22), .clear],
                 center: .topTrailing,
                 startRadius: 20,
                 endRadius: 420

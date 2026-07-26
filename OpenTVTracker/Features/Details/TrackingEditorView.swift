@@ -3,6 +3,8 @@ import SwiftUI
 struct TrackingEditorView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
+    @AppStorage(EpisodeSpoilerPolicy.hidesUnwatchedDetailsKey)
+    private var hidesUnwatchedDetails = false
     let title: MediaTitle
 
     var body: some View {
@@ -81,7 +83,19 @@ struct TrackingEditorView: View {
                 GlassSurface(cornerRadius: AppTheme.compactRadius) {
                     VStack(alignment: .leading, spacing: 14) {
                         HStack(alignment: .top, spacing: 13) {
-                            EpisodeSpoilerArtworkPlaceholder(label: nil)
+                            Group {
+                                if hidesUnwatchedDetails {
+                                    EpisodeSpoilerArtworkPlaceholder(label: nil)
+                                } else {
+                                    EpisodeStillArtwork(
+                                        url: nextEpisode.episode.stillURL,
+                                        fallbackURL: currentTitle.backdropURL ?? currentTitle.posterURL,
+                                        showTitle: currentTitle.title,
+                                        episodeLabel: nextEpisodeLabel,
+                                        palette: currentTitle.palette
+                                    )
+                                }
+                            }
                             .frame(width: 116, height: 66)
 
                             VStack(alignment: .leading, spacing: 5) {
@@ -226,7 +240,14 @@ struct TrackingEditorView: View {
 
     private var nextEpisodeTitle: String {
         guard let nextEpisode else { return "Next episode" }
-        return "S\(nextEpisode.season.number) E\(nextEpisode.episode.number) · Title hidden until watched"
+        let episodeLabel = "S\(nextEpisode.season.number) E\(nextEpisode.episode.number)"
+        guard !hidesUnwatchedDetails else { return "\(episodeLabel) · Title hidden until watched" }
+        return "\(episodeLabel) · \(nextEpisode.episode.title)"
+    }
+
+    private var nextEpisodeLabel: String {
+        guard let nextEpisode else { return "Next episode" }
+        return "Season \(nextEpisode.season.number), episode \(nextEpisode.episode.number)"
     }
 
     private var nextEpisodeMetadata: String {

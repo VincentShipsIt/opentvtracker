@@ -6,6 +6,7 @@ enum DiscoverSheet: Identifiable {
     case categories
     case services
     case aiRanking
+    case settings
     case trailer(TrailerPresentation)
 
     var id: String {
@@ -14,6 +15,7 @@ enum DiscoverSheet: Identifiable {
         case .categories: "categories"
         case .services: "services"
         case .aiRanking: "ai-ranking"
+        case .settings: "settings"
         case .trailer(let trailer): "trailer-\(trailer.id)"
         }
     }
@@ -169,7 +171,11 @@ struct StreamingServicesSettingsView: View {
                                 .foregroundStyle(.primary)
                             Spacer()
                             Image(systemName: model.isProviderSelected(provider.id) ? "checkmark.circle.fill" : "circle")
-                                .foregroundStyle(model.isProviderSelected(provider.id) ? Color.accentColor : Color.secondary)
+                                .foregroundStyle(
+                                    model.isProviderSelected(provider.id)
+                                        ? AnyShapeStyle(.tint)
+                                        : AnyShapeStyle(.secondary)
+                                )
                         }
                     }
                 }

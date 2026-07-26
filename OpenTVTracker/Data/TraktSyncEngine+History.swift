@@ -143,7 +143,8 @@ extension TraktSyncEngine {
                 id: current.id,
                 number: current.number,
                 title: current.title,
-                episodes: (current.episodes + [episode]).sorted { $0.number < $1.number }
+                episodes: (current.episodes + [episode]).sorted { $0.number < $1.number },
+                artworkURL: current.artworkURL
             )
         } else {
             seasons.append(SeasonSummary(

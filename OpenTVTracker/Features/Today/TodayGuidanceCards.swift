@@ -1,92 +1,113 @@
 import SwiftUI
 
-struct TodayHeader: View {
-    let memberName: String
-    let onOpenLibrary: () -> Void
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 16) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(greeting)
-                    .font(.largeTitle.weight(.bold))
-                Text(.now, format: .dateTime.weekday(.wide).month(.wide).day())
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 0)
-            Button(action: onOpenLibrary) {
-                Label("Open Library", systemImage: "person.crop.circle.fill")
-                    .labelStyle(.iconOnly)
-                    .font(.system(size: 34))
-            }
-            .accessibilityHint("Opens your private history, library, and settings")
-            .accessibilityIdentifier("today.library")
-            .minimumTouchTarget()
-        }
-        .padding(.horizontal, AppTheme.horizontalPadding)
-        .padding(.top, 12)
-    }
-
-    private var greeting: String {
-        let name = memberName == "You" ? nil : memberName
-        let prefix: String
-        switch Calendar.current.component(.hour, from: .now) {
-        case 5..<12: prefix = "Good morning"
-        case 12..<18: prefix = "Good afternoon"
-        default: prefix = "Good evening"
-        }
-        return name.map { "\(prefix), \($0)" } ?? prefix
-    }
-}
-
+/// The banner Today shows when the queue is empty.
+///
+/// It occupies the same slot as `UpNextHero` and is now built the same way: full-bleed
+/// backdrop, bottom-anchored scrim, white content. It used to be an inset glass card with a
+/// 72pt poster and two full-width labelled buttons, so the home screen changed shape
+/// entirely depending on whether anything was up next — and the one title the app is
+/// actively pitching got the smallest artwork on the screen.
 struct TodayRecommendationCard: View {
     let title: MediaTitle
     let onAdd: () -> Void
     let onOpenDiscover: () -> Void
+    let onHide: () -> Void
 
     var body: some View {
-        GlassSurface(tint: .indigo) {
-            VStack(alignment: .leading, spacing: 14) {
+        AdaptiveHeroSurface(
+            minimumHeight: 380,
+            cornerRadius: 0,
+            contentInsets: EdgeInsets(
+                top: 24,
+                leading: AppTheme.horizontalPadding,
+                bottom: 24,
+                trailing: AppTheme.horizontalPadding
+            )
+        ) {
+            BackdropArtwork(title: title, cornerRadius: 0)
+                .accessibilityHidden(true)
+        } content: {
+            VStack(alignment: .leading, spacing: 13) {
                 Label("A pick for tonight", systemImage: "sparkles")
-                    .font(.headline)
-                    .foregroundStyle(.indigo)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white)
 
                 NavigationLink(value: title) {
-                    HStack(spacing: 14) {
-                        PosterArtwork(title: title, cornerRadius: 10)
-                            .frame(width: 72, height: 108)
-                        VStack(alignment: .leading, spacing: 7) {
-                            Text(title.title)
-                                .font(.title2.weight(.bold))
-                                .foregroundStyle(.primary)
-                            Text(title.recommendationReason ?? "A strong match on one of your selected services.")
-                                .foregroundStyle(.secondary)
-                                .multilineTextAlignment(.leading)
-                        }
+                    VStack(alignment: .leading, spacing: 7) {
+                        Text(title.title)
+                            .font(.largeTitle.weight(.black))
+                            .foregroundStyle(.white)
+                            .lineLimit(2)
+                        Text(title.recommendationReason ?? "A strong match on one of your selected services.")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(.white)
+                            .multilineTextAlignment(.leading)
+                            .lineLimit(3)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .buttonStyle(.plain)
 
-                ViewThatFits(in: .horizontal) {
-                    HStack(spacing: 10) { actionButtons }
-                    VStack(spacing: 10) { actionButtons }
-                }
+                actionRow
             }
-            .padding(18)
         }
         .accessibilityIdentifier("today.recommendation")
     }
 
-    @ViewBuilder
-    private var actionButtons: some View {
-        Button("Add to watchlist", systemImage: "plus", action: onAdd)
-            .adaptiveGlassButton(prominent: true)
-            .lineLimit(1)
-            .frame(maxWidth: .infinity)
-        Button("Explore Discover", systemImage: "magnifyingglass", action: onOpenDiscover)
-            .adaptiveGlassButton()
-            .lineLimit(1)
-            .frame(maxWidth: .infinity)
+    /// Icons only, so the row never wraps and never competes with the title for the eye.
+    /// Hide sits behind a spacer rather than beside add: it is the one control here that
+    /// takes the pick away, and it should not be a mis-tap away from keeping it.
+    private var actionRow: some View {
+        HStack(spacing: 12) {
+            iconButton("Add to watchlist", systemImage: "plus", isProminent: true, action: onAdd)
+                .accessibilityHint("Adds this pick to your watchlist")
+                .accessibilityIdentifier("today.recommendation.add")
+
+            iconButton("Explore Discover", systemImage: "magnifyingglass", action: onOpenDiscover)
+                .accessibilityHint("Opens Discover to browse more titles")
+
+            Spacer()
+
+            iconButton("Hide this pick", systemImage: "xmark", action: onHide)
+                .accessibilityHint("Stops recommending this title and suggests another")
+                .accessibilityIdentifier("today.recommendation.hide")
+        }
+    }
+
+    /// Exactly one touch target wide, drawn rather than derived.
+    ///
+    /// These were bordered buttons wrapping a `minimumTouchTarget()` label under
+    /// `controlSize(.large)`, and those three compound: the style padded a frame that was
+    /// already 44pt and the large size scaled that padding again, so a row of "small icon
+    /// buttons" rendered as three circles the better part of 80pt across. Sizing the circle
+    /// itself keeps the target honest at 44pt and stops the styles arguing about it.
+    private func iconButton(
+        _ label: String,
+        systemImage: String,
+        isProminent: Bool = false,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(isProminent ? .black : .white)
+                .frame(
+                    width: AppAccessibility.minimumTouchTarget,
+                    height: AppAccessibility.minimumTouchTarget
+                )
+                .background {
+                    Circle()
+                        .fill(isProminent ? AnyShapeStyle(.white) : AnyShapeStyle(.white.opacity(0.16)))
+                        .overlay {
+                            if !isProminent {
+                                Circle().strokeBorder(.white.opacity(0.35))
+                            }
+                        }
+                }
+                .contentShape(.circle)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
     }
 }
 

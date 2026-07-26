@@ -121,7 +121,7 @@ private struct AssistantPromptSuggestions: View {
                     .foregroundStyle(.secondary)
             }
 
-            ScrollView(.horizontal) {
+            HorizontalShelf(showsIndicators: true) {
                 LazyHStack(spacing: 10) {
                     ForEach(suggestions, id: \.self) { suggestion in
                         Button(suggestion) { onSelect(suggestion) }
@@ -130,7 +130,6 @@ private struct AssistantPromptSuggestions: View {
                 }
                 .padding(.vertical, 2)
             }
-            .scrollIndicators(.visible)
             .accessibilityLabel("Suggested requests")
         }
     }
@@ -239,7 +238,7 @@ private struct AssistantComposer: View {
                         action: onToggleVoice
                     )
                     .labelStyle(.iconOnly)
-                    .foregroundStyle(voice.isRecording ? Color.red : Color.accentColor)
+                    .foregroundStyle(voice.isRecording ? AnyShapeStyle(.red) : AnyShapeStyle(.tint))
                     .minimumTouchTarget()
                     .accessibilityValue(voice.isRecording ? "Listening" : "Not listening")
 

@@ -2,6 +2,8 @@ import SwiftUI
 
 struct EpisodeDetailView: View {
     @Environment(AppModel.self) private var model
+    @AppStorage(EpisodeSpoilerPolicy.hidesUnwatchedDetailsKey)
+    private var hidesUnwatchedDetails = false
     @State private var showsPreviousEpisodesConfirmation = false
     let route: EpisodeDetailRoute
 
@@ -93,12 +95,16 @@ struct EpisodeDetailView: View {
             seasonNumber: season.number,
             episodeID: episode.id
         )
-        let accessibilityLabel = isWatched
+        let revealsDetails = EpisodeSpoilerPolicy.revealsDetails(
+            isWatched: isWatched,
+            hidesUnwatchedDetails: hidesUnwatchedDetails
+        )
+        let accessibilityLabel = revealsDetails
             ? "\(season.title), episode \(episode.number), \(episode.title), still from \(title.title)"
             : "\(season.title), episode \(episode.number), title and artwork hidden until watched"
         AdaptiveHeroSurface(minimumHeight: 210, cornerRadius: 10) {
             Group {
-                if isWatched {
+                if revealsDetails {
                     EpisodeStillArtwork(
                         url: episode.stillURL,
                         fallbackURL: title.backdropURL ?? title.posterURL,
@@ -116,7 +122,7 @@ struct EpisodeDetailView: View {
                 Text("\(season.title) · Episode \(episode.number)")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.white)
-                Text(isWatched ? episode.title : "Episode title hidden until watched")
+                Text(revealsDetails ? episode.title : "Episode title hidden until watched")
                     .font(.title2.weight(.black))
                     .foregroundStyle(.white)
                     .lineLimit(2)
@@ -332,6 +338,8 @@ private struct EpisodeDiarySection: View {
 
 private struct EpisodeStorySection: View {
     @Environment(AppModel.self) private var model
+    @AppStorage(EpisodeSpoilerPolicy.hidesUnwatchedDetailsKey)
+    private var hidesUnwatchedDetails = false
     let title: MediaTitle
     let season: SeasonSummary
     let episode: EpisodeSummary
@@ -341,7 +349,7 @@ private struct EpisodeStorySection: View {
             SectionHeading(title: "Story")
 
             GlassSurface(cornerRadius: AppTheme.compactRadius) {
-                if isWatched {
+                if revealsDetails {
                     Text(episode.overview?.nilIfBlank ?? "No episode description is available yet.")
                         .font(.body)
                         .lineSpacing(5)
@@ -357,6 +365,13 @@ private struct EpisodeStorySection: View {
                 }
             }
         }
+    }
+
+    private var revealsDetails: Bool {
+        EpisodeSpoilerPolicy.revealsDetails(
+            isWatched: isWatched,
+            hidesUnwatchedDetails: hidesUnwatchedDetails
+        )
     }
 
     private var isWatched: Bool {

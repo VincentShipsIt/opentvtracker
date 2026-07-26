@@ -12,20 +12,17 @@ struct TodayView: View {
 
                 ScrollView {
                     LazyVStack(spacing: AppTheme.sectionSpacing) {
-                        TodayHeader(
-                            memberName: model.currentMember.name,
-                            onOpenLibrary: { selectedTab = .library }
-                        )
-
                         if let first = model.activeUpNext.first {
                             UpNextHero(title: first)
                         } else if let recommendation = model.recommendations.first {
+                            // Full-bleed like the hero it stands in for, so no horizontal
+                            // padding here — the banner insets its own content instead.
                             TodayRecommendationCard(
                                 title: recommendation,
                                 onAdd: { model.setWatchState(.planned, for: recommendation.id) },
-                                onOpenDiscover: { selectedTab = .discover }
+                                onOpenDiscover: { selectedTab = .discover },
+                                onHide: { model.setRecommendationDismissed(true, for: recommendation.id) }
                             )
-                            .padding(.horizontal, AppTheme.horizontalPadding)
                         } else {
                             TodayRecoveryCard(
                                 hasSelectedServices: !model.selectedProviderIDs.isEmpty,
@@ -39,28 +36,55 @@ struct TodayView: View {
                         remainingQueue
                         staleQueue
                         newReleases
+                        catalogShelf
                     }
                     .padding(.bottom, 32)
                 }
             }
+            .suspendsSpaceSwitchWhenCovered()
             .navigationDestination(for: MediaTitle.self) { title in
                 MediaDetailView(titleID: title.id)
             }
+            // The greeting is the screen's title, so it has to be the *navigation* title.
+            // Drawn by hand inside the scroll content it could never collapse into the bar
+            // on scroll, and it shared a row with the toolbar icons instead of passing
+            // under them — the greeting ran straight into the calendar glyph at the top of
+            // the screen. `LibraryView` has had this shape all along.
+            .navigationTitle(greeting)
+            .navigationSubtitle(Date.now.formatted(.dateTime.weekday(.wide).month(.wide).day()))
+            .navigationBarTitleDisplayMode(.large)
+            .spaceModeToolbar()
             .toolbar {
+                // `.tint` is per item: a `ToolbarItemGroup` is toolbar content, not a view,
+                // so there is nothing above these three to hang one modifier on. Bar chrome
+                // has to read as chrome — left as-is they inherit the space tint and every
+                // icon in the bar comes out the same blue as the calls to action below it.
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     NavigationLink {
                         UpcomingCalendarView()
                     } label: {
                         Label("Upcoming calendar", systemImage: "calendar")
                     }
+                    .tint(Color.primary)
                     .accessibilityHint("Shows upcoming episodes and movie releases")
                     .accessibilityIdentifier("home.upcoming-calendar")
 
                     Button("Ask OpenTV", systemImage: "sparkles") {
                         presentedSheet = .assistant
                     }
+                    .tint(Color.primary)
                     .accessibilityHint("Opens personalized viewing suggestions")
                     .accessibilityIdentifier("today.ask-opentv")
+
+                    // Same glyph, same corner, same meaning on Today, Discover, and
+                    // Library. It used to switch to the Library tab here and open
+                    // settings there, which is exactly the inconsistency it looked like.
+                    Button("Profile and settings", systemImage: "person.crop.circle") {
+                        presentedSheet = .settings
+                    }
+                    .tint(Color.primary)
+                    .accessibilityHint("Opens your private profile, app settings, and backup status")
+                    .accessibilityIdentifier("today.settings")
                 }
             }
             .sheet(item: $presentedSheet) { sheet in
@@ -71,9 +95,76 @@ struct TodayView: View {
                         .presentationDragIndicator(.visible)
                 case .services:
                     ServiceManagerView()
+                case .settings:
+                    AppSettingsView()
                 }
             }
         }
+    }
+
+    private var greeting: String {
+        let name = model.currentMember.name == "You" ? nil : model.currentMember.name
+        let prefix: String
+        switch Calendar.current.component(.hour, from: .now) {
+        case 5..<12: prefix = "Good morning"
+        case 12..<18: prefix = "Good afternoon"
+        default: prefix = "Good evening"
+        }
+        return name.map { "\(prefix), \($0)" } ?? prefix
+    }
+
+    /// The list of things to watch, which Today used to be missing entirely.
+    ///
+    /// Everything above this point is drawn from the queue or from `recommendations`,
+    /// and both are empty on a new library — so the home screen was one card and a wall
+    /// of black. This is the browse pool: catalog titles the user has not tracked,
+    /// ordered so selected services come first. It sits below the personal shelves
+    /// because it is the least personal thing here, and on a full library that is
+    /// exactly where it should be.
+    @ViewBuilder
+    private var catalogShelf: some View {
+        let picks = model.browsableCatalogTitles(limit: 24, excluding: shownTitleIDs)
+        if !picks.isEmpty {
+            VStack(alignment: .leading, spacing: 14) {
+                SectionHeading(
+                    title: "Start watching",
+                    subtitle: "Highly rated titles you haven't tracked yet"
+                )
+                .padding(.horizontal, AppTheme.horizontalPadding)
+
+                HorizontalShelf {
+                    LazyHStack(spacing: 14) {
+                        ForEach(picks) { title in
+                            NavigationLink(value: title) {
+                                PosterShelfCard(title: title)
+                                    .frame(width: 144)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.horizontal, AppTheme.horizontalPadding)
+                    .padding(.bottom, 4)
+                }
+            }
+            // Grouped, not just identified. An identifier on a bare `VStack` never reaches
+            // the accessibility tree, so the section could not be found by name — by VoiceOver
+            // rotor or by the UI test that drags across this shelf to prove a sideways flick
+            // scrolls it instead of switching spaces.
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Start watching")
+            .accessibilityIdentifier("today.start-watching")
+        }
+    }
+
+    /// Titles already on screen above the browse shelf, so it never repeats one.
+    private var shownTitleIDs: Set<MediaTitle.ID> {
+        var identifiers = Set(model.activeUpNext.map(\.id))
+        identifiers.formUnion(model.staleUpNext.map(\.id))
+        identifiers.formUnion(model.newReleasesOnSelectedProviders().map(\.id))
+        if let recommendation = model.recommendations.first {
+            identifiers.insert(recommendation.id)
+        }
+        return identifiers
     }
 
     @ViewBuilder
@@ -84,7 +175,7 @@ struct TodayView: View {
                 SectionHeading(title: "Also up next", subtitle: "Small commitments, ready when you are")
                     .padding(.horizontal, AppTheme.horizontalPadding)
 
-                ScrollView(.horizontal) {
+                HorizontalShelf {
                     LazyHStack(spacing: 14) {
                         ForEach(remaining) { title in
                             UpNextPosterCard(title: title)
@@ -93,7 +184,6 @@ struct TodayView: View {
                     .padding(.horizontal, AppTheme.horizontalPadding)
                     .padding(.bottom, 4)
                 }
-                .scrollIndicators(.hidden)
             }
         }
     }
@@ -108,7 +198,7 @@ struct TodayView: View {
                 )
                 .padding(.horizontal, AppTheme.horizontalPadding)
 
-                ScrollView(.horizontal) {
+                HorizontalShelf {
                     LazyHStack(spacing: 14) {
                         ForEach(model.staleUpNext) { title in
                             UpNextPosterCard(
@@ -122,7 +212,6 @@ struct TodayView: View {
                     .padding(.horizontal, AppTheme.horizontalPadding)
                     .padding(.bottom, 4)
                 }
-                .scrollIndicators(.hidden)
             }
         }
     }
@@ -138,7 +227,7 @@ struct TodayView: View {
                 )
                 .padding(.horizontal, AppTheme.horizontalPadding)
 
-                ScrollView(.horizontal) {
+                HorizontalShelf {
                     LazyHStack(spacing: 14) {
                         ForEach(releases) { title in
                             NavigationLink(value: title) {
@@ -151,7 +240,6 @@ struct TodayView: View {
                     .padding(.horizontal, AppTheme.horizontalPadding)
                     .padding(.bottom, 4)
                 }
-                .scrollIndicators(.hidden)
             }
         }
     }
@@ -161,6 +249,7 @@ struct TodayView: View {
 private enum TodaySheet: Hashable, Identifiable {
     case assistant
     case services
+    case settings
 
     var id: Self { self }
 }

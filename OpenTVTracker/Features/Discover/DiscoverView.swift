@@ -39,6 +39,7 @@ struct DiscoverView: View {
                     .padding(.bottom, 36)
                 }
             }
+            .suspendsSpaceSwitchWhenCovered()
             .navigationTitle(spaceMode == .personal ? "Discover" : "Discover Together")
             .navigationBarTitleDisplayMode(.large)
             .searchable(
@@ -54,13 +55,20 @@ struct DiscoverView: View {
             .navigationDestination(for: DiscoverCategory.self) { category in
                 DiscoverCategoryShelfView(category: category)
             }
+            .spaceModeToolbar()
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItemGroup(placement: .topBarTrailing) {
                     Button("Ask OpenTV", systemImage: "sparkles") {
                         presentedSheet = .assistant
                     }
                     .accessibilityHint("Opens personalized viewing suggestions")
                     .accessibilityIdentifier("discover.ask-opentv")
+
+                    Button("Profile and settings", systemImage: "person.crop.circle") {
+                        presentedSheet = .settings
+                    }
+                    .accessibilityHint("Opens your private profile, app settings, and backup status")
+                    .accessibilityIdentifier("discover.settings")
                 }
             }
             .sheet(item: $presentedSheet) { sheet in
@@ -75,6 +83,8 @@ struct DiscoverView: View {
                     ServiceManagerView()
                 case .aiRanking:
                     AIRankingSettingsView()
+                case .settings:
+                    AppSettingsView()
                 case .trailer(let trailer):
                     TrailerPlayerView(trailer: trailer)
                 }
@@ -137,28 +147,44 @@ struct DiscoverView: View {
                     .font(.title2.weight(.bold))
                 Text("Browse distinct categories with fresh leads from services you already have.")
                     .foregroundStyle(.secondary)
-                HStack {
-                    Button("Browse categories", systemImage: "square.grid.2x2.fill") {
-                        presentedSheet = .categories
-                    }
-                    .adaptiveGlassButton(prominent: true)
-
-                    Button("Surprise me", systemImage: "dice") {
-                        let count = max(model.recommendations.count, 1)
-                        surpriseOffset = (surpriseOffset + 1) % count
-                    }
-                    .adaptiveGlassButton()
+                // A bare `HStack` let "Browse categories" wrap to two lines inside a pill
+                // sized for one. `ViewThatFits` drops the row to a stack before that can
+                // happen, and `lineLimit(1)` is what makes the row report as too narrow
+                // in the first place — without it the label wraps and the row still fits.
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 10) { decisionButtons }
+                    VStack(spacing: 10) { decisionButtons }
                 }
-
-                Button("AI ranking settings", systemImage: "brain.head.profile") {
-                    presentedSheet = .aiRanking
-                }
-                .adaptiveGlassButton()
             }
             .padding(18)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.horizontal, AppTheme.horizontalPadding)
+    }
+
+    @ViewBuilder
+    private var decisionButtons: some View {
+        Button("Browse categories", systemImage: "square.grid.2x2.fill") {
+            presentedSheet = .categories
+        }
+        .adaptiveGlassButton(prominent: true)
+        .lineLimit(1)
+        .frame(maxWidth: .infinity)
+
+        Button("Surprise me", systemImage: "dice") {
+            let count = max(model.recommendations.count, 1)
+            surpriseOffset = (surpriseOffset + 1) % count
+        }
+        .adaptiveGlassButton()
+        .lineLimit(1)
+        .frame(maxWidth: .infinity)
+
+        Button("AI ranking settings", systemImage: "brain.head.profile") {
+            presentedSheet = .aiRanking
+        }
+        .adaptiveGlassButton()
+        .lineLimit(1)
+        .frame(maxWidth: .infinity)
     }
 
     private var searchResults: some View {
@@ -298,7 +324,7 @@ private struct ServiceManagerControl: View {
                     Image(systemName: "play.tv.fill")
                         .font(.title3)
                         .frame(width: 40, height: 40)
-                        .background(Color.accentColor.opacity(0.14), in: Circle())
+                        .background(.tint.opacity(0.14), in: Circle())
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Manage streaming services")

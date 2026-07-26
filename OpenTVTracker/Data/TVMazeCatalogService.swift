@@ -26,14 +26,14 @@ struct TVMazeCatalogService: CatalogProviding {
                 return schedule
                     .map(\.embedded.show)
                     .filter { seenIDs.insert($0.id).inserted }
-                    .map(\.mediaTitle)
+                    .map { $0.mediaTitle() }
             }
 
             let url = try endpoint(path: "shows", queryItems: [
                 URLQueryItem(name: "page", value: String(max(query.page - 2, 0)))
             ])
             let shows: [TVMazeShowDTO] = try await request(url)
-            return shows.map(\.mediaTitle)
+            return shows.map { $0.mediaTitle() }
         }
 
         guard query.page <= 1 else { return [] }
@@ -41,7 +41,7 @@ struct TVMazeCatalogService: CatalogProviding {
             URLQueryItem(name: "q", value: trimmedQuery)
         ])
         let results: [TVMazeSearchResultDTO] = try await request(url)
-        return results.map(\.show.mediaTitle)
+        return results.map { $0.show.mediaTitle() }
     }
 
     func title(kind: MediaKind, catalogID: Int, region _: StreamingRegion) async throws -> MediaTitle {
@@ -49,8 +49,19 @@ struct TVMazeCatalogService: CatalogProviding {
         let url = try endpoint(path: "shows/\(catalogID)", queryItems: [
             URLQueryItem(name: "embed", value: "episodes")
         ])
-        let show: TVMazeShowDTO = try await request(url)
-        return show.mediaTitle
+
+        // The show payload carries no landscape art and no per-season art — TVmaze keeps both
+        // on separate endpoints. They run alongside the detail fetch rather than after it, so
+        // the artwork costs no extra latency, and either one failing leaves the screen intact.
+        async let detail: TVMazeShowDTO = request(url)
+        async let artwork: [TVMazeImageDTO]? = optionalRequest(path: "shows/\(catalogID)/images")
+        async let seasons: [TVMazeSeasonDTO]? = optionalRequest(path: "shows/\(catalogID)/seasons")
+
+        let show = try await detail
+        return show.mediaTitle(
+            backdropURL: TVMazeImageDTO.backdropURL(from: await artwork ?? []),
+            seasonArtwork: TVMazeSeasonDTO.artworkByNumber(await seasons ?? [])
+        )
     }
 
     func reviews(kind _: MediaKind, catalogID _: Int, page: Int) async throws -> CommunityReviewPage {
@@ -64,9 +75,19 @@ struct TVMazeCatalogService: CatalogProviding {
         ) else {
             throw CatalogServiceError.invalidEndpoint
         }
-        components.queryItems = queryItems
+        // Nil rather than an empty array: assigning `[]` still appends a bare "?" to the path,
+        // and the artwork endpoints take no parameters at all.
+        components.queryItems = queryItems.isEmpty ? nil : queryItems
         guard let url = components.url else { throw CatalogServiceError.invalidEndpoint }
         return url
+    }
+
+    /// Enrichment that must never take the detail screen down with it. A show with no
+    /// background image answers 404 rather than an empty list, so every failure here degrades
+    /// to "no extra artwork" instead of propagating.
+    private func optionalRequest<Response: Decodable>(path: String) async -> Response? {
+        guard let url = try? endpoint(path: path, queryItems: []) else { return nil }
+        return try? await request(url)
     }
 
     private func request<Response: Decodable>(_ url: URL) async throws -> Response {
@@ -91,6 +112,59 @@ struct TVMazeCatalogService: CatalogProviding {
 
 private struct TVMazeSearchResultDTO: Decodable {
     let show: TVMazeShowDTO
+}
+
+/// One entry from `shows/:id/images`. TVmaze tags each image with a type, and only
+/// `background` is genuinely landscape — posters and banners are the wrong shape for a hero.
+private struct TVMazeImageDTO: Decodable {
+    struct Resolutions: Decodable {
+        struct Entry: Decodable {
+            let url: URL?
+        }
+
+        let original: Entry?
+        let medium: Entry?
+    }
+
+    let id: Int?
+    let type: String?
+    let main: Bool?
+    let resolutions: Resolutions
+
+    static func backdropURL(from images: [TVMazeImageDTO]) -> URL? {
+        let backgrounds = images.filter { $0.type?.lowercased() == "background" }
+        // `main` flags the image a show's own page leads with, and TVmaze only ever sets it on
+        // a poster — no background carries it. Trusting it here meant the `?? first` arm always
+        // ran, and TVmaze returns images oldest-upload-first, so every show got its *earliest*
+        // background: 90 Day Diaries led with a 2021 branding card rather than the still that
+        // ships alongside its current poster. Newest wins instead, since contributors upload
+        // fresh art when a show is rebranded and leave the stale entries in place. Sorted on
+        // the id rather than trusting the response order, which TVmaze does not document.
+        let preferred = backgrounds.first { $0.main == true }
+            ?? backgrounds.max { ($0.id ?? .min) < ($1.id ?? .min) }
+        return preferred?.resolutions.original?.url ?? preferred?.resolutions.medium?.url
+    }
+}
+
+/// One entry from `shows/:id/seasons`. Seasons themselves are still synthesized by grouping
+/// the embedded episodes — this endpoint is consulted only for the per-season artwork, which
+/// the episode payload does not carry.
+private struct TVMazeSeasonDTO: Decodable {
+    struct Image: Decodable {
+        let medium: URL?
+        let original: URL?
+    }
+
+    let number: Int?
+    let image: Image?
+
+    static func artworkByNumber(_ seasons: [TVMazeSeasonDTO]) -> [Int: URL] {
+        seasons.reduce(into: [:]) { result, season in
+            guard let number = season.number,
+                  let url = season.image?.original ?? season.image?.medium else { return }
+            result[number] = url
+        }
+    }
 }
 
 private struct TVMazeScheduleEntryDTO: Decodable {
@@ -157,7 +231,9 @@ private struct TVMazeShowDTO: Decodable {
         case embedded = "_embedded"
     }
 
-    var mediaTitle: MediaTitle {
+    /// Both artwork arguments default to empty so the search and schedule paths, which have
+    /// only the show payload to work from, keep reading as a plain conversion.
+    func mediaTitle(backdropURL: URL? = nil, seasonArtwork: [Int: URL] = [:]) -> MediaTitle {
         let episodes = embedded?.episodes ?? []
         let releaseDate = premiered.flatMap(Self.parseDay)
         let nextEpisode = episodes
@@ -186,13 +262,13 @@ private struct TVMazeShowDTO: Decodable {
             providers: Self.providers(network: network?.name, webChannel: webChannel?.name),
             reviews: [],
             posterURL: image?.original ?? image?.medium,
-            backdropURL: nil,
+            backdropURL: backdropURL,
             trailerURL: nil,
             nextEpisodeAirDate: nextEpisode?.0,
             nextEpisodeAirDateIsAllDay: nextEpisode.map { $0.1.airstamp == nil },
             releaseDate: releaseDate,
             personalWatchlist: false,
-            seasons: Self.seasons(from: episodes, showID: id),
+            seasons: Self.seasons(from: episodes, showID: id, artwork: seasonArtwork),
             metadataSource: .tvmaze,
             sourceURL: url,
             seriesLifecycle: Self.lifecycle(from: status)
@@ -204,7 +280,11 @@ private struct TVMazeShowDTO: Decodable {
         return "Next: S\(season) E\(number)"
     }
 
-    private static func seasons(from episodes: [TVMazeEpisodeDTO], showID: Int) -> [SeasonSummary]? {
+    private static func seasons(
+        from episodes: [TVMazeEpisodeDTO],
+        showID: Int,
+        artwork: [Int: URL]
+    ) -> [SeasonSummary]? {
         let numberedEpisodes = episodes.compactMap { episode -> (Int, EpisodeSummary)? in
             guard let season = episode.season, let number = episode.number else { return nil }
             return (
@@ -229,7 +309,8 @@ private struct TVMazeShowDTO: Decodable {
                     id: "tvmaze-season-\(showID)-\(number)",
                     number: number,
                     title: number == 0 ? "Specials" : "Season \(number)",
-                    episodes: values.map(\.1).sorted { $0.number < $1.number }
+                    episodes: values.map(\.1).sorted { $0.number < $1.number },
+                    artworkURL: artwork[number]
                 )
             }
             .sorted { $0.number < $1.number }
