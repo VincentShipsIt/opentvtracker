@@ -32,6 +32,7 @@ struct LibraryView: View {
                     }
                 }
             }
+            .suspendsSpaceSwipeWhenCovered()
             // Same shape as Today and Discover: system large title, one row of icons in
             // the trailing toolbar group, nothing duplicated in the scroll content. The
             // old screen stacked a hand-rolled title bar, a segmented control, and the
@@ -252,6 +253,7 @@ private struct LibraryShelfPicker: View {
         .scrollIndicators(.hidden)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Library shelves")
+        .claimsHorizontalDrag()
     }
 
     private var moreLabel: String {

@@ -93,6 +93,7 @@ struct MediaShelf: View {
                 .padding(.bottom, 4)
             }
             .scrollIndicators(.hidden)
+            .claimsHorizontalDrag()
         }
     }
 }

@@ -210,6 +210,7 @@ private struct EpisodeConversationContent: View {
                 }
             }
             .scrollIndicators(.hidden)
+            .claimsHorizontalDrag()
         }
     }
 

@@ -223,7 +223,7 @@ struct FirstRunView: View {
                     .font(.headline)
 
                 VStack(alignment: .leading, spacing: 8) {
-                    Label("Swipe in from the right edge of any screen", systemImage: "hand.draw")
+                    Label("Swipe left or right across any screen", systemImage: "hand.draw")
                     // The toolbar button renders icon-only, so naming its label here would
                     // point at text the user never sees. Describe the glyph instead.
                     Label(

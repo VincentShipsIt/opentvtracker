@@ -157,7 +157,8 @@ private extension AppModel {
                 id: season.id,
                 number: season.number,
                 title: season.title,
-                episodes: episodes
+                episodes: episodes,
+                artworkURL: season.artworkURL
             )
         }
     }

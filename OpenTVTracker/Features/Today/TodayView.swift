@@ -41,6 +41,7 @@ struct TodayView: View {
                     .padding(.bottom, 32)
                 }
             }
+            .suspendsSpaceSwipeWhenCovered()
             .navigationDestination(for: MediaTitle.self) { title in
                 MediaDetailView(titleID: title.id)
             }
@@ -119,6 +120,7 @@ struct TodayView: View {
                     .padding(.bottom, 4)
                 }
                 .scrollIndicators(.hidden)
+                .claimsHorizontalDrag()
             }
             .accessibilityIdentifier("today.start-watching")
         }
@@ -153,6 +155,7 @@ struct TodayView: View {
                     .padding(.bottom, 4)
                 }
                 .scrollIndicators(.hidden)
+                .claimsHorizontalDrag()
             }
         }
     }
@@ -182,6 +185,7 @@ struct TodayView: View {
                     .padding(.bottom, 4)
                 }
                 .scrollIndicators(.hidden)
+                .claimsHorizontalDrag()
             }
         }
     }
@@ -211,6 +215,7 @@ struct TodayView: View {
                     .padding(.bottom, 4)
                 }
                 .scrollIndicators(.hidden)
+                .claimsHorizontalDrag()
             }
         }
     }

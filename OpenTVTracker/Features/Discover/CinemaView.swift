@@ -94,6 +94,7 @@ struct CinemaView: View {
                 .padding(.horizontal, AppTheme.horizontalPadding)
             }
             .scrollIndicators(.hidden)
+            .claimsHorizontalDrag()
         }
     }
 
@@ -250,6 +251,7 @@ struct TitleCinemaAvailability: View {
                     }
                 }
                 .scrollIndicators(.hidden)
+                .claimsHorizontalDrag()
             }
 
             NavigationLink {

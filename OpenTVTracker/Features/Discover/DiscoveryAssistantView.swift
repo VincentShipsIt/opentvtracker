@@ -132,6 +132,7 @@ private struct AssistantPromptSuggestions: View {
             }
             .scrollIndicators(.visible)
             .accessibilityLabel("Suggested requests")
+            .claimsHorizontalDrag()
         }
     }
 }

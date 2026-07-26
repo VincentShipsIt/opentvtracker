@@ -33,9 +33,21 @@ final class UpcomingCalendarRefreshRaceTests: XCTestCase {
         await service.waitUntilRequested(regionCode: "GB")
         await service.release(regionCode: "GB")
         await initialRefresh.value
+        // Changing the region also starts a refresh inside the model, so which task finishes the
+        // GB pass — the queued loop this test awaits, or the model's own task — is a scheduling
+        // detail that flips under load. Waiting for the result to land covers both orderings, and
+        // it costs the test nothing: the US response was released once and is stale by
+        // construction, so GB is the only value that can still arrive.
+        let observedSeasonIDs = await model.awaitingSeason(
+            "gb-season",
+            titleID: savedTitle.id
+        )
 
         XCTAssertEqual(model.streamingRegion.code, "GB")
         XCTAssertEqual(model.mediaTitle(withID: savedTitle.id)?.seasons?.first?.id, "gb-season")
+        // The stale-rejection half of this test: GB is the only season that may ever have been
+        // visible, so a US season slipping in before it fails here rather than being overwritten.
+        XCTAssertEqual(observedSeasonIDs, ["gb-season"])
         XCTAssertNil(model.upcomingCalendarRefreshError)
     }
 
@@ -91,6 +103,27 @@ final class UpcomingCalendarRefreshRaceTests: XCTestCase {
             )
         ]
         return result
+    }
+}
+
+@MainActor
+private extension AppModel {
+    /// Yields until `seasonID` is the first season on the title, returning every season ID that
+    /// was visible along the way so a caller can assert nothing stale appeared first. Unbounded
+    /// like the service's own `waitUntilRequested`: a season that never arrives is a hang the
+    /// test timeout reports, not a silently downgraded assertion.
+    func awaitingSeason(
+        _ seasonID: SeasonSummary.ID,
+        titleID: MediaTitle.ID
+    ) async -> Set<SeasonSummary.ID> {
+        var observed: Set<SeasonSummary.ID> = []
+        while true {
+            if let current = mediaTitle(withID: titleID)?.seasons?.first?.id {
+                observed.insert(current)
+                if current == seasonID { return observed }
+            }
+            await Task.yield()
+        }
     }
 }
 

@@ -57,9 +57,79 @@ extension EnvironmentValues {
     ///
     /// A segmented picker used to carry this, but it sat above every tab's content on
     /// every screen — permanent chrome for a control most sessions never touch. The
-    /// edge swipe is the switch now; this binding is what lets each root screen put a
-    /// single toolbar button behind the same action.
+    /// sideways swipe is the switch now; this binding is what lets each root screen put
+    /// a single toolbar button behind the same action.
     @Entry var appSpaceModeSelection: Binding<AppSpaceMode>?
+
+    /// Open claims on horizontal drags, one token per region that currently owns them.
+    ///
+    /// The space swipe is a plain `DragGesture` attached above a whole tab, so it sees
+    /// every sideways pan in the subtree — including the dozen horizontal shelves and
+    /// anything pushed on top of a root screen. Rather than guess from coordinates, the
+    /// regions that own a horizontal drag say so while they own it, and the swipe stands
+    /// down whenever the set is non-empty.
+    @Entry var spaceSwipeClaims: Binding<Set<UUID>>?
+}
+
+extension View {
+    /// Marks a horizontally scrolling region. While it is actively scrolling, a sideways
+    /// drag here belongs to the shelf, not to the space switch.
+    func claimsHorizontalDrag() -> some View {
+        modifier(HorizontalDragClaim())
+    }
+
+    /// Applied to a root screen's stack content. While something is pushed over that
+    /// root, nothing sideways should swap the space out from under it — which is also
+    /// what leaves `NavigationStack`'s own interactive back-swipe uncontested, without
+    /// the space swipe having to reserve a screen edge for it.
+    func suspendsSpaceSwipeWhenCovered() -> some View {
+        modifier(SpaceSwipeSuspension())
+    }
+}
+
+/// Claims the space swipe for the duration of a horizontal scroll.
+struct HorizontalDragClaim: ViewModifier {
+    @Environment(\.spaceSwipeClaims) private var claims
+    @State private var token = UUID()
+
+    func body(content: Content) -> some View {
+        content
+            .onScrollPhaseChange { _, phase in
+                if phase == .idle {
+                    claims?.wrappedValue.remove(token)
+                } else {
+                    claims?.wrappedValue.insert(token)
+                }
+            }
+            .onDisappear { claims?.wrappedValue.remove(token) }
+    }
+}
+
+/// Claims the space swipe for as long as the view it is applied to is covered.
+///
+/// Inverted on purpose: the claim is taken on `onDisappear` and released on `onAppear`.
+/// A root screen disappears when anything is pushed over it, at any depth, so one
+/// modifier on each root covers every detail screen in the app without touching them.
+struct SpaceSwipeSuspension: ViewModifier {
+    @Environment(\.spaceSwipeClaims) private var claims
+    @Environment(\.appSpaceMode) private var space
+    @Environment(\.appSpaceModeSelection) private var selection
+    @State private var token = UUID()
+
+    func body(content: Content) -> some View {
+        content
+            .onAppear { claims?.wrappedValue.remove(token) }
+            .onDisappear {
+                // Only a push over this root suspends the swipe. A root also disappears
+                // because its space swapped out, and that is not a cover: the view is
+                // gone, so the claim it took there is one nothing can ever hand back —
+                // it would leave the destination space unable to swipe home again.
+                // The binding reads live state, so by here it already names the space
+                // being swiped to, while `space` still names the one being left.
+                guard selection?.wrappedValue == space else { return }
+                claims?.wrappedValue.insert(token)
+            }
+    }
 }
 
 /// The visible half of the space switch.
@@ -83,7 +153,7 @@ struct SpaceModeToggleButton: View {
             } label: {
                 Label("Switch to \(destination.label)", systemImage: destination.symbol)
             }
-            .accessibilityHint("You can also swipe in from the right edge of the screen")
+            .accessibilityHint("You can also swipe left or right across the screen")
             .accessibilityIdentifier("space-mode-toggle")
         }
     }
@@ -173,18 +243,19 @@ struct RootTabView: View {
     }
 }
 
-/// Personal and Shared swap in place. The edge swipe is the switch; each root screen's
-/// `spaceModeToolbar()` button is the same switch made visible.
+/// Personal and Shared swap in place. Swipe left for Shared, right for Personal; each
+/// root screen's `spaceModeToolbar()` button is the same switch made visible.
 ///
 /// A page-styled `TabView` was tried for this and rejected: wrapping each tab's
 /// `NavigationStack` in a paged scroll container left pushed content resolving to an
 /// empty frame, so controls inside a detail screen became unhittable. That is why the
-/// gesture below is an edge-started `DragGesture` over a normal container rather than
-/// real horizontal paging.
+/// switch is a `DragGesture` over a normal container rather than real horizontal paging.
 private struct SpaceModeContainer<PersonalContent: View, SharedContent: View>: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Binding var selection: AppSpaceMode
     @State private var availableWidth: CGFloat = 0
+    @State private var claims: Set<UUID> = []
+    @State private var isEligibleSwipe: Bool?
     private let personalContent: PersonalContent
     private let sharedContent: SharedContent
 
@@ -214,6 +285,7 @@ private struct SpaceModeContainer<PersonalContent: View, SharedContent: View>: V
             }
         }
         .environment(\.appSpaceModeSelection, $selection)
+        .environment(\.spaceSwipeClaims, $claims)
         // Both branches carry their own `AmbientBackdrop`, and the cross-fade dips both
         // below full opacity at once — without an opaque layer of our own underneath,
         // the window backdrop reads through as black gutters for the length of the
@@ -229,40 +301,51 @@ private struct SpaceModeContainer<PersonalContent: View, SharedContent: View>: V
         } action: { width in
             availableWidth = width
         }
+        // Every claim belongs to a region in the space being retired, so the space
+        // arriving starts clean. `SpaceSwipeSuspension` already declines to claim on a
+        // swap; this is the backstop for a token whose owner lost its state while it
+        // held one, which would otherwise wedge the swipe shut for good.
+        .onChange(of: selection) { claims.removeAll() }
         .animation(reduceMotion ? nil : .snappy(duration: 0.25), value: selection)
         .sensoryFeedback(.selection, trigger: selection)
         .accessibilityIdentifier("space-mode-container")
     }
 
-    /// Edge-started only: a drag beginning mid-screen belongs to whatever horizontal
-    /// shelf is under the finger, not to the space switch.
+    /// Swipe left for Shared, right for Personal — the same directions the two spaces
+    /// animate in from, so the content follows the finger rather than flipping.
     ///
-    /// This is a *toggle*, not a pair of directional swipes: pull in from the trailing
-    /// edge to flip to the other space, whichever one you are in. The leading edge is
-    /// reserved for `NavigationStack`'s interactive pop, and this gesture is installed
-    /// with `simultaneousGesture` above a stack that every space pushes onto — a
-    /// leading-edge start would fire both recognizers, popping the detail screen *and*
-    /// throwing the user into the other space in one swipe. That rules out a rightward
-    /// return swipe entirely: anchored trailing it has no room to travel (the finger
-    /// would have to leave the screen to clear the distance threshold), and anchored
-    /// leading it collides with the pop. Symmetry is the only reachable shape left.
+    /// Anywhere on the screen, no edge to find. The gesture is installed with
+    /// `simultaneousGesture` above everything in the tab, so it would otherwise fire on
+    /// shelf scrolls and fight `NavigationStack`'s interactive pop; `spaceSwipeClaims`
+    /// is what settles those instead of a screen-edge anchor. Distance or momentum will
+    /// do, which is what makes a quick flick land the same as a deliberate drag.
     ///
     /// `SpaceModeToggleButton` covers what a gesture cannot: naming itself on screen,
     /// and working under VoiceOver, which reserves horizontal swipes for its own use.
     private var spaceSwipe: some Gesture {
-        DragGesture(minimumDistance: 24, coordinateSpace: .local)
-            .onEnded { value in
-                let horizontalDistance = value.translation.width
-                let verticalDistance = value.translation.height
-
-                guard horizontalDistance < -60,
-                      abs(horizontalDistance) > abs(verticalDistance) * 1.25,
-                      value.startLocation.x >= availableWidth - 44
-                else {
-                    return
+        DragGesture(minimumDistance: 20, coordinateSpace: .local)
+            .onChanged { _ in
+                // Sampled once, the moment the pan becomes a drag. By `onEnded` a shelf
+                // that took it may have coasted back to idle and dropped its claim.
+                if isEligibleSwipe == nil {
+                    isEligibleSwipe = claims.isEmpty
                 }
+            }
+            .onEnded { value in
+                let wasEligible = isEligibleSwipe ?? true
+                isEligibleSwipe = nil
+                guard wasEligible else { return }
 
-                selection = selection == .personal ? .shared : .personal
+                let travelled = value.translation.width
+                guard abs(travelled) > abs(value.translation.height) * 1.5 else { return }
+
+                let threshold = max(80, availableWidth * 0.2)
+                let distance = abs(travelled) >= threshold
+                    ? travelled
+                    : value.predictedEndTranslation.width
+                guard abs(distance) >= threshold else { return }
+
+                selection = distance < 0 ? .shared : .personal
             }
     }
 

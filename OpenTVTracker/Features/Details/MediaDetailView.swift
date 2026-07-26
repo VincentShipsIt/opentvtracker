@@ -134,6 +134,7 @@ struct MediaDetailView: View {
                     }
                 }
                 .scrollIndicators(.hidden)
+                .claimsHorizontalDrag()
             }
         }
     }

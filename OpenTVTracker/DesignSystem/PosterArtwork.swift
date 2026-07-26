@@ -27,30 +27,49 @@ struct PosterArtwork: View {
 }
 
 struct BackdropArtwork: View {
+    @Environment(\.allowsRemoteArtwork) private var allowsRemoteArtwork
     let title: MediaTitle
     var cornerRadius: CGFloat = AppTheme.cardRadius
 
     var body: some View {
-        // Not every catalog source carries a backdrop — `TVMazeCatalogService` never does —
-        // so a portrait poster stands in. It has to be the caller's frame that decides how
-        // tall this gets, never the image: filling a landscape slot with a 2:3 poster
-        // centre-crops away the bottom third, which is exactly where posters put their
-        // title treatment. Callers that let the image size itself get that title back, in
-        // the one band where overlaid text sits.
+        // It has to be the caller's frame that decides how tall this gets, never the image:
+        // a view that sizes itself from `scaledToFill` reports the scaled height and blows
+        // the hero out of shape.
         NetworkArtwork(
             url: title.backdropURL ?? title.posterURL,
             title: title,
             style: .backdrop
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // A 2:3 poster centre-cropped into a 16:9 slot loses its top and bottom thirds —
+        // exactly where posters put their title treatment and billing block — and what
+        // survives reads as a botched crop. Blurring the stand-in turns it into an ambient
+        // wash of the title's own colours: nothing is legible, so nothing looks cut off.
+        // Wherever a hero shows the poster inset, that copy is still sharp.
+        .blur(radius: isPosterStandIn ? 26 : 0)
+        // Blur samples past the edges, so the outer band fades towards transparent. Scaling
+        // up pushes that soft margin outside the frame before `clipped` trims back to it.
+        .scaleEffect(isPosterStandIn ? 1.22 : 1)
         .clipped()
         .clipShape(.rect(cornerRadius: cornerRadius))
         .overlay {
-            RoundedRectangle(cornerRadius: cornerRadius)
-                .strokeBorder(.white.opacity(0.12))
+            // Only when this view rounds its own corners. Callers pass `cornerRadius: 0`
+            // when the artwork is a fill inside something else's clip, and a square stroke
+            // there draws a hard box straight across the container's rounded edge.
+            if cornerRadius > 0 {
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .strokeBorder(.white.opacity(0.12))
+            }
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Backdrop artwork for \(title.title)")
+    }
+
+    /// True only when a real portrait poster is filling a landscape slot. The gradient
+    /// placeholder has the show's name drawn into it and offline mode always renders it, so
+    /// blurring in either case would smear text rather than artwork.
+    private var isPosterStandIn: Bool {
+        allowsRemoteArtwork && title.backdropURL == nil && title.posterURL != nil
     }
 }
 

@@ -5,6 +5,8 @@ struct AppSettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @AppStorage(BackupHealth.lastSuccessfulExportTimestampKey)
     private var lastSuccessfulBackupTimestamp = 0.0
+    @AppStorage(EpisodeSpoilerPolicy.hidesUnwatchedDetailsKey)
+    private var hidesUnwatchedEpisodeDetails = false
     @State private var showsCredits = false
     @State private var showsDataTools = false
 
@@ -67,6 +69,14 @@ struct AppSettingsView: View {
                     Text("Discovery")
                 } footer: {
                     Text("Off by default. Deterministic on-device recommendations always remain available.")
+                }
+
+                Section {
+                    Toggle("Hide details for unwatched episodes", isOn: $hidesUnwatchedEpisodeDetails)
+                } header: {
+                    Text("Spoilers")
+                } footer: {
+                    Text("Off by default. When on, episode stills, titles, and summaries stay hidden until you mark the episode watched. This setting stays on this iPhone.")
                 }
 
                 Section {

@@ -237,6 +237,7 @@ struct EpisodeSeasonsView: View {
                         ) {
                             SeasonNavigationRow(
                                 season: season,
+                                title: title,
                                 watchedCount: model.watchedEpisodeCount(titleID: title.id, season: season)
                             )
                         }

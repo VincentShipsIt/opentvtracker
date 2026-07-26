@@ -89,7 +89,7 @@ final class CoreJourneySmokeUITests: XCTestCase {
         launchCoreJourneys()
         XCTAssertFalse(app.tabBars.buttons["Together"].exists)
         XCTAssertEqual(app.tabBars.buttons.count, 3)
-        swipeAcrossSpaceEdge()
+        swipeToSharedSpace()
 
         assertExists(app.staticTexts["Test couch"])
         app.tabBars.buttons["Library"].tap()
@@ -122,10 +122,10 @@ final class CoreJourneySmokeUITests: XCTestCase {
     func testSpaceSwipeCarriesBackToPersonal() {
         launchCoreJourneys()
 
-        swipeAcrossSpaceEdge()
+        swipeToSharedSpace()
         assertExists(app.staticTexts["Test couch"])
 
-        swipeAcrossSpaceEdge()
+        swipeToPersonalSpace()
         assertExists(app.buttons["home.up-next-title"])
         assertDisappears(app.staticTexts["Test couch"])
     }
@@ -148,16 +148,23 @@ final class CoreJourneySmokeUITests: XCTestCase {
         button.tap()
     }
 
-    /// The space switch is a toggle anchored on the trailing edge, so the same drag
-    /// carries you in both directions. Keep it one helper — a second "swipe back"
-    /// helper that dragged the other way would encode a gesture the app does not have.
-    private func swipeAcrossSpaceEdge() {
-        let start = app.coordinate(
-            withNormalizedOffset: CGVector(dx: 0.98, dy: 0.5)
-        )
-        let end = app.coordinate(
-            withNormalizedOffset: CGVector(dx: 0.2, dy: 0.5)
-        )
+    /// The space switch is directional now, matching the transition edges: dragging left
+    /// carries you into the shared space, dragging right carries you back. Both helpers
+    /// start well inside the screen — the gesture is no longer anchored to an edge, and
+    /// starting on one would hand the drag to the system's interactive pop instead.
+    private func swipeToSharedSpace() {
+        dragAcrossSpaces(from: 0.8, to: 0.2)
+    }
+
+    private func swipeToPersonalSpace() {
+        dragAcrossSpaces(from: 0.2, to: 0.8)
+    }
+
+    private func dragAcrossSpaces(from startX: CGFloat, to endX: CGFloat) {
+        // Vertically above the shelves. A drag that begins on a horizontal carousel is
+        // claimed by that carousel and deliberately does not switch spaces.
+        let start = app.coordinate(withNormalizedOffset: CGVector(dx: startX, dy: 0.22))
+        let end = app.coordinate(withNormalizedOffset: CGVector(dx: endX, dy: 0.22))
         start.press(forDuration: 0.05, thenDragTo: end)
     }
 
@@ -176,19 +183,17 @@ final class CoreJourneySmokeUITests: XCTestCase {
         episode.tap()
     }
 
+    /// Library has no segmented control any more: the section switch is an inline picker
+    /// inside a single toolbar menu, so reaching History is open-then-choose.
     private func openViewingDiary() {
-        let currentProfile = app.buttons["library.profile"]
-        if currentProfile.waitForExistence(timeout: 1) {
-            currentProfile.tap()
-            let diary = app.buttons["profile.viewing-diary"]
-            scrollToElement(diary)
-            diary.tap()
-            return
-        }
+        let sectionMenu = app.buttons["library.section-menu"]
+        assertExists(sectionMenu)
+        sectionMenu.tap()
 
         let history = app.buttons["History"]
         assertExists(history)
         history.tap()
+
         let diary = app.buttons["library.viewing-diary"]
         scrollToElement(diary)
         diary.tap()

@@ -21,6 +21,7 @@ struct DiscoverCategoryCarousel: View {
         .scrollIndicators(.hidden)
         .scrollTargetBehavior(.viewAligned)
         .accessibilityLabel("Browse categories")
+        .claimsHorizontalDrag()
     }
 }
 
