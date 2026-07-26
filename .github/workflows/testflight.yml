@@ -152,15 +152,15 @@ jobs:
           security list-keychains -d user -s \
             "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
 
+          # The archive selects its identity by name under automatic signing, so all this
+          # has to establish is that exactly one distribution certificate is reachable —
+          # two would make that name ambiguous, none would fail much later in the archive.
           identity_count="$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" \
             | grep -c 'Apple Distribution' || true)"
           if [[ "$identity_count" -ne 1 ]]; then
             echo "::error::Expected exactly one Apple Distribution identity; found $identity_count."
             exit 1
           fi
-          distribution_identity="$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" \
-            | awk '/Apple Distribution/ { print $2; exit }')"
-          echo "APPLE_DISTRIBUTION_IDENTITY=$distribution_identity" >> "$GITHUB_ENV"
 
       - name: Archive release
         shell: bash
@@ -179,7 +179,6 @@ jobs:
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
             CATALOG_PROXY_BASE_URL="$CATALOG_PROXY_BASE_URL" \
             APP_ATTEST_DEVELOPMENT_TOKEN="" \
-            CODE_SIGN_IDENTITY="$APPLE_DISTRIBUTION_IDENTITY" \
             CODE_SIGN_STYLE=Automatic \
             MARKETING_VERSION='${{ steps.release.outputs.marketing_version }}' \
             CURRENT_PROJECT_VERSION='${{ steps.release.outputs.build_number }}' \
