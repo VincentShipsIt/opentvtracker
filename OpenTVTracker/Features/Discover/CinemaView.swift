@@ -68,7 +68,7 @@ struct CinemaView: View {
         VStack(alignment: .leading, spacing: 12) {
             SectionHeading(title: "Pick a day", subtitle: "Cinema listings around Malta and Gozo")
                 .padding(.horizontal, AppTheme.horizontalPadding)
-            ScrollView(.horizontal) {
+            HorizontalShelf {
                 HStack(spacing: 10) {
                     ForEach(days) { day in
                         Button {
@@ -93,8 +93,6 @@ struct CinemaView: View {
                 }
                 .padding(.horizontal, AppTheme.horizontalPadding)
             }
-            .scrollIndicators(.hidden)
-            .claimsHorizontalDrag()
         }
     }
 
@@ -233,7 +231,7 @@ struct TitleCinemaAvailability: View {
         VStack(alignment: .leading, spacing: 12) {
             SectionHeading(title: "In Malta cinemas", subtitle: availabilitySubtitle)
             if !showings.isEmpty {
-                ScrollView(.horizontal) {
+                HorizontalShelf {
                     HStack(spacing: 10) {
                         ForEach(showings.prefix(8)) { showing in
                             Link(destination: showing.bookingURL) {
@@ -250,8 +248,6 @@ struct TitleCinemaAvailability: View {
                         }
                     }
                 }
-                .scrollIndicators(.hidden)
-                .claimsHorizontalDrag()
             }
 
             NavigationLink {

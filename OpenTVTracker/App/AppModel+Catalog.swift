@@ -127,9 +127,11 @@ extension AppModel {
                 region: streamingRegion
             )
             let refreshed = mergingCatalogDetails(details, into: existing)
-
-            let index = trackableTitleIndex(for: id)
-            if let index {
+            // This runs on every appearance of a detail screen, so for an already-enriched
+            // title the merge usually reproduces exactly what is on screen. Writing it back
+            // anyway re-rendered the whole screen — and re-persisted the library — in the
+            // middle of the push animation, for no change at all.
+            if refreshed != existing, let index = trackableTitleIndex(for: id) {
                 titles[index] = refreshed
                 if isShared(id) || isTitleSharedViaList(id) {
                     prepareSharedTitleMetadataForSync()
@@ -137,7 +139,8 @@ extension AppModel {
                 }
                 persist()
             }
-            if let index = catalogSearchResults.firstIndex(where: { $0.id == id }) {
+            if let index = catalogSearchResults.firstIndex(where: { $0.id == id }),
+               catalogSearchResults[index] != refreshed {
                 catalogSearchResults[index] = refreshed
             }
         } catch {

@@ -184,7 +184,7 @@ private struct EpisodeConversationContent: View {
                 }
             }
 
-            ScrollView(.horizontal) {
+            HorizontalShelf {
                 HStack(spacing: 10) {
                     ForEach(SharedReactionAssetPolicy.gifAssets) { asset in
                         Button {
@@ -209,8 +209,6 @@ private struct EpisodeConversationContent: View {
                     }
                 }
             }
-            .scrollIndicators(.hidden)
-            .claimsHorizontalDrag()
         }
     }
 

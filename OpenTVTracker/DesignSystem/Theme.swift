@@ -203,6 +203,51 @@ struct AdaptiveGrid<Content: View>: View {
     }
 }
 
+/// The one way to build a horizontally scrolling shelf.
+///
+/// Every such shelf has to register itself with the space switch, or a sideways drag
+/// across it swaps the whole room out from under the finger. A dozen call sites each
+/// remembering to add `claimsHorizontalDrag()` is a rule the thirteenth will break, so the
+/// registration lives here and arrives with the container.
+///
+/// The two flags exist because the modifiers they stand in for cannot be applied from
+/// outside: scroll configuration travels down the environment and the innermost value
+/// wins, so a shelf that hard-coded `scrollIndicators(.hidden)` could never be overridden
+/// by a caller wrapping it.
+struct HorizontalShelf<Content: View>: View {
+    private let showsIndicators: Bool
+    private let snapsToItems: Bool
+    private let content: Content
+
+    init(
+        showsIndicators: Bool = false,
+        snapsToItems: Bool = false,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.showsIndicators = showsIndicators
+        self.snapsToItems = snapsToItems
+        self.content = content()
+    }
+
+    var body: some View {
+        shelf
+            .scrollIndicators(showsIndicators ? .visible : .hidden)
+            .claimsHorizontalDrag()
+    }
+
+    /// Branched rather than parameterised: `scrollTargetBehavior(_:)` takes an opaque
+    /// `ScrollTargetBehavior`, so the two behaviours have no common type to pick between.
+    @ViewBuilder
+    private var shelf: some View {
+        if snapsToItems {
+            ScrollView(.horizontal) { content }
+                .scrollTargetBehavior(.viewAligned)
+        } else {
+            ScrollView(.horizontal) { content }
+        }
+    }
+}
+
 private struct MinimumTouchTargetModifier: ViewModifier {
     func body(content: Content) -> some View {
         content

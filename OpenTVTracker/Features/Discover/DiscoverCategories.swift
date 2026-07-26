@@ -4,7 +4,7 @@ struct DiscoverCategoryCarousel: View {
     let sections: [DiscoverCategorySection]
 
     var body: some View {
-        ScrollView(.horizontal) {
+        HorizontalShelf(snapsToItems: true) {
             LazyHStack(spacing: 14) {
                 ForEach(sections) { section in
                     NavigationLink(value: section.category) {
@@ -18,10 +18,7 @@ struct DiscoverCategoryCarousel: View {
             .padding(.horizontal, AppTheme.horizontalPadding)
             .padding(.bottom, 4)
         }
-        .scrollIndicators(.hidden)
-        .scrollTargetBehavior(.viewAligned)
         .accessibilityLabel("Browse categories")
-        .claimsHorizontalDrag()
     }
 }
 

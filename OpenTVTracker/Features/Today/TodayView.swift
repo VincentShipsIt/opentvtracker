@@ -106,7 +106,7 @@ struct TodayView: View {
                 )
                 .padding(.horizontal, AppTheme.horizontalPadding)
 
-                ScrollView(.horizontal) {
+                HorizontalShelf {
                     LazyHStack(spacing: 14) {
                         ForEach(picks) { title in
                             NavigationLink(value: title) {
@@ -119,9 +119,13 @@ struct TodayView: View {
                     .padding(.horizontal, AppTheme.horizontalPadding)
                     .padding(.bottom, 4)
                 }
-                .scrollIndicators(.hidden)
-                .claimsHorizontalDrag()
             }
+            // Grouped, not just identified. An identifier on a bare `VStack` never reaches
+            // the accessibility tree, so the section could not be found by name — by VoiceOver
+            // rotor or by the UI test that drags across this shelf to prove a sideways flick
+            // scrolls it instead of switching spaces.
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Start watching")
             .accessibilityIdentifier("today.start-watching")
         }
     }
@@ -145,7 +149,7 @@ struct TodayView: View {
                 SectionHeading(title: "Also up next", subtitle: "Small commitments, ready when you are")
                     .padding(.horizontal, AppTheme.horizontalPadding)
 
-                ScrollView(.horizontal) {
+                HorizontalShelf {
                     LazyHStack(spacing: 14) {
                         ForEach(remaining) { title in
                             UpNextPosterCard(title: title)
@@ -154,8 +158,6 @@ struct TodayView: View {
                     .padding(.horizontal, AppTheme.horizontalPadding)
                     .padding(.bottom, 4)
                 }
-                .scrollIndicators(.hidden)
-                .claimsHorizontalDrag()
             }
         }
     }
@@ -170,7 +172,7 @@ struct TodayView: View {
                 )
                 .padding(.horizontal, AppTheme.horizontalPadding)
 
-                ScrollView(.horizontal) {
+                HorizontalShelf {
                     LazyHStack(spacing: 14) {
                         ForEach(model.staleUpNext) { title in
                             UpNextPosterCard(
@@ -184,8 +186,6 @@ struct TodayView: View {
                     .padding(.horizontal, AppTheme.horizontalPadding)
                     .padding(.bottom, 4)
                 }
-                .scrollIndicators(.hidden)
-                .claimsHorizontalDrag()
             }
         }
     }
@@ -201,7 +201,7 @@ struct TodayView: View {
                 )
                 .padding(.horizontal, AppTheme.horizontalPadding)
 
-                ScrollView(.horizontal) {
+                HorizontalShelf {
                     LazyHStack(spacing: 14) {
                         ForEach(releases) { title in
                             NavigationLink(value: title) {
@@ -214,8 +214,6 @@ struct TodayView: View {
                     .padding(.horizontal, AppTheme.horizontalPadding)
                     .padding(.bottom, 4)
                 }
-                .scrollIndicators(.hidden)
-                .claimsHorizontalDrag()
             }
         }
     }

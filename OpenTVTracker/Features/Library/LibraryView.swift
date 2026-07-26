@@ -220,7 +220,7 @@ private struct LibraryShelfPicker: View {
     @Binding var selection: LibraryShelf
 
     var body: some View {
-        ScrollView(.horizontal) {
+        HorizontalShelf {
             HStack(spacing: 10) {
                 ForEach(LibraryShelf.primary) { shelf in
                     Button {
@@ -250,10 +250,8 @@ private struct LibraryShelfPicker: View {
             .padding(.horizontal, AppTheme.horizontalPadding)
             .padding(.vertical, 4)
         }
-        .scrollIndicators(.hidden)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Library shelves")
-        .claimsHorizontalDrag()
     }
 
     private var moreLabel: String {

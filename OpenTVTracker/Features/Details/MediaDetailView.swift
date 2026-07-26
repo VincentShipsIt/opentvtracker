@@ -126,15 +126,13 @@ struct MediaDetailView: View {
                         ? "Availability varies by region · data by JustWatch"
                         : "Availability reported by \(title.metadataSource?.displayName ?? "the catalog")"
                 )
-                ScrollView(.horizontal) {
+                HorizontalShelf {
                     HStack(spacing: 10) {
                         ForEach(title.providers) { provider in
                             ProviderBadge(provider: provider)
                         }
                     }
                 }
-                .scrollIndicators(.hidden)
-                .claimsHorizontalDrag()
             }
         }
     }

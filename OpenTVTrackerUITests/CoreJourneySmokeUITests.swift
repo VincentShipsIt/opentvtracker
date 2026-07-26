@@ -130,6 +130,44 @@ final class CoreJourneySmokeUITests: XCTestCase {
         assertDisappears(app.staticTexts["Test couch"])
     }
 
+    /// The case the two swipe tests above are built to avoid, and therefore the case that
+    /// shipped broken: a sideways flick across a carousel swapped the whole room out. Both
+    /// of them drag at `dy: 0.22` to stay clear of the shelves, so the one place the space
+    /// gesture has to *lose* was the one place nothing looked.
+    ///
+    /// Checking that the space stayed put is only half a test. A drag that landed on nothing
+    /// at all would leave the space alone too, so this also requires the shelf to have
+    /// scrolled: the gesture must reach the carousel and be kept by it.
+    func testDragStartingInAShelfScrollsItAndKeepsTheSpace() {
+        launchCoreJourneys()
+
+        // The carousel, not the section around it — and it is what gets scrolled into view,
+        // too. The section is hittable as soon as its heading clears the fold while the
+        // posters are still below it, so scrolling to the section left the gesture landing
+        // offscreen. The section also holds that heading, where the space switch is entitled
+        // to win, so swiping the section would measure the wrong gesture either way.
+        let shelf = app.descendants(matching: .any)["today.start-watching"]
+        let carousel = shelf.scrollViews.firstMatch
+        assertExists(carousel)
+        scrollToElement(carousel)
+
+        let firstPoster = carousel.buttons.firstMatch
+        assertExists(firstPoster)
+        let restingX = firstPoster.frame.minX
+
+        // A full swipe across the carousel, so this travels far past the space switch's own
+        // `max(80, width * 0.2)` threshold. It is not passing because the drag was too small
+        // to commit — it is passing because the shelf claimed it.
+        carousel.swipeLeft()
+
+        assertNeverAppears(app.staticTexts["Test couch"])
+        XCTAssertLessThan(
+            firstPoster.frame.minX,
+            restingX - 40,
+            "Expected the drag to scroll the shelf it started on"
+        )
+    }
+
     private func launchCoreJourneys() {
         launch(with: "-ui-testing-core-journeys")
         assertExists(app.buttons["home.up-next-title"])
@@ -238,6 +276,23 @@ final class CoreJourneySmokeUITests: XCTestCase {
             XCTWaiter().wait(for: [gone], timeout: timeout),
             .completed,
             "Expected \(element) to go away",
+            file: file,
+            line: line
+        )
+    }
+
+    /// Distinct from `assertDisappears`: that one waits for something on screen to leave,
+    /// which a never-present element satisfies instantly. This spends the timeout proving
+    /// nothing arrived — the only way to assert that a gesture did *not* switch spaces.
+    private func assertNeverAppears(
+        _ element: XCUIElement,
+        timeout: TimeInterval = 3,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        XCTAssertFalse(
+            element.waitForExistence(timeout: timeout),
+            "Expected \(element) never to appear",
             file: file,
             line: line
         )
