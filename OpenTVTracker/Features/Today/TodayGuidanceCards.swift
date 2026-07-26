@@ -1,36 +1,5 @@
 import SwiftUI
 
-/// Greeting only. The account button used to live here, which put a second row of
-/// controls directly under the toolbar's own row — two tiers of icons for one screen.
-/// It sits in the trailing toolbar group now, level with the rest of the chrome.
-struct TodayHeader: View {
-    let memberName: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(greeting)
-                .font(.largeTitle.weight(.bold))
-            Text(.now, format: .dateTime.weekday(.wide).month(.wide).day())
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, AppTheme.horizontalPadding)
-        .padding(.top, 12)
-    }
-
-    private var greeting: String {
-        let name = memberName == "You" ? nil : memberName
-        let prefix: String
-        switch Calendar.current.component(.hour, from: .now) {
-        case 5..<12: prefix = "Good morning"
-        case 12..<18: prefix = "Good afternoon"
-        default: prefix = "Good evening"
-        }
-        return name.map { "\(prefix), \($0)" } ?? prefix
-    }
-}
-
 /// The banner Today shows when the queue is empty.
 ///
 /// It occupies the same slot as `UpNextHero` and is now built the same way: full-bleed
@@ -89,38 +58,55 @@ struct TodayRecommendationCard: View {
     /// Hide sits behind a spacer rather than beside add: it is the one control here that
     /// takes the pick away, and it should not be a mis-tap away from keeping it.
     private var actionRow: some View {
-        HStack(spacing: 10) {
-            iconButton("Add to watchlist", systemImage: "plus", action: onAdd)
-                .buttonStyle(.borderedProminent)
-                .foregroundStyle(.black)
+        HStack(spacing: 12) {
+            iconButton("Add to watchlist", systemImage: "plus", isProminent: true, action: onAdd)
                 .accessibilityHint("Adds this pick to your watchlist")
                 .accessibilityIdentifier("today.recommendation.add")
 
             iconButton("Explore Discover", systemImage: "magnifyingglass", action: onOpenDiscover)
-                .buttonStyle(.bordered)
                 .accessibilityHint("Opens Discover to browse more titles")
 
             Spacer()
 
             iconButton("Hide this pick", systemImage: "xmark", action: onHide)
-                .buttonStyle(.bordered)
                 .accessibilityHint("Stops recommending this title and suggests another")
                 .accessibilityIdentifier("today.recommendation.hide")
         }
-        .controlSize(.large)
     }
 
+    /// Exactly one touch target wide, drawn rather than derived.
+    ///
+    /// These were bordered buttons wrapping a `minimumTouchTarget()` label under
+    /// `controlSize(.large)`, and those three compound: the style padded a frame that was
+    /// already 44pt and the large size scaled that padding again, so a row of "small icon
+    /// buttons" rendered as three circles the better part of 80pt across. Sizing the circle
+    /// itself keeps the target honest at 44pt and stops the styles arguing about it.
     private func iconButton(
         _ label: String,
         systemImage: String,
+        isProminent: Bool = false,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            Label(label, systemImage: systemImage)
-                .labelStyle(.iconOnly)
-                .minimumTouchTarget()
+            Image(systemName: systemImage)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(isProminent ? .black : .white)
+                .frame(
+                    width: AppAccessibility.minimumTouchTarget,
+                    height: AppAccessibility.minimumTouchTarget
+                )
+                .background {
+                    Circle()
+                        .fill(isProminent ? AnyShapeStyle(.white) : AnyShapeStyle(.white.opacity(0.16)))
+                        .overlay {
+                            if !isProminent {
+                                Circle().strokeBorder(.white.opacity(0.35))
+                            }
+                        }
+                }
+                .contentShape(.circle)
         }
-        .tint(.white)
+        .buttonStyle(.plain)
         .accessibilityLabel(label)
     }
 }

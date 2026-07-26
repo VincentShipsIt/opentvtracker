@@ -95,8 +95,17 @@ struct AppSettingsView: View {
                     Button {
                         showsDataTools = true
                     } label: {
-                        LabeledContent("Portable backup") {
+                        // A plain row, laid out by hand. `LabeledContent`'s ViewBuilder
+                        // slot gives its content the row's full width *and* an unbounded
+                        // height, and a `Label` handed that grows to fill it — which is
+                        // what turned one line of backup status into a row several hundred
+                        // points tall next to the single-line Trakt row above.
+                        HStack {
+                            Text("Portable backup")
+                            Spacer()
                             Label(backupHealth.label, systemImage: backupHealth.systemImage)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
                         }
                     }
                     .accessibilityHint("Opens import and export tools")

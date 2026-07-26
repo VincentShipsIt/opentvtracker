@@ -13,16 +13,18 @@ final class LibraryOrganizationTests: XCTestCase {
         XCTAssertTrue(model.currentMember.isCurrentUser)
     }
 
-    func testPrimaryOwnershipShelvesStayVisibleAndOrdered() {
+    /// Every shelf is one tap away, in ownership order. The picker used to show four
+    /// shelves and hide Caught Up and Dropped behind an ellipsis menu, so this asserted a
+    /// primary/secondary split; the split is gone and the whole list is what has to hold.
+    func testEveryShelfStaysReachableAndOrdered() {
         XCTAssertEqual(
-            LibraryShelf.primary,
-            [.keepWatching, .watchlist, .paused, .completed]
+            LibraryShelf.allCases,
+            [.keepWatching, .watchlist, .paused, .completed, .caughtUp, .dropped]
         )
         XCTAssertEqual(
-            LibraryShelf.primary.map(\.label),
-            ["Keep Watching", "Watchlist", "Paused", "Completed"]
+            LibraryShelf.allCases.map(\.label),
+            ["Keep Watching", "Watchlist", "Paused", "Completed", "Caught Up", "Dropped"]
         )
-        XCTAssertEqual(LibraryShelf.secondary, [.caughtUp, .dropped])
     }
 
     func testLibraryIncludesTitlesOnlyInTheirSelectedShelf() throws {
@@ -61,8 +63,8 @@ final class LibraryOrganizationTests: XCTestCase {
         XCTAssertEqual(LibrarySection.allCases, [.titles, .lists, .history])
     }
 
-    func testEmptySecondaryShelvesReturnToKeepWatching() {
-        for shelf in LibraryShelf.secondary {
+    func testEmptyStatusShelvesReturnToKeepWatching() {
+        for shelf in [LibraryShelf.paused, .caughtUp, .dropped] {
             XCTAssertEqual(shelf.emptyActionShelf, .keepWatching)
         }
         XCTAssertNil(LibraryShelf.watchlist.emptyActionShelf)

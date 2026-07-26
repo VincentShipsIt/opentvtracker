@@ -15,7 +15,7 @@ struct LibraryView: View {
                 VStack(spacing: AppTheme.controlSpacing) {
                     switch section {
                     case .titles:
-                        LibraryShelfPicker(selection: $shelf)
+                        LibraryShelfPicker(selection: $shelf, titles: model.titles)
                         LibraryTitlesView(
                             titles: model.titles.filter(shelf.includes),
                             shelf: shelf,
@@ -108,9 +108,6 @@ enum LibraryShelf: String, CaseIterable, Identifiable {
     case completed
     case caughtUp
     case dropped
-
-    static let primary: [LibraryShelf] = [.keepWatching, .watchlist, .paused, .completed]
-    static let secondary: [LibraryShelf] = [.caughtUp, .dropped]
 
     var id: Self { self }
 
@@ -216,46 +213,67 @@ private struct LibrarySectionMenu: View {
     }
 }
 
+/// One flat row of text chips, every shelf reachable in a single tap.
+///
+/// The old row was four glass buttons plus an ellipsis menu. Each button carried an icon,
+/// a label and a glass background over a 44pt target, so four of them filled the width
+/// before the fifth control — a menu — hid Caught Up and Dropped behind a second tap and
+/// a label that changed identity depending on what was selected. Dropping the icons is
+/// what buys the space back: the words already say what the shelves are, and without them
+/// all six fit as chips at a size that reads as a filter bar rather than a toolbar. The
+/// count carries the information the icon never did, and shelves that are empty say so by
+/// not showing one.
 private struct LibraryShelfPicker: View {
     @Binding var selection: LibraryShelf
+    let titles: [MediaTitle]
 
     var body: some View {
         HorizontalShelf {
-            HStack(spacing: 10) {
-                ForEach(LibraryShelf.primary) { shelf in
-                    Button {
-                        selection = shelf
-                    } label: {
-                        Label(shelf.label, systemImage: shelf.symbol)
-                            .lineLimit(1)
-                    }
-                    .adaptiveGlassButton(prominent: selection == shelf)
-                    .accessibilityAddTraits(selection == shelf ? .isSelected : [])
+            HStack(spacing: 8) {
+                ForEach(LibraryShelf.allCases) { shelf in
+                    chip(for: shelf)
                 }
-
-                Menu {
-                    ForEach(LibraryShelf.secondary) { shelf in
-                        Button {
-                            selection = shelf
-                        } label: {
-                            Label(shelf.label, systemImage: shelf.symbol)
-                        }
-                    }
-                } label: {
-                    Label(moreLabel, systemImage: "ellipsis.circle")
-                        .lineLimit(1)
-                }
-                .adaptiveGlassButton(prominent: LibraryShelf.secondary.contains(selection))
             }
             .padding(.horizontal, AppTheme.horizontalPadding)
-            .padding(.vertical, 4)
+            .padding(.vertical, 2)
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Library shelves")
     }
 
-    private var moreLabel: String {
-        LibraryShelf.secondary.contains(selection) ? selection.label : "More"
+    private func chip(for shelf: LibraryShelf) -> some View {
+        let isSelected = selection == shelf
+        let count = titles.count(where: shelf.includes)
+
+        return Button {
+            selection = shelf
+        } label: {
+            HStack(spacing: 6) {
+                Text(shelf.label)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
+
+                if count > 0 {
+                    Text(count.formatted())
+                        .font(.caption.weight(.semibold))
+                        .monospacedDigit()
+                        .foregroundStyle(isSelected ? .black.opacity(0.55) : .secondary)
+                }
+            }
+            .foregroundStyle(isSelected ? AnyShapeStyle(.black) : AnyShapeStyle(.primary))
+            .padding(.horizontal, 14)
+            // Chips are wider than they are tall, so height is what the touch target has
+            // to be argued about — hence a minimum height rather than the square
+            // `minimumTouchTarget()` used by icon-only controls.
+            .frame(minHeight: AppAccessibility.minimumTouchTarget)
+            .background {
+                Capsule().fill(isSelected ? AnyShapeStyle(.white) : AnyShapeStyle(.quaternary))
+            }
+            .contentShape(.capsule)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(count > 0 ? "\(shelf.label), \(count)" : shelf.label)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 

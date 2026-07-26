@@ -12,8 +12,6 @@ struct TodayView: View {
 
                 ScrollView {
                     LazyVStack(spacing: AppTheme.sectionSpacing) {
-                        TodayHeader(memberName: model.currentMember.name)
-
                         if let first = model.activeUpNext.first {
                             UpNextHero(title: first)
                         } else if let recommendation = model.recommendations.first {
@@ -47,20 +45,34 @@ struct TodayView: View {
             .navigationDestination(for: MediaTitle.self) { title in
                 MediaDetailView(titleID: title.id)
             }
+            // The greeting is the screen's title, so it has to be the *navigation* title.
+            // Drawn by hand inside the scroll content it could never collapse into the bar
+            // on scroll, and it shared a row with the toolbar icons instead of passing
+            // under them — the greeting ran straight into the calendar glyph at the top of
+            // the screen. `LibraryView` has had this shape all along.
+            .navigationTitle(greeting)
+            .navigationSubtitle(Date.now.formatted(.dateTime.weekday(.wide).month(.wide).day()))
+            .navigationBarTitleDisplayMode(.large)
             .spaceModeToolbar()
             .toolbar {
+                // `.tint` is per item: a `ToolbarItemGroup` is toolbar content, not a view,
+                // so there is nothing above these three to hang one modifier on. Bar chrome
+                // has to read as chrome — left as-is they inherit the space tint and every
+                // icon in the bar comes out the same blue as the calls to action below it.
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     NavigationLink {
                         UpcomingCalendarView()
                     } label: {
                         Label("Upcoming calendar", systemImage: "calendar")
                     }
+                    .tint(Color.primary)
                     .accessibilityHint("Shows upcoming episodes and movie releases")
                     .accessibilityIdentifier("home.upcoming-calendar")
 
                     Button("Ask OpenTV", systemImage: "sparkles") {
                         presentedSheet = .assistant
                     }
+                    .tint(Color.primary)
                     .accessibilityHint("Opens personalized viewing suggestions")
                     .accessibilityIdentifier("today.ask-opentv")
 
@@ -70,6 +82,7 @@ struct TodayView: View {
                     Button("Profile and settings", systemImage: "person.crop.circle") {
                         presentedSheet = .settings
                     }
+                    .tint(Color.primary)
                     .accessibilityHint("Opens your private profile, app settings, and backup status")
                     .accessibilityIdentifier("today.settings")
                 }
@@ -87,6 +100,17 @@ struct TodayView: View {
                 }
             }
         }
+    }
+
+    private var greeting: String {
+        let name = model.currentMember.name == "You" ? nil : model.currentMember.name
+        let prefix: String
+        switch Calendar.current.component(.hour, from: .now) {
+        case 5..<12: prefix = "Good morning"
+        case 12..<18: prefix = "Good afternoon"
+        default: prefix = "Good evening"
+        }
+        return name.map { "\(prefix), \($0)" } ?? prefix
     }
 
     /// The list of things to watch, which Today used to be missing entirely.

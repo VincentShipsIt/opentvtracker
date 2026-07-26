@@ -122,32 +122,50 @@ private struct NetworkArtwork: View {
     /// better image loads is the swap this layering exists to hide.
     var showsPlaceholder = true
 
+    /// `Color.clear` takes whatever size it is proposed and reports that back unchanged, so
+    /// the artwork in its overlay is handed a size it has no vote in.
+    ///
+    /// Sizing from the content instead is what put a zoom on every thumbnail in the app.
+    /// `AsyncImage` reports the size of whichever phase it is currently showing, and the
+    /// phases disagree: the placeholder reports the fixed circle drawn into it, while a
+    /// `scaledToFill` image reports the *scaled* image. The swap between them runs inside
+    /// `artworkTransaction`, so SwiftUI animated that disagreement, and a fill-scaled image
+    /// redrawn against a frame still in motion reads as zooming in and settling back.
+    /// `AdaptiveHeroSurface` moved its artwork into `.background` for the same reason —
+    /// doing it here fixes every poster, backdrop and thumbnail in one place. All callers
+    /// hand this view a bounded proposal (a fixed frame, a grid column, or an aspect ratio
+    /// over a definite width), so `Color.clear`'s ideal size is never consulted.
     var body: some View {
-        Group {
-            if allowsRemoteArtwork, let url {
-                AsyncImage(url: url, transaction: artworkTransaction) { phase in
-                    switch phase {
-                    case .empty:
-                        if showsPlaceholder {
-                            placeholder
-                                .overlay { ProgressView().tint(.white) }
-                        } else {
-                            Color.clear
-                        }
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .scaledToFill()
-                            .transition(reduceMotion ? .identity : .opacity)
-                    case .failure:
-                        unavailable
-                    @unknown default:
-                        unavailable
+        Color.clear
+            .overlay { phases }
+            .clipped()
+    }
+
+    @ViewBuilder
+    private var phases: some View {
+        if allowsRemoteArtwork, let url {
+            AsyncImage(url: url, transaction: artworkTransaction) { phase in
+                switch phase {
+                case .empty:
+                    if showsPlaceholder {
+                        placeholder
+                            .overlay { ProgressView().tint(.white) }
+                    } else {
+                        Color.clear
                     }
+                case .success(let image):
+                    image
+                        .resizable()
+                        .scaledToFill()
+                        .transition(reduceMotion ? .identity : .opacity)
+                case .failure:
+                    unavailable
+                @unknown default:
+                    unavailable
                 }
-            } else {
-                unavailable
             }
+        } else {
+            unavailable
         }
     }
 
@@ -171,11 +189,16 @@ private struct NetworkArtwork: View {
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
-
-            Circle()
-                .fill(.white.opacity(0.10))
-                .frame(width: style == .poster ? 150 : 260, height: style == .poster ? 150 : 260)
-                .offset(x: 50, y: -90)
+            // Decoration, so it hangs off the gradient rather than standing in the stack.
+            // A fixed 150pt shape as a sibling made the whole placeholder report 150pt no
+            // matter how small the slot was — the size the artwork used to animate away
+            // from the moment the real image arrived.
+            .overlay {
+                Circle()
+                    .fill(.white.opacity(0.10))
+                    .frame(width: style == .poster ? 150 : 260, height: style == .poster ? 150 : 260)
+                    .offset(x: 50, y: -90)
+            }
 
             VStack(alignment: .leading, spacing: 8) {
                 Image(systemName: title.kind.symbol)
