@@ -68,9 +68,9 @@ enum LibraryBackupMerge {
         let regionSetting = snapshot.streamingRegionCode == nil
             ? "Streaming region keeps its current setting."
             : "Streaming region restores from the backup."
-        let languageSetting = snapshot.contentLanguageCode == nil
-            ? "Content language keeps its current setting."
-            : "Content language restores from the backup."
+        let languageSetting = snapshot.contentLanguageSettingWasPresent == true
+            ? "Content language restores from the backup."
+            : "Content language keeps its current setting."
         let aiSetting: String
         if let allowsAIReranking = snapshot.allowsAIReranking {
             aiSetting = allowsAIReranking

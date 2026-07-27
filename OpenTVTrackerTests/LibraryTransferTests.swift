@@ -235,6 +235,7 @@ final class LibraryTransferTests: XCTestCase {
         archivedSnapshot.removeValue(forKey: "allowsAIReranking")
         archivedSnapshot.removeValue(forKey: "streamingRegionCode")
         archivedSnapshot.removeValue(forKey: "contentLanguageCode")
+        archivedSnapshot.removeValue(forKey: "contentLanguageSettingWasPresent")
         object["snapshot"] = archivedSnapshot
         let legacyArchive = try JSONSerialization.data(withJSONObject: object)
 
@@ -252,6 +253,22 @@ final class LibraryTransferTests: XCTestCase {
         XCTAssertTrue(preview.importNotice?.contains("Content language keeps its current setting") == true)
         XCTAssertTrue(
             preview.importNotice?.contains("AI reranking keeps its current enabled setting") == true
+        )
+    }
+
+    func testCompleteJSONImportRestoresExplicitAutomaticContentLanguage() throws {
+        var backup = LibrarySnapshot.sample
+        backup.contentLanguageCode = nil
+
+        var current = LibrarySnapshot.sample
+        current.contentLanguageCode = "fr"
+
+        let data = try LibraryTransferService.exportJSON(backup)
+        let preview = try LibraryTransferService.previewImport(data, into: current)
+
+        XCTAssertNil(preview.snapshot.contentLanguageCode)
+        XCTAssertTrue(
+            preview.importNotice?.contains("Content language restores from the backup.") == true
         )
     }
 

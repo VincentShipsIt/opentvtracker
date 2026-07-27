@@ -171,7 +171,9 @@ extension LibraryTransferService {
         )
         merged.allowsAIReranking = imported.allowsAIReranking ?? merged.allowsAIReranking
         merged.streamingRegionCode = imported.streamingRegionCode ?? merged.streamingRegionCode
-        merged.contentLanguageCode = imported.contentLanguageCode ?? merged.contentLanguageCode
+        if imported.contentLanguageSettingWasPresent == true {
+            merged.contentLanguageCode = imported.contentLanguageCode
+        }
         merged.hasCompletedFirstRun = imported.hasCompletedFirstRun ?? merged.hasCompletedFirstRun
     }
 

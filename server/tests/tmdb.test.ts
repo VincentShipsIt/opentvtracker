@@ -32,8 +32,37 @@ describe("tmdbDiscoverRequests", () => {
       const url = new URL(request.path, "https://api.themoviedb.org");
       expect(url.searchParams.get("language")).toBe("fr-FR");
       expect(url.searchParams.get("with_original_language")).toBe("fr");
-      expect(url.searchParams.get("page")).toBe("2");
+      expect(url.searchParams.get("page")).toBe("1");
+      expect(request.resultOffset).toBe(10);
+      expect(request.resultLimit).toBe(10);
     }
+  });
+
+  test("keeps every mixed-media discover result reachable across pages", () => {
+    const first = tmdbDiscoverRequests("en", 1, null);
+    const second = tmdbDiscoverRequests("en", 2, null);
+    const third = tmdbDiscoverRequests("en", 3, null);
+
+    expect(first.map((request) => request.resultOffset)).toEqual([0, 0]);
+    expect(second.map((request) => request.resultOffset)).toEqual([10, 10]);
+    expect(
+      third.map((request) => {
+        const url = new URL(request.path, "https://api.themoviedb.org");
+        return [url.searchParams.get("page"), request.resultOffset];
+      }),
+    ).toEqual([
+      ["2", 0],
+      ["2", 0],
+    ]);
+  });
+
+  test("keeps single-kind browsing aligned with provider pages", () => {
+    const [request] = tmdbDiscoverRequests("fr", 2, "movie");
+
+    const url = new URL(request!.path, "https://api.themoviedb.org");
+    expect(url.searchParams.get("page")).toBe("2");
+    expect(request!.resultOffset).toBe(0);
+    expect(request!.resultLimit).toBe(20);
   });
 });
 

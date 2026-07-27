@@ -39,5 +39,22 @@ final class LocaleSettingsUITests: XCTestCase {
             )
         ).firstMatch
         XCTAssertTrue(french.waitForExistence(timeout: 5))
+        french.tap()
+
+        XCTAssertTrue(contentLanguage.waitForExistence(timeout: 5))
+        XCTAssertTrue(contentLanguage.label.contains("French"))
+
+        app.buttons["Done"].tap()
+        XCTAssertTrue(app.buttons["today.settings"].waitForExistence(timeout: 5))
+        app.buttons["today.settings"].tap()
+
+        let restoredContentLanguage = app.buttons.matching(
+            NSPredicate(
+                format: "label CONTAINS %@ AND label CONTAINS %@",
+                "Content language",
+                "French"
+            )
+        ).firstMatch
+        XCTAssertTrue(restoredContentLanguage.waitForExistence(timeout: 5))
     }
 }

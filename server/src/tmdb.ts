@@ -190,19 +190,23 @@ export class TMDBClient {
     language: string,
   ): Promise<SearchItem[]> {
     const requests = tmdbDiscoverRequests(language, page, kind);
-    const payloads = await Promise.all(
+    const settled = await Promise.allSettled(
       requests.map(async (request) => ({
         request,
         payload: await this.get<{ results?: SearchItem[] }>(request.path),
       })),
     );
-    return payloads
-      .flatMap(({ request, payload }) =>
-        (payload.results ?? []).map((item) => ({
-          ...item,
-          media_type: request.mediaType,
-        })),
-      )
+    return settled
+      .flatMap((result) => {
+        if (result.status !== "fulfilled") return [];
+        const { request, payload } = result.value;
+        return (payload.results ?? [])
+          .slice(request.resultOffset, request.resultOffset + request.resultLimit)
+          .map((item) => ({
+            ...item,
+            media_type: request.mediaType,
+          }));
+      })
       .sort((left, right) => (right.popularity ?? 0) - (left.popularity ?? 0))
       .slice(0, 20);
   }
@@ -326,18 +330,32 @@ export function tmdbDiscoverRequests(
   language: string,
   page: number,
   kind: MediaKind | null,
-): Array<{ mediaType: "movie" | "tv"; path: string }> {
+): Array<{
+  mediaType: "movie" | "tv";
+  path: string;
+  resultOffset: number;
+  resultLimit: number;
+}> {
   const locale = tmdbLocale(language);
+  const requestedPage = Math.max(page, 1);
   const mediaTypes: Array<"movie" | "tv"> =
     kind === MediaKind.movie
       ? ["movie"]
       : kind === MediaKind.series
         ? ["tv"]
         : ["movie", "tv"];
+  const mixesMediaTypes = mediaTypes.length > 1;
+  const providerPage = mixesMediaTypes
+    ? Math.floor((requestedPage - 1) / 2) + 1
+    : requestedPage;
+  const resultOffset = mixesMediaTypes
+    ? ((requestedPage - 1) % 2) * 10
+    : 0;
+  const resultLimit = mixesMediaTypes ? 10 : 20;
 
   return mediaTypes.map((mediaType) => {
     const params = new URLSearchParams({
-      page: String(Math.max(page, 1)),
+      page: String(providerPage),
       language: locale,
       sort_by: "popularity.desc",
       include_adult: "false",
@@ -346,6 +364,8 @@ export function tmdbDiscoverRequests(
     return {
       mediaType,
       path: `/discover/${mediaType}?${params}`,
+      resultOffset,
+      resultLimit,
     };
   });
 }

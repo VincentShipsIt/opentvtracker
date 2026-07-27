@@ -351,6 +351,7 @@ struct LibrarySnapshot: Codable, Hashable, Sendable {
     var allowsAIReranking: Bool?
     var streamingRegionCode: String?
     var contentLanguageCode: String?
+    var contentLanguageSettingWasPresent: Bool?
     var diaryEntries: [ViewingDiaryEntry]?
     var traktSyncState: TraktSyncState?
     var reminderSettings: ReminderSettings?
@@ -365,6 +366,7 @@ struct LibrarySnapshot: Codable, Hashable, Sendable {
         allowsAIReranking: Bool = false,
         streamingRegionCode: String? = nil,
         contentLanguageCode: String? = nil,
+        contentLanguageSettingWasPresent: Bool? = true,
         diaryEntries: [ViewingDiaryEntry]? = nil,
         reminderSettings: ReminderSettings = ReminderSettings(),
         importResolutionAliases: [String: ImportResolutionAlias]? = nil,
@@ -380,6 +382,7 @@ struct LibrarySnapshot: Codable, Hashable, Sendable {
         self.allowsAIReranking = allowsAIReranking
         self.streamingRegionCode = streamingRegionCode
         self.contentLanguageCode = contentLanguageCode
+        self.contentLanguageSettingWasPresent = contentLanguageSettingWasPresent
         self.diaryEntries = diaryEntries
         self.traktSyncState = traktSyncState
         self.reminderSettings = reminderSettings
