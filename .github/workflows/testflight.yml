@@ -99,8 +99,8 @@ jobs:
           if [[ -z "$build_number" ]]; then
             build_number="$configured_build_number"
           fi
-          if [[ ! "$build_number" =~ ^[1-9][0-9]*$ ]]; then
-            echo "Build number must be a positive integer; received: $build_number" >&2
+          if [[ ! "$build_number" =~ ^[1-9][0-9]*(\.[0-9]+){0,2}$ ]]; then
+            echo "Build number must contain one to three integer components with a positive leading component; received: $build_number" >&2
             exit 1
           fi
           echo "Resolved App Store version $marketing_version ($build_number) from $SOURCE_REF."
