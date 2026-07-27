@@ -2,6 +2,8 @@
 
 Publishing a GitHub release from a `vX.Y.Z` tag archives the tagged commit and uploads it directly to App Store Connect. The tag must point to a commit on `main`. The workflow does not commit signing material or retain the signed IPA as a GitHub artifact.
 
+GitHub release tags identify source releases; they do not set the App Store version. `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in the Xcode project's Release configuration are the source of truth for the TestFlight version and build. Increment those values intentionally before publishing or dispatching an upload.
+
 ## One-time setup
 
 Create a GitHub environment named `testflight`. Allow deployments only from `v*` tags and the `main` branch (for manual retries), then add any desired required reviewers.
@@ -36,6 +38,6 @@ base64 -i AuthKey_KEYID.p8 | tr -d '\n'
 3. Approve the `testflight` environment if it has a reviewer gate.
 4. Watch the **TestFlight** workflow. A successful upload enters Apple's normal build-processing queue before it appears in TestFlight.
 
-The workflow derives `CFBundleShortVersionString` from the tag and assigns a monotonically increasing CI build number. For a controlled retry, dispatch the workflow manually with the same tag and, only when necessary, a larger integer build-number override.
+The workflow reads `CFBundleShortVersionString` and `CFBundleVersion` from the Xcode project's Release configuration. For a controlled retry, dispatch the workflow manually with a commit, branch, or tag on `main`; use the optional version or build overrides only when App Store Connect requires a corrected identifier.
 
 If automatic provisioning fails, verify the API key's team scope and Certificates, Identifiers & Profiles access, the distribution certificate, and both bundle IDs (`dev.opentvtracker.app` and `dev.opentvtracker.app.widgets`). Rotate any credential immediately if its value is exposed in logs or outside the protected GitHub environment.
