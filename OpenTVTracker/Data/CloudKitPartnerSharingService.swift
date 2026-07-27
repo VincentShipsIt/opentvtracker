@@ -24,7 +24,57 @@ struct CloudKitPartnerSharingService: PartnerSharingProviding {
     }
 
     func inviteURL(for spaceID: SharedSpace.ID) async throws -> URL {
-        guard await availability() == .available else { throw PartnerSharingError.iCloudAccountRequired }
+        switch await availability() {
+        case .available:
+            break
+        case .iCloudAccountRequired:
+            throw PartnerSharingError.iCloudAccountRequired
+        case .notConfigured:
+            throw PartnerSharingError.notConfigured
+        }
+
+        do {
+            return try await createInvitation(for: spaceID)
+        } catch {
+            throw Self.invitationError(from: error)
+        }
+    }
+
+    func revoke(spaceID: SharedSpace.ID) async throws {
+        let zoneID = Self.zoneID(for: spaceID)
+        do {
+            _ = try await container.privateCloudDatabase.modifyRecordZones(saving: [], deleting: [zoneID])
+        } catch {
+            throw PartnerSharingError.revokeUnavailable
+        }
+    }
+
+    func leave(space: SharedSpace) async throws {
+        let fallbackZoneID = Self.zoneID(for: space.id)
+        let zoneID = CKRecordZone.ID(
+            zoneName: space.cloudZoneName ?? fallbackZoneID.zoneName,
+            ownerName: space.cloudOwnerName ?? fallbackZoneID.ownerName
+        )
+        do {
+            _ = try await container.sharedCloudDatabase.modifyRecordZones(saving: [], deleting: [zoneID])
+        } catch {
+            throw PartnerSharingError.leaveUnavailable
+        }
+    }
+
+    func accept(metadata: CKShare.Metadata) async throws {
+        do {
+            let results = try await container.accept([metadata])
+            guard let result = results[metadata] else {
+                throw PartnerSharingError.acceptanceUnavailable
+            }
+            _ = try result.get()
+        } catch {
+            throw PartnerSharingError.acceptanceUnavailable
+        }
+    }
+
+    private func createInvitation(for spaceID: SharedSpace.ID) async throws -> URL {
         let database = container.privateCloudDatabase
         let zoneID = Self.zoneID(for: spaceID)
         try await ensureZone(zoneID, database: database)
@@ -58,26 +108,6 @@ struct CloudKitPartnerSharingService: PartnerSharingProviding {
         return url
     }
 
-    func revoke(spaceID: SharedSpace.ID) async throws {
-        let zoneID = Self.zoneID(for: spaceID)
-        _ = try await container.privateCloudDatabase.modifyRecordZones(saving: [], deleting: [zoneID])
-    }
-
-    func leave(space: SharedSpace) async throws {
-        let fallbackZoneID = Self.zoneID(for: space.id)
-        let zoneID = CKRecordZone.ID(
-            zoneName: space.cloudZoneName ?? fallbackZoneID.zoneName,
-            ownerName: space.cloudOwnerName ?? fallbackZoneID.ownerName
-        )
-        _ = try await container.sharedCloudDatabase.modifyRecordZones(saving: [], deleting: [zoneID])
-    }
-
-    func accept(metadata: CKShare.Metadata) async throws {
-        let results = try await container.accept([metadata])
-        guard let result = results[metadata] else { throw PartnerSharingError.invitationUnavailable }
-        _ = try result.get()
-    }
-
     private func ensureZone(_ zoneID: CKRecordZone.ID, database: CKDatabase) async throws {
         let results = try await database.recordZones(for: [zoneID])
         if let result = results[zoneID], (try? result.get()) != nil { return }
@@ -99,6 +129,10 @@ struct CloudKitPartnerSharingService: PartnerSharingProviding {
             .lowercased()
             .replacingOccurrences(of: "[^a-z0-9-]", with: "-", options: .regularExpression)
         return CKRecordZone.ID(zoneName: "partner-\(safeID)")
+    }
+
+    static func invitationError(from _: Error) -> PartnerSharingError {
+        .shareUnavailable
     }
 }
 

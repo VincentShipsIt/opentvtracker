@@ -1,3 +1,4 @@
+import CloudKit
 import XCTest
 @testable import OpenTVTracker
 
@@ -113,6 +114,35 @@ final class CloudSharingModelTests: XCTestCase {
         let model = AppModel(store: MemoryLibraryStore(), seed: snapshot)
 
         XCTAssertTrue(model.partnerSharedLists.isEmpty)
+    }
+
+    func testCloudKitInvitationFailureUsesSafeUserFacingMessage() {
+        let underlyingError = NSError(
+            domain: CKErrorDomain,
+            code: CKError.serverRejectedRequest.rawValue,
+            userInfo: [NSLocalizedDescriptionKey: "Error saving record <private CloudKit record details>"]
+        )
+
+        let error = CloudKitPartnerSharingService.invitationError(from: underlyingError)
+
+        XCTAssertEqual(error, .shareUnavailable)
+        XCTAssertEqual(error.localizedDescription, "OpenTV could not create the private invitation. Try again.")
+        XCTAssertFalse(error.localizedDescription.contains("record"))
+    }
+
+    func testCloudKitSharingFailuresHaveActionSpecificMessages() {
+        XCTAssertEqual(
+            PartnerSharingError.acceptanceUnavailable.localizedDescription,
+            "OpenTV could not accept the private invitation. Try again."
+        )
+        XCTAssertEqual(
+            PartnerSharingError.revokeUnavailable.localizedDescription,
+            "OpenTV could not revoke the private invitation. Try again."
+        )
+        XCTAssertEqual(
+            PartnerSharingError.leaveUnavailable.localizedDescription,
+            "OpenTV could not leave the shared space. Try again."
+        )
     }
 
     private static let seasons = [
