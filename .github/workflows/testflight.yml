@@ -397,9 +397,9 @@ jobs:
               profile_json="$(jq -c '.data' "$profile_response")"
             fi
 
-            profile_name="$(jq -r '.attributes.name' <<< "$profile_json")"
-            profile_uuid="$(jq -r '.attributes.uuid' <<< "$profile_json")"
-            profile_content="$(jq -r '.attributes.profileContent' <<< "$profile_json")"
+            profile_name="$(jq -r '.attributes.name // empty' <<< "$profile_json")"
+            profile_uuid="$(jq -r '.attributes.uuid // empty' <<< "$profile_json")"
+            profile_content="$(jq -r '.attributes.profileContent // empty' <<< "$profile_json")"
             if [[ -z "$profile_name" || -z "$profile_uuid" || -z "$profile_content" ]]; then
               echo "::error::App Store Connect returned an incomplete profile for $identifier."
               exit 1
