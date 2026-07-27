@@ -3,6 +3,19 @@ import XCTest
 
 @MainActor
 final class TogetherExperienceTests: XCTestCase {
+    func testPartnerInvitationRequestGateRejectsOverlappingRequests() {
+        var gate = PartnerInvitationRequestGate()
+
+        XCTAssertTrue(gate.begin())
+        XCTAssertTrue(gate.isRunning)
+        XCTAssertFalse(gate.begin())
+
+        gate.finish()
+
+        XCTAssertFalse(gate.isRunning)
+        XCTAssertTrue(gate.begin())
+    }
+
     func testConnectionPhaseTracksMembershipLifecycle() {
         let model = AppModel(store: MemoryLibraryStore(), seed: .empty)
 
