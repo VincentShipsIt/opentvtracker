@@ -8,6 +8,7 @@ import {
   mapStreamingProvider,
   StreamingProviderID,
   TMDBProviderID,
+  tmdbDiscoverRequests,
   tmdbLocale,
 } from "../src/tmdb";
 
@@ -16,6 +17,23 @@ describe("tmdbLocale", () => {
     expect(tmdbLocale("en")).toBe("en-US");
     expect(tmdbLocale("fr")).toBe("fr-FR");
     expect(tmdbLocale("mt")).toBe("mt-MT");
+  });
+});
+
+describe("tmdbDiscoverRequests", () => {
+  test("filters default browsing by the selected original language", () => {
+    const requests = tmdbDiscoverRequests("fr", 2, null);
+
+    expect(requests.map((request) => request.mediaType)).toEqual([
+      "movie",
+      "tv",
+    ]);
+    for (const request of requests) {
+      const url = new URL(request.path, "https://api.themoviedb.org");
+      expect(url.searchParams.get("language")).toBe("fr-FR");
+      expect(url.searchParams.get("with_original_language")).toBe("fr");
+      expect(url.searchParams.get("page")).toBe("2");
+    }
   });
 });
 

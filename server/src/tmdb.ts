@@ -111,6 +111,7 @@ type SeasonSummary = {
 type SearchItem = {
   id: number;
   media_type?: "movie" | "tv" | "person";
+  popularity?: number;
   title?: string;
   name?: string;
   overview?: string;
@@ -141,22 +142,9 @@ export class TMDBClient {
     language: string,
   ): Promise<CatalogTitle[]> {
     const locale = tmdbLocale(language);
-    const path = query ? "/search/multi" : "/trending/all/week";
-    const params = new URLSearchParams({
-      page: String(Math.max(page, 1)),
-      language: locale,
-    });
-    if (query) {
-      params.set("query", query);
-      params.set("include_adult", "false");
-    }
-    const payload = await this.get<{ results?: SearchItem[] }>(
-      `${path}?${params}`,
-    );
-    const items = (payload.results ?? [])
-      .filter((item) => item.media_type === "movie" || item.media_type === "tv")
-      .filter((item) => !kind || mediaKind(item.media_type) === kind)
-      .slice(0, 20);
+    const items = query
+      ? await this.searchItems(query, kind, page, locale)
+      : await this.browseItems(kind, page, language);
 
     const settled = await Promise.allSettled(
       items.map(async (item) => {
@@ -171,6 +159,52 @@ export class TMDBClient {
     return settled.flatMap((result) =>
       result.status === "fulfilled" ? [result.value] : [],
     );
+  }
+
+  private async searchItems(
+    query: string,
+    kind: MediaKind | null,
+    page: number,
+    locale: string,
+  ): Promise<SearchItem[]> {
+    const params = new URLSearchParams({
+      page: String(Math.max(page, 1)),
+      language: locale,
+    });
+    if (query) {
+      params.set("query", query);
+      params.set("include_adult", "false");
+    }
+    const payload = await this.get<{ results?: SearchItem[] }>(
+      `/search/multi?${params}`,
+    );
+    return (payload.results ?? [])
+      .filter((item) => item.media_type === "movie" || item.media_type === "tv")
+      .filter((item) => !kind || mediaKind(item.media_type) === kind)
+      .slice(0, 20);
+  }
+
+  private async browseItems(
+    kind: MediaKind | null,
+    page: number,
+    language: string,
+  ): Promise<SearchItem[]> {
+    const requests = tmdbDiscoverRequests(language, page, kind);
+    const payloads = await Promise.all(
+      requests.map(async (request) => ({
+        request,
+        payload: await this.get<{ results?: SearchItem[] }>(request.path),
+      })),
+    );
+    return payloads
+      .flatMap(({ request, payload }) =>
+        (payload.results ?? []).map((item) => ({
+          ...item,
+          media_type: request.mediaType,
+        })),
+      )
+      .sort((left, right) => (right.popularity ?? 0) - (left.popularity ?? 0))
+      .slice(0, 20);
   }
 
   async title(
@@ -286,6 +320,34 @@ export function tmdbLocale(language: string): string {
   return locale.region
     ? `${locale.language}-${locale.region}`
     : locale.language;
+}
+
+export function tmdbDiscoverRequests(
+  language: string,
+  page: number,
+  kind: MediaKind | null,
+): Array<{ mediaType: "movie" | "tv"; path: string }> {
+  const locale = tmdbLocale(language);
+  const mediaTypes: Array<"movie" | "tv"> =
+    kind === MediaKind.movie
+      ? ["movie"]
+      : kind === MediaKind.series
+        ? ["tv"]
+        : ["movie", "tv"];
+
+  return mediaTypes.map((mediaType) => {
+    const params = new URLSearchParams({
+      page: String(Math.max(page, 1)),
+      language: locale,
+      sort_by: "popularity.desc",
+      include_adult: "false",
+      with_original_language: language,
+    });
+    return {
+      mediaType,
+      path: `/discover/${mediaType}?${params}`,
+    };
+  });
 }
 
 function mapDetails(
