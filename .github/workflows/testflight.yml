@@ -81,6 +81,14 @@ jobs:
           echo "marketing_version=$marketing_version" >> "$GITHUB_OUTPUT"
           echo "build_number=$build_number" >> "$GITHUB_OUTPUT"
 
+      - name: Validate release metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Keep this on one line: a column-zero Python body would terminate the YAML
+          # block scalar and make the workflow undispatchable.
+          python3 -c 'import plistlib,sys; expected={"UIInterfaceOrientationPortrait","UIInterfaceOrientationPortraitUpsideDown","UIInterfaceOrientationLandscapeLeft","UIInterfaceOrientationLandscapeRight"}; actual=set(plistlib.load(open("Config/Info.plist","rb")).get("UISupportedInterfaceOrientations",[])); missing=sorted(expected-actual); sys.exit("Config/Info.plist is missing required iPad orientations: "+", ".join(missing)) if missing else None'
+
       - name: Select Xcode
         run: |
           sudo xcode-select -s /Applications/Xcode_26.4.1.app
