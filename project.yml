@@ -54,6 +54,16 @@ targets:
         OpenTVAppAttestDevelopmentToken: $(APP_ATTEST_DEVELOPMENT_TOKEN)
         UIBackgroundModes:
           - remote-notification
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
         UILaunchScreen: {}
     settings:
       base:
@@ -69,6 +79,7 @@ targets:
           PUSH_NOTIFICATIONS_ENVIRONMENT: development
         Release:
           APP_ATTEST_ENVIRONMENT: production
+          CODE_SIGN_IDENTITY: Apple Distribution
           PUSH_NOTIFICATIONS_ENVIRONMENT: production
     attributes:
       SystemCapabilities:
@@ -106,6 +117,9 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: dev.opentvtracker.app.widgets
         SKIP_INSTALL: YES
         TARGETED_DEVICE_FAMILY: 1
+      configs:
+        Release:
+          CODE_SIGN_IDENTITY: Apple Distribution
   OpenTVTrackerTests:
     type: bundle.unit-test
     platform: iOS
