@@ -94,18 +94,25 @@ struct CloudKitPartnerSharingService: PartnerSharingProviding {
         share[CKShare.SystemFieldKey.shareType] = "dev.opentvtracker.app.partner-space" as CKRecordValue
         share.publicPermission = .none
 
-        let result = try await database.modifyRecords(
-            saving: [root, share],
-            deleting: [],
-            savePolicy: .ifServerRecordUnchanged,
-            atomically: true
-        )
-        guard let shareResult = result.saveResults[share.recordID],
-              let savedShare = try shareResult.get() as? CKShare,
-              let url = savedShare.url else {
-            throw PartnerSharingError.invitationUnavailable
+        do {
+            let result = try await database.modifyRecords(
+                saving: [root, share],
+                deleting: [],
+                savePolicy: .ifServerRecordUnchanged,
+                atomically: true
+            )
+            guard let shareResult = result.saveResults[share.recordID],
+                  let savedShare = try shareResult.get() as? CKShare,
+                  let url = savedShare.url else {
+                throw PartnerSharingError.invitationUnavailable
+            }
+            return url
+        } catch {
+            if let existingURL = try? await existingShareURL(rootID: rootID, database: database) {
+                return existingURL
+            }
+            throw error
         }
-        return url
     }
 
     private func ensureZone(_ zoneID: CKRecordZone.ID, database: CKDatabase) async throws {

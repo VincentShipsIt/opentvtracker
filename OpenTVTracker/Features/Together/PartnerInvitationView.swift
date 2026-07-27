@@ -1,5 +1,19 @@
 import SwiftUI
 
+struct PartnerInvitationRequestGate {
+    private(set) var isRunning = false
+
+    mutating func begin() -> Bool {
+        guard !isRunning else { return false }
+        isRunning = true
+        return true
+    }
+
+    mutating func finish() {
+        isRunning = false
+    }
+}
+
 struct PartnerInvitationView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
@@ -9,7 +23,7 @@ struct PartnerInvitationView: View {
     @State private var availability: PartnerSharingAvailability?
     @State private var invitationURL: URL?
     @State private var nearbyPairingRoute: NearbyPairingRoute?
-    @State private var isWorking = false
+    @State private var requestGate = PartnerInvitationRequestGate()
     @State private var errorMessage: String?
 
     var body: some View {
@@ -54,7 +68,7 @@ struct PartnerInvitationView: View {
                     if model.sharedSpace.isCurrentUserShareOwner == true,
                        model.sharedSpace.isCloudSharingEnabled {
                         Button("Revoke shared space", role: .destructive) {
-                            Task { await revokeInvitation() }
+                            beginRevokingInvitation()
                         }
                         .disabled(isWorking)
                     }
@@ -62,7 +76,7 @@ struct PartnerInvitationView: View {
                     if model.sharedSpace.isCurrentUserShareOwner == false,
                        model.sharedSpace.resolvedMembershipState == .accepted {
                         Button("Leave shared space", role: .destructive) {
-                            Task { await leaveSpace() }
+                            beginLeavingSpace()
                         }
                         .disabled(isWorking)
                     }
@@ -119,7 +133,7 @@ struct PartnerInvitationView: View {
             if model.sharedSpace.isCurrentUserShareOwner != false,
                model.sharedSpace.resolvedMembershipState != .accepted {
                 Button {
-                    Task { await prepareNearbyHosting() }
+                    beginNearbyHosting()
                 } label: {
                     if isWorking {
                         ProgressView().frame(maxWidth: .infinity)
@@ -155,7 +169,7 @@ struct PartnerInvitationView: View {
             .adaptiveGlassButton(prominent: true)
         } else {
             Button {
-                Task { await createInvitation() }
+                beginCreatingInvitation()
             } label: {
                 if isWorking {
                     ProgressView().frame(maxWidth: .infinity)
@@ -193,9 +207,32 @@ struct PartnerInvitationView: View {
         model.sharedSpace.members.first(where: \.isCurrentUser)?.name ?? "Partner"
     }
 
+    private var isWorking: Bool {
+        requestGate.isRunning
+    }
+
+    private func beginNearbyHosting() {
+        guard requestGate.begin() else { return }
+        Task { await prepareNearbyHosting() }
+    }
+
+    private func beginCreatingInvitation() {
+        guard requestGate.begin() else { return }
+        Task { await createInvitation() }
+    }
+
+    private func beginRevokingInvitation() {
+        guard requestGate.begin() else { return }
+        Task { await revokeInvitation() }
+    }
+
+    private func beginLeavingSpace() {
+        guard requestGate.begin() else { return }
+        Task { await leaveSpace() }
+    }
+
     private func requestInvitation() async -> URL? {
-        isWorking = true
-        defer { isWorking = false }
+        defer { requestGate.finish() }
         do {
             let url = try await sharingService.inviteURL(for: space.id)
             model.markPartnerShareCreated()
@@ -223,8 +260,7 @@ struct PartnerInvitationView: View {
     }
 
     private func revokeInvitation() async {
-        isWorking = true
-        defer { isWorking = false }
+        defer { requestGate.finish() }
         do {
             try await sharingService.revoke(spaceID: space.id)
             invitationURL = nil
@@ -236,8 +272,7 @@ struct PartnerInvitationView: View {
     }
 
     private func leaveSpace() async {
-        isWorking = true
-        defer { isWorking = false }
+        defer { requestGate.finish() }
         do {
             try await sharingService.leave(space: model.sharedSpace)
             model.setSharedMembershipState(.left)
