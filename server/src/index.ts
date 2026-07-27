@@ -5,9 +5,12 @@ import {
   clientIPAddress,
   FileDeviceStore,
 } from "./security";
+import { PostgresDeviceStore } from "./postgres-device-store";
 
 const config = loadConfig();
-const devices = await FileDeviceStore.open(config.appAttest.statePath);
+const devices = config.databaseURL
+  ? await PostgresDeviceStore.open(config.databaseURL)
+  : await FileDeviceStore.open(config.appAttest.statePath);
 const security = new AppAttestSecurity(config.appAttest, devices);
 const app = createApp({ config, security });
 

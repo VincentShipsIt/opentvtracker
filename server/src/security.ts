@@ -105,7 +105,7 @@ export type VerifiedDevice = {
 const maximumVerifiedDevices = 100_000;
 
 export interface DeviceStore {
-  get(keyID: string): VerifiedDevice | undefined;
+  get(keyID: string): Promise<VerifiedDevice | undefined>;
   register(device: VerifiedDevice): Promise<void>;
   updateCounter(keyID: string, previous: number, next: number): Promise<void>;
 }
@@ -115,7 +115,7 @@ export class MemoryDeviceStore implements DeviceStore {
 
   constructor(private readonly maximumEntries = maximumVerifiedDevices) {}
 
-  get(keyID: string): VerifiedDevice | undefined {
+  async get(keyID: string): Promise<VerifiedDevice | undefined> {
     const device = this.devices.get(keyID);
     return device ? { ...device } : undefined;
   }
@@ -300,16 +300,16 @@ export class AppAttestSecurity {
     );
   }
 
-  issueChallenge(
+  async issueChallenge(
     purpose: ChallengePurpose,
     keyID: string | undefined,
     authorization: string | null,
-  ): Challenge {
+  ): Promise<Challenge> {
     if (purpose === "attestation") {
       if (keyID) throw new SecurityError("invalid_challenge_request");
       return this.challenges.issue(purpose);
     }
-    if (!keyID || !this.devices.get(keyID))
+    if (!keyID || !(await this.devices.get(keyID)))
       throw new SecurityError("unknown_key");
     if (purpose === "request" && this.tokens.verify(authorization) !== keyID) {
       throw new SecurityError("invalid_token");
@@ -354,7 +354,7 @@ export class AppAttestSecurity {
     body: Uint8Array,
   ): Promise<{ token: string; expiresAt: string }> {
     const keyID = requiredHeader(request, AppAttestHeaders.keyID);
-    const device = this.devices.get(keyID);
+    const device = await this.devices.get(keyID);
     if (!device) throw new SecurityError("unknown_key");
     const challengeID = requiredHeader(request, AppAttestHeaders.challengeID);
     const challenge = this.challenges.consume(challengeID, "token", keyID);
@@ -382,7 +382,7 @@ export class AppAttestSecurity {
     ) {
       throw new SecurityError("invalid_token");
     }
-    const device = this.devices.get(keyID);
+    const device = await this.devices.get(keyID);
     if (!device) throw new SecurityError("unknown_key");
     const challengeID = requiredHeader(request, AppAttestHeaders.challengeID);
     const challenge = this.challenges.consume(challengeID, "request", keyID);

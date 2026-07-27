@@ -53,5 +53,6 @@ function productionEnvironment(): Record<string, string> {
     APP_ATTEST_TOKEN_SECRET:
       "test-token-secret-that-is-at-least-thirty-two-characters",
     TMDB_READ_ACCESS_TOKEN: "dedicated-test-read-token",
+    DATABASE_URL: "postgresql://opentv:test@database.test:5432/opentv",
   };
 }

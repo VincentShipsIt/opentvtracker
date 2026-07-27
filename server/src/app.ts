@@ -145,7 +145,7 @@ export function createApp(dependencies: AppDependencies): {
               quotas.challenge,
             );
           }
-          const challenge = security.issueChallenge(
+          const challenge = await security.issueChallenge(
             challengeRequest.purpose,
             challengeRequest.keyID,
             request.headers.get("authorization"),

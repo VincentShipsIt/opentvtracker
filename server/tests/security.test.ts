@@ -20,7 +20,11 @@ describe("AppAttestSecurity", () => {
       devices,
       cryptography,
     );
-    const challenge = security.issueChallenge("attestation", undefined, null);
+    const challenge = await security.issueChallenge(
+      "attestation",
+      undefined,
+      null,
+    );
 
     const credentials = await security.register(
       challenge.id,
@@ -28,7 +32,7 @@ describe("AppAttestSecurity", () => {
       Buffer.from("attestation").toString("base64"),
     );
 
-    expect(devices.get("key-id")).toMatchObject({
+    expect(await devices.get("key-id")).toMatchObject({
       publicKey: "verified-public-key",
       signCount: 0,
     });
@@ -50,7 +54,7 @@ describe("AppAttestSecurity", () => {
       devices,
       cryptography,
     );
-    const registration = security.issueChallenge(
+    const registration = await security.issueChallenge(
       "attestation",
       undefined,
       null,
@@ -60,7 +64,7 @@ describe("AppAttestSecurity", () => {
       "key-id",
       Buffer.from("attestation").toString("base64"),
     );
-    const challenge = security.issueChallenge(
+    const challenge = await security.issueChallenge(
       "request",
       "key-id",
       `AppAttest ${credentials.token}`,
@@ -76,7 +80,7 @@ describe("AppAttestSecurity", () => {
     expect(cryptography.assertionInput?.payload).toBe(
       canonicalRequestPayload(request, new Uint8Array(), challenge.challenge),
     );
-    expect(devices.get("key-id")?.signCount).toBe(1);
+    expect((await devices.get("key-id"))?.signCount).toBe(1);
     await expect(
       security.authorizeRequest(request, new Uint8Array()),
     ).rejects.toThrow("invalid_challenge");
@@ -91,7 +95,7 @@ describe("AppAttestSecurity", () => {
       devices,
       cryptography,
     );
-    const registration = security.issueChallenge(
+    const registration = await security.issueChallenge(
       "attestation",
       undefined,
       null,
@@ -101,7 +105,7 @@ describe("AppAttestSecurity", () => {
       "key-id",
       Buffer.from("attestation").toString("base64"),
     );
-    const challenge = security.issueChallenge(
+    const challenge = await security.issueChallenge(
       "request",
       "key-id",
       `AppAttest ${credentials.token}`,
