@@ -144,6 +144,25 @@ final class CloudSharingModelTests: XCTestCase {
         XCTAssertNotEqual(first.participantID, second.participantID)
     }
 
+    func testCloudKitInvitationRetriesOnlyServerRecordConflicts() {
+        let conflict = CKError(
+            _nsError: NSError(
+                domain: CKErrorDomain,
+                code: CKError.serverRecordChanged.rawValue
+            )
+        )
+        let networkFailure = CKError(
+            _nsError: NSError(
+                domain: CKErrorDomain,
+                code: CKError.networkFailure.rawValue
+            )
+        )
+
+        XCTAssertTrue(CloudKitPartnerSharingService.isServerRecordChanged(conflict))
+        XCTAssertFalse(CloudKitPartnerSharingService.isServerRecordChanged(networkFailure))
+        XCTAssertFalse(CloudKitPartnerSharingService.isServerRecordChanged(PartnerSharingError.shareUnavailable))
+    }
+
     func testCloudKitSharingFailuresHaveActionSpecificMessages() {
         XCTAssertEqual(
             PartnerSharingError.acceptanceUnavailable.localizedDescription,
