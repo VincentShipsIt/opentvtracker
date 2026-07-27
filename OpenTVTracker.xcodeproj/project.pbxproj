@@ -116,6 +116,7 @@
 		8FBE1948CCC94D6165FFCE6A /* SourceLinksTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111F7857D63324A855494D83 /* SourceLinksTests.swift */; };
 		90E4701848A245F463FF844B /* UpcomingCalendar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E9C099CB317443E0D3BA3CA /* UpcomingCalendar.swift */; };
 		92476DC2E86235C32D93D296 /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = B85FBD5E091BD631BD82201B /* ZIPFoundation */; };
+		92E6E82AFEE89E99D4B498DE /* TVMazeCatalogServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B99D8EC8A181C22954AE5D70 /* TVMazeCatalogServiceTests.swift */; };
 		94091C3E3C598E0EF0C9D3E1 /* AppModel+Catalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = D879B525D34A583EC530DCC6 /* AppModel+Catalog.swift */; };
 		94381F54CC0EE702720717BF /* reaction-applause.gif in Resources */ = {isa = PBXBuildFile; fileRef = 38845A40EA3603C25E5BFB16 /* reaction-applause.gif */; };
 		944FDBDD69D79B7583D13278 /* TVTimeImportHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33F80C64BADB7EE52B8202AA /* TVTimeImportHistory.swift */; };
@@ -380,6 +381,7 @@
 		B65EE8B6EC375B48749F808B /* TraktAPITransport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TraktAPITransport.swift; sourceTree = "<group>"; };
 		B6EB226E94BBB5396B363858 /* LibraryTransfer+Lists.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LibraryTransfer+Lists.swift"; sourceTree = "<group>"; };
 		B86F3C7F8062C768E588DC69 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		B99D8EC8A181C22954AE5D70 /* TVMazeCatalogServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVMazeCatalogServiceTests.swift; sourceTree = "<group>"; };
 		B9D7D53A67CE4BA0F8B7D540 /* MediaDetailActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaDetailActions.swift; sourceTree = "<group>"; };
 		B9E8BB3ECB7093326FBEC443 /* AppModel+CloudSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+CloudSync.swift"; sourceTree = "<group>"; };
 		BB94FE850617D96CC5AFAF0F /* UpNextIntentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpNextIntentTests.swift; sourceTree = "<group>"; };
@@ -777,6 +779,7 @@
 				4684938FB9CD6C2E3F022117 /* TrailerPlaybackTests.swift */,
 				2DA645E7F698A47D164EA413 /* TraktSyncEdgeCaseTests.swift */,
 				492F7F202E01B8C6716E3C59 /* TraktSyncTests.swift */,
+				B99D8EC8A181C22954AE5D70 /* TVMazeCatalogServiceTests.swift */,
 				48F9DBE470CF3D4846AD83C3 /* TVTimeImportIntegrityTests.swift */,
 				F2065415D3424E0DD1D45053 /* TVTimeImportTestDoubles.swift */,
 				8CABFCEF46F88DA76050D7FB /* TVTimeImportTests.swift */,
@@ -947,7 +950,7 @@
 					96396D01C2F07D817EF2875C = {
 						DevelopmentTeam = C76R5DRH64;
 						ProvisioningStyle = Automatic;
-						SystemCapabilities = "[\"com.apple.DeviceCheck\": [\"enabled\": 1], \"com.apple.iCloud\": [\"enabled\": 1], \"com.apple.Push\": [\"enabled\": 1]]";
+						SystemCapabilities = "[\"com.apple.Push\": [\"enabled\": 1], \"com.apple.DeviceCheck\": [\"enabled\": 1], \"com.apple.iCloud\": [\"enabled\": 1]]";
 					};
 					B0AF29D3A827D293C2407B7B = {
 						DevelopmentTeam = C76R5DRH64;
@@ -1049,6 +1052,7 @@
 				B501077FAA529AA38CE4BEB5 /* SharedEpisodeWatchDeduplicationTests.swift in Sources */,
 				8FBE1948CCC94D6165FFCE6A /* SourceLinksTests.swift in Sources */,
 				2BA54E38F0F7D473489B06CF /* StreamingRegionTests.swift in Sources */,
+				92E6E82AFEE89E99D4B498DE /* TVMazeCatalogServiceTests.swift in Sources */,
 				A35BA3D1018B13D413EBF9B0 /* TVTimeImportIntegrityTests.swift in Sources */,
 				20F98AE2CB81F187EBCA283F /* TVTimeImportTestDoubles.swift in Sources */,
 				4322EAD681A2387A362254F8 /* TVTimeImportTests.swift in Sources */,
@@ -1295,7 +1299,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 2;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = C76R5DRH64;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -1311,7 +1315,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.1.1;
+				MARKETING_VERSION = 0.1.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1374,7 +1378,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 2;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = C76R5DRH64;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -1396,7 +1400,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.1.1;
+				MARKETING_VERSION = 0.1.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
