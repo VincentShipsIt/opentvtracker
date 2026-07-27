@@ -51,6 +51,7 @@ jobs:
           {
             echo "ARCHIVE_PATH=$RUNNER_TEMP/OpenTVTracker.xcarchive"
             echo "EXPORT_PATH=$RUNNER_TEMP/TestFlightExport"
+            echo "EXPORT_OPTIONS_PATH=$RUNNER_TEMP/TestFlightExportOptions.plist"
             echo "KEYCHAIN_PATH=$RUNNER_TEMP/opentv-signing.keychain-db"
             echo "KEYCHAIN_LIST_BACKUP=$RUNNER_TEMP/original-keychains.list"
             echo "CERTIFICATE_PATH=$RUNNER_TEMP/distribution-certificate.p12"
@@ -197,9 +198,8 @@ jobs:
           security list-keychains -d user -s \
             "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
 
-          # The archive selects its identity by name under automatic signing, so all this
-          # has to establish is that exactly one distribution certificate is reachable —
-          # two would make that name ambiguous, none would fail much later in the archive.
+          # Manual App Store signing below must resolve the identity by name. Keep exactly
+          # one distribution certificate reachable so that resolution is deterministic.
           identity_count="$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" \
             | grep -c 'Apple Distribution' || true)"
           if [[ "$identity_count" -ne 1 ]]; then
@@ -207,15 +207,10 @@ jobs:
             exit 1
           fi
 
-      - name: Verify App Store Connect access
+      - name: Prepare App Store provisioning profiles
         shell: bash
         run: |
           set -euo pipefail
-          # xcodebuild reports a rejected key as a bare "Authentication failed", then blames
-          # the provisioning profile it could not fetch — which sends you back to signing
-          # settings that are already correct. Ask the provisioning API the same question
-          # first, because that is the one xcodebuild actually needs: a key can read App
-          # Store Connect happily and still be unable to see a bundle identifier.
           b64url() { openssl base64 -A | tr '+/' '-_' | tr -d '='; }
           now="$(date +%s)"
           header="$(printf '{"alg":"ES256","kid":"%s","typ":"JWT"}' "$APPLE_API_KEY_ID" | b64url)"
@@ -231,8 +226,41 @@ jobs:
             | python3 -c 'import base64,sys; d=bytes.fromhex(sys.stdin.read().strip()); i=2 if d[1]<0x80 else 2+(d[1]&0x7f); lr=d[i+1]; r=int.from_bytes(d[i+2:i+2+lr],"big"); j=i+2+lr; ls=d[j+1]; s=int.from_bytes(d[j+2:j+2+ls],"big"); print(base64.urlsafe_b64encode(r.to_bytes(32,"big")+s.to_bytes(32,"big")).decode().rstrip("="))')"
           token="$header.$payload.$signature"
           echo "::add-mask::$token"
-          body="$RUNNER_TEMP/bundle-ids.json"
-          status="$(curl -sS -o "$body" -w '%{http_code}' \
+
+          api_get() {
+            local url="$1"
+            local output="$2"
+            local status
+            status="$(curl --globoff -sS -o "$output" -w '%{http_code}' \
+              -H "Authorization: Bearer $token" \
+              "$url")"
+            if [[ "$status" != 200 ]]; then
+              cat "$output"
+              echo "::error::App Store Connect GET failed with HTTP $status: $url"
+              exit 1
+            fi
+          }
+
+          api_post() {
+            local url="$1"
+            local request="$2"
+            local output="$3"
+            local status
+            status="$(curl --globoff -sS -o "$output" -w '%{http_code}' \
+              -X POST \
+              -H "Authorization: Bearer $token" \
+              -H 'Content-Type: application/json' \
+              --data-binary "@$request" \
+              "$url")"
+            if [[ "$status" != 201 ]]; then
+              cat "$output"
+              echo "::error::App Store Connect POST failed with HTTP $status: $url"
+              exit 1
+            fi
+          }
+
+          bundle_ids_body="$RUNNER_TEMP/bundle-ids.json"
+          status="$(curl -sS -o "$bundle_ids_body" -w '%{http_code}' \
             -H "Authorization: Bearer $token" \
             'https://api.appstoreconnect.apple.com/v1/bundleIds?limit=200')"
           case "$status" in
@@ -244,16 +272,165 @@ jobs:
               echo "::error::The key authenticated but is not allowed to read provisioning data (403). xcodebuild needs a team key with the App Manager or Admin role — an individual key, or a Developer-role key, authenticates and still cannot provision. Create one under App Store Connect > Users and Access > Integrations > Team Keys."
               exit 1 ;;
             *)
-              cat "$body"
+              cat "$bundle_ids_body"
               echo "::error::Unexpected $status from the App Store Connect provisioning API."
               exit 1 ;;
           esac
           for identifier in dev.opentvtracker.app dev.opentvtracker.app.widgets; do
-            if ! grep -q "\"$identifier\"" "$body"; then
+            if ! jq -e --arg identifier "$identifier" \
+              '.data[] | select(.attributes.identifier == $identifier)' \
+              "$bundle_ids_body" >/dev/null; then
               echo "::error::No registered bundle identifier '$identifier'. Register it under Certificates, Identifiers & Profiles before archiving."
               exit 1
             fi
           done
+
+          certificates_body="$RUNNER_TEMP/certificates.json"
+          api_get \
+            'https://api.appstoreconnect.apple.com/v1/certificates?limit=200' \
+            "$certificates_body"
+          installed_certificate="$RUNNER_TEMP/distribution-certificate.pem"
+          security find-certificate \
+            -c 'Apple Distribution' \
+            -p \
+            "$KEYCHAIN_PATH" > "$installed_certificate"
+          installed_hash="$(openssl x509 -in "$installed_certificate" -outform der \
+            | shasum -a 256 \
+            | awk '{print $1}')"
+          certificate_id=""
+          while IFS=$'\t' read -r candidate_id certificate_content; do
+            candidate_hash="$(printf '%s' "$certificate_content" \
+              | base64 --decode \
+              | shasum -a 256 \
+              | awk '{print $1}')"
+            if [[ "$candidate_hash" == "$installed_hash" ]]; then
+              certificate_id="$candidate_id"
+              break
+            fi
+          done < <(jq -r '
+            .data[]
+            | select(
+                .attributes.certificateType == "DISTRIBUTION"
+                or .attributes.certificateType == "IOS_DISTRIBUTION"
+              )
+            | [.id, .attributes.certificateContent]
+            | @tsv
+          ' "$certificates_body")
+          if [[ -z "$certificate_id" ]]; then
+            echo "::error::The installed Apple Distribution certificate is not active in the Developer account."
+            exit 1
+          fi
+
+          profiles_body="$RUNNER_TEMP/app-store-profiles.json"
+          api_get \
+            'https://api.appstoreconnect.apple.com/v1/profiles?filter[profileType]=IOS_APP_STORE&filter[profileState]=ACTIVE&limit=200' \
+            "$profiles_body"
+          profiles_dir="$RUNNER_TEMP/provisioning-profiles"
+          legacy_profiles_dir="$HOME/Library/MobileDevice/Provisioning Profiles"
+          xcode_profiles_dir="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
+          mkdir -p "$profiles_dir" "$legacy_profiles_dir" "$xcode_profiles_dir"
+
+          install_profile() {
+            local identifier="$1"
+            local output_name="$2"
+            local bundle_id
+            local profile_json
+            local profile_name
+            local profile_uuid
+            local profile_content
+
+            bundle_id="$(jq -r --arg identifier "$identifier" '
+              .data[]
+              | select(.attributes.identifier == $identifier)
+              | .id
+            ' "$bundle_ids_body")"
+            profile_json="$(jq -c \
+              --arg bundle_id "$bundle_id" \
+              --arg certificate_id "$certificate_id" '
+                first(
+                  .data[]
+                  | select(.relationships.bundleId.data.id == $bundle_id)
+                  | select(any(
+                      .relationships.certificates.data[]?;
+                      .id == $certificate_id
+                    ))
+                ) // empty
+              ' "$profiles_body")"
+
+            if [[ -z "$profile_json" ]]; then
+              profile_request="$RUNNER_TEMP/profile-request.json"
+              profile_response="$RUNNER_TEMP/profile-response.json"
+              profile_label="$(tr '.' '-' <<< "$identifier")"
+              profile_name="OpenTV CI $profile_label $(date +%Y%m%d%H%M%S)"
+              jq -n \
+                --arg name "$profile_name" \
+                --arg bundle_id "$bundle_id" \
+                --arg certificate_id "$certificate_id" '
+                  {
+                    data: {
+                      type: "profiles",
+                      attributes: {
+                        name: $name,
+                        profileType: "IOS_APP_STORE"
+                      },
+                      relationships: {
+                        bundleId: {
+                          data: {
+                            type: "bundleIds",
+                            id: $bundle_id
+                          }
+                        },
+                        certificates: {
+                          data: [{
+                            type: "certificates",
+                            id: $certificate_id
+                          }]
+                        }
+                      }
+                    }
+                  }
+                ' > "$profile_request"
+              api_post \
+                'https://api.appstoreconnect.apple.com/v1/profiles' \
+                "$profile_request" \
+                "$profile_response"
+              profile_json="$(jq -c '.data' "$profile_response")"
+            fi
+
+            profile_name="$(jq -r '.attributes.name' <<< "$profile_json")"
+            profile_uuid="$(jq -r '.attributes.uuid' <<< "$profile_json")"
+            profile_content="$(jq -r '.attributes.profileContent' <<< "$profile_json")"
+            if [[ -z "$profile_name" || -z "$profile_uuid" || -z "$profile_content" ]]; then
+              echo "::error::App Store Connect returned an incomplete profile for $identifier."
+              exit 1
+            fi
+            printf '%s' "$profile_content" \
+              | base64 --decode > "$profiles_dir/$profile_uuid.mobileprovision"
+            cp \
+              "$profiles_dir/$profile_uuid.mobileprovision" \
+              "$legacy_profiles_dir/$profile_uuid.mobileprovision"
+            cp \
+              "$profiles_dir/$profile_uuid.mobileprovision" \
+              "$xcode_profiles_dir/$profile_uuid.mobileprovision"
+            printf -v "$output_name" '%s' "$profile_name"
+            echo "$output_name=$profile_name" >> "$GITHUB_ENV"
+            echo "Prepared App Store profile '$profile_name' for $identifier."
+          }
+
+          install_profile dev.opentvtracker.app APP_STORE_PROFILE_NAME
+          install_profile dev.opentvtracker.app.widgets WIDGET_STORE_PROFILE_NAME
+
+          cp Config/TestFlightExportOptions.plist "$EXPORT_OPTIONS_PATH"
+          /usr/libexec/PlistBuddy -c 'Set :signingStyle manual' "$EXPORT_OPTIONS_PATH"
+          /usr/libexec/PlistBuddy -c 'Add :signingCertificate string Apple Distribution' "$EXPORT_OPTIONS_PATH"
+          /usr/libexec/PlistBuddy -c "Add :teamID string $APPLE_TEAM_ID" "$EXPORT_OPTIONS_PATH"
+          /usr/libexec/PlistBuddy -c 'Add :provisioningProfiles dict' "$EXPORT_OPTIONS_PATH"
+          /usr/libexec/PlistBuddy \
+            -c "Add :provisioningProfiles:dev.opentvtracker.app string $APP_STORE_PROFILE_NAME" \
+            "$EXPORT_OPTIONS_PATH"
+          /usr/libexec/PlistBuddy \
+            -c "Add :provisioningProfiles:dev.opentvtracker.app.widgets string $WIDGET_STORE_PROFILE_NAME" \
+            "$EXPORT_OPTIONS_PATH"
 
       - name: Archive release
         shell: bash
@@ -265,14 +442,13 @@ jobs:
             -configuration Release \
             -destination 'generic/platform=iOS' \
             -archivePath "$ARCHIVE_PATH" \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath "$ASC_KEY_PATH" \
-            -authenticationKeyID "$APPLE_API_KEY_ID" \
-            -authenticationKeyIssuerID "$APPLE_API_ISSUER_ID" \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
             CATALOG_PROXY_BASE_URL="$CATALOG_PROXY_BASE_URL" \
             APP_ATTEST_DEVELOPMENT_TOKEN="" \
-            CODE_SIGN_STYLE=Automatic \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY='Apple Distribution' \
+            APP_STORE_PROFILE_NAME="$APP_STORE_PROFILE_NAME" \
+            WIDGET_STORE_PROFILE_NAME="$WIDGET_STORE_PROFILE_NAME" \
             MARKETING_VERSION='${{ steps.release.outputs.marketing_version }}' \
             CURRENT_PROJECT_VERSION='${{ steps.release.outputs.build_number }}' \
             OTHER_CODE_SIGN_FLAGS="--keychain $KEYCHAIN_PATH"
@@ -284,11 +460,7 @@ jobs:
           xcodebuild -exportArchive \
             -archivePath "$ARCHIVE_PATH" \
             -exportPath "$EXPORT_PATH" \
-            -exportOptionsPlist Config/TestFlightExportOptions.plist \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath "$ASC_KEY_PATH" \
-            -authenticationKeyID "$APPLE_API_KEY_ID" \
-            -authenticationKeyIssuerID "$APPLE_API_ISSUER_ID"
+            -exportOptionsPlist "$EXPORT_OPTIONS_PATH"
 
       - name: Validate and upload to TestFlight
         shell: bash
