@@ -79,6 +79,9 @@ targets:
           PUSH_NOTIFICATIONS_ENVIRONMENT: development
         Release:
           APP_ATTEST_ENVIRONMENT: production
+          CODE_SIGN_IDENTITY: Apple Distribution
+          CODE_SIGN_STYLE: Manual
+          PROVISIONING_PROFILE_SPECIFIER: $(APP_STORE_PROFILE_NAME)
           PUSH_NOTIFICATIONS_ENVIRONMENT: production
     attributes:
       SystemCapabilities:
@@ -116,6 +119,11 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: dev.opentvtracker.app.widgets
         SKIP_INSTALL: YES
         TARGETED_DEVICE_FAMILY: 1
+      configs:
+        Release:
+          CODE_SIGN_IDENTITY: Apple Distribution
+          CODE_SIGN_STYLE: Manual
+          PROVISIONING_PROFILE_SPECIFIER: $(WIDGET_STORE_PROFILE_NAME)
   OpenTVTrackerTests:
     type: bundle.unit-test
     platform: iOS

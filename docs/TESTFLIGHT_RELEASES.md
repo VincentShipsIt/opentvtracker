@@ -22,7 +22,7 @@ Store the shared App Store Connect key and iOS-specific signing certificate as e
 
 Do not reuse `DEVELOPER_ID_P12_BASE64` or `DEVELOPER_ID_P12_PASSWORD`: those contain the macOS Developer ID identity used outside the App Store and cannot sign an iOS TestFlight build.
 
-Use a team App Store Connect API key that can upload builds and access Certificates, Identifiers & Profiles. The App ID and widget extension must already exist for `APPLE_TEAM_ID`, with automatic signing able to create or download their App Store provisioning profiles.
+Use a team App Store Connect API key that can upload builds and access Certificates, Identifiers & Profiles. The App ID and widget extension must already exist for `APPLE_TEAM_ID`. The workflow matches the stored distribution certificate to the Developer account, reuses or creates App Store provisioning profiles for both bundle IDs, and signs the archive manually. It never creates or revokes a signing certificate.
 
 Encode binary and key files without line wrapping:
 
@@ -40,4 +40,4 @@ base64 -i AuthKey_KEYID.p8 | tr -d '\n'
 
 The workflow reads `CFBundleShortVersionString` and `CFBundleVersion` from the Xcode project's Release configuration. For a controlled retry, dispatch the workflow manually with a commit, branch, or tag on `main`; use the optional version or build overrides only when App Store Connect requires a corrected identifier.
 
-If automatic provisioning fails, verify the API key's team scope and Certificates, Identifiers & Profiles access, the distribution certificate, and both bundle IDs (`dev.opentvtracker.app` and `dev.opentvtracker.app.widgets`). Rotate any credential immediately if its value is exposed in logs or outside the protected GitHub environment.
+If profile preparation fails, verify the API key's team scope and Certificates, Identifiers & Profiles access, the distribution certificate, and both bundle IDs (`dev.opentvtracker.app` and `dev.opentvtracker.app.widgets`). Rotate any credential immediately if its value is exposed in logs or outside the protected GitHub environment.

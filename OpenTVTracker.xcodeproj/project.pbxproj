@@ -948,12 +948,10 @@
 					};
 					8246A73D7A3AEF3C352E2FA5 = {
 						DevelopmentTeam = C76R5DRH64;
-						ProvisioningStyle = Automatic;
 					};
 					96396D01C2F07D817EF2875C = {
 						DevelopmentTeam = C76R5DRH64;
-						ProvisioningStyle = Automatic;
-						SystemCapabilities = "[\"com.apple.DeviceCheck\": [\"enabled\": 1], \"com.apple.Push\": [\"enabled\": 1], \"com.apple.iCloud\": [\"enabled\": 1]]";
+						SystemCapabilities = "[\"com.apple.Push\": [\"enabled\": 1], \"com.apple.DeviceCheck\": [\"enabled\": 1], \"com.apple.iCloud\": [\"enabled\": 1]]";
 					};
 					B0AF29D3A827D293C2407B7B = {
 						DevelopmentTeam = C76R5DRH64;
@@ -1459,14 +1457,15 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Config/OpenTVTracker.entitlements;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "Apple Distribution";
+				CODE_SIGN_STYLE = Manual;
 				INFOPLIST_FILE = Config/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = dev.opentvtracker.app;
+				PROVISIONING_PROFILE_SPECIFIER = "$(APP_STORE_PROFILE_NAME)";
 				PUSH_NOTIFICATIONS_ENVIRONMENT = production;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -1514,7 +1513,8 @@
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = Config/OpenTVWidgets.entitlements;
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "Apple Distribution";
+				CODE_SIGN_STYLE = Manual;
 				INFOPLIST_FILE = "Config/OpenTVWidgets-Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -1522,6 +1522,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = dev.opentvtracker.app.widgets;
+				PROVISIONING_PROFILE_SPECIFIER = "$(WIDGET_STORE_PROFILE_NAME)";
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
 				TARGETED_DEVICE_FAMILY = 1;
