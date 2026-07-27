@@ -133,6 +133,37 @@ describe("server application", () => {
     expect(providerCalls).toBe(1);
   });
 
+  test("forwards content language to catalog search and title requests", async () => {
+    const requestedLanguages: string[] = [];
+    const { app } = testApp(undefined, {
+      search: async (_query, _kind, _page, _region, language) => {
+        requestedLanguages.push(language);
+        return [];
+      },
+      title: async (_kind, _id, _region, language) => {
+        requestedLanguages.push(language);
+        return catalogTitle();
+      },
+      reviews: async () => ({ page: 1, totalPages: 1, results: [] }),
+      resolveExternalID: async () => null,
+    });
+
+    const search = await app.fetch(
+      developmentRequest(
+        "https://example.test/v1/catalog/search?page=1&region=MT&language=fr",
+      ),
+    );
+    const title = await app.fetch(
+      developmentRequest(
+        "https://example.test/v1/catalog/series/95396?region=MT&language=es",
+      ),
+    );
+
+    expect(search.status).toBe(200);
+    expect(title.status).toBe(200);
+    expect(requestedLanguages).toEqual(["fr", "es"]);
+  });
+
   test("returns protected, cached review pages from the bounded route", async () => {
     let providerCalls = 0;
     const { app } = testApp(undefined, {

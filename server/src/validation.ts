@@ -117,8 +117,9 @@ export function validateCatalogSearch(url: URL): {
   kind: MediaKind | null;
   page: number;
   region: string;
+  language: string;
 } {
-  exactQueryKeys(url, ["q", "kind", "page", "region"]);
+  exactQueryKeys(url, ["q", "kind", "page", "region", "language"]);
   const query = (url.searchParams.get("q") ?? "").trim();
   if (query.length > 100 || /[\u0000-\u001F\u007F]/.test(query))
     throw new ValidationError("invalid_query");
@@ -134,7 +135,14 @@ export function validateCatalogSearch(url: URL): {
   );
   const region = (url.searchParams.get("region") ?? "MT").toUpperCase();
   if (!/^[A-Z]{2}$/.test(region)) throw new ValidationError("invalid_region");
-  return { query, kind: kindValue as MediaKind | null, page, region };
+  const language = catalogLanguage(url);
+  return {
+    query,
+    kind: kindValue as MediaKind | null,
+    page,
+    region,
+    language,
+  };
 }
 
 export function validateCatalogTitle(
@@ -144,8 +152,9 @@ export function validateCatalogTitle(
   kind: MediaKind;
   id: number;
   region: string;
+  language: string;
 } {
-  exactQueryKeys(url, ["region"]);
+  exactQueryKeys(url, ["region", "language"]);
   const kind = match[1];
   if (kind !== "movie" && kind !== "series")
     throw new ValidationError("invalid_kind");
@@ -157,7 +166,15 @@ export function validateCatalogTitle(
   );
   const region = (url.searchParams.get("region") ?? "MT").toUpperCase();
   if (!/^[A-Z]{2}$/.test(region)) throw new ValidationError("invalid_region");
-  return { kind, id, region };
+  return { kind, id, region, language: catalogLanguage(url) };
+}
+
+function catalogLanguage(url: URL): string {
+  const language = (url.searchParams.get("language") ?? "en").toLowerCase();
+  if (!/^[a-z]{2,3}$/.test(language)) {
+    throw new ValidationError("invalid_language");
+  }
+  return language;
 }
 
 export function validateCatalogReviews(

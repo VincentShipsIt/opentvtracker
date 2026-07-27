@@ -68,6 +68,9 @@ enum LibraryBackupMerge {
         let regionSetting = snapshot.streamingRegionCode == nil
             ? "Streaming region keeps its current setting."
             : "Streaming region restores from the backup."
+        let languageSetting = snapshot.contentLanguageSettingWasPresent == true
+            ? "Content language restores from the backup."
+            : "Content language keeps its current setting."
         let aiSetting: String
         if let allowsAIReranking = snapshot.allowsAIReranking {
             aiSetting = allowsAIReranking
@@ -78,7 +81,7 @@ enum LibraryBackupMerge {
                 ? "Optional AI reranking keeps its current enabled setting."
                 : "Optional AI reranking keeps its current off setting."
         }
-        return "Matching titles use archived tracking values. Together history merges without deleting newer shared entries. \(regionSetting) Saved subscriptions restore when present. \(aiSetting)"
+        return "Matching titles use archived tracking values. Together history merges without deleting newer shared entries. \(regionSetting) \(languageSetting) Saved subscriptions restore when present. \(aiSetting)"
     }
 
     private static func mergeByID<Element: Identifiable>(

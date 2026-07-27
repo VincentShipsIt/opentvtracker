@@ -27,8 +27,34 @@ final class StreamingRegionTests: XCTestCase {
 
         XCTAssertEqual(queryValue("region", in: searchURL), "US")
         XCTAssertEqual(queryValue("region", in: detailURL), "US")
+        XCTAssertEqual(queryValue("language", in: searchURL), "en")
+        XCTAssertEqual(queryValue("language", in: detailURL), "en")
         XCTAssertEqual(queryValue("page", in: reviewsURL), "3")
         XCTAssertEqual(reviewsURL.path, "/v1/catalog/series/95396/reviews")
+    }
+
+    func testServerSearchAndDetailsIncludeSelectedContentLanguage() throws {
+        let service = ServerCatalogService(baseURL: try XCTUnwrap(URL(string: "https://example.com")))
+        let language = try XCTUnwrap(ContentLanguage(code: "fr"))
+
+        let searchURL = try service.searchURL(
+            for: MediaSearchQuery(
+                text: "",
+                kind: nil,
+                page: 1,
+                region: .malta,
+                contentLanguage: language
+            )
+        )
+        let detailURL = try service.titleURL(
+            kind: .series,
+            catalogID: 95_396,
+            region: .malta,
+            contentLanguage: language
+        )
+
+        XCTAssertEqual(queryValue("language", in: searchURL), "fr")
+        XCTAssertEqual(queryValue("language", in: detailURL), "fr")
     }
 
     func testRegionOverridePersistsWithoutReplacingAutomaticDefault() async throws {

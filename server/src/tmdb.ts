@@ -111,6 +111,7 @@ type SeasonSummary = {
 type SearchItem = {
   id: number;
   media_type?: "movie" | "tv" | "person";
+  popularity?: number;
   title?: string;
   name?: string;
   overview?: string;
@@ -138,30 +139,19 @@ export class TMDBClient {
     kind: MediaKind | null,
     page: number,
     region: string,
+    language: string,
   ): Promise<CatalogTitle[]> {
-    const path = query ? "/search/multi" : "/trending/all/week";
-    const params = new URLSearchParams({
-      page: String(Math.max(page, 1)),
-      language: "en-US",
-    });
-    if (query) {
-      params.set("query", query);
-      params.set("include_adult", "false");
-    }
-    const payload = await this.get<{ results?: SearchItem[] }>(
-      `${path}?${params}`,
-    );
-    const items = (payload.results ?? [])
-      .filter((item) => item.media_type === "movie" || item.media_type === "tv")
-      .filter((item) => !kind || mediaKind(item.media_type) === kind)
-      .slice(0, 20);
+    const locale = tmdbLocale(language);
+    const items = query
+      ? await this.searchItems(query, kind, page, locale)
+      : await this.browseItems(kind, page, language);
 
     const settled = await Promise.allSettled(
       items.map(async (item) => {
         const resolvedKind = mediaKind(item.media_type);
         const namespace = resolvedKind === "movie" ? "movie" : "tv";
         const details = await this.get<Record<string, unknown>>(
-          `/${namespace}/${item.id}?append_to_response=watch/providers,alternative_titles,translations&language=en-US`,
+          `/${namespace}/${item.id}?append_to_response=watch/providers,alternative_titles,translations&language=${locale}`,
         );
         return mapDetails(details, resolvedKind, region, null);
       }),
@@ -171,16 +161,69 @@ export class TMDBClient {
     );
   }
 
+  private async searchItems(
+    query: string,
+    kind: MediaKind | null,
+    page: number,
+    locale: string,
+  ): Promise<SearchItem[]> {
+    const params = new URLSearchParams({
+      page: String(Math.max(page, 1)),
+      language: locale,
+    });
+    if (query) {
+      params.set("query", query);
+      params.set("include_adult", "false");
+    }
+    const payload = await this.get<{ results?: SearchItem[] }>(
+      `/search/multi?${params}`,
+    );
+    return (payload.results ?? [])
+      .filter((item) => item.media_type === "movie" || item.media_type === "tv")
+      .filter((item) => !kind || mediaKind(item.media_type) === kind)
+      .slice(0, 20);
+  }
+
+  private async browseItems(
+    kind: MediaKind | null,
+    page: number,
+    language: string,
+  ): Promise<SearchItem[]> {
+    const requests = tmdbDiscoverRequests(language, page, kind);
+    const settled = await Promise.allSettled(
+      requests.map(async (request) => ({
+        request,
+        payload: await this.get<{ results?: SearchItem[] }>(request.path),
+      })),
+    );
+    return settled
+      .flatMap((result) => {
+        if (result.status !== "fulfilled") return [];
+        const { request, payload } = result.value;
+        return (payload.results ?? [])
+          .slice(request.resultOffset, request.resultOffset + request.resultLimit)
+          .map((item) => ({
+            ...item,
+            media_type: request.mediaType,
+          }));
+      })
+      .sort((left, right) => (right.popularity ?? 0) - (left.popularity ?? 0))
+      .slice(0, 20);
+  }
+
   async title(
     kind: MediaKind,
     id: number,
     region: string,
+    language: string,
   ): Promise<CatalogTitle> {
+    const locale = tmdbLocale(language);
     const namespace = kind === "movie" ? "movie" : "tv";
     const details = await this.get<Record<string, unknown>>(
-      `/${namespace}/${id}?append_to_response=videos,watch/providers,reviews,alternative_titles,translations&language=en-US`,
+      `/${namespace}/${id}?append_to_response=videos,watch/providers,reviews,alternative_titles,translations&language=${locale}`,
     );
-    const seasons = kind === "series" ? await this.seasons(id, details) : null;
+    const seasons =
+      kind === "series" ? await this.seasons(id, details, locale) : null;
     return mapDetails(details, kind, region, seasons);
   }
 
@@ -219,12 +262,13 @@ export class TMDBClient {
       ),
     ];
     if (matchingIDs.length !== 1) return null;
-    return this.title(kind, matchingIDs[0]!, region);
+    return this.title(kind, matchingIDs[0]!, region, "en");
   }
 
   private async seasons(
     showID: number,
     details: Record<string, unknown>,
+    locale: string,
   ): Promise<SeasonSummary[]> {
     const listedSeasons = Array.isArray(details.seasons) ? details.seasons : [];
     const seasonNumbers = listedSeasons
@@ -235,7 +279,7 @@ export class TMDBClient {
     const settled = await Promise.allSettled(
       seasonNumbers.map((number) =>
         this.get<Record<string, unknown>>(
-          `/tv/${showID}/season/${number}?language=en-US`,
+          `/tv/${showID}/season/${number}?language=${locale}`,
         ),
       ),
     );
@@ -273,6 +317,57 @@ export class TMDBClient {
     if (!response.ok) throw new Error(`TMDB returned ${response.status}`);
     return response.json() as Promise<Response>;
   }
+}
+
+export function tmdbLocale(language: string): string {
+  const locale = new Intl.Locale(language).maximize();
+  return locale.region
+    ? `${locale.language}-${locale.region}`
+    : locale.language;
+}
+
+export function tmdbDiscoverRequests(
+  language: string,
+  page: number,
+  kind: MediaKind | null,
+): Array<{
+  mediaType: "movie" | "tv";
+  path: string;
+  resultOffset: number;
+  resultLimit: number;
+}> {
+  const locale = tmdbLocale(language);
+  const requestedPage = Math.max(page, 1);
+  const mediaTypes: Array<"movie" | "tv"> =
+    kind === MediaKind.movie
+      ? ["movie"]
+      : kind === MediaKind.series
+        ? ["tv"]
+        : ["movie", "tv"];
+  const mixesMediaTypes = mediaTypes.length > 1;
+  const providerPage = mixesMediaTypes
+    ? Math.floor((requestedPage - 1) / 2) + 1
+    : requestedPage;
+  const resultOffset = mixesMediaTypes
+    ? ((requestedPage - 1) % 2) * 10
+    : 0;
+  const resultLimit = mixesMediaTypes ? 10 : 20;
+
+  return mediaTypes.map((mediaType) => {
+    const params = new URLSearchParams({
+      page: String(providerPage),
+      language: locale,
+      sort_by: "popularity.desc",
+      include_adult: "false",
+      with_original_language: language,
+    });
+    return {
+      mediaType,
+      path: `/discover/${mediaType}?${params}`,
+      resultOffset,
+      resultLimit,
+    };
+  });
 }
 
 function mapDetails(

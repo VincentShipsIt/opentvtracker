@@ -5,6 +5,7 @@ struct MediaSearchQuery: Hashable, Sendable {
     var kind: MediaKind?
     var page: Int
     var region: StreamingRegion
+    var contentLanguage: ContentLanguage = .english
 }
 
 struct CommunityReviewPage: Hashable, Sendable {
@@ -26,6 +27,12 @@ struct ExternalCatalogReference: Hashable, Sendable {
 protocol CatalogProviding: Sendable {
     func search(_ query: MediaSearchQuery) async throws -> [MediaTitle]
     func title(kind: MediaKind, catalogID: Int, region: StreamingRegion) async throws -> MediaTitle
+    func title(
+        kind: MediaKind,
+        catalogID: Int,
+        region: StreamingRegion,
+        contentLanguage: ContentLanguage
+    ) async throws -> MediaTitle
     func reviews(kind: MediaKind, catalogID: Int, page: Int) async throws -> CommunityReviewPage
     func resolve(
         _ reference: ExternalCatalogReference,
@@ -34,6 +41,15 @@ protocol CatalogProviding: Sendable {
 }
 
 extension CatalogProviding {
+    func title(
+        kind: MediaKind,
+        catalogID: Int,
+        region: StreamingRegion,
+        contentLanguage _: ContentLanguage
+    ) async throws -> MediaTitle {
+        try await title(kind: kind, catalogID: catalogID, region: region)
+    }
+
     func reviews(kind _: MediaKind, catalogID _: Int, page: Int) async throws -> CommunityReviewPage {
         CommunityReviewPage(page: max(page, 1), totalPages: 1, results: [])
     }

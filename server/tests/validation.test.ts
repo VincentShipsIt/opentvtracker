@@ -12,12 +12,14 @@ describe("request validation", () => {
   test("accepts bounded catalog inputs", () => {
     const search = validateCatalogSearch(
       new URL(
-        "https://example.test/v1/catalog/search?q=Drama&kind=series&page=2&region=mt",
+        "https://example.test/v1/catalog/search?q=Drama&kind=series&page=2&region=mt&language=fr",
       ),
     );
     const title = validateCatalogTitle(
       "/v1/catalog/movie/42".match(/^\/v1\/catalog\/(movie|series)\/(\d+)$/)!,
-      new URL("https://example.test/v1/catalog/movie/42?region=US"),
+      new URL(
+        "https://example.test/v1/catalog/movie/42?region=US&language=es",
+      ),
     );
     const reviews = validateCatalogReviews(
       "/v1/catalog/series/42/reviews".match(
@@ -39,8 +41,14 @@ describe("request validation", () => {
       kind: "series",
       page: 2,
       region: "MT",
+      language: "fr",
     });
-    expect(title).toEqual({ kind: "movie", id: 42, region: "US" });
+    expect(title).toEqual({
+      kind: "movie",
+      id: 42,
+      region: "US",
+      language: "es",
+    });
     expect(reviews).toEqual({ kind: "series", id: 42, page: 3 });
     expect(external).toEqual({
       source: "tvdb",
@@ -76,6 +84,11 @@ describe("request validation", () => {
         new URL("https://example.test/v1/catalog/search?region=MALTA"),
       ),
     ).toThrow("invalid_region");
+    expect(() =>
+      validateCatalogSearch(
+        new URL("https://example.test/v1/catalog/search?language=english"),
+      ),
+    ).toThrow("invalid_language");
     expect(() =>
       validateCatalogReviews(
         "/v1/catalog/movie/42/reviews".match(

@@ -21,6 +21,7 @@ final class AppModel {
     private(set) var selectedProviderIDs: Set<StreamingProvider.ID>
     private(set) var allowsAIReranking: Bool
     private(set) var streamingRegionOverride: StreamingRegion?
+    private(set) var contentLanguageOverride: ContentLanguage?
     var traktSyncState: TraktSyncState
     var isTraktAuthorized = false
     var isTraktSyncing = false
@@ -97,6 +98,7 @@ final class AppModel {
         selectedProviderIDs = seed.selectedProviderIDs ?? Self.defaultProviderIDs
         allowsAIReranking = seed.allowsAIReranking ?? false
         streamingRegionOverride = seed.streamingRegionCode.flatMap(StreamingRegion.init(code:))
+        contentLanguageOverride = seed.contentLanguageCode.flatMap(ContentLanguage.init(code:))
         traktSyncState = seed.traktSyncState ?? .empty
         reminderSettings = seed.reminderSettings ?? ReminderSettings()
         importResolutionAliases = seed.importResolutionAliases ?? [:]
@@ -136,6 +138,7 @@ final class AppModel {
             selectedProviderIDs: selectedProviderIDs,
             allowsAIReranking: allowsAIReranking,
             streamingRegionCode: streamingRegionOverride?.code,
+            contentLanguageCode: contentLanguageOverride?.code,
             diaryEntries: diaryEntries,
             reminderSettings: reminderSettings,
             importResolutionAliases: importResolutionAliases,
@@ -174,6 +177,7 @@ final class AppModel {
                 selectedProviderIDs = snapshot.selectedProviderIDs ?? Self.defaultProviderIDs
                 allowsAIReranking = snapshot.allowsAIReranking ?? false
                 streamingRegionOverride = snapshot.streamingRegionCode.flatMap(StreamingRegion.init(code:))
+                contentLanguageOverride = snapshot.contentLanguageCode.flatMap(ContentLanguage.init(code:))
                 traktSyncState = snapshot.traktSyncState ?? .empty
                 reminderSettings = snapshot.reminderSettings ?? ReminderSettings()
                 importResolutionAliases = snapshot.importResolutionAliases ?? [:]
@@ -306,6 +310,10 @@ extension AppModel {
         streamingRegionOverride = region
     }
 
+    func storeContentLanguageOverride(_ language: ContentLanguage?) {
+        contentLanguageOverride = language
+    }
+
     func completeFirstRun() {
         guard !hasCompletedFirstRun else { return }
         hasCompletedFirstRun = true
@@ -322,6 +330,7 @@ extension AppModel {
         selectedProviderIDs = snapshot.selectedProviderIDs ?? Self.defaultProviderIDs
         allowsAIReranking = snapshot.allowsAIReranking ?? false
         streamingRegionOverride = snapshot.streamingRegionCode.flatMap(StreamingRegion.init(code:))
+        contentLanguageOverride = snapshot.contentLanguageCode.flatMap(ContentLanguage.init(code:))
         traktSyncState = snapshot.traktSyncState ?? .empty
         reminderSettings = snapshot.reminderSettings ?? ReminderSettings()
         importResolutionAliases = snapshot.importResolutionAliases ?? [:]
