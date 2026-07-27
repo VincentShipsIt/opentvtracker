@@ -49,6 +49,7 @@
 		3665ED209FE2999C57B6EDD5 /* LibraryTransfer+Lists.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6EB226E94BBB5396B363858 /* LibraryTransfer+Lists.swift */; };
 		36F747D48C79A2C6D6111C34 /* LibraryTitleMerge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 587440EF0F60A39D3D1B1C07 /* LibraryTitleMerge.swift */; };
 		37A4DE36629ADAF568FAA41C /* BulkEpisodeTrackingUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1149FB539DE3092CD0E5999 /* BulkEpisodeTrackingUITests.swift */; };
+		381AE4FB74812FF05E5E34C4 /* DiscoveryCatalogPagination.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41E15F0CEA1D86DF2AD8768 /* DiscoveryCatalogPagination.swift */; };
 		3876A423DE47A4ABD42D783E /* CatalogImportResolutionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDCC6E021A77D2874816A3C9 /* CatalogImportResolutionTests.swift */; };
 		3E467C0CB7BC4E652ECC30BE /* reaction-mind-blown.gif in Resources */ = {isa = PBXBuildFile; fileRef = 080FC76498AF91C89A14E214 /* reaction-mind-blown.gif */; };
 		3E59E13E219DBAD767FB2AE7 /* NearbyPartnerPairingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F61F112D5E7C9F7AD8805316 /* NearbyPartnerPairingView.swift */; };
@@ -416,6 +417,7 @@
 		E2F0232F7E650288BFDE8208 /* BackupHealth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupHealth.swift; sourceTree = "<group>"; };
 		E2F8946DC4EE1DAE49DC50DC /* TVTimeZIPReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVTimeZIPReader.swift; sourceTree = "<group>"; };
 		E3D33ED571ED8E1AD52A8617 /* OpenTVTrackerTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = OpenTVTrackerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		E41E15F0CEA1D86DF2AD8768 /* DiscoveryCatalogPagination.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoveryCatalogPagination.swift; sourceTree = "<group>"; };
 		E4A1BA8E78FB5386C9295F25 /* AppModel+SharedConversation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+SharedConversation.swift"; sourceTree = "<group>"; };
 		E4E9F78CC0FA2BAD8B51C84B /* TVTimeResolutionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVTimeResolutionView.swift; sourceTree = "<group>"; };
 		E587E794892C46CA67E031BD /* CreditsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreditsView.swift; sourceTree = "<group>"; };
@@ -618,6 +620,7 @@
 				D928F402AC68CC48EDBA2C3C /* AppModel+UpcomingCalendar.swift */,
 				C73F7BCE614F534711E74D26 /* AppModel+UpNext.swift */,
 				466A1D7AE26DAA41250FE59E /* AppModel+WatchEvents.swift */,
+				E41E15F0CEA1D86DF2AD8768 /* DiscoveryCatalogPagination.swift */,
 				38C95BD81EF63DE5AB21227D /* OpenTVTrackerApp.swift */,
 				37F5BE754C5B569E83074721 /* RootTabView.swift */,
 			);
@@ -950,7 +953,7 @@
 					96396D01C2F07D817EF2875C = {
 						DevelopmentTeam = C76R5DRH64;
 						ProvisioningStyle = Automatic;
-						SystemCapabilities = "[\"com.apple.Push\": [\"enabled\": 1], \"com.apple.DeviceCheck\": [\"enabled\": 1], \"com.apple.iCloud\": [\"enabled\": 1]]";
+						SystemCapabilities = "[\"com.apple.iCloud\": [\"enabled\": 1], \"com.apple.DeviceCheck\": [\"enabled\": 1], \"com.apple.Push\": [\"enabled\": 1]]";
 					};
 					B0AF29D3A827D293C2407B7B = {
 						DevelopmentTeam = C76R5DRH64;
@@ -1115,6 +1118,7 @@
 				895769957993BD0773F03855 /* DiscoverView.swift in Sources */,
 				C08CD3A230E19AC316DAF336 /* DiscoveryAssistant.swift in Sources */,
 				3011BBCB3756342618CCD1A6 /* DiscoveryAssistantView.swift in Sources */,
+				381AE4FB74812FF05E5E34C4 /* DiscoveryCatalogPagination.swift in Sources */,
 				BF1E9C091624463C6A69D761 /* EpisodeConversationView.swift in Sources */,
 				A189A502FB1E724B1C743305 /* EpisodeDetailView.swift in Sources */,
 				7E3E00001AD43A3185712E8B /* EpisodeStillArtwork.swift in Sources */,
@@ -1299,7 +1303,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = C76R5DRH64;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -1315,7 +1319,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.1.0;
+				MARKETING_VERSION = 0.1.1;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1378,7 +1382,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = C76R5DRH64;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -1400,7 +1404,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 0.1.0;
+				MARKETING_VERSION = 0.1.1;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;

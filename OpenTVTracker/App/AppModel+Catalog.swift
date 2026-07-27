@@ -94,6 +94,7 @@ extension AppModel {
             try pagination.apply(scheduled, requestedPage: 1)
 
             let indexed: [MediaTitle]
+            var indexFetchError: String?
             do {
                 let results = try await catalogService.search(
                     MediaSearchQuery(text: "", kind: nil, page: 2, region: streamingRegion)
@@ -104,6 +105,7 @@ extension AppModel {
             } catch {
                 guard discoveryCatalogRequestID == requestID else { return }
                 indexed = []
+                indexFetchError = error.localizedDescription
             }
 
             let scheduledIDs = Set(scheduled.map(\.id))
@@ -114,7 +116,7 @@ extension AppModel {
 
             discoveryCatalogPagination = pagination
             mergeCatalogTitles(scheduled + browsable)
-            discoveryCatalogError = nil
+            discoveryCatalogError = indexFetchError
         } catch {
             guard discoveryCatalogRequestID == requestID else { return }
             discoveryCatalogError = error.localizedDescription
@@ -146,6 +148,12 @@ extension AppModel {
                 discoveryCatalogPagination = pagination
             } while insertedCount == 0 && discoveryCatalogPagination.nextPage != nil
 
+            discoveryCatalogError = nil
+        } catch CatalogServiceError.notFound {
+            guard discoveryCatalogRequestID == requestID else { return }
+            var pagination = discoveryCatalogPagination
+            pagination.markExhausted()
+            discoveryCatalogPagination = pagination
             discoveryCatalogError = nil
         } catch is CancellationError {
             return
@@ -373,40 +381,5 @@ extension AppModel {
         result.seasons = details.seasons
         result.seriesLifecycle = details.seriesLifecycle ?? existing.seriesLifecycle
         return refreshedTrackingTitle(result)
-    }
-}
-
-struct DiscoveryCatalogPagination: Hashable, Sendable {
-    static let maximumPage = 20
-
-    private(set) var titles: [MediaTitle] = []
-    private(set) var loadedPages: Set<Int> = []
-    private(set) var nextPage: Int? = 1
-
-    @discardableResult
-    mutating func apply(_ results: [MediaTitle], requestedPage: Int) throws -> Int {
-        guard requestedPage == nextPage else {
-            throw DiscoveryCatalogPaginationError.unexpectedPage
-        }
-        guard !loadedPages.contains(requestedPage) else { return 0 }
-
-        var seenIDs = Set(titles.map(\.id))
-        let uniqueResults = results.filter { seenIDs.insert($0.id).inserted }
-        titles.append(contentsOf: uniqueResults)
-        loadedPages.insert(requestedPage)
-        // Page one may be an empty daily schedule while page two starts the full
-        // catalog index, so only an empty index page means the catalog is exhausted.
-        nextPage = (results.isEmpty && requestedPage > 1) || requestedPage >= Self.maximumPage
-            ? nil
-            : requestedPage + 1
-        return uniqueResults.count
-    }
-}
-
-enum DiscoveryCatalogPaginationError: LocalizedError {
-    case unexpectedPage
-
-    var errorDescription: String? {
-        "The catalog returned an unexpected page. Try again."
     }
 }
