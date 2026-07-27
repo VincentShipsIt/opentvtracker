@@ -3,6 +3,7 @@ import SwiftUI
 struct AppSettingsView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.locale) private var locale
     @AppStorage(BackupHealth.lastSuccessfulExportTimestampKey)
     private var lastSuccessfulBackupTimestamp = 0.0
     @AppStorage(EpisodeSpoilerPolicy.hidesUnwatchedDetailsKey)
@@ -33,7 +34,18 @@ struct AppSettingsView: View {
                         StreamingRegionPickerView()
                     } label: {
                         LabeledContent("Streaming region") {
-                            Text("\(model.streamingRegion.flag) \(model.streamingRegion.displayName())")
+                            Text(
+                                "\(model.streamingRegion.flag) "
+                                    + model.streamingRegion.displayName(locale: locale)
+                            )
+                        }
+                    }
+
+                    NavigationLink {
+                        ContentLanguagePickerView()
+                    } label: {
+                        LabeledContent("Content language") {
+                            Text(model.contentLanguage.displayName(locale: locale))
                         }
                     }
 
@@ -54,7 +66,7 @@ struct AppSettingsView: View {
                 } header: {
                     Text("Availability")
                 } footer: {
-                    Text("Automatic follows this iPhone's Region setting. OpenTV never requests your GPS location.")
+                    Text("Region controls local availability. Content language controls default browsing. Automatic follows this iPhone's Language & Region settings; OpenTV never requests GPS location.")
                 }
 
                 Section {
@@ -156,6 +168,7 @@ struct AppSettingsView: View {
 private struct StreamingRegionPickerView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.locale) private var locale
     @State private var searchText = ""
 
     var body: some View {
@@ -167,7 +180,7 @@ private struct StreamingRegionPickerView: View {
                 } label: {
                     RegionSelectionRow(
                         title: "Automatic",
-                        subtitle: "\(automaticRegion.flag) \(automaticRegion.displayName()) · \(automaticRegion.code)",
+                        subtitle: "\(automaticRegion.flag) \(automaticRegion.displayName(locale: locale)) · \(automaticRegion.code)",
                         isSelected: model.streamingRegionOverride == nil
                     )
                 }
@@ -181,7 +194,7 @@ private struct StreamingRegionPickerView: View {
                         select(region)
                     } label: {
                         RegionSelectionRow(
-                            title: "\(region.flag)  \(region.displayName())",
+                            title: "\(region.flag)  \(region.displayName(locale: locale))",
                             subtitle: region.code,
                             isSelected: model.streamingRegionOverride == region
                         )
@@ -197,15 +210,81 @@ private struct StreamingRegionPickerView: View {
 
     private var filteredRegions: [StreamingRegion] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty else { return StreamingRegion.available }
-        return StreamingRegion.available.filter { region in
+        let regions = StreamingRegion.available.sorted {
+            $0.displayName(locale: locale)
+                .localizedStandardCompare($1.displayName(locale: locale)) == .orderedAscending
+        }
+        guard !query.isEmpty else { return regions }
+        return regions.filter { region in
             region.code.localizedStandardContains(query)
-                || region.displayName().localizedStandardContains(query)
+                || region.displayName(locale: locale).localizedStandardContains(query)
         }
     }
 
     private func select(_ region: StreamingRegion?) {
         model.setStreamingRegionOverride(region)
+        dismiss()
+    }
+}
+
+private struct ContentLanguagePickerView: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.locale) private var locale
+    @State private var searchText = ""
+
+    var body: some View {
+        List {
+            Section {
+                let automaticLanguage = ContentLanguage.deviceDefault(locale: locale)
+                Button {
+                    select(nil)
+                } label: {
+                    RegionSelectionRow(
+                        title: "Automatic",
+                        subtitle: "\(automaticLanguage.displayName(locale: locale)) · \(automaticLanguage.code.uppercased())",
+                        isSelected: model.contentLanguageOverride == nil
+                    )
+                }
+            } footer: {
+                Text("Uses this iPhone's preferred language. Search still finds titles in every language.")
+            }
+
+            Section("Languages") {
+                ForEach(filteredLanguages) { language in
+                    Button {
+                        select(language)
+                    } label: {
+                        RegionSelectionRow(
+                            title: language.displayName(locale: locale),
+                            subtitle: language.code.uppercased(),
+                            isSelected: model.contentLanguageOverride == language
+                        )
+                    }
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .navigationTitle("Content language")
+        .navigationBarTitleDisplayMode(.inline)
+        .searchable(text: $searchText, prompt: "Language or code")
+    }
+
+    private var filteredLanguages: [ContentLanguage] {
+        let languages = ContentLanguage.available.sorted {
+            $0.displayName(locale: locale)
+                .localizedStandardCompare($1.displayName(locale: locale)) == .orderedAscending
+        }
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return languages }
+        return languages.filter { language in
+            language.code.localizedStandardContains(query)
+                || language.displayName(locale: locale).localizedStandardContains(query)
+        }
+    }
+
+    private func select(_ language: ContentLanguage?) {
+        model.setContentLanguageOverride(language)
         dismiss()
     }
 }

@@ -7,7 +7,7 @@ final class TVMazeCatalogServiceTests: XCTestCase {
         super.tearDown()
     }
 
-    func testBrowseIndexOnlyReturnsEnglishTitles() async throws {
+    func testBrowseIndexOnlyReturnsSelectedLanguageTitles() async throws {
         TestURLProtocol.handler = { request in
             XCTAssertEqual(request.url?.path, "/shows")
             XCTAssertEqual(
@@ -32,10 +32,16 @@ final class TVMazeCatalogServiceTests: XCTestCase {
         )
 
         let titles = try await service.search(
-            MediaSearchQuery(text: "", kind: nil, page: 2, region: .malta)
+            MediaSearchQuery(
+                text: "",
+                kind: nil,
+                page: 2,
+                region: .malta,
+                contentLanguage: try XCTUnwrap(ContentLanguage(code: "ru"))
+            )
         )
 
-        XCTAssertEqual(titles.map(\.title), ["English title"])
+        XCTAssertEqual(titles.map(\.title), ["Ира"])
     }
 
     func testScheduleBrowseOnlyReturnsEnglishTitles() async throws {
@@ -55,7 +61,13 @@ final class TVMazeCatalogServiceTests: XCTestCase {
         )
 
         let titles = try await service.search(
-            MediaSearchQuery(text: "", kind: nil, page: 1, region: .malta)
+            MediaSearchQuery(
+                text: "",
+                kind: nil,
+                page: 1,
+                region: .malta,
+                contentLanguage: .english
+            )
         )
 
         XCTAssertEqual(titles.map(\.title), ["English title"])

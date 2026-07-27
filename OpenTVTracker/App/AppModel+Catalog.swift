@@ -39,10 +39,6 @@ extension AppModel {
             }
     }
 
-    var streamingRegion: StreamingRegion {
-        streamingRegionOverride ?? .deviceDefault()
-    }
-
     func trackableTitleIndex(for id: MediaTitle.ID) -> Int? {
         if let index = titles.firstIndex(where: { $0.id == id }) { return index }
         guard let catalogTitle = catalogSearchResults.first(where: { $0.id == id })
@@ -86,7 +82,7 @@ extension AppModel {
 
         do {
             let scheduled = try await catalogService.search(
-                MediaSearchQuery(text: "", kind: nil, page: 1, region: streamingRegion)
+                catalogQuery(text: "", page: 1)
             )
             guard discoveryCatalogRequestID == requestID else { return }
 
@@ -97,7 +93,7 @@ extension AppModel {
             var indexFetchError: String?
             do {
                 let results = try await catalogService.search(
-                    MediaSearchQuery(text: "", kind: nil, page: 2, region: streamingRegion)
+                    catalogQuery(text: "", page: 2)
                 )
                 guard discoveryCatalogRequestID == requestID else { return }
                 try pagination.apply(results, requestedPage: 2)
@@ -139,7 +135,7 @@ extension AppModel {
             repeat {
                 guard let nextPage = discoveryCatalogPagination.nextPage else { return }
                 let results = try await catalogService.search(
-                    MediaSearchQuery(text: "", kind: nil, page: nextPage, region: streamingRegion)
+                    catalogQuery(text: "", page: nextPage)
                 )
                 guard discoveryCatalogRequestID == requestID else { return }
 
@@ -212,7 +208,8 @@ extension AppModel {
             let details = try await catalogService.title(
                 kind: existing.kind,
                 catalogID: existing.catalogID,
-                region: streamingRegion
+                region: streamingRegion,
+                contentLanguage: contentLanguage
             )
             let refreshed = mergingCatalogDetails(details, into: existing)
             // This runs on every appearance of a detail screen, so for an already-enriched
@@ -266,7 +263,7 @@ extension AppModel {
             try await Task.sleep(for: .milliseconds(250))
             guard !Task.isCancelled, catalogSearchRequestID == requestID else { return }
             let results = try await catalogService.search(
-                MediaSearchQuery(text: queryText, kind: nil, page: 1, region: streamingRegion)
+                catalogQuery(text: queryText, page: 1)
             )
             guard catalogSearchRequestID == requestID, catalogSearchQuery == queryText else { return }
             catalogSearchResults = results
@@ -296,7 +293,7 @@ extension AppModel {
         do {
             let nextPage = catalogSearchPage + 1
             let results = try await catalogService.search(
-                MediaSearchQuery(text: queryText, kind: nil, page: nextPage, region: streamingRegion)
+                catalogQuery(text: queryText, page: nextPage)
             )
             guard catalogSearchRequestID == requestID, catalogSearchQuery == queryText else { return }
             let existingIDs = Set(catalogSearchResults.map(\.id))
@@ -307,52 +304,6 @@ extension AppModel {
         } catch {
             guard catalogSearchRequestID == requestID else { return }
             catalogSearchError = error.localizedDescription
-        }
-    }
-
-    func setStreamingRegionOverride(_ region: StreamingRegion?) {
-        let previousRegion = streamingRegion
-        storeStreamingRegionOverride(region)
-        persist()
-
-        guard streamingRegion != previousRegion else { return }
-        invalidateUpcomingCalendarRefresh()
-        clearUntrackedCatalogTitles()
-        catalogSearchRequestID = UUID()
-        catalogSearchResults = []
-        catalogSearchError = nil
-        isSearchingCatalog = false
-        catalogSearchPage = 0
-        catalogSearchQuery = ""
-        hasMoreCatalogResults = false
-        discoveryCatalogRequestID = UUID()
-        discoveryCatalogPagination = DiscoveryCatalogPagination()
-        discoveryCatalogError = nil
-        isLoadingDiscoveryCatalog = false
-
-        Task {
-            await refreshDiscoveryCatalog()
-            await refreshUpcomingCalendar(force: true)
-            await refreshRecommendations()
-        }
-    }
-
-    private func clearUntrackedCatalogTitles() {
-        let listTitleIDs = lists.flatMap(\.titleIDs)
-        let sharedListTitleIDs = (sharedSpace.sharedLists ?? [])
-            .filter { !$0.isDeleted }
-            .flatMap(\.titleIDs)
-        let retainedTitleIDs = Set(sharedSpace.titleIDs + listTitleIDs + sharedListTitleIDs)
-        titles.removeAll { title in
-            title.state == .planned
-                && !title.isOnPersonalWatchlist
-                && title.userRating == nil
-                && title.notes == nil
-                && title.completedRewatches == 0
-                && title.isUpNextPinned != true
-                && title.upNextSnoozedUntil == nil
-                && title.upNextManualOrder == nil
-                && !retainedTitleIDs.contains(title.id)
         }
     }
 

@@ -7,7 +7,7 @@ protocol LibraryPersisting: Sendable {
 }
 
 struct LibraryArchiveEnvelope: Codable, Sendable {
-    static let currentSchemaVersion = 6
+    static let currentSchemaVersion = 7
 
     let schemaVersion: Int
     let exportedAt: Date
