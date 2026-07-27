@@ -40,6 +40,10 @@ final class AppModel {
     var catalogSearchPage = 0
     var catalogSearchQuery = ""
     var hasMoreCatalogResults = false
+    var discoveryCatalogPagination = DiscoveryCatalogPagination()
+    var discoveryCatalogError: String?
+    var isLoadingDiscoveryCatalog = false
+    var discoveryCatalogRequestID = UUID()
     var isRefreshingUpcomingCalendar = false
     var upcomingCalendarLastRefreshedAt: Date?
     var upcomingCalendarLastAttemptedAt: Date?

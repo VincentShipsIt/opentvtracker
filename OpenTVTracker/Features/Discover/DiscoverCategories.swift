@@ -158,7 +158,7 @@ struct DiscoveryCategoryPickerView: View {
     }
 
     private var sections: [DiscoverCategorySection] {
-        DiscoverCategorySection.available(in: model.titlesOnSelectedProviders)
+        DiscoverCategorySection.available(in: model.discoverableTitlesOnSelectedProviders)
     }
 }
 
@@ -167,7 +167,7 @@ struct DiscoverCategoryShelfView: View {
     let category: DiscoverCategory
 
     var body: some View {
-        let categoryTitles = category.titles(from: model.titlesOnSelectedProviders)
+        let categoryTitles = category.titles(from: model.discoverableTitlesOnSelectedProviders)
 
         ScrollView {
             LazyVStack(alignment: .leading, spacing: AppTheme.sectionSpacing) {

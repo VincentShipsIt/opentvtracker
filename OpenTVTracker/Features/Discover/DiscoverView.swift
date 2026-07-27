@@ -30,6 +30,7 @@ struct DiscoverView: View {
                                 .padding(.horizontal, AppTheme.horizontalPadding)
                             recommendationShelf
                             providerShelves
+                            DiscoveryCatalogBrowser(spaceMode: spaceMode)
                             discoverySkill
                         } else {
                             searchResults
@@ -292,14 +293,14 @@ private extension DiscoverView {
     }
 
     func titles(for provider: StreamingProvider) -> [MediaTitle] {
-        model.titles.filter { title in
+        model.discoverableTitles.filter { title in
             title.providers.contains(where: { $0.id == provider.id })
         }
     }
 
     var categorySections: [DiscoverCategorySection] {
         DiscoverCategorySection.available(
-            in: model.titlesOnSelectedProviders,
+            in: model.discoverableTitlesOnSelectedProviders,
             excludingLeadTitleIDs: Set(rotatedRecommendations.prefix(1).map(\.id))
         )
     }
@@ -310,6 +311,103 @@ private extension DiscoverView {
             return
         }
         presentedSheet = .trailer(trailer)
+    }
+}
+
+private struct DiscoveryCatalogBrowser: View {
+    @Environment(AppModel.self) private var model
+    let spaceMode: AppSpaceMode
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            SectionHeading(
+                title: "Browse everything",
+                subtitle: status
+            )
+
+            if model.discoveryCatalogTitles.isEmpty {
+                if model.isLoadingDiscoveryCatalog {
+                    ProgressView("Loading the catalog…")
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 24)
+                } else if let error = model.discoveryCatalogError {
+                    retryPanel(error: error)
+                } else {
+                    ContentUnavailableView(
+                        "No catalog titles available",
+                        systemImage: "rectangle.stack",
+                        description: Text("Try refreshing the catalog in a moment.")
+                    )
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 24)
+                }
+            } else {
+                AdaptiveGrid(rowSpacing: 18, columnSpacing: 14) {
+                    ForEach(model.discoveryCatalogTitles) { title in
+                        CatalogSearchCard(result: title, spaceMode: spaceMode)
+                            .task {
+                                if title.id == model.discoveryCatalogTitles.last?.id {
+                                    await model.loadMoreDiscoveryCatalog()
+                                }
+                            }
+                    }
+                }
+
+                if model.isLoadingDiscoveryCatalog {
+                    ProgressView("Loading more shows and movies…")
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                } else if let error = model.discoveryCatalogError {
+                    retryPanel(error: error)
+                } else if !model.hasMoreDiscoveryCatalogTitles {
+                    Text("You’ve reached the end of the catalog.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                }
+            }
+        }
+        .padding(.horizontal, AppTheme.horizontalPadding)
+        .accessibilityIdentifier("discover.catalog-browser")
+    }
+
+    private var status: String {
+        if model.isLoadingDiscoveryCatalog, model.discoveryCatalogTitles.isEmpty {
+            return "Loading shows and movies…"
+        }
+        if model.discoveryCatalogError != nil, model.discoveryCatalogTitles.isEmpty {
+            return "Catalog unavailable"
+        }
+        if !model.hasMoreDiscoveryCatalogTitles {
+            return "\(model.discoveryCatalogTitles.count) shows and movies loaded"
+        }
+        return "\(model.discoveryCatalogTitles.count) loaded · more appear as you scroll"
+    }
+
+    private func retryPanel(error: String) -> some View {
+        GlassSurface(tint: .orange) {
+            VStack(alignment: .leading, spacing: 12) {
+                Label("Couldn’t load more titles", systemImage: "wifi.exclamationmark")
+                    .font(.headline)
+                Text(error)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+
+                Button("Try again", systemImage: "arrow.clockwise") {
+                    Task {
+                        if model.discoveryCatalogTitles.isEmpty {
+                            await model.refreshDiscoveryCatalog()
+                        } else {
+                            await model.loadMoreDiscoveryCatalog()
+                        }
+                    }
+                }
+                .adaptiveGlassButton(prominent: true)
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
 }
 

@@ -62,6 +62,16 @@ final class CoreJourneySmokeUITests: XCTestCase {
         assertExists(app.descendants(matching: .any)["Open trailer on YouTube"])
     }
 
+    func testDiscoverBrowsesCatalogWithoutSearching() {
+        launchCoreJourneys()
+        app.tabBars.buttons["Discover"].tap()
+
+        let heading = app.staticTexts["Browse everything"]
+        scrollToElement(heading)
+        let browser = app.descendants(matching: .any)["discover.catalog-browser"]
+        assertExists(browser)
+    }
+
     func testEpisodeTrackingAppearsInPrivateDiary() {
         launchCoreJourneys()
         openFirstEpisode()
