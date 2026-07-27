@@ -54,7 +54,26 @@ struct ServerCatalogService: CatalogProviding {
     }
 
     func title(kind: MediaKind, catalogID: Int, region: StreamingRegion) async throws -> MediaTitle {
-        let url = try titleURL(kind: kind, catalogID: catalogID, region: region)
+        try await title(
+            kind: kind,
+            catalogID: catalogID,
+            region: region,
+            contentLanguage: .english
+        )
+    }
+
+    func title(
+        kind: MediaKind,
+        catalogID: Int,
+        region: StreamingRegion,
+        contentLanguage: ContentLanguage
+    ) async throws -> MediaTitle {
+        let url = try titleURL(
+            kind: kind,
+            catalogID: catalogID,
+            region: region,
+            contentLanguage: contentLanguage
+        )
         let response: CatalogTitleDTO = try await request(url)
         return response.mediaTitle
     }
@@ -82,18 +101,36 @@ struct ServerCatalogService: CatalogProviding {
             URLQueryItem(name: "q", value: query.text),
             URLQueryItem(name: "kind", value: query.kind?.rawValue),
             URLQueryItem(name: "page", value: String(max(query.page, 1))),
-            URLQueryItem(name: "region", value: query.region.code)
+            URLQueryItem(name: "region", value: query.region.code),
+            URLQueryItem(name: "language", value: query.contentLanguage.code)
         ].filter { $0.value != nil }
         guard let url = components?.url else { throw CatalogServiceError.invalidEndpoint }
         return url
     }
 
     func titleURL(kind: MediaKind, catalogID: Int, region: StreamingRegion) throws -> URL {
+        try titleURL(
+            kind: kind,
+            catalogID: catalogID,
+            region: region,
+            contentLanguage: .english
+        )
+    }
+
+    func titleURL(
+        kind: MediaKind,
+        catalogID: Int,
+        region: StreamingRegion,
+        contentLanguage: ContentLanguage
+    ) throws -> URL {
         var components = URLComponents(
             url: baseURL.appending(path: "v1/catalog/\(kind.rawValue)/\(catalogID)"),
             resolvingAgainstBaseURL: false
         )
-        components?.queryItems = [URLQueryItem(name: "region", value: region.code)]
+        components?.queryItems = [
+            URLQueryItem(name: "region", value: region.code),
+            URLQueryItem(name: "language", value: contentLanguage.code)
+        ]
         guard let url = components?.url else { throw CatalogServiceError.invalidEndpoint }
         return url
     }
@@ -162,11 +199,35 @@ struct FallbackCatalogService: CatalogProviding {
     }
 
     func title(kind: MediaKind, catalogID: Int, region: StreamingRegion) async throws -> MediaTitle {
+        try await title(
+            kind: kind,
+            catalogID: catalogID,
+            region: region,
+            contentLanguage: .english
+        )
+    }
+
+    func title(
+        kind: MediaKind,
+        catalogID: Int,
+        region: StreamingRegion,
+        contentLanguage: ContentLanguage
+    ) async throws -> MediaTitle {
         if let primary,
-           let title = try? await primary.title(kind: kind, catalogID: catalogID, region: region) {
+           let title = try? await primary.title(
+               kind: kind,
+               catalogID: catalogID,
+               region: region,
+               contentLanguage: contentLanguage
+           ) {
             return title
         }
-        return try await fallback.title(kind: kind, catalogID: catalogID, region: region)
+        return try await fallback.title(
+            kind: kind,
+            catalogID: catalogID,
+            region: region,
+            contentLanguage: contentLanguage
+        )
     }
 
     func reviews(kind: MediaKind, catalogID: Int, page: Int) async throws -> CommunityReviewPage {

@@ -227,7 +227,7 @@ export function createApp(dependencies: AppDependencies): {
             identity.trust,
           );
           const input = validateCatalogSearch(url);
-          const cacheKey = `search:${input.query}:${input.kind ?? "all"}:${input.page}:${input.region}`;
+          const cacheKey = `search:${input.query}:${input.kind ?? "all"}:${input.page}:${input.region}:${input.language}`;
           const result = await cachedJSON(
             cache,
             cacheKey,
@@ -239,6 +239,7 @@ export function createApp(dependencies: AppDependencies): {
                 input.kind,
                 input.page,
                 input.region,
+                input.language,
               ),
             }),
             config,
@@ -308,13 +309,19 @@ export function createApp(dependencies: AppDependencies): {
             identity.trust,
           );
           const input = validateCatalogTitle(catalogMatch, url);
-          const cacheKey = `title:${input.kind}:${input.id}:${input.region}`;
+          const cacheKey = `title:${input.kind}:${input.id}:${input.region}:${input.language}`;
           const result = await cachedJSON(
             cache,
             cacheKey,
             3_600_000,
             request,
-            () => tmdb.title(input.kind, input.id, input.region),
+            () =>
+              tmdb.title(
+                input.kind,
+                input.id,
+                input.region,
+                input.language,
+              ),
             config,
             "catalog-title",
           );

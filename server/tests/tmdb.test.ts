@@ -8,7 +8,16 @@ import {
   mapStreamingProvider,
   StreamingProviderID,
   TMDBProviderID,
+  tmdbLocale,
 } from "../src/tmdb";
+
+describe("tmdbLocale", () => {
+  test("expands ISO language codes to TMDB locales", () => {
+    expect(tmdbLocale("en")).toBe("en-US");
+    expect(tmdbLocale("fr")).toBe("fr-FR");
+    expect(tmdbLocale("mt")).toBe("mt-MT");
+  });
+});
 
 describe("mapAlternativeTitles", () => {
   test("deduplicates original and localized titles without returning the display title", () => {

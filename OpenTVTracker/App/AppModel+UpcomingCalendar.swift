@@ -14,6 +14,7 @@ extension AppModel {
             hasQueuedUpcomingCalendarRefresh = false
             let revision = upcomingCalendarRefreshRevision
             let region = streamingRegion
+            let language = contentLanguage
             upcomingCalendarLastAttemptedAt = .now
 
             let candidates = upcomingCalendarCandidates
@@ -24,7 +25,11 @@ extension AppModel {
 
             let results: [UpcomingCalendarTitleRefresh]
             do {
-                results = try await loadUpcomingCalendarDetails(candidates, region: region)
+                results = try await loadUpcomingCalendarDetails(
+                    candidates,
+                    region: region,
+                    contentLanguage: language
+                )
             } catch is CancellationError {
                 if revision == upcomingCalendarRefreshRevision {
                     upcomingCalendarLastAttemptedAt = nil
@@ -35,7 +40,8 @@ extension AppModel {
                 return
             }
             guard revision == upcomingCalendarRefreshRevision,
-                  region == streamingRegion else {
+                  region == streamingRegion,
+                  language == contentLanguage else {
                 continue
             }
             applyUpcomingCalendarRefresh(results)
@@ -71,7 +77,8 @@ private extension AppModel {
 
     func loadUpcomingCalendarDetails(
         _ candidates: [MediaTitle],
-        region: StreamingRegion
+        region: StreamingRegion,
+        contentLanguage: ContentLanguage
     ) async throws -> [UpcomingCalendarTitleRefresh] {
         let service = catalogService
         return try await withThrowingTaskGroup(
@@ -81,7 +88,14 @@ private extension AppModel {
             var remaining = candidates.makeIterator()
             for _ in 0..<min(candidates.count, 4) {
                 if let title = remaining.next() {
-                    group.addTask { try await refreshCalendarTitle(title, service: service, region: region) }
+                    group.addTask {
+                        try await refreshCalendarTitle(
+                            title,
+                            service: service,
+                            region: region,
+                            contentLanguage: contentLanguage
+                        )
+                    }
                 }
             }
 
@@ -89,7 +103,14 @@ private extension AppModel {
             while let value = try await group.next() {
                 values.append(value)
                 if let title = remaining.next() {
-                    group.addTask { try await refreshCalendarTitle(title, service: service, region: region) }
+                    group.addTask {
+                        try await refreshCalendarTitle(
+                            title,
+                            service: service,
+                            region: region,
+                            contentLanguage: contentLanguage
+                        )
+                    }
                 }
             }
             return values
@@ -132,13 +153,15 @@ private extension AppModel {
 private func refreshCalendarTitle(
     _ title: MediaTitle,
     service: any CatalogProviding,
-    region: StreamingRegion
+    region: StreamingRegion,
+    contentLanguage: ContentLanguage
 ) async throws -> UpcomingCalendarTitleRefresh {
     do {
         let details = try await service.title(
             kind: title.kind,
             catalogID: title.catalogID,
-            region: region
+            region: region,
+            contentLanguage: contentLanguage
         )
         return UpcomingCalendarTitleRefresh(titleID: title.id, details: details)
     } catch is CancellationError {

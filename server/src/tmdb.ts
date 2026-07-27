@@ -138,11 +138,13 @@ export class TMDBClient {
     kind: MediaKind | null,
     page: number,
     region: string,
+    language: string,
   ): Promise<CatalogTitle[]> {
+    const locale = tmdbLocale(language);
     const path = query ? "/search/multi" : "/trending/all/week";
     const params = new URLSearchParams({
       page: String(Math.max(page, 1)),
-      language: "en-US",
+      language: locale,
     });
     if (query) {
       params.set("query", query);
@@ -161,7 +163,7 @@ export class TMDBClient {
         const resolvedKind = mediaKind(item.media_type);
         const namespace = resolvedKind === "movie" ? "movie" : "tv";
         const details = await this.get<Record<string, unknown>>(
-          `/${namespace}/${item.id}?append_to_response=watch/providers,alternative_titles,translations&language=en-US`,
+          `/${namespace}/${item.id}?append_to_response=watch/providers,alternative_titles,translations&language=${locale}`,
         );
         return mapDetails(details, resolvedKind, region, null);
       }),
@@ -175,12 +177,15 @@ export class TMDBClient {
     kind: MediaKind,
     id: number,
     region: string,
+    language: string,
   ): Promise<CatalogTitle> {
+    const locale = tmdbLocale(language);
     const namespace = kind === "movie" ? "movie" : "tv";
     const details = await this.get<Record<string, unknown>>(
-      `/${namespace}/${id}?append_to_response=videos,watch/providers,reviews,alternative_titles,translations&language=en-US`,
+      `/${namespace}/${id}?append_to_response=videos,watch/providers,reviews,alternative_titles,translations&language=${locale}`,
     );
-    const seasons = kind === "series" ? await this.seasons(id, details) : null;
+    const seasons =
+      kind === "series" ? await this.seasons(id, details, locale) : null;
     return mapDetails(details, kind, region, seasons);
   }
 
@@ -219,12 +224,13 @@ export class TMDBClient {
       ),
     ];
     if (matchingIDs.length !== 1) return null;
-    return this.title(kind, matchingIDs[0]!, region);
+    return this.title(kind, matchingIDs[0]!, region, "en");
   }
 
   private async seasons(
     showID: number,
     details: Record<string, unknown>,
+    locale: string,
   ): Promise<SeasonSummary[]> {
     const listedSeasons = Array.isArray(details.seasons) ? details.seasons : [];
     const seasonNumbers = listedSeasons
@@ -235,7 +241,7 @@ export class TMDBClient {
     const settled = await Promise.allSettled(
       seasonNumbers.map((number) =>
         this.get<Record<string, unknown>>(
-          `/tv/${showID}/season/${number}?language=en-US`,
+          `/tv/${showID}/season/${number}?language=${locale}`,
         ),
       ),
     );
@@ -273,6 +279,13 @@ export class TMDBClient {
     if (!response.ok) throw new Error(`TMDB returned ${response.status}`);
     return response.json() as Promise<Response>;
   }
+}
+
+export function tmdbLocale(language: string): string {
+  const locale = new Intl.Locale(language).maximize();
+  return locale.region
+    ? `${locale.language}-${locale.region}`
+    : locale.language;
 }
 
 function mapDetails(

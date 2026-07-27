@@ -150,6 +150,7 @@ final class LibraryTransferTests: XCTestCase {
         snapshot.selectedProviderIDs = [StreamingProvider.appleTV.id]
         snapshot.allowsAIReranking = true
         snapshot.streamingRegionCode = "MT"
+        snapshot.contentLanguageCode = "fr"
         snapshot.hasCompletedFirstRun = true
 
         let data = try LibraryTransferService.exportJSON(snapshot)
@@ -164,6 +165,7 @@ final class LibraryTransferTests: XCTestCase {
         snapshot.selectedProviderIDs = [StreamingProvider.appleTV.id]
         snapshot.allowsAIReranking = true
         snapshot.streamingRegionCode = "MT"
+        snapshot.contentLanguageCode = "fr"
 
         let data = try LibraryTransferService.exportJSON(snapshot)
         let preview = try LibraryTransferService.previewImport(data, into: .empty)
@@ -232,18 +234,22 @@ final class LibraryTransferTests: XCTestCase {
         var archivedSnapshot = try XCTUnwrap(object["snapshot"] as? [String: Any])
         archivedSnapshot.removeValue(forKey: "allowsAIReranking")
         archivedSnapshot.removeValue(forKey: "streamingRegionCode")
+        archivedSnapshot.removeValue(forKey: "contentLanguageCode")
         object["snapshot"] = archivedSnapshot
         let legacyArchive = try JSONSerialization.data(withJSONObject: object)
 
         var current = LibrarySnapshot.sample
         current.allowsAIReranking = true
         current.streamingRegionCode = "MT"
+        current.contentLanguageCode = "fr"
 
         let preview = try LibraryTransferService.previewImport(legacyArchive, into: current)
 
         XCTAssertEqual(preview.snapshot.allowsAIReranking, true)
         XCTAssertEqual(preview.snapshot.streamingRegionCode, "MT")
+        XCTAssertEqual(preview.snapshot.contentLanguageCode, "fr")
         XCTAssertTrue(preview.importNotice?.contains("Streaming region keeps its current setting") == true)
+        XCTAssertTrue(preview.importNotice?.contains("Content language keeps its current setting") == true)
         XCTAssertTrue(
             preview.importNotice?.contains("AI reranking keeps its current enabled setting") == true
         )
