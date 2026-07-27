@@ -62,6 +62,41 @@ final class CoreJourneySmokeUITests: XCTestCase {
         assertExists(app.descendants(matching: .any)["Open trailer on YouTube"])
     }
 
+    func testDiscoverBrowsesCatalogWithoutSearching() {
+        launchCoreJourneys()
+        app.tabBars.buttons["Discover"].tap()
+
+        let heading = app.staticTexts["Browse everything"]
+        scrollToElement(heading)
+        let browser = app.descendants(matching: .any)["discover.catalog-browser"]
+        assertExists(browser)
+    }
+
+    func testRegionPickerKeepsCountryAndCodeOnOneRow() {
+        launchCoreJourneys()
+        app.buttons["today.settings"].tap()
+
+        let streamingRegion = app.buttons.matching(
+            NSPredicate(format: "label CONTAINS %@", "Streaming region")
+        ).firstMatch
+        assertExists(streamingRegion)
+        streamingRegion.tap()
+
+        let afghanistan = app.buttons.matching(
+            NSPredicate(
+                format: "label CONTAINS %@ AND label CONTAINS %@",
+                "Afghanistan",
+                "AF"
+            )
+        ).firstMatch
+        assertExists(afghanistan)
+        XCTAssertLessThan(
+            afghanistan.frame.height,
+            60,
+            "Expected the country name and ISO code to remain on one compact row"
+        )
+    }
+
     func testEpisodeTrackingAppearsInPrivateDiary() {
         launchCoreJourneys()
         openFirstEpisode()

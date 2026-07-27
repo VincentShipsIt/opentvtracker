@@ -5,6 +5,23 @@ extension AppModel {
         titles.filter(isAvailableOnSelectedProviders)
     }
 
+    var discoveryCatalogTitles: [MediaTitle] {
+        discoveryCatalogPagination.titles
+    }
+
+    var hasMoreDiscoveryCatalogTitles: Bool {
+        discoveryCatalogPagination.nextPage != nil
+    }
+
+    var discoverableTitles: [MediaTitle] {
+        var seenIDs: Set<MediaTitle.ID> = []
+        return (titles + discoveryCatalogTitles).filter { seenIDs.insert($0.id).inserted }
+    }
+
+    var discoverableTitlesOnSelectedProviders: [MediaTitle] {
+        discoverableTitles.filter(isAvailableOnSelectedProviders)
+    }
+
     var selectedProviders: [StreamingProvider] {
         StreamingProvider.supportedSubscriptions.filter { selectedProviderIDs.contains($0.id) }
     }
@@ -28,7 +45,9 @@ extension AppModel {
 
     func trackableTitleIndex(for id: MediaTitle.ID) -> Int? {
         if let index = titles.firstIndex(where: { $0.id == id }) { return index }
-        guard let catalogTitle = catalogSearchResults.first(where: { $0.id == id }) else { return nil }
+        guard let catalogTitle = catalogSearchResults.first(where: { $0.id == id })
+            ?? discoveryCatalogTitles.first(where: { $0.id == id })
+        else { return nil }
         titles.append(catalogTitle)
         return titles.indices.last
     }
@@ -52,16 +71,42 @@ extension AppModel {
     /// the recommendation filter then discards those for having no known service — which
     /// is why Today rendered a single card above an empty screen. Pulling the catalog
     /// index in behind the schedule gives every browse surface something real to show.
-    /// The index request is best-effort: losing it leaves the old, thin behaviour rather
-    /// than surfacing a catalog error for content the user never explicitly asked for.
+    /// The first two pages also seed a transient paginator so Discover can keep loading
+    /// without adding hundreds of untouched rows to the persisted library.
     func refreshDiscoveryCatalog() async {
+        let requestID = UUID()
+        discoveryCatalogRequestID = requestID
+        discoveryCatalogError = nil
+        isLoadingDiscoveryCatalog = true
+        defer {
+            if discoveryCatalogRequestID == requestID {
+                isLoadingDiscoveryCatalog = false
+            }
+        }
+
         do {
             let scheduled = try await catalogService.search(
                 MediaSearchQuery(text: "", kind: nil, page: 1, region: streamingRegion)
             )
-            let indexed = (try? await catalogService.search(
-                MediaSearchQuery(text: "", kind: nil, page: 2, region: streamingRegion)
-            )) ?? []
+            guard discoveryCatalogRequestID == requestID else { return }
+
+            var pagination = DiscoveryCatalogPagination()
+            try pagination.apply(scheduled, requestedPage: 1)
+
+            let indexed: [MediaTitle]
+            var indexFetchError: String?
+            do {
+                let results = try await catalogService.search(
+                    MediaSearchQuery(text: "", kind: nil, page: 2, region: streamingRegion)
+                )
+                guard discoveryCatalogRequestID == requestID else { return }
+                try pagination.apply(results, requestedPage: 2)
+                indexed = results
+            } catch {
+                guard discoveryCatalogRequestID == requestID else { return }
+                indexed = []
+                indexFetchError = error.localizedDescription
+            }
 
             let scheduledIDs = Set(scheduled.map(\.id))
             let browsable = indexed
@@ -69,10 +114,52 @@ extension AppModel {
                 .sorted { $0.rating > $1.rating }
                 .prefix(Self.discoveryCatalogLimit)
 
+            discoveryCatalogPagination = pagination
             mergeCatalogTitles(scheduled + browsable)
-            catalogSearchError = nil
+            discoveryCatalogError = indexFetchError
         } catch {
-            catalogSearchError = error.localizedDescription
+            guard discoveryCatalogRequestID == requestID else { return }
+            discoveryCatalogError = error.localizedDescription
+        }
+    }
+
+    func loadMoreDiscoveryCatalog() async {
+        guard !isLoadingDiscoveryCatalog else { return }
+        let requestID = discoveryCatalogRequestID
+        discoveryCatalogError = nil
+        isLoadingDiscoveryCatalog = true
+        defer {
+            if discoveryCatalogRequestID == requestID {
+                isLoadingDiscoveryCatalog = false
+            }
+        }
+
+        do {
+            var insertedCount = 0
+            repeat {
+                guard let nextPage = discoveryCatalogPagination.nextPage else { return }
+                let results = try await catalogService.search(
+                    MediaSearchQuery(text: "", kind: nil, page: nextPage, region: streamingRegion)
+                )
+                guard discoveryCatalogRequestID == requestID else { return }
+
+                var pagination = discoveryCatalogPagination
+                insertedCount = try pagination.apply(results, requestedPage: nextPage)
+                discoveryCatalogPagination = pagination
+            } while insertedCount == 0 && discoveryCatalogPagination.nextPage != nil
+
+            discoveryCatalogError = nil
+        } catch CatalogServiceError.notFound {
+            guard discoveryCatalogRequestID == requestID else { return }
+            var pagination = discoveryCatalogPagination
+            pagination.markExhausted()
+            discoveryCatalogPagination = pagination
+            discoveryCatalogError = nil
+        } catch is CancellationError {
+            return
+        } catch {
+            guard discoveryCatalogRequestID == requestID else { return }
+            discoveryCatalogError = error.localizedDescription
         }
     }
 
@@ -84,7 +171,7 @@ extension AppModel {
     /// not unavailable. Hiding those is what left the home screen blank. Selected
     /// services still win the ordering, they just no longer decide what exists.
     func browsableCatalogTitles(limit: Int = 24, excluding excludedIDs: Set<MediaTitle.ID> = []) -> [MediaTitle] {
-        titles
+        discoverableTitles
             .filter { title in
                 title.state == .planned
                     && !title.isOnPersonalWatchlist
@@ -106,6 +193,7 @@ extension AppModel {
     func mediaTitle(withID id: MediaTitle.ID) -> MediaTitle? {
         titles.first(where: { $0.id == id })
             ?? catalogSearchResults.first(where: { $0.id == id })
+            ?? discoveryCatalogTitles.first(where: { $0.id == id })
     }
 
     func mediaTitle(for activity: SharedActivity) -> MediaTitle? {
@@ -237,6 +325,10 @@ extension AppModel {
         catalogSearchPage = 0
         catalogSearchQuery = ""
         hasMoreCatalogResults = false
+        discoveryCatalogRequestID = UUID()
+        discoveryCatalogPagination = DiscoveryCatalogPagination()
+        discoveryCatalogError = nil
+        isLoadingDiscoveryCatalog = false
 
         Task {
             await refreshDiscoveryCatalog()

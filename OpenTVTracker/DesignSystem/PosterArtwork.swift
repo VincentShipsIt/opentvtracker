@@ -36,26 +36,26 @@ struct BackdropArtwork: View {
     /// Catalog enrichment fills `backdropURL` for titles that arrive without one, and it
     /// lands while a detail screen is still animating in. Deriving the entire presentation
     /// from that one field meant the hero tore itself down at exactly that moment: the
-    /// stand-in unblurred and unscaled from 1.22 back to 1, the `AsyncImage` reset to a
-    /// spinner because its URL had changed, and only then did the real artwork fade in.
-    /// Latching keeps the wash on screen as a floor, so the upgrade is a plain cross-fade
+    /// stand-in disappeared, the `AsyncImage` reset to a spinner because its URL had
+    /// changed, and only then did the real artwork fade in. Latching keeps the poster on
+    /// screen as a floor, so the upgrade is a plain cross-fade
     /// over something that never moves.
     @State private var hasStoodInForBackdrop = false
 
     var body: some View {
         ZStack {
-            if showsPosterWash {
-                posterWash
+            if showsPosterFloor {
+                posterFloor
             }
 
             if allowsRemoteArtwork, let backdropURL = title.backdropURL {
-                // Transparent until it has pixels, so the wash below is what shows during
+                // Transparent until it has pixels, so the poster below is what shows during
                 // the load rather than a second placeholder and spinner stacked over it.
                 NetworkArtwork(
                     url: backdropURL,
                     title: title,
                     style: .backdrop,
-                    showsPlaceholder: !showsPosterWash
+                    showsPlaceholder: !showsPosterFloor
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
@@ -81,33 +81,16 @@ struct BackdropArtwork: View {
     /// It has to be the caller's frame that decides how tall this gets, never the image:
     /// a view that sizes itself from `scaledToFill` reports the scaled height and blows the
     /// hero out of shape.
-    private var posterWash: some View {
+    private var posterFloor: some View {
         NetworkArtwork(url: title.posterURL, title: title, style: .backdrop)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            // A 2:3 poster centre-cropped into a 16:9 slot loses its top and bottom thirds
-            // — exactly where posters put their title treatment and billing block — and
-            // what survives reads as a botched crop. Blurring the stand-in turns it into an
-            // ambient wash of the title's own colours: nothing is legible, so nothing looks
-            // cut off. Wherever a hero shows the poster inset, that copy is still sharp.
-            .blur(radius: blursPosterWash ? 26 : 0)
-            // Blur samples past the edges, so the outer band fades towards transparent.
-            // Scaling up pushes that soft margin outside the frame before `clipped` trims
-            // back to it.
-            .scaleEffect(blursPosterWash ? 1.22 : 1)
     }
 
     /// Present whenever there is no landscape art to show, and kept afterwards for any
     /// hero that once had to stand one in — a floor costs nothing behind an opaque image,
     /// and removing it is what used to make the swap visible.
-    private var showsPosterWash: Bool {
-        title.backdropURL == nil || hasStoodInForBackdrop
-    }
-
-    /// True only when a real portrait poster is filling a landscape slot. The gradient
-    /// placeholder has the show's name drawn into it and offline mode always renders it, so
-    /// blurring in either case would smear text rather than artwork.
-    private var blursPosterWash: Bool {
-        allowsRemoteArtwork && title.posterURL != nil
+    private var showsPosterFloor: Bool {
+        !allowsRemoteArtwork || title.backdropURL == nil || hasStoodInForBackdrop
     }
 }
 

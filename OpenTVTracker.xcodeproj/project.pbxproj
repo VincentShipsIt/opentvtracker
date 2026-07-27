@@ -49,6 +49,7 @@
 		3665ED209FE2999C57B6EDD5 /* LibraryTransfer+Lists.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6EB226E94BBB5396B363858 /* LibraryTransfer+Lists.swift */; };
 		36F747D48C79A2C6D6111C34 /* LibraryTitleMerge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 587440EF0F60A39D3D1B1C07 /* LibraryTitleMerge.swift */; };
 		37A4DE36629ADAF568FAA41C /* BulkEpisodeTrackingUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1149FB539DE3092CD0E5999 /* BulkEpisodeTrackingUITests.swift */; };
+		381AE4FB74812FF05E5E34C4 /* DiscoveryCatalogPagination.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41E15F0CEA1D86DF2AD8768 /* DiscoveryCatalogPagination.swift */; };
 		3876A423DE47A4ABD42D783E /* CatalogImportResolutionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDCC6E021A77D2874816A3C9 /* CatalogImportResolutionTests.swift */; };
 		3E467C0CB7BC4E652ECC30BE /* reaction-mind-blown.gif in Resources */ = {isa = PBXBuildFile; fileRef = 080FC76498AF91C89A14E214 /* reaction-mind-blown.gif */; };
 		3E59E13E219DBAD767FB2AE7 /* NearbyPartnerPairingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F61F112D5E7C9F7AD8805316 /* NearbyPartnerPairingView.swift */; };
@@ -116,6 +117,7 @@
 		8FBE1948CCC94D6165FFCE6A /* SourceLinksTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111F7857D63324A855494D83 /* SourceLinksTests.swift */; };
 		90E4701848A245F463FF844B /* UpcomingCalendar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E9C099CB317443E0D3BA3CA /* UpcomingCalendar.swift */; };
 		92476DC2E86235C32D93D296 /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = B85FBD5E091BD631BD82201B /* ZIPFoundation */; };
+		92E6E82AFEE89E99D4B498DE /* TVMazeCatalogServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B99D8EC8A181C22954AE5D70 /* TVMazeCatalogServiceTests.swift */; };
 		94091C3E3C598E0EF0C9D3E1 /* AppModel+Catalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = D879B525D34A583EC530DCC6 /* AppModel+Catalog.swift */; };
 		94381F54CC0EE702720717BF /* reaction-applause.gif in Resources */ = {isa = PBXBuildFile; fileRef = 38845A40EA3603C25E5BFB16 /* reaction-applause.gif */; };
 		944FDBDD69D79B7583D13278 /* TVTimeImportHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33F80C64BADB7EE52B8202AA /* TVTimeImportHistory.swift */; };
@@ -380,6 +382,7 @@
 		B65EE8B6EC375B48749F808B /* TraktAPITransport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TraktAPITransport.swift; sourceTree = "<group>"; };
 		B6EB226E94BBB5396B363858 /* LibraryTransfer+Lists.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LibraryTransfer+Lists.swift"; sourceTree = "<group>"; };
 		B86F3C7F8062C768E588DC69 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		B99D8EC8A181C22954AE5D70 /* TVMazeCatalogServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVMazeCatalogServiceTests.swift; sourceTree = "<group>"; };
 		B9D7D53A67CE4BA0F8B7D540 /* MediaDetailActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaDetailActions.swift; sourceTree = "<group>"; };
 		B9E8BB3ECB7093326FBEC443 /* AppModel+CloudSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+CloudSync.swift"; sourceTree = "<group>"; };
 		BB94FE850617D96CC5AFAF0F /* UpNextIntentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpNextIntentTests.swift; sourceTree = "<group>"; };
@@ -414,6 +417,7 @@
 		E2F0232F7E650288BFDE8208 /* BackupHealth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupHealth.swift; sourceTree = "<group>"; };
 		E2F8946DC4EE1DAE49DC50DC /* TVTimeZIPReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVTimeZIPReader.swift; sourceTree = "<group>"; };
 		E3D33ED571ED8E1AD52A8617 /* OpenTVTrackerTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = OpenTVTrackerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		E41E15F0CEA1D86DF2AD8768 /* DiscoveryCatalogPagination.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoveryCatalogPagination.swift; sourceTree = "<group>"; };
 		E4A1BA8E78FB5386C9295F25 /* AppModel+SharedConversation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+SharedConversation.swift"; sourceTree = "<group>"; };
 		E4E9F78CC0FA2BAD8B51C84B /* TVTimeResolutionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVTimeResolutionView.swift; sourceTree = "<group>"; };
 		E587E794892C46CA67E031BD /* CreditsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreditsView.swift; sourceTree = "<group>"; };
@@ -616,6 +620,7 @@
 				D928F402AC68CC48EDBA2C3C /* AppModel+UpcomingCalendar.swift */,
 				C73F7BCE614F534711E74D26 /* AppModel+UpNext.swift */,
 				466A1D7AE26DAA41250FE59E /* AppModel+WatchEvents.swift */,
+				E41E15F0CEA1D86DF2AD8768 /* DiscoveryCatalogPagination.swift */,
 				38C95BD81EF63DE5AB21227D /* OpenTVTrackerApp.swift */,
 				37F5BE754C5B569E83074721 /* RootTabView.swift */,
 			);
@@ -777,6 +782,7 @@
 				4684938FB9CD6C2E3F022117 /* TrailerPlaybackTests.swift */,
 				2DA645E7F698A47D164EA413 /* TraktSyncEdgeCaseTests.swift */,
 				492F7F202E01B8C6716E3C59 /* TraktSyncTests.swift */,
+				B99D8EC8A181C22954AE5D70 /* TVMazeCatalogServiceTests.swift */,
 				48F9DBE470CF3D4846AD83C3 /* TVTimeImportIntegrityTests.swift */,
 				F2065415D3424E0DD1D45053 /* TVTimeImportTestDoubles.swift */,
 				8CABFCEF46F88DA76050D7FB /* TVTimeImportTests.swift */,
@@ -947,7 +953,7 @@
 					96396D01C2F07D817EF2875C = {
 						DevelopmentTeam = C76R5DRH64;
 						ProvisioningStyle = Automatic;
-						SystemCapabilities = "[\"com.apple.DeviceCheck\": [\"enabled\": 1], \"com.apple.iCloud\": [\"enabled\": 1], \"com.apple.Push\": [\"enabled\": 1]]";
+						SystemCapabilities = "[\"com.apple.iCloud\": [\"enabled\": 1], \"com.apple.DeviceCheck\": [\"enabled\": 1], \"com.apple.Push\": [\"enabled\": 1]]";
 					};
 					B0AF29D3A827D293C2407B7B = {
 						DevelopmentTeam = C76R5DRH64;
@@ -1049,6 +1055,7 @@
 				B501077FAA529AA38CE4BEB5 /* SharedEpisodeWatchDeduplicationTests.swift in Sources */,
 				8FBE1948CCC94D6165FFCE6A /* SourceLinksTests.swift in Sources */,
 				2BA54E38F0F7D473489B06CF /* StreamingRegionTests.swift in Sources */,
+				92E6E82AFEE89E99D4B498DE /* TVMazeCatalogServiceTests.swift in Sources */,
 				A35BA3D1018B13D413EBF9B0 /* TVTimeImportIntegrityTests.swift in Sources */,
 				20F98AE2CB81F187EBCA283F /* TVTimeImportTestDoubles.swift in Sources */,
 				4322EAD681A2387A362254F8 /* TVTimeImportTests.swift in Sources */,
@@ -1111,6 +1118,7 @@
 				895769957993BD0773F03855 /* DiscoverView.swift in Sources */,
 				C08CD3A230E19AC316DAF336 /* DiscoveryAssistant.swift in Sources */,
 				3011BBCB3756342618CCD1A6 /* DiscoveryAssistantView.swift in Sources */,
+				381AE4FB74812FF05E5E34C4 /* DiscoveryCatalogPagination.swift in Sources */,
 				BF1E9C091624463C6A69D761 /* EpisodeConversationView.swift in Sources */,
 				A189A502FB1E724B1C743305 /* EpisodeDetailView.swift in Sources */,
 				7E3E00001AD43A3185712E8B /* EpisodeStillArtwork.swift in Sources */,

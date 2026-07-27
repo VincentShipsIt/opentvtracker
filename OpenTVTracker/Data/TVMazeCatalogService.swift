@@ -25,6 +25,7 @@ struct TVMazeCatalogService: CatalogProviding {
                 var seenIDs: Set<Int> = []
                 return schedule
                     .map(\.embedded.show)
+                    .filter(\.isEnglish)
                     .filter { seenIDs.insert($0.id).inserted }
                     .map { $0.mediaTitle() }
             }
@@ -33,7 +34,9 @@ struct TVMazeCatalogService: CatalogProviding {
                 URLQueryItem(name: "page", value: String(max(query.page - 2, 0)))
             ])
             let shows: [TVMazeShowDTO] = try await request(url)
-            return shows.map { $0.mediaTitle() }
+            return shows
+                .filter(\.isEnglish)
+                .map { $0.mediaTitle() }
         }
 
         guard query.page <= 1 else { return [] }
@@ -200,6 +203,7 @@ private struct TVMazeShowDTO: Decodable {
     let id: Int
     let url: URL?
     let name: String
+    let language: String?
     let genres: [String]
     let runtime: Int?
     let averageRuntime: Int?
@@ -217,6 +221,7 @@ private struct TVMazeShowDTO: Decodable {
         case id
         case url
         case name
+        case language
         case genres
         case runtime
         case averageRuntime
@@ -229,6 +234,10 @@ private struct TVMazeShowDTO: Decodable {
         case image
         case summary
         case embedded = "_embedded"
+    }
+
+    var isEnglish: Bool {
+        language?.localizedCaseInsensitiveCompare("English") == .orderedSame
     }
 
     /// Both artwork arguments default to empty so the search and schedule paths, which have

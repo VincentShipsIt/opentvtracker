@@ -161,12 +161,13 @@ private struct StreamingRegionPickerView: View {
     var body: some View {
         List {
             Section {
+                let automaticRegion = StreamingRegion.deviceDefault()
                 Button {
                     select(nil)
                 } label: {
                     RegionSelectionRow(
                         title: "Automatic",
-                        subtitle: "\(StreamingRegion.deviceDefault().flag) \(StreamingRegion.deviceDefault().displayName())",
+                        subtitle: "\(automaticRegion.flag) \(automaticRegion.displayName()) · \(automaticRegion.code)",
                         isSelected: model.streamingRegionOverride == nil
                     )
                 }
@@ -216,13 +217,14 @@ private struct RegionSelectionRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title)
-                    .foregroundStyle(.primary)
-                Text(subtitle)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+            Text(title)
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+            Text(subtitle)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
             Spacer()
             Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                 .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
