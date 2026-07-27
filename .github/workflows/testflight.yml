@@ -5,12 +5,17 @@ on:
     types: [published]
   workflow_dispatch:
     inputs:
-      release_tag:
-        description: Existing vX.Y.Z tag to upload
+      source_ref:
+        description: Commit, branch, or tag on main to upload
         required: true
+        default: main
+        type: string
+      marketing_version:
+        description: Optional App Store version override (defaults to Xcode Release settings)
+        required: false
         type: string
       build_number:
-        description: Optional App Store build number override
+        description: Optional App Store build override (defaults to Xcode Release settings)
         required: false
         type: string
 
@@ -18,7 +23,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: testflight-${{ github.event.release.tag_name || inputs.release_tag }}
+  group: testflight-${{ github.event.release.tag_name || inputs.source_ref }}
   cancel-in-progress: false
 
 jobs:
@@ -28,7 +33,9 @@ jobs:
     timeout-minutes: 45
     environment: testflight
     env:
-      RELEASE_TAG: ${{ github.event.release.tag_name || inputs.release_tag }}
+      RELEASE_TAG: ${{ github.event.release.tag_name }}
+      SOURCE_REF: ${{ github.event.release.tag_name || inputs.source_ref }}
+      REQUESTED_MARKETING_VERSION: ${{ inputs.marketing_version }}
       REQUESTED_BUILD_NUMBER: ${{ inputs.build_number }}
       APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
       APPLE_API_KEY_ID: ${{ vars.APPLE_API_KEY_ID }}
@@ -52,32 +59,51 @@ jobs:
 
       - uses: actions/checkout@v6
         with:
-          ref: ${{ github.event.release.tag_name || inputs.release_tag }}
+          ref: ${{ github.event.release.tag_name || inputs.source_ref }}
           fetch-depth: 0
 
-      - name: Validate release tag and source commit
+      - name: Select Xcode
+        run: |
+          sudo xcode-select -s /Applications/Xcode_26.4.1.app
+          xcodebuild -version
+
+      - name: Resolve release source and app version
         id: release
         shell: bash
         run: |
           set -euo pipefail
-          if [[ ! "$RELEASE_TAG" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+          if [[ -n "$RELEASE_TAG" && ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "Release tag must use vX.Y.Z; received: $RELEASE_TAG" >&2
             exit 1
           fi
-          marketing_version="${BASH_REMATCH[1]}"
           git fetch origin main --no-tags
           if ! git merge-base --is-ancestor HEAD origin/main; then
-            echo "Release tag $RELEASE_TAG does not point to a commit on main." >&2
+            echo "Release source $SOURCE_REF does not point to a commit on main." >&2
+            exit 1
+          fi
+
+          build_settings="$(xcodebuild \
+            -project OpenTVTracker.xcodeproj \
+            -target OpenTVTracker \
+            -configuration Release \
+            -showBuildSettings)"
+          configured_marketing_version="$(awk -F ' = ' '/^[[:space:]]*MARKETING_VERSION = / { print $2; exit }' <<< "$build_settings")"
+          configured_build_number="$(awk -F ' = ' '/^[[:space:]]*CURRENT_PROJECT_VERSION = / { print $2; exit }' <<< "$build_settings")"
+
+          marketing_version="${REQUESTED_MARKETING_VERSION:-$configured_marketing_version}"
+          if [[ ! "$marketing_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Marketing version must use X.Y.Z; received: $marketing_version" >&2
             exit 1
           fi
           build_number="$REQUESTED_BUILD_NUMBER"
           if [[ -z "$build_number" ]]; then
-            build_number="$((100000 + GITHUB_RUN_NUMBER * 100 + GITHUB_RUN_ATTEMPT))"
+            build_number="$configured_build_number"
           fi
-          if [[ ! "$build_number" =~ ^[1-9][0-9]*$ ]]; then
-            echo "Build number must be a positive integer; received: $build_number" >&2
+          if [[ ! "$build_number" =~ ^[1-9][0-9]*(\.[0-9]+){0,2}$ ]]; then
+            echo "Build number must contain one to three integer components with a positive leading component; received: $build_number" >&2
             exit 1
           fi
+          echo "Resolved App Store version $marketing_version ($build_number) from $SOURCE_REF."
           echo "marketing_version=$marketing_version" >> "$GITHUB_OUTPUT"
           echo "build_number=$build_number" >> "$GITHUB_OUTPUT"
 
@@ -88,11 +114,6 @@ jobs:
           # Keep this on one line: a column-zero Python body would terminate the YAML
           # block scalar and make the workflow undispatchable.
           python3 -c 'import plistlib,sys; expected={"UIInterfaceOrientationPortrait","UIInterfaceOrientationPortraitUpsideDown","UIInterfaceOrientationLandscapeLeft","UIInterfaceOrientationLandscapeRight"}; plist=plistlib.load(open("Config/Info.plist","rb")); keys=("UISupportedInterfaceOrientations","UISupportedInterfaceOrientations~ipad"); missing={key:sorted(expected-set(plist.get(key,[]))) for key in keys}; failures=[key+": "+", ".join(values) for key,values in missing.items() if values]; sys.exit("Config/Info.plist is missing required orientations: "+"; ".join(failures)) if failures else None'
-
-      - name: Select Xcode
-        run: |
-          sudo xcode-select -s /Applications/Xcode_26.4.1.app
-          xcodebuild -version
 
       - name: Validate release credentials
         env:
