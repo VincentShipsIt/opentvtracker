@@ -1,0 +1,6 @@
+# BEGIN OPENTVTRACKER
+api.opentvtracker.dev {
+	encode zstd gzip
+	reverse_proxy api-opentvtracker-dev:8787
+}
+# END OPENTVTRACKER

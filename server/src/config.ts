@@ -3,6 +3,7 @@ export type AppAttestMode = "production" | "development" | "test";
 export type ServerConfig = {
   port: number;
   tmdbToken?: string;
+  databaseURL?: string;
   appAttest: {
     mode: AppAttestMode;
     teamID: string;
@@ -29,6 +30,7 @@ export function loadConfig(
   const mode = appAttestMode(env.APP_ATTEST_MODE);
   const config: ServerConfig = {
     port: boundedInteger(env.PORT, 8787, 1, 65_535),
+    databaseURL: nonempty(env.DATABASE_URL),
     tmdbToken: nonempty(
       env.TMDB_READ_ACCESS_TOKEN ?? env.TMDB_API_READ_ACCESS_TOKEN,
     ),
@@ -69,6 +71,7 @@ export function loadConfig(
       ["APP_ATTEST_BUNDLE_ID", config.appAttest.bundleID],
       ["APP_ATTEST_TOKEN_SECRET", config.appAttest.tokenSecret],
       ["TMDB_READ_ACCESS_TOKEN", config.tmdbToken],
+      ["DATABASE_URL", config.databaseURL],
     ]
       .filter((entry) => !entry[1])
       .map((entry) => entry[0]);

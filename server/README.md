@@ -10,8 +10,10 @@ Protected catalog/cinema requests require an official App Attest key, a valid sh
 - `APP_ATTEST_TEAM_ID` — Apple Team/App ID prefix
 - `APP_ATTEST_BUNDLE_ID` — official app bundle ID
 - `APP_ATTEST_TOKEN_SECRET` — at least 32 random characters
-- `APP_ATTEST_STATE_PATH` — persistent, single-writer device-key/counter JSON path
+- `DATABASE_URL` — PostgreSQL storage for App Attest device keys and counters
 - `TMDB_READ_ACCESS_TOKEN` — dedicated read-only token for this service
+
+`APP_ATTEST_STATE_PATH` remains available only for development and test environments without `DATABASE_URL`. Production uses PostgreSQL so assertion-counter updates remain atomic across restarts and multiple API instances. The database contains no accounts, watch history, taste profile, or recommendation data.
 
 Optional TTLs default to 60 seconds for challenges and 10 minutes for tokens. Native iOS clients do not need CORS. If `CORS_ALLOWED_ORIGIN` is set, it permits one exact origin but does not change App Attest authorization.
 
@@ -47,9 +49,9 @@ Start with `bun run dev`. The repository-root Dockerfile runs the same service.
 
 `POST /v1/recommendations/rerank` does not exist. OpenRouter traffic goes directly from the iOS app using each user's Keychain credential.
 
-## Render
+## Production
 
-Use a single service instance or a shared transactional device store before scaling horizontally. Mount a persistent disk and point `APP_ATTEST_STATE_PATH` to it (for example `/var/data/opentv/app-attest-devices.json`). Set `/health` as the health check. Put an edge/WAF rate limit in front of Render, keep origin quotas enabled, and do not enable shared caching ahead of App Attest.
+The official service runs at `https://api.opentvtracker.dev` in the `api-opentvtracker-dev` container on the shared shipshit.dev EC2 host. PostgreSQL is the only shared state. Set `/health` as the health check, keep origin quotas enabled, and do not enable shared caching ahead of App Attest.
 
 Set the official app's ignored configuration to the HTTPS service origin. Forks must deploy their own instance with their own Team ID, bundle ID, provider token, storage, quotas, and domain.
 
