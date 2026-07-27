@@ -130,6 +130,20 @@ final class CloudSharingModelTests: XCTestCase {
         XCTAssertFalse(error.localizedDescription.contains("record"))
     }
 
+    func testCloudKitPrivateInvitationCreatesAnonymousReadWriteParticipant() {
+        let participant = CloudKitPartnerSharingService.makePrivateInvitationParticipant()
+
+        XCTAssertEqual(participant.permission, .readWrite)
+        XCTAssertNil(participant.userIdentity.lookupInfo)
+    }
+
+    func testCloudKitPrivateInvitationsUseDistinctParticipants() {
+        let first = CloudKitPartnerSharingService.makePrivateInvitationParticipant()
+        let second = CloudKitPartnerSharingService.makePrivateInvitationParticipant()
+
+        XCTAssertNotEqual(first.participantID, second.participantID)
+    }
+
     func testCloudKitSharingFailuresHaveActionSpecificMessages() {
         XCTAssertEqual(
             PartnerSharingError.acceptanceUnavailable.localizedDescription,

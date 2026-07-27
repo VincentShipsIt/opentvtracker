@@ -80,8 +80,8 @@ struct CloudKitPartnerSharingService: PartnerSharingProviding {
         try await ensureZone(zoneID, database: database)
 
         let rootID = CKRecord.ID(recordName: "space-root", zoneID: zoneID)
-        if let existingURL = try await existingShareURL(rootID: rootID, database: database) {
-            return existingURL
+        if let existingShare = try await existingShare(rootID: rootID, database: database) {
+            return try await addInvitationParticipant(to: existingShare, database: database)
         }
 
         let root = CKRecord(recordType: "PartnerSpace", recordID: rootID)
@@ -102,17 +102,36 @@ struct CloudKitPartnerSharingService: PartnerSharingProviding {
                 atomically: true
             )
             guard let shareResult = result.saveResults[share.recordID],
-                  let savedShare = try shareResult.get() as? CKShare,
-                  let url = savedShare.url else {
+                  let savedShare = try shareResult.get() as? CKShare else {
                 throw PartnerSharingError.invitationUnavailable
             }
-            return url
+            return try await addInvitationParticipant(to: savedShare, database: database)
         } catch {
-            if let existingURL = try? await existingShareURL(rootID: rootID, database: database) {
-                return existingURL
+            if let existingShare = try? await existingShare(rootID: rootID, database: database) {
+                return try await addInvitationParticipant(to: existingShare, database: database)
             }
             throw error
         }
+    }
+
+    private func addInvitationParticipant(to share: CKShare, database: CKDatabase) async throws -> URL {
+        guard share.publicPermission == .none else {
+            throw PartnerSharingError.invitationUnavailable
+        }
+        let participant = Self.makePrivateInvitationParticipant()
+        share.addParticipant(participant)
+        let result = try await database.modifyRecords(
+            saving: [share],
+            deleting: [],
+            savePolicy: .ifServerRecordUnchanged,
+            atomically: true
+        )
+        guard let shareResult = result.saveResults[share.recordID],
+              let savedShare = try shareResult.get() as? CKShare,
+              let url = savedShare.oneTimeURL(for: participant.participantID) else {
+            throw PartnerSharingError.invitationUnavailable
+        }
+        return url
     }
 
     private func ensureZone(_ zoneID: CKRecordZone.ID, database: CKDatabase) async throws {
@@ -121,14 +140,20 @@ struct CloudKitPartnerSharingService: PartnerSharingProviding {
         _ = try await database.modifyRecordZones(saving: [CKRecordZone(zoneID: zoneID)], deleting: [])
     }
 
-    private func existingShareURL(rootID: CKRecord.ID, database: CKDatabase) async throws -> URL? {
+    private func existingShare(rootID: CKRecord.ID, database: CKDatabase) async throws -> CKShare? {
         let results = try await database.records(for: [rootID])
         guard let result = results[rootID], let root = try? result.get(),
               let reference = root[CKRecord.SystemFieldKey.share] as? CKRecord.Reference else { return nil }
         let shareResults = try await database.records(for: [reference.recordID])
         guard let shareResult = shareResults[reference.recordID],
               let share = try? shareResult.get() as? CKShare else { return nil }
-        return share.url
+        return share
+    }
+
+    static func makePrivateInvitationParticipant() -> CKShare.Participant {
+        let participant = CKShare.Participant.oneTimeURLParticipant()
+        participant.permission = .readWrite
+        return participant
     }
 
     static func zoneID(for spaceID: SharedSpace.ID) -> CKRecordZone.ID {
