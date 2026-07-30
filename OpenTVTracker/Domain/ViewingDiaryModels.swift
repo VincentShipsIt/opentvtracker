@@ -100,12 +100,12 @@ enum ViewingDiaryMigration {
     static func resolvedEntries(from snapshot: LibrarySnapshot) -> [ViewingDiaryEntry] {
         if let diaryEntries = snapshot.diaryEntries { return diaryEntries }
 
-        let currentMemberID = snapshot.sharedSpace.members.first(where: \.isCurrentUser)?.id ?? "local-user"
+        let currentMemberID = snapshot.sharedSpace.resolvedCurrentMemberID
         let events = snapshot.sharedSpace.watchEvents ?? []
         let supersededIDs = Set(events.compactMap { event in
             event.kind == .correction ? event.supersedesEventID : nil
         })
-        let titlesByID = Dictionary(uniqueKeysWithValues: snapshot.titles.map { ($0.id, $0) })
+        let titlesByID = snapshot.titles.keyedByKeepingFirst(\.id)
 
         return events.compactMap { event in
             guard event.memberID == currentMemberID,

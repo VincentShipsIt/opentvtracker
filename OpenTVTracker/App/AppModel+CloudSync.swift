@@ -51,7 +51,7 @@ extension AppModel {
                 scope: context.scope
               ),
               var remoteSpace = try? JSONDecoder.openTV.decode(SharedSpace.self, from: payload) else { return }
-        let currentMemberID = sharedSpace.members.first(where: \.isCurrentUser)?.id
+        let currentMemberID = sharedSpace.currentMemberID
         let newConversationEvents = newConversationEvents(in: remoteSpace)
         remoteSpace.members = mergingMembers(
             remote: remoteSpace.members,
@@ -137,7 +137,7 @@ extension AppModel {
         local: [SpaceMember],
         currentMemberID: SpaceMember.ID?
     ) -> [SpaceMember] {
-        var membersByID = Dictionary(uniqueKeysWithValues: remote.map { ($0.id, $0) })
+        var membersByID = remote.keyedByKeepingLast(\.id)
         for member in local {
             membersByID[member.id] = member
         }
@@ -157,7 +157,7 @@ extension AppModel {
         remote: [SharedMediaList],
         local: [SharedMediaList]
     ) -> [SharedMediaList] {
-        var valuesByID = Dictionary(uniqueKeysWithValues: local.map { ($0.id, $0) })
+        var valuesByID = local.keyedByKeepingLast(\.id)
         for list in remote where list.updatedAt > (valuesByID[list.id]?.updatedAt ?? .distantPast) {
             valuesByID[list.id] = list
         }
@@ -173,7 +173,7 @@ extension AppModel {
         remote: [MediaTitle],
         local: [MediaTitle]
     ) -> [MediaTitle] {
-        var valuesByID = Dictionary(uniqueKeysWithValues: local.map { ($0.id, $0) })
+        var valuesByID = local.keyedByKeepingLast(\.id)
         for title in remote {
             valuesByID[title.id] = title
         }

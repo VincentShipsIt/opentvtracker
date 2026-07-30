@@ -335,6 +335,17 @@ struct SharedSpace: Codable, Hashable, Identifiable, Sendable {
     var resolvedMembershipState: SharedMembershipState {
         membershipState ?? (isCloudSharingEnabled ? .accepted : .local)
     }
+
+    /// Stable local identity used when no partner membership is present.
+    static let localMemberID: SpaceMember.ID = "local-user"
+
+    var currentMemberID: SpaceMember.ID? {
+        members.first(where: \.isCurrentUser)?.id
+    }
+
+    var resolvedCurrentMemberID: SpaceMember.ID {
+        currentMemberID ?? Self.localMemberID
+    }
 }
 // swiftlint:enable implicit_optional_initialization
 

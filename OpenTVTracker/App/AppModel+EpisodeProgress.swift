@@ -101,7 +101,7 @@ private extension AppModel {
                 && event.season == season.number
                 && event.episode == episode.number
         }
-        let currentMemberID = sharedSpace.members.first(where: \.isCurrentUser)?.id
+        let currentMemberID = sharedSpace.currentMemberID
         var conversationEvent = existingEvents.first { $0.memberID == currentMemberID }
             ?? existingEvents.first
         let membersWithEvents = Set(existingEvents.map(\.memberID))

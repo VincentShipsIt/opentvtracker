@@ -39,25 +39,13 @@ extension AppModel {
             }
     }
 
-    func trackableTitleIndex(for id: MediaTitle.ID) -> Int? {
-        if let index = titles.firstIndex(where: { $0.id == id }) { return index }
-        guard let catalogTitle = catalogSearchResults.first(where: { $0.id == id })
-            ?? discoveryCatalogTitles.first(where: { $0.id == id })
-        else { return nil }
-        titles.append(catalogTitle)
-        return titles.indices.last
-    }
-
     func mergeCatalogTitles(_ catalogTitles: [MediaTitle]) {
-        titles = merging(savedTitles: titles, catalogTitles: catalogTitles)
+        titles = LibraryTitleIndex.deduplicated(merging(savedTitles: titles, catalogTitles: catalogTitles))
     }
 
-    /// How many index titles a refresh keeps beyond today's premieres.
-    ///
-    /// `titles` is what gets persisted in the snapshot, and the catalog index returns
-    /// hundreds of shows per page, so the whole page cannot simply be merged. Untracked
-    /// catalog rows are disposable — `clearUntrackedCatalogTitles` already drops them on
-    /// a region change — but the cap is what keeps the store from growing every launch.
+    /// How many index titles a refresh keeps beyond today's premieres in the *transient*
+    /// discovery cache. Browse rows stay out of the persisted personal library until the
+    /// user tracks them (`ensureTrackableTitleIndex`).
     static let discoveryCatalogLimit = 90
 
     /// Fills the browse pool the home and Discover screens read from.
@@ -67,8 +55,8 @@ extension AppModel {
     /// the recommendation filter then discards those for having no known service — which
     /// is why Today rendered a single card above an empty screen. Pulling the catalog
     /// index in behind the schedule gives every browse surface something real to show.
-    /// The first two pages also seed a transient paginator so Discover can keep loading
-    /// without adding hundreds of untouched rows to the persisted library.
+    /// Results live only in `discoveryCatalogPagination` so launch/export does not grow
+    /// the durable library with untouched browse rows.
     func refreshDiscoveryCatalog() async {
         let requestID = UUID()
         discoveryCatalogRequestID = requestID
@@ -105,13 +93,17 @@ extension AppModel {
             }
 
             let scheduledIDs = Set(scheduled.map(\.id))
-            let browsable = indexed
+            let prioritized = scheduled
+                + indexed
                 .filter { !scheduledIDs.contains($0.id) && $0.posterURL != nil }
                 .sorted { $0.rating > $1.rating }
-                .prefix(Self.discoveryCatalogLimit)
-
-            discoveryCatalogPagination = pagination
-            mergeCatalogTitles(scheduled + browsable)
+            let limited = Array(
+                CollectionUniquing.uniqued(prioritized, by: \.id).prefix(Self.discoveryCatalogLimit)
+            )
+            var capped = DiscoveryCatalogPagination()
+            capped.replaceTitles(limited, preservingCursorFrom: pagination)
+            // Browse rows stay in the transient cache only — never the durable library.
+            discoveryCatalogPagination = capped
             discoveryCatalogError = indexFetchError
         } catch {
             guard discoveryCatalogRequestID == requestID else { return }
@@ -187,8 +179,10 @@ extension AppModel {
     }
 
     func mediaTitle(withID id: MediaTitle.ID) -> MediaTitle? {
-        titles.first(where: { $0.id == id })
-            ?? catalogSearchResults.first(where: { $0.id == id })
+        if let index = titleIndex(for: id) {
+            return titles[index]
+        }
+        return catalogSearchResults.first(where: { $0.id == id })
             ?? discoveryCatalogTitles.first(where: { $0.id == id })
     }
 
@@ -216,17 +210,24 @@ extension AppModel {
             // title the merge usually reproduces exactly what is on screen. Writing it back
             // anyway re-rendered the whole screen — and re-persisted the library — in the
             // middle of the push animation, for no change at all.
-            if refreshed != existing, let index = trackableTitleIndex(for: id) {
-                titles[index] = refreshed
-                if isShared(id) || isTitleSharedViaList(id) {
-                    prepareSharedTitleMetadataForSync()
-                    syncSharedStateSoon()
+            if refreshed != existing {
+                if let index = titleIndex(for: id) {
+                    // Only update library rows in place — never promote browse-only titles
+                    // just because the detail screen enriched metadata.
+                    titles[index] = refreshed
+                    if isShared(id) || isTitleSharedViaList(id) {
+                        prepareSharedTitleMetadataForSync()
+                        syncSharedStateSoon()
+                    }
+                    persist()
                 }
-                persist()
-            }
-            if let index = catalogSearchResults.firstIndex(where: { $0.id == id }),
-               catalogSearchResults[index] != refreshed {
-                catalogSearchResults[index] = refreshed
+                if let index = catalogSearchResults.firstIndex(where: { $0.id == id }),
+                   catalogSearchResults[index] != refreshed {
+                    catalogSearchResults[index] = refreshed
+                }
+                var pagination = discoveryCatalogPagination
+                pagination.updateTitle(refreshed)
+                discoveryCatalogPagination = pagination
             }
         } catch {
             catalogSearchError = error.localizedDescription

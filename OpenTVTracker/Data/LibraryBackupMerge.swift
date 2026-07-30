@@ -109,7 +109,7 @@ enum LibraryBackupMerge {
         into current: [SharedMediaList]?
     ) -> [SharedMediaList]? {
         guard imported != nil || current != nil else { return nil }
-        var valuesByID = Dictionary(uniqueKeysWithValues: (current ?? []).map { ($0.id, $0) })
+        var valuesByID = CollectionUniquing.dictionary(keepingLast: (current ?? []).map { ($0.id, $0) })
         for list in imported ?? [] where list.updatedAt > (valuesByID[list.id]?.updatedAt ?? .distantPast) {
             valuesByID[list.id] = list
         }
