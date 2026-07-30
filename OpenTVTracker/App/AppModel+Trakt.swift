@@ -69,8 +69,8 @@ extension AppModel {
         current: [MediaTitle],
         synced: [MediaTitle]
     ) -> [MediaTitle] {
-        let baselineByID = Dictionary(uniqueKeysWithValues: baseline.map { ($0.id, $0) })
-        let currentByID = Dictionary(uniqueKeysWithValues: current.map { ($0.id, $0) })
+        let baselineByID = baseline.keyedByKeepingFirst(\.id)
+        let currentByID = current.keyedByKeepingFirst(\.id)
         var merged = synced.compactMap { syncedTitle -> MediaTitle? in
             guard let baselineTitle = baselineByID[syncedTitle.id] else {
                 return currentByID[syncedTitle.id] ?? syncedTitle

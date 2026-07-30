@@ -49,7 +49,7 @@ enum ViewingAnalyticsEngine {
         snapshot: LibrarySnapshot,
         scope: ViewingAnalyticsScope
     ) -> ViewingAnalyticsSummary {
-        let titleByID = Dictionary(uniqueKeysWithValues: snapshot.titles.map { ($0.id, $0) })
+        let titleByID = snapshot.titles.keyedByKeepingFirst(\.id)
         let validEvents = validEvents(in: snapshot.sharedSpace)
         let result: AnalyticsResult
 
@@ -110,7 +110,7 @@ private extension ViewingAnalyticsEngine {
         titleByID: [MediaTitle.ID: MediaTitle],
         space: SharedSpace
     ) -> AnalyticsResult {
-        let memberID = space.members.first(where: \.isCurrentUser)?.id ?? "local-user"
+        let memberID = space.resolvedCurrentMemberID
         let personalEvents = events.filter { $0.memberID == memberID }
         var plays = personalEvents.compactMap { event -> ViewingPlay? in
             guard let title = titleByID[event.titleID] else { return nil }
@@ -290,7 +290,7 @@ private extension ViewingAnalyticsEngine {
         for plays: [ViewingPlay],
         members: [SpaceMember]
     ) -> [ViewingAnalyticsMetric] {
-        let namesByID = Dictionary(uniqueKeysWithValues: members.map { ($0.id, $0.name) })
+        let namesByID = CollectionUniquing.dictionary(keepingFirst: members.map { ($0.id, $0.name) })
         let minutes = plays.reduce(into: [String: Int]()) { result, play in
             for memberID in play.memberIDs {
                 result[memberID, default: 0] += play.runtimeMinutes

@@ -155,7 +155,7 @@ struct ActivityCard: View {
     }
 
     private var currentReaction: SharedReaction? {
-        let currentMemberID = space.members.first(where: \.isCurrentUser)?.id
+        let currentMemberID = space.currentMemberID
         if let watchEventID = activity.watchEventID {
             return model.sharedSpace.reactions?.last { reaction in
                 reaction.watchEventID == watchEventID && reaction.memberID == currentMemberID

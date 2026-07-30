@@ -328,7 +328,7 @@ private extension AppModel {
         let supersededIDs = Set(events.compactMap { event in
             event.kind == .correction ? event.supersedesEventID : nil
         })
-        let memberID = sharedSpace.members.first(where: \.isCurrentUser)?.id ?? "local-user"
+        let memberID = currentMemberID
         let matchingEvents = events.filter { event in
             event.titleID == title.id
                 && event.memberID == memberID

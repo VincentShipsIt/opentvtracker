@@ -76,7 +76,7 @@ struct OpenRouterRecommendationService: Sendable {
               Set(rankedIDs) == allowedIDs else {
             throw OpenRouterRecommendationError.invalidRanking
         }
-        let rank = Dictionary(uniqueKeysWithValues: rankedIDs.enumerated().map { ($0.element, $0.offset) })
+        let rank = CollectionUniquing.dictionary(keepingLast: rankedIDs.enumerated().map { ($0.element, $0.offset) })
         return recommendations.sorted {
             (rank[$0.title.catalogID] ?? .max) < (rank[$1.title.catalogID] ?? .max)
         }

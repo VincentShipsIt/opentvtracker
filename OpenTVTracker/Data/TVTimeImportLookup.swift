@@ -10,7 +10,7 @@ struct TVTimeMergeState {
     init(snapshot: LibrarySnapshot) {
         existingEventIDs = Set((snapshot.sharedSpace.watchEvents ?? []).map(\.id))
         existingDiaryIDs = Set((snapshot.diaryEntries ?? []).map(\.id))
-        memberID = snapshot.sharedSpace.members.first(where: \.isCurrentUser)?.id ?? "local-user"
+        memberID = snapshot.sharedSpace.resolvedCurrentMemberID
         titleIDs = Set(snapshot.sharedSpace.titleIDs)
         titleLookup = TVTimeMediaTitleLookup(snapshot.titles)
     }

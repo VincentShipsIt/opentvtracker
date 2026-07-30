@@ -27,6 +27,19 @@ struct DiscoveryCatalogPagination: Hashable, Sendable {
     mutating func markExhausted() {
         nextPage = nil
     }
+
+    /// Rebuilds the in-memory browse cache while preserving pagination cursors.
+    mutating func replaceTitles(_ newTitles: [MediaTitle], preservingCursorFrom other: DiscoveryCatalogPagination) {
+        titles = CollectionUniquing.uniqued(newTitles, by: \.id)
+        loadedPages = other.loadedPages
+        nextPage = other.nextPage
+    }
+
+    /// Updates a single cached title in place without changing pagination state.
+    mutating func updateTitle(_ title: MediaTitle) {
+        guard let index = titles.firstIndex(where: { $0.id == title.id }) else { return }
+        titles[index] = title
+    }
 }
 
 enum DiscoveryCatalogPaginationError: LocalizedError {

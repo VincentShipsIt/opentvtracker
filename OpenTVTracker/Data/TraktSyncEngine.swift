@@ -67,7 +67,7 @@ enum TraktSyncEngine {
         let currentWatchlist = watchlist(in: snapshot)
         let watchlistCount = currentWatchlist.symmetricDifference(state.syncedWatchlist).count
         let currentRatings = ratings(in: snapshot)
-        let baselineRatings = Dictionary(uniqueKeysWithValues: state.syncedRatings.map { ($0.media, $0.rating) })
+        let baselineRatings = CollectionUniquing.dictionary(keepingLast: state.syncedRatings.map { ($0.media, $0.rating) })
         let ratingKeys = Set(currentRatings.keys).union(baselineRatings.keys)
         let ratingCount = ratingKeys.lazy.filter { currentRatings[$0] != baselineRatings[$0] }.count
         return historyCount + watchlistCount + ratingCount
@@ -149,7 +149,7 @@ private extension TraktSyncEngine {
             guard title.catalogID > 0, let rating = title.userRating else { return }
             result[TraktMediaKey(kind: title.kind, tmdbID: title.catalogID)] = rating
         }
-        let baselineRatings = Dictionary(uniqueKeysWithValues: baseline.map { ($0.media, $0.rating) })
+        let baselineRatings = CollectionUniquing.dictionary(keepingLast: baseline.map { ($0.media, $0.rating) })
         let remoteRatings = latestRemoteRatings(remote)
         let keys = Set(localRatings.keys)
             .union(baselineRatings.keys)

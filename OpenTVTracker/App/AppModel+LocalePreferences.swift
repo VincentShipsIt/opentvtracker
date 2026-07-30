@@ -69,6 +69,8 @@ extension AppModel {
             .filter { !$0.isDeleted }
             .flatMap(\.titleIDs)
         let retainedTitleIDs = Set(sharedSpace.titleIDs + listTitleIDs + sharedListTitleIDs)
+        // Keep only rows the user has actually touched (or that belong to shared/list sets).
+        // Discovery browse lives in discoveryCatalogPagination and is already cleared above.
         titles.removeAll { title in
             title.state == .planned
                 && !title.isOnPersonalWatchlist
@@ -78,6 +80,9 @@ extension AppModel {
                 && title.isUpNextPinned != true
                 && title.upNextSnoozedUntil == nil
                 && title.upNextManualOrder == nil
+                && (title.watchedEpisodeIDs ?? []).isEmpty
+                && title.progress == nil
+                && title.lastWatchedAt == nil
                 && !retainedTitleIDs.contains(title.id)
         }
     }

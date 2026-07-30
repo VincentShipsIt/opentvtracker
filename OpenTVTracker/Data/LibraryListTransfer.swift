@@ -6,7 +6,7 @@ enum LibraryListTransferService {
             "list_id", "list_name", "list_position", "item_position",
             "title_id", "catalog_id", "title", "year", "kind"
         ]
-        let titlesByID = Dictionary(uniqueKeysWithValues: snapshot.titles.map { ($0.id, $0) })
+        let titlesByID = snapshot.titles.keyedByKeepingFirst(\.id)
         let rows = (snapshot.lists ?? []).enumerated().flatMap { listPosition, list in
             if list.titleIDs.isEmpty {
                 return [[

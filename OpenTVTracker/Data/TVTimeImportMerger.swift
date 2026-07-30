@@ -269,8 +269,8 @@ private struct PreviewMergeTotals {
     var listCount = 0
     var listMembershipCount = 0
     var skippedCount: Int
-    var destinationCounts = Dictionary(
-        uniqueKeysWithValues: ImportMetricCategory.allCases.map { ($0, 0) }
+    var destinationCounts = CollectionUniquing.dictionary(
+        keepingFirst: ImportMetricCategory.allCases.map { ($0, 0) }
     )
 
     mutating func add(_ result: EntityMergeResult) {

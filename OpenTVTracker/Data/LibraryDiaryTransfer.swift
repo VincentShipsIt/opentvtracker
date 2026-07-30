@@ -6,7 +6,7 @@ extension LibraryTransferService {
         titleIDMap: [MediaTitle.ID: MediaTitle.ID],
         destinationTitles: [MediaTitle]
     ) -> [ViewingDiaryEntry] {
-        let titlesByID = Dictionary(uniqueKeysWithValues: destinationTitles.map { ($0.id, $0) })
+        let titlesByID = destinationTitles.keyedByKeepingFirst(\.id)
         return entries.map { entry in
             let destinationTitleID = titleIDMap[entry.titleID] ?? entry.titleID
             let destinationTitle = titlesByID[destinationTitleID]
@@ -37,7 +37,7 @@ extension LibraryTransferService {
         current: [ViewingDiaryEntry],
         imported: [ViewingDiaryEntry]
     ) -> [ViewingDiaryEntry] {
-        var entriesByID = Dictionary(uniqueKeysWithValues: current.map { ($0.id, $0) })
+        var entriesByID = current.keyedByKeepingFirst(\.id)
         for entry in imported {
             if let existing = entriesByID[entry.id], existing.updatedAt > entry.updatedAt {
                 continue
@@ -84,7 +84,7 @@ extension LibraryTransferService {
         let normalizedHeader = header.map(normalizedHeaderName)
         let validTitleIDs = Set(current.titles.map(\.id))
         var merged = current
-        var entriesByID = Dictionary(uniqueKeysWithValues: (current.diaryEntries ?? []).map { ($0.id, $0) })
+        var entriesByID = CollectionUniquing.dictionary(keepingLast: (current.diaryEntries ?? []).map { ($0.id, $0) })
         var seen = Set<ViewingDiaryEntry.ID>()
         var matched = 0
         var added = 0

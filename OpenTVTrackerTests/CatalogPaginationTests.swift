@@ -80,8 +80,13 @@ final class CatalogPaginationTests: XCTestCase {
             slowHorses.id,
         ])
         XCTAssertEqual(model.discoveryCatalogPagination.nextPage, 4)
+        // Discovery rows are readable without entering the durable library.
         XCTAssertEqual(model.mediaTitle(withID: slowHorses.id)?.id, slowHorses.id)
-        XCTAssertNotNil(model.trackableTitleIndex(for: slowHorses.id))
+        XCTAssertNil(model.titleIndex(for: slowHorses.id))
+        XCTAssertFalse(model.titles.contains(where: { $0.id == slowHorses.id }))
+        // Explicit promote path is what tracking actions use.
+        XCTAssertNotNil(model.ensureTrackableTitleIndex(for: slowHorses.id))
+        XCTAssertTrue(model.titles.contains(where: { $0.id == slowHorses.id }))
 
         await model.loadMoreDiscoveryCatalog()
 
