@@ -37,7 +37,7 @@ extension LibraryTransferService {
         current: [ViewingDiaryEntry],
         imported: [ViewingDiaryEntry]
     ) -> [ViewingDiaryEntry] {
-        var entriesByID = current.keyedByKeepingFirst(\.id)
+        var entriesByID = current.keyedByKeepingNewest(\.id, updatedAt: \.updatedAt)
         for entry in imported {
             if let existing = entriesByID[entry.id], existing.updatedAt > entry.updatedAt {
                 continue
@@ -84,7 +84,7 @@ extension LibraryTransferService {
         let normalizedHeader = header.map(normalizedHeaderName)
         let validTitleIDs = Set(current.titles.map(\.id))
         var merged = current
-        var entriesByID = CollectionUniquing.dictionary(keepingLast: (current.diaryEntries ?? []).map { ($0.id, $0) })
+        var entriesByID = (current.diaryEntries ?? []).keyedByKeepingNewest(\.id, updatedAt: \.updatedAt)
         var seen = Set<ViewingDiaryEntry.ID>()
         var matched = 0
         var added = 0

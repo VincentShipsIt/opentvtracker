@@ -30,6 +30,7 @@
 		1C204F3574DF47B1C487410B /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = B86F3C7F8062C768E588DC69 /* Theme.swift */; };
 		1D7C6E2B9A3D82F0ECC1F6EF /* FirstRunTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE00EA94613E6FDA9F50F95D /* FirstRunTests.swift */; };
 		2013CA9FD1053465EC99C408 /* ViewingAnalyticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1ABEDE58FB8DD13AF7208FA /* ViewingAnalyticsView.swift */; };
+		209024175394AB713540A26C /* CatalogFallbackIdentityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 251B57E3477A2299CC105417 /* CatalogFallbackIdentityTests.swift */; };
 		20F98AE2CB81F187EBCA283F /* TVTimeImportTestDoubles.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2065415D3424E0DD1D45053 /* TVTimeImportTestDoubles.swift */; };
 		2496992528D92F078CF8AE84 /* SharedEpisodeConversation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A20B95617DEE5F2AE0E8985 /* SharedEpisodeConversation.swift */; };
 		24E12778A8153CC4994B2B8E /* AppModel+Diary.swift in Sources */ = {isa = PBXBuildFile; fileRef = D44F366F3974D09A1A78BE38 /* AppModel+Diary.swift */; };
@@ -276,6 +277,7 @@
 		1F15155D794E90782ECB43F7 /* RecommendationServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecommendationServiceTests.swift; sourceTree = "<group>"; };
 		22855F1DF5E8521D2EF1ABAC /* LibraryConversationTransfer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryConversationTransfer.swift; sourceTree = "<group>"; };
 		2388B7AA52A21C97D472D208 /* NearbyPartnerInvitationCodec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NearbyPartnerInvitationCodec.swift; sourceTree = "<group>"; };
+		251B57E3477A2299CC105417 /* CatalogFallbackIdentityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CatalogFallbackIdentityTests.swift; sourceTree = "<group>"; };
 		262612258054DC9D3ABABF05 /* FirstRunView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirstRunView.swift; sourceTree = "<group>"; };
 		26856B28D62DEC4F2D364A9C /* LibrarySnapshotHydration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibrarySnapshotHydration.swift; sourceTree = "<group>"; };
 		26C95F6168D463F58164BA67 /* OpenTVWidgetSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenTVWidgetSnapshot.swift; sourceTree = "<group>"; };
@@ -766,6 +768,7 @@
 				625AD0EEA5B826967E8AA51B /* AppAttestClientTests.swift */,
 				3A04FC826C098F98A35D87E6 /* AppModelTests.swift */,
 				4C3F72180ACFB3BF46E562EB /* BackupHealthTests.swift */,
+				251B57E3477A2299CC105417 /* CatalogFallbackIdentityTests.swift */,
 				EDCC6E021A77D2874816A3C9 /* CatalogImportResolutionTests.swift */,
 				309363E80A6210E762537FF3 /* CatalogImportSafetyTests.swift */,
 				1AE2BFDDA46C9B19B50C3C9A /* CatalogPaginationTests.swift */,
@@ -975,7 +978,7 @@
 					};
 					96396D01C2F07D817EF2875C = {
 						DevelopmentTeam = C76R5DRH64;
-						SystemCapabilities = "[\"com.apple.Push\": [\"enabled\": 1], \"com.apple.iCloud\": [\"enabled\": 1], \"com.apple.DeviceCheck\": [\"enabled\": 1]]";
+						SystemCapabilities = "[\"com.apple.iCloud\": [\"enabled\": 1], \"com.apple.DeviceCheck\": [\"enabled\": 1], \"com.apple.Push\": [\"enabled\": 1]]";
 					};
 					B0AF29D3A827D293C2407B7B = {
 						DevelopmentTeam = C76R5DRH64;
@@ -1048,6 +1051,7 @@
 				9C56B7143471BDF6AC187259 /* AppAttestClientTests.swift in Sources */,
 				8EE3472510D428E5214CA56C /* AppModelTests.swift in Sources */,
 				168B0502FD1D3AECAA4BBAF3 /* BackupHealthTests.swift in Sources */,
+				209024175394AB713540A26C /* CatalogFallbackIdentityTests.swift in Sources */,
 				3876A423DE47A4ABD42D783E /* CatalogImportResolutionTests.swift in Sources */,
 				8A48D3E61C7B95B35148DAFA /* CatalogImportSafetyTests.swift in Sources */,
 				A1AA199A6815DE76AEF7A7F2 /* CatalogPaginationTests.swift in Sources */,

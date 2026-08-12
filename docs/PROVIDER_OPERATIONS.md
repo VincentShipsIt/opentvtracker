@@ -1,5 +1,7 @@
 # Provider operations and incident controls
 
+Official hosting is the shared shipshit.dev EC2 host behind Caddy at `api.opentvtracker.dev`, deployed through SSM. See [deploy/aws/README.md](../deploy/aws/README.md).
+
 ## Least privilege and budgets
 
 - Use one dedicated TMDB API Read Access Token for this proxy. Do not reuse account-management, build, CI, or unrelated application credentials.
@@ -9,10 +11,10 @@
 
 ## Monitoring
 
-- Alert on TMDB `401`, `429`, and sustained `5xx` responses, rising upstream latency, and changes in request volume/cost. Review the TMDB account/dashboard and Render metrics at least weekly during beta.
-- Alert on registration spikes, App Attest rejection rates, replay/counter failures, origin `429`s, state-persistence errors, and persistent-disk capacity.
+- Alert on TMDB `401`, `429`, and sustained `5xx` responses, rising upstream latency, and changes in request volume/cost. Review the TMDB account/dashboard and host/Caddy metrics at least weekly during beta.
+- Alert on registration spikes, App Attest rejection rates, replay/counter failures, origin `429`s, PostgreSQL errors, and disk capacity.
 - Keep safe structured logs only. Never temporarily log headers, bodies, assertions, challenges, receipts, query values, keys, tokens, or IP addresses during an incident.
-- Add coarse edge limits in front of Render. Suggested starting ceilings per IP: challenge 30/minute, registration 5/hour, catalog search 30/minute, external-ID lookup 60/minute, title lookup 120/minute, and cinema 40/minute. Origin limits remain authoritative and include stricter per-device ceilings.
+- Add coarse edge limits in front of Caddy. Suggested starting ceilings per IP: challenge 30/minute, registration 5/hour, catalog search 30/minute, external-ID lookup 60/minute, title lookup 120/minute, reviews 60/minute, and cinema 40/minute. Origin limits remain authoritative and include stricter per-device ceilings.
 - The TVDB resolver caches only unique confirmed mappings for seven days. Misses and ambiguous provider responses are not cached, so monitor repeated `catalog-resolve` 404s separately from upstream failures.
 
 ## Rotation
@@ -20,13 +22,13 @@
 ### TMDB
 
 1. Create a replacement dedicated read token.
-2. Update only `TMDB_READ_ACCESS_TOKEN` in the deployment secret store.
+2. Update only `TMDB_READ_ACCESS_TOKEN` in the SSM parameter store.
 3. Restart the service and confirm generic health plus an App Attest-authenticated catalog request.
 4. Revoke the old token and watch `401`/`429` metrics.
 
 ### App Attest service tokens
 
-Changing `APP_ATTEST_TOKEN_SECRET` invalidates all short-lived service tokens. Clients refresh by signing a token challenge with the persisted device key. Rotate during a quiet window and retain the device state file.
+Changing `APP_ATTEST_TOKEN_SECRET` invalidates all short-lived service tokens. Clients refresh by signing a token challenge with the persisted device key. Rotate during a quiet window and retain the PostgreSQL device table. Do not rotate by deleting `APP_ATTEST_STATE_PATH`; that file is not the production store.
 
 ### OpenRouter user key
 
@@ -38,7 +40,7 @@ The user disconnects OpenRouter in the app, revokes the old key in OpenRouter, s
 - `CATALOG_ENABLED=false` — stop TMDB access; apps use TVmaze fallback.
 - `CINEMA_ENABLED=false` — stop proxied Embassy fetches; apps use official direct source behavior.
 - `APP_ATTEST_REGISTRATION_ENABLED=false` — freeze new device registrations while existing attested devices continue.
-- Edge/WAF rule — block an abusive IP/range or route before Render.
+- Edge/WAF or Caddy rule — block an abusive IP/range or route before the Bun origin.
 - Provider console — revoke the TMDB token if exposure or uncontrolled spend is suspected.
 
 ## Incident sequence

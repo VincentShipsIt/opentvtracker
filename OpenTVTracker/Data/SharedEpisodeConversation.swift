@@ -229,10 +229,10 @@ enum SharedConversationNotificationPlanner {
         now: Date
     ) -> [SharedConversationNotification] {
         guard space.isCloudSharingEnabled,
-              space.resolvedMembershipState == .accepted,
-              let currentMemberID = space.currentMemberID else {
+              space.resolvedMembershipState == .accepted else {
             return []
         }
+        let currentMemberID = space.resolvedCurrentMemberID
 
         let membersByID = space.members.reduce(into: [SpaceMember.ID: SpaceMember]()) {
             $0[$1.id] = $1

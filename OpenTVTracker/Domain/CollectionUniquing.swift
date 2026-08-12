@@ -36,4 +36,21 @@ extension Sequence {
     func keyedByKeepingFirst<Key: Hashable>(_ keyPath: KeyPath<Element, Key>) -> [Key: Element] {
         CollectionUniquing.dictionary(keepingFirst: map { ($0[keyPath: keyPath], $0) })
     }
+
+    /// Dictionary keyed by ID, keeping the value with the newest `updatedAt`. Ties keep the first.
+    func keyedByKeepingNewest<Key: Hashable>(
+        _ id: KeyPath<Element, Key>,
+        updatedAt: KeyPath<Element, Date>
+    ) -> [Key: Element] {
+        var result: [Key: Element] = [:]
+        for element in self {
+            let key = element[keyPath: id]
+            if let existing = result[key],
+               existing[keyPath: updatedAt] >= element[keyPath: updatedAt] {
+                continue
+            }
+            result[key] = element
+        }
+        return result
+    }
 }

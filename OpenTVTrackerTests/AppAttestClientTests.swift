@@ -70,6 +70,69 @@ final class AppAttestClientTests: XCTestCase {
         XCTAssertEqual(service.assertionHashes, [Data(SHA256.hash(data: Data(payload.utf8)))])
     }
 
+    func testExpiredTokenRetriesTheSameCatalogRequestOnce() async throws {
+        let service = MockAppAttestService(isSupported: true)
+        let store = MemorySecureCredentialStore()
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        let stale = try encoder.encode(
+            DeviceCredentialsProbe(keyID: "secure-enclave-key", token: "stale-token", tokenExpiresAt: Date(timeIntervalSince1970: 1_900_000_000))
+        )
+        try store.set(stale, for: AppAttestClient.credentialsAccount)
+
+        let catalogAttempts = RequestCounter()
+        TestURLProtocol.handler = { request in
+            let path = try XCTUnwrap(request.url?.path)
+            if path == "/v1/app-attest/challenge" {
+                let body = try XCTUnwrap(TestURLProtocol.bodyData(for: request))
+                let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: String])
+                let purpose = try XCTUnwrap(json["purpose"])
+                if purpose == "token" {
+                    return try Self.jsonResponse(request, status: 201, body: [
+                        "id": "token-id",
+                        "challenge": "token-challenge",
+                        "expiresAt": "2030-01-01T00:00:00Z"
+                    ])
+                }
+                return try Self.jsonResponse(request, status: 201, body: [
+                    "id": "request-id",
+                    "challenge": "request-challenge",
+                    "expiresAt": "2030-01-01T00:00:00Z"
+                ])
+            }
+            if path == "/v1/app-attest/token" {
+                return try Self.jsonResponse(request, status: 201, body: [
+                    "token": "fresh-token",
+                    "expiresAt": "2030-01-01T00:00:00Z"
+                ])
+            }
+            XCTAssertEqual(path, "/v1/catalog/search")
+            let attempt = catalogAttempts.increment()
+            if attempt == 1 {
+                XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "AppAttest stale-token")
+                return try Self.jsonResponse(request, status: 401, body: ["error": "expired"])
+            }
+            XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "AppAttest fresh-token")
+            return try Self.jsonResponse(request, status: 200, body: ["results": []])
+        }
+
+        let client = AppAttestClient(
+            baseURL: URL(string: "https://proxy.example/")!,
+            session: TestURLProtocol.session(),
+            appAttest: service,
+            credentialStore: store,
+            developmentToken: nil,
+            now: { Date(timeIntervalSince1970: 1_800_000_000) }
+        )
+
+        let (_, response) = try await client.data(
+            for: URLRequest(url: URL(string: "https://proxy.example/v1/catalog/search")!)
+        )
+
+        XCTAssertEqual((response as? HTTPURLResponse)?.statusCode, 200)
+        XCTAssertEqual(catalogAttempts.value, 2)
+    }
+
     func testUnsupportedDeviceFailsGracefullyWithoutCallingHostedProxy() async {
         let service = MockAppAttestService(isSupported: false)
         let client = AppAttestClient(
@@ -101,6 +164,24 @@ final class AppAttestClientTests: XCTestCase {
             ])!,
             try JSONSerialization.data(withJSONObject: body)
         )
+    }
+}
+
+private struct DeviceCredentialsProbe: Encodable {
+    let keyID: String
+    let token: String
+    let tokenExpiresAt: Date
+}
+
+private final class RequestCounter: @unchecked Sendable {
+    private let lock = NSLock()
+    private(set) var value = 0
+
+    func increment() -> Int {
+        lock.withLock {
+            value += 1
+            return value
+        }
     }
 }
 

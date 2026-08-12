@@ -17,3 +17,8 @@ Store (`us-east-1`). The host deployment fails closed unless `DATABASE_URL`,
 The application workflow never edits the shared Caddyfile. Apply the tracked
 fragment during host bootstrap, validate it, and reload Caddy before the first
 application deployment.
+
+Kill switches (`PROXY_ENABLED`, `CATALOG_ENABLED`, `CINEMA_ENABLED`,
+`APP_ATTEST_REGISTRATION_ENABLED`) and rotation steps are in
+[provider operations](../../docs/PROVIDER_OPERATIONS.md). There is no Render
+hosting path.

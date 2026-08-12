@@ -2,12 +2,25 @@ import Foundation
 
 extension LibraryTransferService {
     static func titlesMatch(_ lhs: MediaTitle, _ rhs: MediaTitle) -> Bool {
-        if lhs.catalogID > 0, rhs.catalogID > 0 { return lhs.catalogID == rhs.catalogID }
-        return normalizedTitle(lhs.title) == normalizedTitle(rhs.title) && lhs.year == rhs.year
+        if lhs.catalogID > 0, rhs.catalogID > 0 {
+            return lhs.catalogID == rhs.catalogID
+                && lhs.kind == rhs.kind
+                && resolvedMetadataSource(lhs) == resolvedMetadataSource(rhs)
+        }
+        return normalizedTitle(lhs.title) == normalizedTitle(rhs.title)
+            && lhs.year == rhs.year
+            && lhs.kind == rhs.kind
     }
 
     static func identityKey(for title: MediaTitle) -> String {
-        title.catalogID > 0 ? "catalog:\(title.catalogID)" : "title:\(normalizedTitle(title.title)):\(title.year)"
+        if title.catalogID > 0 {
+            return "catalog:\(resolvedMetadataSource(title).rawValue):\(title.kind.rawValue):\(title.catalogID)"
+        }
+        return "title:\(title.kind.rawValue):\(normalizedTitle(title.title)):\(title.year)"
+    }
+
+    static func resolvedMetadataSource(_ title: MediaTitle) -> MetadataSource {
+        title.metadataSource ?? .tmdb
     }
 
     static func matchingTitleIndex(
@@ -21,12 +34,17 @@ extension LibraryTransferService {
         let catalogID = intValue(in: values, keys: ["catalog_id", "tmdb_id", "id"])
         let titleName = stringValue(in: values, keys: ["title", "name", "series_name", "movie_name"])
         let year = intValue(in: values, keys: ["year", "release_year"])
+        let kind = stringValue(in: values, keys: ["kind", "media_kind", "type"])
+            .flatMap(MediaKind.init(rawValue:))
 
         return titles.firstIndex { title in
-            if let catalogID, catalogID > 0 { return title.catalogID == catalogID }
+            if let catalogID, catalogID > 0 {
+                return title.catalogID == catalogID && (kind == nil || title.kind == kind)
+            }
             guard let titleName else { return false }
             return normalizedTitle(title.title) == normalizedTitle(titleName)
                 && (year == nil || title.year == year)
+                && (kind == nil || title.kind == kind)
         }
     }
 

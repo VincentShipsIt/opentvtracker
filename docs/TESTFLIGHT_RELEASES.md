@@ -41,3 +41,33 @@ base64 -i AuthKey_KEYID.p8 | tr -d '\n'
 The workflow reads `CFBundleShortVersionString` and `CFBundleVersion` from the Xcode project's Release configuration. For a controlled retry, dispatch the workflow manually with a commit, branch, or tag on `main`; use the optional version or build overrides only when App Store Connect requires a corrected identifier.
 
 If profile preparation fails, verify the API key's team scope and Certificates, Identifiers & Profiles access, the distribution certificate, and both bundle IDs (`dev.opentvtracker.app` and `dev.opentvtracker.app.widgets`). Rotate any credential immediately if its value is exposed in logs or outside the protected GitHub environment.
+
+## Public release checklist
+
+Operational gates for a public or TestFlight source release. The former standalone checklist now lives here.
+
+### Already in place
+
+- [x] Public GitHub repository.
+- [x] MIT license and [dependency inventory](THIRD_PARTY_LICENSES.md), including pinned `node-app-attest` and transitive cryptography packages.
+- [x] `.gitignore`, Docker context, GitHub secret scanning / push protection, and private vulnerability reporting. Dependabot is not used.
+- [x] Official App ID `C76R5DRH64.dev.opentvtracker.app` with App Attest, Associated Domains, production entitlement, widget bundle `dev.opentvtracker.app.widgets`, and HTTPS OpenRouter callback association.
+- [x] Official proxy at `https://api.opentvtracker.dev` on EC2 + Caddy + SSM, with PostgreSQL (`DATABASE_URL`) as the App Attest device store.
+- [x] Server has no OpenRouter key or reranking route.
+
+### Still required before a given release
+
+- [ ] Rotate and scan for API keys, App Attest/DeviceCheck material, certificates, profiles, private keys, credential exports, share URLs, OAuth artifacts, PKCE verifiers, private fixtures, and generated state files.
+- [ ] Verify `https://opentvtracker.dev/.well-known/apple-app-site-association` serves JSON without a redirect and authorizes `C76R5DRH64.dev.opentvtracker.app` for `/opentv/openrouter/callback`.
+- [ ] Verify a fork/self-built bundle is rejected by the official proxy and works only with its own proxy configuration.
+- [ ] Back up PostgreSQL App Attest device rows; confirm production refuses missing Team ID, bundle ID, token secret, TMDB token, or `DATABASE_URL`, and rejects development attestations and any bypass token.
+- [ ] Test registration, token renewal, payload binding, expired/one-time challenge rejection, replayed counter rejection, and kill switches on physical devices.
+- [ ] Configure coarse edge per-IP limits in front of Caddy, keep origin per-IP/device limits, and confirm shared caches cannot bypass authentication.
+- [ ] Confirm the dedicated least-privilege TMDB token, monitoring/alerts, rotation, and provider kill switch.
+- [ ] Connect/revoke a user OpenRouter key, set a daily/monthly spend cap, and verify deterministic fallback.
+- [ ] Validate `PrivacyInfo.xcprivacy`, App Store privacy answers, privacy/deletion language, and secret-free structured logs.
+- [ ] Import the source-controlled [CloudKit schema](CLOUDKIT_SCHEMA.md), create a Development invitation to seed `cloudkit.share`, promote all sharing changes, and verify `PartnerSpace`, `PartnerSpaceState`, and `cloudkit.share` in Production.
+- [ ] On two devices, test invite, accept, watched-together partner notification, denied-then-enabled notification permission, decline, revoke, leave, offline retry, relaunch persistence, and Apple ID switch.
+- [ ] Test JSON/CSV export/import rollback (including diary and lists CSV), VoiceOver, Dynamic Type, contrast, reduced motion/transparency, and button shapes.
+- [ ] Verify TMDB/JustWatch/TVmaze attribution and official cinema links (live Embassy showtimes; Eden/Citadel booking links).
+- [ ] Require green iOS, server, and secret-scan CI on the release commit, then publish a `vX.Y.Z` GitHub release using the steps above.

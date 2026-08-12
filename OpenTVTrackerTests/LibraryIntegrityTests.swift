@@ -96,10 +96,10 @@ final class LibraryIntegrityTests: XCTestCase {
         async let second: Void = model.refreshRecommendations()
         _ = await (first, second)
 
-        // The second (faster) response must win; the slower first response is discarded.
+        // The second (faster) response must win; cancelling the wrapper cancels the first request.
         XCTAssertEqual(model.remoteRankedRecommendations.map(\.id), ["second"])
         let completed = await service.completedCalls()
-        XCTAssertEqual(completed, 2)
+        XCTAssertEqual(completed, 1)
     }
 
     func testSnapshotHydrationMatchesLoadAndReplacePaths() {
@@ -128,6 +128,83 @@ final class LibraryIntegrityTests: XCTestCase {
         ]
         XCTAssertEqual(space.currentMemberID, "me")
         XCTAssertEqual(space.resolvedCurrentMemberID, "me")
+    }
+
+    func testDiaryMergeKeepsNewestUpdatedAtAcrossShuffledDuplicates() {
+        let older = ViewingDiaryEntry(
+            id: "same",
+            titleID: "severance",
+            scope: .title,
+            seasonNumber: nil,
+            episodeID: nil,
+            episodeNumber: nil,
+            watchedAt: Date(timeIntervalSince1970: 100),
+            rating: 6,
+            note: "older",
+            isRewatch: false,
+            createdAt: Date(timeIntervalSince1970: 100),
+            updatedAt: Date(timeIntervalSince1970: 100)
+        )
+        var newer = older
+        newer.note = "newer"
+        newer.rating = 9
+        newer.updatedAt = Date(timeIntervalSince1970: 300)
+        var staleDuplicate = older
+        staleDuplicate.note = "stale last"
+        staleDuplicate.updatedAt = Date(timeIntervalSince1970: 50)
+
+        let merged = LibraryTransferService.mergedDiaryEntries(
+            current: [older, staleDuplicate],
+            imported: [newer]
+        )
+        XCTAssertEqual(merged.count, 1)
+        XCTAssertEqual(merged.first?.note, "newer")
+        XCTAssertEqual(merged.first?.rating, 9)
+    }
+
+    func testTitlesMatchRequiresKindAndMetadataSource() {
+        let movie = identityTitle(id: "movie-123", catalogID: 123, kind: .movie, source: .tmdb)
+        let series = identityTitle(id: "series-123", catalogID: 123, kind: .series, source: .tmdb)
+        let tvmaze = identityTitle(id: "tvmaze-movie-123", catalogID: 123, kind: .movie, source: .tvmaze)
+
+        XCTAssertFalse(LibraryTransferService.titlesMatch(movie, series))
+        XCTAssertFalse(LibraryTransferService.titlesMatch(movie, tvmaze))
+        XCTAssertNotEqual(
+            LibraryTransferService.identityKey(for: movie),
+            LibraryTransferService.identityKey(for: series)
+        )
+        XCTAssertNotEqual(
+            LibraryTransferService.identityKey(for: movie),
+            LibraryTransferService.identityKey(for: tvmaze)
+        )
+    }
+
+    private func identityTitle(
+        id: String,
+        catalogID: Int,
+        kind: MediaKind,
+        source: MetadataSource
+    ) -> MediaTitle {
+        MediaTitle(
+            id: id,
+            catalogID: catalogID,
+            title: "Collision",
+            year: 2023,
+            kind: kind,
+            synopsis: "",
+            genres: [],
+            runtimeMinutes: 90,
+            state: .planned,
+            progress: nil,
+            rating: 0,
+            nextReleaseDescription: nil,
+            recommendationReason: nil,
+            mood: .any,
+            palette: PosterPalette(primaryHex: "000000", secondaryHex: "000000"),
+            providers: [],
+            reviews: [],
+            metadataSource: source
+        )
     }
 }
 

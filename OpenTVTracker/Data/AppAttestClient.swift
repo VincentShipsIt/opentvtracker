@@ -78,6 +78,13 @@ actor AppAttestClient {
     }
 
     func data(for unsignedRequest: URLRequest) async throws -> (Data, URLResponse) {
+        try await data(for: unsignedRequest, allowsTokenRetry: true)
+    }
+
+    private func data(
+        for unsignedRequest: URLRequest,
+        allowsTokenRetry: Bool
+    ) async throws -> (Data, URLResponse) {
         if let developmentToken {
             var request = unsignedRequest
             request.setValue(developmentToken, forHTTPHeaderField: "X-OpenTV-Development-Token")
@@ -104,6 +111,9 @@ actor AppAttestClient {
         if let response = result.1 as? HTTPURLResponse, response.statusCode == 401 {
             credentials.tokenExpiresAt = .distantPast
             try save(credentials)
+            if allowsTokenRetry {
+                return try await data(for: unsignedRequest, allowsTokenRetry: false)
+            }
         }
         return result
     }

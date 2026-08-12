@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { createApp, type SafeLogEvent } from "../src/app";
+import { createApp, ResponseCache, type SafeLogEvent } from "../src/app";
 import type { ServerConfig } from "../src/config";
 import { AppAttestSecurity, MemoryDeviceStore } from "../src/security";
 import type { CatalogTitle, TMDBClient } from "../src/tmdb";
@@ -10,6 +10,17 @@ type TestTMDB = Pick<
 >;
 
 describe("server application", () => {
+  test("response cache evicts the oldest entry including an empty-string key", () => {
+    const cache = new ResponseCache(2, () => 1_000);
+    cache.set("", "empty", 60_000);
+    cache.set("keep", "kept", 60_000);
+    cache.set("newest", "fresh", 60_000);
+
+    expect(cache.get("")).toBeUndefined();
+    expect(cache.get("keep")?.body).toBe("kept");
+    expect(cache.get("newest")?.body).toBe("fresh");
+  });
+
   test("health is generic and the anonymous paid reranking route is absent", async () => {
     const app = testApp().app;
 

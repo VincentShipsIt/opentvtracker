@@ -27,21 +27,23 @@ It should feel calm, personal, and fast. Tracking is useful without an account. 
 
 ## v1 experience
 
+Three tabs plus a Personal/Shared overlay. Shared is not a tab. Shake the device or use the toolbar control to switch spaces.
+
 ### Today
 
 A personal queue combining the next episode, recently released episodes, unfinished movies, and partner activity. One primary action marks progress without opening a detail screen.
 
 ### Discover
 
-Search plus artwork-led recommendation shelves inspired by the speed of modern delivery apps. Filters default to the streaming services the viewer already pays for, then narrow by mood, runtime, genre, and whether both partners are likely to enjoy it. Every title exposes its official trailer before demanding a commitment.
-
-### Together
-
-One invitation-only space with a shared watchlist, independent or shared progress, reactions, and lightweight notes. Conflict resolution never silently moves progress backward.
+Search plus artwork-led recommendation shelves inspired by the speed of modern delivery apps. Filters default to the streaming services the viewer already pays for, then narrow by mood, runtime, genre, and whether both partners are likely to enjoy it. Every title exposes its official trailer before demanding a commitment. Ask OpenTV accepts typed or spoken requests.
 
 ### Library
 
-Watching, planned, paused, and completed titles with portable history and clear progress.
+Shelves for Keep Watching, Watchlist, Paused, Completed, Caught Up, and Dropped, plus native custom lists, history, diary, calendar, and data tools.
+
+### Shared overlay
+
+One invitation-only space with a shared watchlist, independent or shared progress, reactions, notes, shared custom lists, and title metadata. Conflict resolution never silently moves progress backward.
 
 ### Details
 
@@ -52,7 +54,8 @@ Episode and movie metadata, progress controls, streaming availability, spoiler-s
 - TMDB is the primary catalog, artwork, discovery, and review source. Its required attribution belongs in Settings/Credits.
 - Streaming availability comes through TMDB's JustWatch-backed provider endpoints and must visibly attribute JustWatch.
 - IMDb is used through outbound links or a future licensed data path; the app does not scrape IMDb pages.
-- Optional AI calls go directly to OpenRouter with a user-authorized, Keychain-stored key. The operator proxy has no AI credential or paid reranking route, and private history stays out of the bounded candidate payload.
+- Optional AI calls go directly to OpenRouter with a user-authorized, Keychain-stored key. The operator proxy has no AI credential or paid reranking route. The bounded payload includes public candidates plus a `viewingProfile` of counts and recent titles; see [PRIVACY.md](../PRIVACY.md).
+- Live Malta showtimes are Embassy-only. Eden and Citadel are official booking links.
 
 ## Non-goals for v1
 

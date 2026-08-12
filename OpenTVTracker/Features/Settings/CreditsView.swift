@@ -7,7 +7,7 @@ struct CreditsView: View {
         NavigationStack {
             Form {
                 Section("OpenTV Tracker") {
-                    LabeledContent("Version", value: "0.1.0")
+                    LabeledContent("Version", value: Self.marketingVersion)
                     LabeledContent("Storage", value: "Local SwiftData")
                     LabeledContent("Sharing", value: "Optional private iCloud")
                     LabeledContent("AI", value: "Optional · off by default")
@@ -33,7 +33,7 @@ struct CreditsView: View {
                 }
 
                 Section("Data ownership") {
-                    Text("A complete, versioned JSON backup can be exported without an account or support request. CSV exports keep titles, watch events, and private shared conversations readable in common tools.")
+                    Text("A complete, versioned JSON backup can be exported without an account or support request. CSV exports keep titles, diary entries, custom lists, watch events, and private shared conversations readable in common tools.")
                     Text("If the hosted catalog proxy is unavailable, local tracking, import, export, deterministic recommendations, TVmaze fallback, and official cinema links keep working.")
                 }
 
@@ -52,6 +52,15 @@ struct CreditsView: View {
                 }
             }
         }
+    }
+
+    private static var marketingVersion: String {
+        let info = Bundle.main.infoDictionary
+        let version = info?["CFBundleShortVersionString"] as? String ?? "0.1.1"
+        guard let build = info?["CFBundleVersion"] as? String, !build.isEmpty else {
+            return version
+        }
+        return "\(version) (\(build))"
     }
 }
 

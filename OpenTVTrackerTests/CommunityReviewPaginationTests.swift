@@ -63,7 +63,7 @@ final class CommunityReviewPaginationTests: XCTestCase {
         XCTAssertEqual(pagination.nextPage, 1)
     }
 
-    func testCatalogFallsBackWhenPrimaryReviewRequestFails() async throws {
+    func testCatalogDoesNotFallBackWhenPrimaryReviewRequestFails() async {
         let fallbackPage = CommunityReviewPage(
             page: 2,
             totalPages: 3,
@@ -74,11 +74,16 @@ final class CommunityReviewPaginationTests: XCTestCase {
             fallback: ReviewCatalogStub(result: .success(fallbackPage))
         )
 
-        let page = try await service.reviews(kind: .series, catalogID: 42, page: 2)
-
-        XCTAssertEqual(page.page, fallbackPage.page)
-        XCTAssertEqual(page.totalPages, fallbackPage.totalPages)
-        XCTAssertEqual(page.results.map(\.id), ["fallback"])
+        do {
+            _ = try await service.reviews(kind: .series, catalogID: 42, page: 2)
+            XCTFail("Expected the primary review failure to surface")
+        } catch let error as CatalogServiceError {
+            guard case .unavailable = error else {
+                return XCTFail("Unexpected error: \(error)")
+            }
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
     }
 
     private func review(id: String) -> CommunityReview {

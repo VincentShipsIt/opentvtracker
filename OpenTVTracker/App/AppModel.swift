@@ -401,11 +401,8 @@ extension AppModel {
         )
         let snapshot = self.snapshot
         let service = recommendationService
-        let work = Task { () -> [Recommendation] in
-            (try? await service.recommendations(from: snapshot, context: context)) ?? []
-        }
         recommendationTask = Task {
-            let ranked = await work.value
+            let ranked = (try? await service.recommendations(from: snapshot, context: context)) ?? []
             guard !Task.isCancelled, recommendationRequestID == requestID else { return }
             remoteRankedRecommendations = ranked
         }
