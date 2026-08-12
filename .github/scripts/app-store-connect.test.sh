@@ -31,6 +31,8 @@ set -euo pipefail
 output=""
 method="GET"
 url=""
+log="${MOCK_LOG:-/dev/null}"
+printf '%s\n' "$*" >> "$log"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -o|-X|--data-binary|--connect-timeout|--max-time|-H|-w)
@@ -50,9 +52,6 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
-
-log="${MOCK_LOG:-/dev/null}"
-printf '%s %s\n' "$method" "$url" >> "$log"
 
 if [[ -n "${MOCK_SLEEP:-}" ]]; then
   sleep "$MOCK_SLEEP"
@@ -82,6 +81,19 @@ case "$url" in
   */missing-page)
     printf '%s' '{"errors":[{"status":"500"}]}' > "$output"
     printf '500'
+    ;;
+  */retry-408|*/retry-429)
+    count_file="${MOCK_COUNT_FILE:?}"
+    count="$(cat "$count_file")"
+    count=$((count + 1))
+    printf '%s' "$count" > "$count_file"
+    if (( count < 2 )); then
+      printf '%s' "{\"errors\":[{\"status\":\"${url##*-}\"}]}" > "$output"
+      printf '%s' "${url##*-}"
+    else
+      printf '%s' '{"data":[{"id":"ok"}],"links":{}}' > "$output"
+      printf '200'
+    fi
     ;;
   */retry-then-ok)
     count_file="${MOCK_COUNT_FILE:?}"
@@ -119,6 +131,21 @@ EOF
   : > "$MOCK_LOG"
   export MOCK_LOG
 }
+
+write_mock
+
+if grep -q -- '--connect-timeout 1' "$MOCK_LOG" || true; then
+  :
+fi
+if ! asc_get "https://api.appstoreconnect.apple.com/v1/missing" "$TMP/flags.json"; then
+  if grep -q -- '--connect-timeout 1' "$MOCK_LOG" && grep -q -- '--max-time 2' "$MOCK_LOG"; then
+    pass "GET sends connect and total timeouts"
+  else
+    fail "curl invocation missing timeout flags: $(cat "$MOCK_LOG")"
+  fi
+else
+  fail "unknown URL should not succeed"
+fi
 
 write_mock
 
@@ -170,6 +197,24 @@ else
   fi
 fi
 unset MOCK_COUNT_FILE
+
+for status in 408 429; do
+  write_mock
+  MOCK_COUNT_FILE="$TMP/retry-$status"
+  printf '0' > "$MOCK_COUNT_FILE"
+  export MOCK_COUNT_FILE
+  if ! asc_get "https://api.appstoreconnect.apple.com/v1/retry-$status" "$TMP/retry-$status.json"; then
+    fail "GET should retry HTTP $status then succeed"
+  else
+    attempts="$(cat "$MOCK_COUNT_FILE")"
+    if [[ "$attempts" == "2" ]]; then
+      pass "GET retried transient $status responses"
+    else
+      fail "expected 2 GET attempts for $status, got $attempts"
+    fi
+  fi
+  unset MOCK_COUNT_FILE
+done
 
 write_mock
 ASC_GET_RETRIES=2

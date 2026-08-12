@@ -29,6 +29,22 @@ asc_should_retry_status() {
   [[ "$status" == "408" || "$status" == "429" || "$status" =~ ^5[0-9][0-9]$ ]]
 }
 
+asc_log_error_body() {
+  local output="$1"
+  if [[ ! -s "$output" ]]; then
+    return 0
+  fi
+  if ! jq -e . "$output" >/dev/null 2>&1; then
+    echo "(App Store Connect response omitted)" >&2
+    return 0
+  fi
+  jq -c '{
+    errors: [
+      .errors[]? | {status, code, title}
+    ]
+  }' "$output" >&2 || echo "(App Store Connect response omitted)" >&2
+}
+
 asc_get() {
   local url="$1"
   local output="$2"
@@ -47,7 +63,7 @@ asc_get() {
         attempt=$((attempt + 1))
         continue
       fi
-      cat "$output" >&2 || true
+      asc_log_error_body "$output"
       echo "::error::App Store Connect GET failed with HTTP $status: $url" >&2
       return 1
     fi
@@ -78,7 +94,7 @@ asc_post() {
   fi
   ASC_LAST_STATUS="$status"
   if [[ "$status" != "201" ]]; then
-    cat "$output" >&2 || true
+    asc_log_error_body "$output"
     echo "::error::App Store Connect POST failed with HTTP $status: $url" >&2
     return 1
   fi
