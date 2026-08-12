@@ -101,7 +101,7 @@ extension AppModel {
         supersedesEventID: String? = nil,
         occurredAt: Date = .now
     ) -> SharedWatchEvent {
-        let resolvedMemberID = memberID ?? sharedSpace.members.first(where: \.isCurrentUser)?.id ?? "local-user"
+        let resolvedMemberID = memberID ?? currentMemberID
         let event = SharedWatchEvent(
             id: UUID().uuidString,
             titleID: title.id,

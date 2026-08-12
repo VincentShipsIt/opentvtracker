@@ -2,6 +2,8 @@
 
 This Bun service protects a dedicated TMDB read token and live Embassy Cinemas fetches. It has no OpenRouter credential or reranking endpoint.
 
+The service contract is this file. Fork setup is [self-hosting](../docs/SELF_HOSTING.md). Official hosting is EC2 + Caddy + SSM at `https://api.opentvtracker.dev`; see [deploy/aws/README.md](../deploy/aws/README.md).
+
 ## Production contract
 
 Protected catalog/cinema requests require an official App Attest key, a valid short-lived service token, a fresh request challenge, a payload-bound assertion, and a strictly increasing counter. Production fails to start without:
@@ -13,7 +15,7 @@ Protected catalog/cinema requests require an official App Attest key, a valid sh
 - `DATABASE_URL` — PostgreSQL storage for App Attest device keys and counters
 - `TMDB_READ_ACCESS_TOKEN` — dedicated read-only token for this service
 
-`APP_ATTEST_STATE_PATH` remains available only for development and test environments without `DATABASE_URL`. Production uses PostgreSQL so assertion-counter updates remain atomic across restarts and multiple API instances. The database contains no accounts, watch history, taste profile, or recommendation data.
+`PostgresDeviceStore` is the multi-instance production store. `APP_ATTEST_STATE_PATH` remains available only for development and test environments without `DATABASE_URL`. Production uses PostgreSQL so assertion-counter updates remain atomic across restarts and multiple API instances. The database contains no accounts, watch history, taste profile, or recommendation data.
 
 Optional TTLs default to 60 seconds for challenges and 10 minutes for tokens. Native iOS clients do not need CORS. If `CORS_ALLOWED_ORIGIN` is set, it permits one exact origin but does not change App Attest authorization.
 
@@ -43,16 +45,18 @@ Start with `bun run dev`. The repository-root Dockerfile runs the same service.
 - `POST /v1/app-attest/challenge`
 - `POST /v1/app-attest/register`
 - `POST /v1/app-attest/token`
-- `GET /v1/catalog/search?q=&kind=&page=1&region=MT`
-- `GET /v1/catalog/:movie|series/:tmdbID?region=MT`
+- `GET /v1/catalog/search?q=&kind=&page=1&region=MT&language=`
+- `GET /v1/catalog/:movie|series/:id?region=MT&language=`
+- `GET /v1/catalog/:movie|series/:id/reviews?page=`
+- `GET /v1/catalog/resolve/tvdb/:id?kind=&region=`
 - `GET /v1/cinemas/showings?country=MT&date=YYYY-MM-DD`
 
 `POST /v1/recommendations/rerank` does not exist. OpenRouter traffic goes directly from the iOS app using each user's Keychain credential.
 
 ## Production
 
-The official service runs at `https://api.opentvtracker.dev` in the `api-opentvtracker-dev` container on the shared shipshit.dev EC2 host. PostgreSQL is the only shared state. Set `/health` as the health check, keep origin quotas enabled, and do not enable shared caching ahead of App Attest.
+The official service runs at `https://api.opentvtracker.dev` in the `api-opentvtracker-dev` container on the shared shipshit.dev EC2 host. Caddy terminates TLS. PostgreSQL is the only shared state. Set `/health` as the health check, keep origin quotas enabled, and do not enable shared caching ahead of App Attest.
 
-Set the official app's ignored configuration to the HTTPS service origin. Forks must deploy their own instance with their own Team ID, bundle ID, provider token, storage, quotas, and domain.
+Set the official app's ignored configuration to the HTTPS service origin. Forks must deploy their own instance with their own Team ID, bundle ID, provider token, `DATABASE_URL`, quotas, and domain.
 
 See [self-hosting](../docs/SELF_HOSTING.md), [threat model](../docs/THREAT_MODEL.md), and [provider operations](../docs/PROVIDER_OPERATIONS.md).

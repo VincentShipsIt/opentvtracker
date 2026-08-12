@@ -2,7 +2,7 @@
 
 ## Assets and adversaries
 
-Protected assets include provider spend/quota, App Attest keys and receipts, user OpenRouter keys, personal viewing data, notes, partner membership, CloudKit share URLs, signing material, and server configuration.
+Protected assets include provider spend/quota, App Attest keys and receipts, user OpenRouter keys, personal viewing data, notes, diary entries, partner membership, CloudKit share URLs, signing material, and server configuration.
 
 Expected adversaries include automated scrapers, replay attackers, modified or forked clients, users extracting a public app's network protocol, compromised provider keys, malicious imported files, and accidental credential publication. App Attest raises the cost of automated hosted-proxy abuse; it does not make a compromised device trustworthy forever.
 
@@ -10,13 +10,14 @@ Expected adversaries include automated scrapers, replay attackers, modified or f
 
 | Boundary                 | Data allowed                                             | Controls                                                                                                                                                             |
 | ------------------------ | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Local SwiftData          | Personal library and preferences                         | Local model, versioned archive, user-initiated export                                                                                                                |
-| Invitation-only CloudKit | Shared list, profiles, activity, events                  | Custom zone, stable IDs, CKShare, outbox, revocation/leave purge                                                                                                     |
+| Local SwiftData          | Personal library, diary, lists, and preferences          | Local model, versioned archive, user-initiated export                                                                                                                |
+| Invitation-only CloudKit | Shared list, profiles, activity, events, reactions, notes, tombstones, title metadata, shared custom lists | Custom zone, stable IDs, CKShare, outbox, revocation/leave purge                                                                                                     |
 | Nearby partner pairing   | Short-lived CloudKit invitation URL                      | User-initiated Bonjour discovery, local-only peer connection, six-digit TLS pre-shared key, payload validation, session ends with the pairing screen                 |
 | Official proxy           | Bounded catalog/cinema query plus App Attest headers     | HTTPS, official App ID validation, persisted key/counter, one-time challenge, signed payload, short token, per-device/IP quota, strict schemas, timeout, kill switch |
-| Direct OpenRouter        | User key and at most 20 public recommendation candidates | OAuth PKCE, associated HTTPS callback, Keychain, explicit opt-in, timeout, strict output IDs, deterministic fallback                                                 |
+| Direct OpenRouter        | User key, at most 20 public candidates, and viewingProfile | OAuth PKCE, associated HTTPS callback, Keychain, explicit opt-in, timeout, strict output IDs, deterministic fallback                                                 |
 | Public providers         | TV search or official cinema page                        | Keyless fallback, timeout, source attribution                                                                                                                        |
 | External links           | User-selected TMDB/IMDb/cinema URL                       | User gesture and external site's policy                                                                                                                              |
+| App Group widgets        | Bounded Up Next / upcoming snapshot                      | App Group `group.dev.opentvtracker.app`, no credentials or CloudKit identifiers                                                                                      |
 
 ## Abuse cases and mitigations
 
@@ -33,6 +34,6 @@ Expected adversaries include automated scrapers, replay attackers, modified or f
 
 ## Residual risks
 
-Apple and provider availability can interrupt features. A compromised unlocked iPhone can access app-visible data and ask the Secure Enclave to sign requests. App Attest has platform and quota limits, and the file-backed device store requires a correctly mounted persistent disk plus single-writer deployment. IP quotas can affect shared networks. Public catalog data can still be copied from legitimate devices. External providers observe requests made directly to them.
+Apple and provider availability can interrupt features. A compromised unlocked device can access app-visible data and ask the Secure Enclave to sign requests. App Attest has platform and quota limits. Official production uses PostgreSQL (`DATABASE_URL`) for verified device keys and counters. The file-backed device store is a residual risk only when a self-hosted instance runs without `DATABASE_URL` and therefore depends on a correctly mounted single-writer disk. IP quotas can affect shared networks. Public catalog data can still be copied from legitimate devices. External providers observe requests made directly to them, including OpenRouter `viewingProfile` summaries when the user enables reranking.
 
 Operational controls and incident steps are in [PROVIDER_OPERATIONS.md](PROVIDER_OPERATIONS.md).

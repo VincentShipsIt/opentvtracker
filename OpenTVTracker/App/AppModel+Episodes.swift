@@ -210,7 +210,7 @@ extension AppModel {
         episodeNumber: Int
     ) -> Bool {
         guard let title = mediaTitle(withID: titleID),
-              let season = regularSeasons(for: title).first(where: { $0.number == seasonNumber }) else {
+              let season = season(numbered: seasonNumber, in: title) else {
             return false
         }
         let watchedIDs = resolvedWatchedEpisodeIDs(for: title)
@@ -223,6 +223,11 @@ extension AppModel {
         (title.seasons ?? [])
             .filter { $0.number > 0 }
             .sorted { $0.number < $1.number }
+    }
+
+    /// Looks up a requested season including specials (`0`). Aggregate progress still uses `regularSeasons`.
+    func season(numbered seasonNumber: Int, in title: MediaTitle) -> SeasonSummary? {
+        title.seasons?.first(where: { $0.number == seasonNumber })
     }
 
     func nextUnwatchedEpisode(
@@ -310,7 +315,7 @@ private extension AppModel {
         seasonNumber: Int,
         episodeNumber: Int
     ) -> [(season: SeasonSummary, episode: EpisodeSummary)] {
-        guard let season = regularSeasons(for: title).first(where: { $0.number == seasonNumber }) else {
+        guard let season = season(numbered: seasonNumber, in: title) else {
             return []
         }
         return season.episodes
@@ -328,7 +333,7 @@ private extension AppModel {
         let supersededIDs = Set(events.compactMap { event in
             event.kind == .correction ? event.supersedesEventID : nil
         })
-        let memberID = sharedSpace.members.first(where: \.isCurrentUser)?.id ?? "local-user"
+        let memberID = currentMemberID
         let matchingEvents = events.filter { event in
             event.titleID == title.id
                 && event.memberID == memberID

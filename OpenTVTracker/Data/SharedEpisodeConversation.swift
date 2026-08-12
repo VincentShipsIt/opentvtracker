@@ -108,7 +108,7 @@ enum SharedConversationReconciler {
             local: local.conversationDeletions ?? [],
             date: \.deletedAt
         )
-        let deletionByID = Dictionary(uniqueKeysWithValues: deletions.map { ($0.id, $0) })
+        let deletionByID = deletions.keyedByKeepingLast(\.id)
 
         let reactions = latestValues(
             remote: remote.reactions ?? [],
@@ -229,10 +229,10 @@ enum SharedConversationNotificationPlanner {
         now: Date
     ) -> [SharedConversationNotification] {
         guard space.isCloudSharingEnabled,
-              space.resolvedMembershipState == .accepted,
-              let currentMemberID = space.members.first(where: \.isCurrentUser)?.id else {
+              space.resolvedMembershipState == .accepted else {
             return []
         }
+        let currentMemberID = space.resolvedCurrentMemberID
 
         let membersByID = space.members.reduce(into: [SpaceMember.ID: SpaceMember]()) {
             $0[$1.id] = $1

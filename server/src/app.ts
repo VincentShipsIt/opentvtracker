@@ -45,7 +45,8 @@ type AppDependencies = {
 
 type CachedValue = { body: string; etag: string; expiresAt: number };
 
-class ResponseCache {
+export class ResponseCache {
+  /** Insertion order is treated as LRU: re-get/set moves keys to the end. */
   private readonly values = new Map<string, CachedValue>();
 
   constructor(
@@ -60,13 +61,18 @@ class ResponseCache {
       this.values.delete(key);
       return undefined;
     }
+    // Refresh recency for LRU eviction.
+    this.values.delete(key);
+    this.values.set(key, value);
     return value;
   }
 
   set(key: string, body: string, ttlMilliseconds: number): CachedValue {
-    if (this.values.size >= this.maximumEntries) {
+    if (this.values.has(key)) this.values.delete(key);
+    while (this.values.size >= this.maximumEntries) {
       const oldest = this.values.keys().next().value as string | undefined;
-      if (oldest) this.values.delete(oldest);
+      if (oldest === undefined) break;
+      this.values.delete(oldest);
     }
     const value = {
       body,

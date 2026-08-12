@@ -2,7 +2,7 @@ import Foundation
 
 extension AppModel {
     var diaryRecords: [ViewingDiaryRecord] {
-        let titlesByID = Dictionary(uniqueKeysWithValues: titles.map { ($0.id, $0) })
+        let titlesByID = titles.keyedByKeepingFirst(\.id)
         return diaryEntries
             .compactMap { entry -> ViewingDiaryRecord? in
                 guard entry.watchedAt != nil, let title = titlesByID[entry.titleID] else { return nil }

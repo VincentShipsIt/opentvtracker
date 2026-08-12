@@ -2,9 +2,9 @@ import Foundation
 
 extension AppModel {
     var partnerSharedLists: [SharedMediaList] {
-        let currentMemberID = sharedSpace.members.first(where: \.isCurrentUser)?.id ?? "local-user"
+        let memberID = currentMemberID
         return (sharedSpace.sharedLists ?? [])
-            .filter { !$0.isDeleted && $0.ownerMemberID != currentMemberID }
+            .filter { !$0.isDeleted && $0.ownerMemberID != memberID }
             .sorted { lhs, rhs in
                 lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
             }
@@ -55,13 +55,13 @@ extension AppModel {
 
     func titles(inList id: MediaList.ID) -> [MediaTitle] {
         guard let list = lists.first(where: { $0.id == id }) else { return [] }
-        let titlesByID = Dictionary(uniqueKeysWithValues: titles.map { ($0.id, $0) })
+        let titlesByID = titles.keyedByKeepingFirst(\.id)
         return list.titleIDs.compactMap { titlesByID[$0] }
     }
 
     func titles(inSharedList id: SharedMediaList.ID) -> [MediaTitle] {
         guard let list = sharedList(withID: id) else { return [] }
-        let titlesByID = Dictionary(uniqueKeysWithValues: titles.map { ($0.id, $0) })
+        let titlesByID = titles.keyedByKeepingFirst(\.id)
         return list.titleIDs.compactMap { titlesByID[$0] }
     }
 
@@ -135,7 +135,7 @@ extension AppModel {
 
     func shareListWithPartner(_ id: MediaList.ID) {
         guard let list = lists.first(where: { $0.id == id }) else { return }
-        let ownerID = sharedSpace.members.first(where: \.isCurrentUser)?.id ?? "local-user"
+        let ownerID = currentMemberID
         let sharedList = SharedMediaList(
             id: list.id,
             name: list.name,

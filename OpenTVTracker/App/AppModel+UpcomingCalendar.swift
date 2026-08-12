@@ -128,12 +128,21 @@ private extension AppModel {
             return (result.titleID, details)
         }
         var refreshedTitles = titles
+        var didChange = false
         for (titleID, details) in successful {
-            guard let index = refreshedTitles.firstIndex(where: { $0.id == titleID }) else { continue }
-            refreshedTitles[index] = mergingCatalogDetails(details, into: refreshedTitles[index])
+            guard let index = LibraryTitleIndex.index(
+                of: titleID,
+                in: refreshedTitles,
+                cache: titleIndexByID
+            ) else { continue }
+            let merged = mergingCatalogDetails(details, into: refreshedTitles[index])
+            if merged != refreshedTitles[index] {
+                refreshedTitles[index] = merged
+                didChange = true
+            }
         }
 
-        if refreshedTitles != titles {
+        if didChange {
             titles = refreshedTitles
             persist()
         }

@@ -132,6 +132,35 @@ final class EpisodeTrackingTests: XCTestCase {
         ])
     }
 
+    func testMarkSeasonZeroSpecialsWatchedUsesRequestedSeason() throws {
+        let model = try makeModel(includingSpecials: true)
+
+        model.setSeasonEpisodesWatched(true, titleID: "severance", seasonNumber: 0)
+
+        XCTAssertTrue(model.isEpisodeWatched(titleID: "severance", seasonNumber: 0, episodeID: "s0e1"))
+        XCTAssertTrue(model.isEpisodeWatched(titleID: "severance", seasonNumber: 0, episodeID: "s0e2"))
+        XCTAssertFalse(model.isEpisodeWatched(titleID: "severance", seasonNumber: 1, episodeID: "s1e1"))
+
+        model.setSeasonEpisodesWatched(false, titleID: "severance", seasonNumber: 0)
+        XCTAssertTrue(
+            model.hasUnwatchedEpisodesBefore(
+                titleID: "severance",
+                seasonNumber: 0,
+                episodeNumber: 2
+            )
+        )
+
+        model.markEpisodesWatchedThrough(titleID: "severance", seasonNumber: 0, episodeNumber: 2)
+        XCTAssertTrue(model.isEpisodeWatched(titleID: "severance", seasonNumber: 0, episodeID: "s0e2"))
+        XCTAssertFalse(
+            model.hasUnwatchedEpisodesBefore(
+                titleID: "severance",
+                seasonNumber: 0,
+                episodeNumber: 2
+            )
+        )
+    }
+
     func testProgressSummaryCountsEpisodesAcrossSeasons() throws {
         let model = try makeModel()
 
@@ -143,15 +172,27 @@ final class EpisodeTrackingTests: XCTestCase {
         XCTAssertEqual(summary.fraction, 0.125)
     }
 
-    private func makeModel() throws -> AppModel {
+    private func makeModel(includingSpecials: Bool = false) throws -> AppModel {
         var snapshot = LibrarySnapshot.sample
         let titleIndex = try XCTUnwrap(snapshot.titles.firstIndex(where: { $0.id == "severance" }))
-        snapshot.titles[titleIndex].seasons = Self.seasons
+        snapshot.titles[titleIndex].seasons = includingSpecials ? Self.seasonsWithSpecials : Self.seasons
         snapshot.titles[titleIndex].progress = EpisodeProgress(season: 1, episode: 0, totalEpisodes: 2)
         snapshot.titles[titleIndex].watchedEpisodeIDs = []
         snapshot.sharedSpace.watchEvents = []
         return AppModel(store: MemoryLibraryStore(), seed: snapshot)
     }
+
+    private static let seasonsWithSpecials = [
+        SeasonSummary(
+            id: "season-0",
+            number: 0,
+            title: "Specials",
+            episodes: [
+                EpisodeSummary(id: "s0e1", number: 1, title: "Special 1", airDate: nil, runtimeMinutes: 20),
+                EpisodeSummary(id: "s0e2", number: 2, title: "Special 2", airDate: nil, runtimeMinutes: 22)
+            ]
+        )
+    ] + seasons
 
     private static let seasons = [
         SeasonSummary(

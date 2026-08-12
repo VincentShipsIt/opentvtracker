@@ -14,7 +14,7 @@ extension AppModel {
             return
         }
 
-        let memberID = sharedSpace.members.first(where: \.isCurrentUser)?.id ?? "local-user"
+        let memberID = currentMemberID
         let reactionID = "activity-reaction:\(activityID):\(memberID)"
         var reactions = sharedSpace.reactions ?? []
         let replacedReactions = reactions.filter {
@@ -48,7 +48,7 @@ extension AppModel {
               let watchEvent = sharedSpace.watchEvents?.first(where: { $0.id == watchEventID }) else {
             return
         }
-        let memberID = currentSharedMemberID
+        let memberID = currentMemberID
         let reactionID = "episode-reaction:\(watchEventID):\(memberID)"
         let activityID = sharedSpace.activity.first(where: { $0.watchEventID == watchEventID })?.id
             ?? "watch-event:\(watchEventID)"
@@ -76,7 +76,7 @@ extension AppModel {
     func addSharedNote(_ text: String, titleID: MediaTitle.ID) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        let memberID = sharedSpace.members.first(where: \.isCurrentUser)?.id ?? "local-user"
+        let memberID = currentMemberID
         var notes = sharedSpace.notes ?? []
         notes.append(
             SharedNote(
@@ -107,7 +107,7 @@ extension AppModel {
             SharedNote(
                 id: UUID().uuidString,
                 titleID: watchEvent.titleID,
-                memberID: currentSharedMemberID,
+                memberID: currentMemberID,
                 text: trimmed,
                 createdAt: .now,
                 watchEventID: watchEventID,
@@ -154,7 +154,7 @@ extension AppModel {
             }
 
         return matchingEvents.first(where: { $0.kind == .watchedTogether })
-            ?? matchingEvents.first(where: { $0.memberID == currentSharedMemberID })
+            ?? matchingEvents.first(where: { $0.memberID == currentMemberID })
     }
 
     func sharedEpisodeNotes(watchEventID: SharedWatchEvent.ID) -> [SharedNote] {
@@ -216,7 +216,4 @@ extension AppModel {
         }
     }
 
-    private var currentSharedMemberID: SpaceMember.ID {
-        sharedSpace.members.first(where: \.isCurrentUser)?.id ?? "local-user"
-    }
 }

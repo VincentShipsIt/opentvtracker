@@ -213,14 +213,15 @@ struct FallbackCatalogService: CatalogProviding {
         region: StreamingRegion,
         contentLanguage: ContentLanguage
     ) async throws -> MediaTitle {
-        if let primary,
-           let title = try? await primary.title(
-               kind: kind,
-               catalogID: catalogID,
-               region: region,
-               contentLanguage: contentLanguage
-           ) {
-            return title
+        // Title IDs are namespace-specific (TMDB vs TVmaze). Never ask the
+        // public fallback for a primary catalog ID after a proxy miss.
+        if let primary {
+            return try await primary.title(
+                kind: kind,
+                catalogID: catalogID,
+                region: region,
+                contentLanguage: contentLanguage
+            )
         }
         return try await fallback.title(
             kind: kind,
@@ -231,9 +232,8 @@ struct FallbackCatalogService: CatalogProviding {
     }
 
     func reviews(kind: MediaKind, catalogID: Int, page: Int) async throws -> CommunityReviewPage {
-        if let primary,
-           let reviewPage = try? await primary.reviews(kind: kind, catalogID: catalogID, page: page) {
-            return reviewPage
+        if let primary {
+            return try await primary.reviews(kind: kind, catalogID: catalogID, page: page)
         }
         return try await fallback.reviews(kind: kind, catalogID: catalogID, page: page)
     }
@@ -242,9 +242,8 @@ struct FallbackCatalogService: CatalogProviding {
         _ reference: ExternalCatalogReference,
         region: StreamingRegion
     ) async throws -> MediaTitle? {
-        if let primary,
-           let title = try? await primary.resolve(reference, region: region) {
-            return title
+        if let primary {
+            return try await primary.resolve(reference, region: region)
         }
         return try await fallback.resolve(reference, region: region)
     }

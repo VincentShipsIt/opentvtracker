@@ -27,7 +27,7 @@ extension AppModel {
     }
 
     var togetherActivity: [SharedActivity] {
-        let currentMemberID = sharedSpace.members.first(where: \.isCurrentUser)?.id
+        let currentMemberID = sharedSpace.resolvedCurrentMemberID
         return sharedSpace.activity.filter { activity in
             activity.memberID != currentMemberID
                 || activity.description.localizedCaseInsensitiveContains(" together")
@@ -49,7 +49,7 @@ extension AppModel {
         let currentMember = sharedSpace.members.first(where: \.isCurrentUser)
         let activity = SharedActivity(
             id: UUID().uuidString,
-            memberID: currentMember?.id ?? "local-user",
+            memberID: currentMember?.id ?? SharedSpace.localMemberID,
             description: description.trimmingCharacters(in: .whitespaces),
             relativeDate: "Now",
             symbol: symbol,
@@ -147,7 +147,7 @@ extension AppModel {
             }
             appendDiaryWatch(title: titles[index], watchedAt: watchedAt, isRewatch: isRewatch)
         }
-        let currentMemberID = sharedSpace.members.first(where: \.isCurrentUser)?.id
+        let currentMemberID = sharedSpace.resolvedCurrentMemberID
         let watchEventKind: WatchEventKind = isRewatch ? .rewatch : .watchedTogether
         var conversationWatchEvent: SharedWatchEvent?
         for member in sharedSpace.members {
@@ -225,9 +225,7 @@ extension AppModel {
     }
 
     func prepareSharedTitleMetadataForSync() {
-        let existingByID = Dictionary(
-            uniqueKeysWithValues: (sharedSpace.titleMetadata ?? []).map { ($0.id, $0) }
-        )
+        let existingByID = CollectionUniquing.dictionary(keepingLast: (sharedSpace.titleMetadata ?? []).map { ($0.id, $0) })
         let listTitleIDs = (sharedSpace.sharedLists ?? [])
             .filter { !$0.isDeleted }
             .flatMap(\.titleIDs)

@@ -150,8 +150,8 @@ enum PartnerActivityNotificationPlanner {
         excluding seenActivityIDs: Set<SharedActivity.ID>,
         now: Date
     ) -> [PartnerActivityNotification] {
-        guard let currentMemberID = space.members.first(where: \.isCurrentUser)?.id else { return [] }
-        let membersByID = Dictionary(uniqueKeysWithValues: space.members.map { ($0.id, $0) })
+        let currentMemberID = space.resolvedCurrentMemberID
+        let membersByID = space.members.keyedByKeepingFirst(\.id)
 
         return activities
             .filter { activity in

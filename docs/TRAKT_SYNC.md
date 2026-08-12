@@ -2,6 +2,8 @@
 
 OpenTV's optional Trakt connection is an interoperability layer, not the source of truth. The app works without Trakt and all local edits remain available while offline.
 
+Native custom lists are a local `MediaList` surface with JSON and CSV export. Trakt imported lists are still not adopted into `MediaList`. They remain in `TraktSyncState.importedLists`.
+
 ## Authorization and storage
 
 - Device OAuth uses the configured public Trakt application's client ID and secret.
@@ -21,7 +23,7 @@ OpenTV's optional Trakt connection is an interoperability layer, not the source 
 | Episode season and number | episode history | two-way | Watched episode IDs are unioned |
 | Title rating | movie/show rating, integer 1–10 | two-way | Changed side wins; simultaneous changes keep local |
 | Personal watchlist | sync watchlist | two-way | Three-way merge from the last agreed baseline |
-| Personal list name/privacy/membership | personal lists | Trakt to OpenTV | Preserved in portable sync metadata |
+| Personal list name/privacy/membership | personal lists | Trakt to OpenTV | Stored in `TraktSyncState.importedLists` only |
 
 OpenTV records the IDs of successfully uploaded watch events because Trakt does not deduplicate `item + watched_at`. Rating and watchlist writes are idempotent. History uploads run last so a later failure cannot cause an already accepted play to be retried before its deduplication marker is saved.
 
@@ -29,6 +31,6 @@ Remote history removal never marks a local movie or episode unwatched and never 
 
 ## Fields without a lossless counterpart
 
-The following stay local and are never sent: private notes, fractional rating precision, provider subscriptions, moods, recommendation feedback, partner members/activity/reactions, local correction events, and OpenRouter data.
+The following stay local and are never sent: private notes, diary entries, fractional rating precision, provider subscriptions, moods, recommendation feedback, partner members/activity/reactions, local correction events, native `MediaList` membership, and OpenRouter data.
 
-OpenTV does not currently map Trakt episode/season ratings, playback percentage, collections, favorites, hidden/dropped state, comments, social sharing, list notes, list item rank, or collaborative-list permissions. Personal-list names and TMDB membership are preserved so a future native list surface can adopt them without another import.
+OpenTV does not currently map Trakt episode/season ratings, playback percentage, collections, favorites, hidden/dropped state, comments, social sharing, list notes, list item rank, or collaborative-list permissions. Personal-list names and TMDB membership are preserved in `TraktSyncState.importedLists` so they survive export/import without another Trakt fetch. They are not copied into native custom lists.

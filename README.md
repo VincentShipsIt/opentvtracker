@@ -1,45 +1,47 @@
 # OpenTV Tracker
 
-An open-source, privacy-minded iPhone app for tracking TV shows and movies — solo or together.
+An open-source, privacy-minded iPhone and iPad app for tracking TV shows and movies — solo or with one invited partner. No account is required.
 
 Website: [opentvtracker.dev](https://opentvtracker.dev)
 
+Marketing version **0.1.1**, build **6**. Latest GitHub source release: [v0.1.3](https://github.com/VincentShipsIt/opentvtracker/releases/tag/v0.1.3).
+
 ## Product
 
-- Track episodes, movies, ratings, notes, rewatches, and a unified watchlist.
+- Track episodes, movies, ratings, notes, rewatches, a viewing diary, and native custom lists. All of it stays on the device.
 - Discover titles on selected streaming services with transparent on-device recommendations.
-- Optionally rerank the same bounded candidates using a user-controlled OpenRouter key.
-- Share a watchlist and progress through invitation-only CloudKit records.
-- Keep episode reactions and notes private, spoiler-gated, and attached to an exact shared watch event.
-- View Malta cinema listings and open official booking pages.
+- Optionally rerank the same bounded candidates with a user-controlled OpenRouter key.
+- Import from Trakt or a TV Time data-export ZIP. Keep an upcoming-episode calendar, local reminders, and home-screen widgets.
+- Share a watchlist and progress through an invitation-only CloudKit space. Personal and Shared are an overlay (shake or toolbar), not a fourth tab.
+- View live Embassy Cinemas showtimes and open official Embassy, Eden, and Citadel booking pages.
 - Import and export a portable, versioned library.
 
-Read the [data ownership promise](docs/DATA_OWNERSHIP.md), [product vision](docs/VISION.md), [architecture](docs/ARCHITECTURE.md), [threat model](docs/THREAT_MODEL.md), and [roadmap](docs/ROADMAP.md).
+The three tabs are **Today**, **Discover**, and **Library**. Tracking works without iCloud, Trakt, OpenRouter, or the official proxy.
 
-## Trust model
+## Documentation
 
-OpenTV works without an account or hosted service. Personal tracking and deterministic recommendations stay on the iPhone. TVmaze and official cinema pages provide public-source fallbacks.
-
-The official binary may use Vincent's hosted TMDB/cinema proxy. That service accepts only production App Attest keys for `C76R5DRH64.dev.opentvtracker.app`; every protected request carries a fresh challenge and a payload-bound assertion. Unsupported devices fall back gracefully and do not receive an anonymous hosted-service bypass.
-
-Forks and self-built apps cannot use Vincent's hosted proxy. Configure and operate your own proxy, Apple App ID, provider key, state storage, OAuth callback, quotas, and edge controls. See [self-hosting](docs/SELF_HOSTING.md) and [provider operations](docs/PROVIDER_OPERATIONS.md).
-
-AI reranking never uses an operator OpenRouter key. The user authorizes OpenRouter with OAuth PKCE, the resulting user-controlled API key is stored in the iOS Keychain, and requests go directly from the iPhone to OpenRouter. AI stays off by default and any failure returns the deterministic ranking.
-
-## Current implementation
-
-- Swift 6, SwiftUI, and iOS 26+
-- Local-only SwiftData with versioned import/export
-- Invitation-only CloudKit custom zones and durable sync outboxes
-- Secure nearby partner pairing over peer-to-peer networking, with an ephemeral TLS code and no invitation link to send
-- TVmaze public catalog fallback and official Malta cinema sources
-- App Attest-protected Bun proxy for TMDB/JustWatch metadata and Embassy showtimes
-- User-funded OpenRouter OAuth PKCE with Keychain storage and direct reranking
-- Docker packaging and GitHub Actions for iOS, server, and secret scanning
+| Topic | Document |
+| --- | --- |
+| Privacy | [PRIVACY.md](PRIVACY.md) |
+| Data ownership and export | [docs/DATA_OWNERSHIP.md](docs/DATA_OWNERSHIP.md) |
+| Architecture and App Attest | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
+| Threat model | [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md) |
+| Self-hosting a fork | [docs/SELF_HOSTING.md](docs/SELF_HOSTING.md) |
+| Proxy contract | [server/README.md](server/README.md) |
+| Official hosting | [deploy/aws/README.md](deploy/aws/README.md) |
+| Provider operations | [docs/PROVIDER_OPERATIONS.md](docs/PROVIDER_OPERATIONS.md) |
+| Vision | [docs/VISION.md](docs/VISION.md) |
+| Roadmap | [docs/ROADMAP.md](docs/ROADMAP.md) |
+| Security | [SECURITY.md](SECURITY.md) |
+| Contributing | [CONTRIBUTING.md](CONTRIBUTING.md) |
+| TestFlight and public release | [docs/TESTFLIGHT_RELEASES.md](docs/TESTFLIGHT_RELEASES.md) |
+| Public release checklist (stub) | [docs/PUBLIC_RELEASE_CHECKLIST.md](docs/PUBLIC_RELEASE_CHECKLIST.md) |
+| CloudKit schema | [docs/CLOUDKIT_SCHEMA.md](docs/CLOUDKIT_SCHEMA.md) |
+| Trakt mapping | [docs/TRAKT_SYNC.md](docs/TRAKT_SYNC.md) |
 
 ## Development
 
-The Xcode project is generated from `project.yml` using [XcodeGen](https://github.com/yonaskolb/XcodeGen).
+The Xcode project is generated from `project.yml` using [XcodeGen](https://github.com/yonaskolb/XcodeGen). The app targets iPhone and iPad (`TARGETED_DEVICE_FAMILY: 1,2`) on iOS 26+.
 
 ```sh
 xcodegen generate
@@ -50,9 +52,9 @@ The keyless build works with public TV sources. For a local proxy, copy `Config/
 
 OpenRouter OAuth requires an HTTPS callback domain associated with the app. Official defaults point to `opentvtracker.dev`; forks must change `OPENROUTER_OAUTH_CALLBACK_URL`, `OPENROUTER_ASSOCIATED_DOMAIN`, and `OPENROUTER_SITE_URL` in their own build configuration.
 
-To enable partner sharing on a physical device, configure your own CloudKit container and provisioning profile. Local tracking does not require iCloud. The exact record types and deployment steps are documented in the [CloudKit schema guide](docs/CLOUDKIT_SCHEMA.md).
+To enable partner sharing on a physical device, configure your own CloudKit container and provisioning profile. Local tracking does not require iCloud. Record types and deployment steps are in the [CloudKit schema guide](docs/CLOUDKIT_SCHEMA.md).
 
-See [PRIVACY.md](PRIVACY.md), [SECURITY.md](SECURITY.md), [CONTRIBUTING.md](CONTRIBUTING.md), the [public release checklist](docs/PUBLIC_RELEASE_CHECKLIST.md), and the [TestFlight release runbook](docs/TESTFLIGHT_RELEASES.md).
+The official signed app may use Vincent's hosted proxy at `https://api.opentvtracker.dev`. Forks cannot. Trust-model detail lives in [architecture](docs/ARCHITECTURE.md), [privacy](PRIVACY.md), and [self-hosting](docs/SELF_HOSTING.md).
 
 ## License
 

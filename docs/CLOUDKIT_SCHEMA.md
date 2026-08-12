@@ -36,7 +36,7 @@ xcrun cktool import-schema \
 ## Promote to Production
 
 1. Install a Development-signed build that uses the target container.
-2. With the Console environment still set to **Development**, create a real Together invitation. The successful `CKShare` save seeds CloudKit's generated sharing schema.
+2. With the Console environment still set to **Development**, create a real partner-share invitation. The successful `CKShare` save seeds CloudKit's generated sharing schema.
 3. Refresh **Schema → Record Types** and verify `cloudkit.share` is present alongside `PartnerSpace` and `PartnerSpaceState`. Do not promote the schema until it appears.
 4. Choose **Deploy Schema Changes…**.
 5. Review the deployment and confirm both application record types, all six custom fields, and the generated `cloudkit.share` changes are included.
@@ -49,7 +49,7 @@ CloudKit command-line tools import schemas only into Development. Production pro
 
 After promotion, test with two physical devices signed into different iCloud accounts:
 
-1. Create a Together invitation on the owner device and confirm no production-schema error is shown.
+1. Create a partner-share invitation on the owner device and confirm no production-schema error is shown.
 2. Accept it on the partner device.
 3. Change shared progress on each device and confirm the other receives it.
 4. Mark a title or episode watched together and confirm the partner receives one notification.

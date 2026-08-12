@@ -2,6 +2,8 @@
 
 Public source access does not grant access to Vincent's hosted provider account. App Attest intentionally rejects any build whose Team ID + bundle ID differs from the official app.
 
+This guide is for forks. The service contract is [server/README.md](../server/README.md). Official hosting is EC2 + Caddy + SSM at `api.opentvtracker.dev`; see [deploy/aws/README.md](../deploy/aws/README.md).
+
 ## 1. Apple configuration
 
 Create your own explicit App ID, enable App Attest and Associated Domains, use your own bundle identifier, and set the correct development/production App Attest entitlement. Configure your own CloudKit container if partner sharing is required.
@@ -21,9 +23,13 @@ OpenRouter redirects the browser to the exact HTTPS callback and SwiftUI's web a
 
 ## 2. Provider and server configuration
 
-Create a dedicated TMDB API Read Access Token used by this proxy only. Do not reuse a personal or management credential. Copy `server/.env.example`, generate a random token-signing secret, and set your Team ID, bundle ID, persistent state path, and kill switches.
+Create a dedicated TMDB API Read Access Token used by this proxy only. Do not reuse a personal or management credential. Copy `server/.env.example`, generate a random token-signing secret, and set your Team ID, bundle ID, `DATABASE_URL`, and kill switches.
 
-The bundled state store performs atomic JSON replacement and is suitable for one Bun process on a persistent disk. For multiple instances, replace `DeviceStore` with a transactional shared store that atomically enforces `nextCounter > previousCounter`; do not share the JSON file across writers.
+Set `DATABASE_URL` to a PostgreSQL database. Production and any multi-instance deployment must use `PostgresDeviceStore` through `DATABASE_URL` so assertion counters stay atomic across restarts and writers. That store is already implemented. The database holds App Attest device keys and counters only.
+
+`APP_ATTEST_STATE_PATH` is a single-writer JSON fallback for development and test without Postgres. Do not share that file across writers, and do not use it as the official or multi-instance production store.
+
+Production fails closed unless Team ID, bundle ID, token secret, TMDB read token, and `DATABASE_URL` are all set.
 
 ## 3. iOS configuration
 
@@ -44,7 +50,7 @@ Production configuration rejects a development bypass token and accepts only pro
 
 ## 5. Edge and persistence
 
-Place a WAF/CDN in front of Render for coarse per-IP limits on challenge, registration, catalog, and cinema paths. Restrict direct origin access, configure `CLIENT_IP_HEADER` only for a header the trusted edge overwrites, and otherwise leave it empty so the Bun service uses the peer address. Keep the Bun per-IP and per-device limits; edge CORS or rate limiting is defense in depth.
+Place a WAF/CDN or Caddy in front of the Bun origin for coarse per-IP limits on challenge, registration, catalog, and cinema paths. Restrict direct origin access, configure `CLIENT_IP_HEADER` only for a header the trusted edge overwrites, and otherwise leave it empty so the Bun service uses the peer address. Keep the Bun per-IP and per-device limits; edge CORS or rate limiting is defense in depth.
 
 Do not configure a shared cache that serves protected routes before authentication. The origin sends `CDN-Cache-Control: no-store` and performs its bounded cache lookup after verifying App Attest.
 

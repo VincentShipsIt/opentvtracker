@@ -13,8 +13,13 @@ final class AppModel {
     private let seed: LibrarySnapshot
     var saveTask: Task<Void, Never>?
     var reminderTask: Task<Void, Never>?
+    var recommendationTask: Task<Void, Never>?
     var persistenceRevision = 0
-    var titles: [MediaTitle]
+    /// First-occurrence index for O(1) library lookups. Rebuilt whenever `titles` changes.
+    private(set) var titleIndexByID: [MediaTitle.ID: Int] = [:]
+    var titles: [MediaTitle] = [] {
+        didSet { rebuildTitleIndex() }
+    }
     var sharedSpace: SharedSpace
     var diaryEntries: [ViewingDiaryEntry]
     var lists: [MediaList]
@@ -35,6 +40,7 @@ final class AppModel {
     private(set) var hasLoaded = false
     var persistenceError: String?
     private(set) var remoteRankedRecommendations: [Recommendation] = []
+    var recommendationRequestID = UUID()
     var catalogSearchResults: [MediaTitle] = []
     var catalogSearchError: String?
     var isSearchingCatalog = false
@@ -91,19 +97,24 @@ final class AppModel {
             self.catalogService = LocalCatalogService(titles: seed.titles)
         }
         self.seed = seed
-        titles = seed.titles
         sharedSpace = seed.sharedSpace
-        diaryEntries = Self.resolvedDiaryEntries(from: seed)
-        lists = seed.lists ?? []
-        selectedProviderIDs = seed.selectedProviderIDs ?? Self.defaultProviderIDs
-        allowsAIReranking = seed.allowsAIReranking ?? false
-        streamingRegionOverride = seed.streamingRegionCode.flatMap(StreamingRegion.init(code:))
-        contentLanguageOverride = seed.contentLanguageCode.flatMap(ContentLanguage.init(code:))
-        traktSyncState = seed.traktSyncState ?? .empty
-        reminderSettings = seed.reminderSettings ?? ReminderSettings()
-        importResolutionAliases = seed.importResolutionAliases ?? [:]
-        hasCompletedFirstRun = seed.hasCompletedFirstRun ?? (seed != .empty)
-        titles = migratedTrackingTitles(titles, fromSchemaVersion: seed.schemaVersion)
+        diaryEntries = []
+        lists = []
+        selectedProviderIDs = LibrarySnapshotHydration.defaultProviderIDs
+        allowsAIReranking = false
+        streamingRegionOverride = nil
+        contentLanguageOverride = nil
+        traktSyncState = .empty
+        reminderSettings = ReminderSettings()
+        importResolutionAliases = [:]
+        hasCompletedFirstRun = false
+        applyLibraryState(
+            titles: migratedTrackingTitles(seed.titles, fromSchemaVersion: seed.schemaVersion),
+            preferences: LibrarySnapshotHydration.preferences(
+                from: seed,
+                defaultFirstRunCompleted: seed != .empty
+            )
+        )
     }
 
     var recommendations: [MediaTitle] {
@@ -148,6 +159,11 @@ final class AppModel {
         )
     }
 
+    /// Stable ID for the current user in the active partner space.
+    var currentMemberID: SpaceMember.ID {
+        sharedSpace.resolvedCurrentMemberID
+    }
+
     func titles(in state: WatchState) -> [MediaTitle] {
         titles.filter { title in
             if state == .planned { return title.isOnPersonalWatchlist }
@@ -156,7 +172,7 @@ final class AppModel {
     }
 
     func moreLikeThis(_ id: MediaTitle.ID, limit: Int = 12) -> [SimilarTitleMatch] {
-        guard let source = titles.first(where: { $0.id == id }) else { return [] }
+        guard let source = mediaTitle(withID: id), titleIndex(for: id) != nil else { return [] }
         return TitleSimilarity.matches(for: source, among: titlesOnSelectedProviders, limit: limit)
     }
 
@@ -167,21 +183,16 @@ final class AppModel {
 
         do {
             if let snapshot = try await store.load() {
-                titles = migratedTrackingTitles(
-                    merging(savedTitles: snapshot.titles, catalogTitles: seed.titles),
-                    fromSchemaVersion: snapshot.schemaVersion
+                applyLibraryState(
+                    titles: migratedTrackingTitles(
+                        merging(savedTitles: snapshot.titles, catalogTitles: seed.titles),
+                        fromSchemaVersion: snapshot.schemaVersion
+                    ),
+                    preferences: LibrarySnapshotHydration.preferences(
+                        from: snapshot,
+                        defaultFirstRunCompleted: true
+                    )
                 )
-                sharedSpace = snapshot.sharedSpace
-                diaryEntries = Self.resolvedDiaryEntries(from: snapshot)
-                lists = snapshot.lists ?? []
-                selectedProviderIDs = snapshot.selectedProviderIDs ?? Self.defaultProviderIDs
-                allowsAIReranking = snapshot.allowsAIReranking ?? false
-                streamingRegionOverride = snapshot.streamingRegionCode.flatMap(StreamingRegion.init(code:))
-                contentLanguageOverride = snapshot.contentLanguageCode.flatMap(ContentLanguage.init(code:))
-                traktSyncState = snapshot.traktSyncState ?? .empty
-                reminderSettings = snapshot.reminderSettings ?? ReminderSettings()
-                importResolutionAliases = snapshot.importResolutionAliases ?? [:]
-                hasCompletedFirstRun = snapshot.hasCompletedFirstRun ?? true
             }
         } catch {
             persistenceError = "Your saved library could not be opened. Your catalog and saved data remain separate."
@@ -204,7 +215,7 @@ extension AppModel {
     func setWatchState(_ state: WatchState, for id: MediaTitle.ID) {
         if state == .completed || state == .caughtUp {
             markWatched(id)
-            guard let index = trackableTitleIndex(for: id) else { return }
+            guard let index = ensureTrackableTitleIndex(for: id) else { return }
             let canBeCaughtUp = titles[index].kind == .series
                 && titles[index].resolvedSeriesLifecycle != .ended
             let resolvedState: WatchState = state == .caughtUp && canBeCaughtUp ? .caughtUp : .completed
@@ -214,7 +225,7 @@ extension AppModel {
             refreshRecommendationsSoon()
             return
         }
-        guard let index = trackableTitleIndex(for: id) else { return }
+        guard let index = ensureTrackableTitleIndex(for: id) else { return }
         titles[index].state = state
         if state == .planned {
             titles[index].personalWatchlist = true
@@ -231,7 +242,7 @@ extension AppModel {
     }
 
     func setUserRating(_ rating: Double?, for id: MediaTitle.ID) {
-        guard let index = trackableTitleIndex(for: id) else { return }
+        guard let index = ensureTrackableTitleIndex(for: id) else { return }
         let clampedRating = rating.map { min(max($0, 0), 10) }
         titles[index].userRating = clampedRating
         synchronizeTitleDiaryRating(clampedRating, titleID: id)
@@ -239,7 +250,7 @@ extension AppModel {
     }
 
     func updateNotes(_ notes: String, for id: MediaTitle.ID) {
-        guard let index = trackableTitleIndex(for: id) else { return }
+        guard let index = ensureTrackableTitleIndex(for: id) else { return }
         let trimmed = notes.trimmingCharacters(in: .whitespacesAndNewlines)
         let note = trimmed.isEmpty ? nil : trimmed
         titles[index].notes = note
@@ -248,7 +259,7 @@ extension AppModel {
     }
 
     func recordRewatch(_ id: MediaTitle.ID) {
-        guard let index = trackableTitleIndex(for: id) else { return }
+        guard let index = ensureTrackableTitleIndex(for: id) else { return }
         let watchedAt = Date.now
         titles[index].rewatchCount = titles[index].completedRewatches + 1
         titles[index].lastWatchedAt = watchedAt
@@ -264,7 +275,7 @@ extension AppModel {
     }
 
     func correctProgress(_ progress: EpisodeProgress, for id: MediaTitle.ID) {
-        guard let index = trackableTitleIndex(for: id), titles[index].kind == .series else { return }
+        guard let index = ensureTrackableTitleIndex(for: id), titles[index].kind == .series else { return }
         let corrected = EpisodeProgress(
             season: max(progress.season, 1),
             episode: min(max(progress.episode, 0), max(progress.totalEpisodes, 1)),
@@ -286,14 +297,14 @@ extension AppModel {
     }
 
     func setRecommendationDismissed(_ dismissed: Bool, for id: MediaTitle.ID) {
-        guard let index = trackableTitleIndex(for: id) else { return }
+        guard let index = ensureTrackableTitleIndex(for: id) else { return }
         titles[index].isDismissed = dismissed
         persist()
         refreshRecommendationsSoon()
     }
 
     func setRecommendationDisliked(_ disliked: Bool, for id: MediaTitle.ID) {
-        guard let index = trackableTitleIndex(for: id) else { return }
+        guard let index = ensureTrackableTitleIndex(for: id) else { return }
         titles[index].isDisliked = disliked
         persist()
         refreshRecommendationsSoon()
@@ -301,7 +312,11 @@ extension AppModel {
 
     func setAIRerankingEnabled(_ enabled: Bool) {
         allowsAIReranking = enabled
-        if !enabled { remoteRankedRecommendations = [] }
+        if !enabled {
+            recommendationTask?.cancel()
+            recommendationRequestID = UUID()
+            remoteRankedRecommendations = []
+        }
         persist()
         refreshRecommendationsSoon()
     }
@@ -319,27 +334,23 @@ extension AppModel {
         hasCompletedFirstRun = true
         persist()
     }
+
     func replaceLibrary(with snapshot: LibrarySnapshot) {
-        titles = migratedTrackingTitles(
-            merging(savedTitles: snapshot.titles, catalogTitles: seed.titles),
-            fromSchemaVersion: snapshot.schemaVersion
+        applyLibraryState(
+            titles: migratedTrackingTitles(
+                merging(savedTitles: snapshot.titles, catalogTitles: seed.titles),
+                fromSchemaVersion: snapshot.schemaVersion
+            ),
+            preferences: LibrarySnapshotHydration.preferences(
+                from: snapshot,
+                defaultFirstRunCompleted: true
+            )
         )
-        sharedSpace = snapshot.sharedSpace
-        diaryEntries = Self.resolvedDiaryEntries(from: snapshot)
-        lists = snapshot.lists ?? []
-        selectedProviderIDs = snapshot.selectedProviderIDs ?? Self.defaultProviderIDs
-        allowsAIReranking = snapshot.allowsAIReranking ?? false
-        streamingRegionOverride = snapshot.streamingRegionCode.flatMap(StreamingRegion.init(code:))
-        contentLanguageOverride = snapshot.contentLanguageCode.flatMap(ContentLanguage.init(code:))
-        traktSyncState = snapshot.traktSyncState ?? .empty
-        reminderSettings = snapshot.reminderSettings ?? ReminderSettings()
-        importResolutionAliases = snapshot.importResolutionAliases ?? [:]
-        hasCompletedFirstRun = snapshot.hasCompletedFirstRun ?? true
         persist()
     }
 
     func toggleWatchlist(_ id: MediaTitle.ID) {
-        guard let index = trackableTitleIndex(for: id) else { return }
+        guard let index = ensureTrackableTitleIndex(for: id) else { return }
         titles[index].personalWatchlist = !titles[index].isOnPersonalWatchlist
         persist()
     }
@@ -368,28 +379,75 @@ extension AppModel {
     func flushPendingReminders() async {
         await reminderTask?.value
     }
+    func flushPendingRecommendations() async {
+        await recommendationTask?.value
+    }
+
     func refreshRecommendations() async {
+        let requestID = UUID()
+        recommendationRequestID = requestID
+        recommendationTask?.cancel()
+
         guard allowsAIReranking else {
             remoteRankedRecommendations = []
             return
         }
+
         let context = RecommendationContext(
             mood: selectedMood,
             maximumRuntimeMinutes: nil,
             sharedSpaceID: sharedSpace.id,
             allowsRemoteReranking: true
         )
-        remoteRankedRecommendations = (try? await recommendationService.recommendations(
-            from: snapshot,
-            context: context
-        )) ?? []
+        let snapshot = self.snapshot
+        let service = recommendationService
+        recommendationTask = Task {
+            let ranked = (try? await service.recommendations(from: snapshot, context: context)) ?? []
+            guard !Task.isCancelled, recommendationRequestID == requestID else { return }
+            remoteRankedRecommendations = ranked
+        }
+        await recommendationTask?.value
     }
-}
 
-extension AppModel {
-    private static let defaultProviderIDs: Set<StreamingProvider.ID> = [
-        StreamingProvider.netflix.id,
-        StreamingProvider.primeVideo.id,
-        StreamingProvider.appleTV.id
-    ]
+    /// Applies snapshot fields without persisting. Used by init, load, and import.
+    func applyLibraryState(titles newTitles: [MediaTitle], preferences: LibrarySnapshotHydration.Preferences) {
+        titles = LibraryTitleIndex.deduplicated(newTitles)
+        sharedSpace = preferences.sharedSpace
+        diaryEntries = preferences.diaryEntries
+        lists = preferences.lists
+        selectedProviderIDs = preferences.selectedProviderIDs
+        allowsAIReranking = preferences.allowsAIReranking
+        streamingRegionOverride = preferences.streamingRegionOverride
+        contentLanguageOverride = preferences.contentLanguageOverride
+        traktSyncState = preferences.traktSyncState
+        reminderSettings = preferences.reminderSettings
+        importResolutionAliases = preferences.importResolutionAliases
+        hasCompletedFirstRun = preferences.hasCompletedFirstRun
+    }
+
+    /// Non-mutating library index. Does not promote catalog/discovery rows.
+    func titleIndex(for id: MediaTitle.ID) -> Int? {
+        LibraryTitleIndex.index(of: id, in: titles, cache: titleIndexByID)
+    }
+
+    /// Promotes a catalog or discovery title into the personal library when absent.
+    @discardableResult
+    func ensureTrackableTitleIndex(for id: MediaTitle.ID) -> Int? {
+        if let index = titleIndex(for: id) { return index }
+        guard let catalogTitle = catalogSearchResults.first(where: { $0.id == id })
+            ?? discoveryCatalogTitles.first(where: { $0.id == id })
+        else { return nil }
+        titles.append(catalogTitle)
+        return titleIndex(for: id)
+    }
+
+    /// Legacy name for write paths that intentionally promote into the library.
+    @discardableResult
+    func trackableTitleIndex(for id: MediaTitle.ID) -> Int? {
+        ensureTrackableTitleIndex(for: id)
+    }
+
+    func rebuildTitleIndex() {
+        titleIndexByID = LibraryTitleIndex.indexByID(titles)
+    }
 }

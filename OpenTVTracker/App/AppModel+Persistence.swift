@@ -2,7 +2,7 @@ import Foundation
 
 extension AppModel {
     func merging(savedTitles: [MediaTitle], catalogTitles: [MediaTitle]) -> [MediaTitle] {
-        let savedByID = Dictionary(uniqueKeysWithValues: savedTitles.map { ($0.id, $0) })
+        let savedByID = savedTitles.keyedByKeepingFirst(\.id)
         let catalogIDs = Set(catalogTitles.map(\.id))
         let refreshedCatalog = catalogTitles.map { catalogTitle in
             guard let savedTitle = savedByID[catalogTitle.id] else { return catalogTitle }
@@ -26,7 +26,7 @@ extension AppModel {
         let localOnlyTitles = savedTitles
             .filter { !catalogIDs.contains($0.id) }
             .map { refreshedTrackingTitle($0) }
-        return refreshedCatalog + localOnlyTitles
+        return LibraryTitleIndex.deduplicated(refreshedCatalog + localOnlyTitles)
     }
 
     func persist() {
@@ -59,6 +59,7 @@ extension AppModel {
     }
 
     func refreshRecommendationsSoon() {
+        // Fire-and-forget; refreshRecommendations cancels/stamps prior in-flight work.
         Task { await refreshRecommendations() }
     }
 }

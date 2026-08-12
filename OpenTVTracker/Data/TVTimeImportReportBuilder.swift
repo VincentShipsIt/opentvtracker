@@ -31,8 +31,8 @@ enum TVTimeImportReportBuilder {
     static func sourceCounts(
         for archive: TVTimeArchive
     ) -> [ImportMetricCategory: Int] {
-        var counts = Dictionary(
-            uniqueKeysWithValues: ImportMetricCategory.allCases.map { ($0, 0) }
+        var counts = CollectionUniquing.dictionary(
+            keepingFirst: ImportMetricCategory.allCases.map { ($0, 0) }
         )
         for entity in archive.entities {
             counts[entity.kind == .series ? .shows : .movies, default: 0] += 1

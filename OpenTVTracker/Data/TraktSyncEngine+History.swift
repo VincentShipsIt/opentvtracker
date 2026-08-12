@@ -63,9 +63,8 @@ extension TraktSyncEngine {
         in snapshot: LibrarySnapshot,
         excluding uploadedIDs: Set<String>
     ) -> [TraktHistoryMutation] {
-        let currentMemberID = snapshot.sharedSpace.members.first(where: \.isCurrentUser)?.id
-            ?? "local-user"
-        let titlesByID = Dictionary(uniqueKeysWithValues: snapshot.titles.map { ($0.id, $0) })
+        let currentMemberID = snapshot.sharedSpace.resolvedCurrentMemberID
+        let titlesByID = snapshot.titles.keyedByKeepingFirst(\.id)
         var mutations = (snapshot.sharedSpace.watchEvents ?? []).compactMap { event -> TraktHistoryMutation? in
             guard !uploadedIDs.contains(event.id),
                   event.memberID == currentMemberID,
