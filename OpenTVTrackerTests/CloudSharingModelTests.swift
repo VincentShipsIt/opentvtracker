@@ -130,6 +130,44 @@ final class CloudSharingModelTests: XCTestCase {
         XCTAssertFalse(error.localizedDescription.contains("record"))
     }
 
+    func testCloudKitInvitationQuotaFailureDirectsUserToManageICloudStorage() {
+        let quotaError = CKError(
+            _nsError: NSError(
+                domain: CKErrorDomain,
+                code: CKError.quotaExceeded.rawValue
+            )
+        )
+
+        let error = CloudKitPartnerSharingService.invitationError(from: quotaError)
+
+        XCTAssertEqual(error, .iCloudStorageFull)
+        XCTAssertEqual(
+            error.localizedDescription,
+            "Not enough iCloud storage to create this invitation. Manage iCloud storage in Settings, then try again."
+        )
+    }
+
+    func testCloudKitInvitationFindsQuotaFailureInsidePartialError() {
+        let quotaError = CKError(
+            _nsError: NSError(
+                domain: CKErrorDomain,
+                code: CKError.quotaExceeded.rawValue
+            )
+        )
+        let partialError = CKError(
+            _nsError: NSError(
+                domain: CKErrorDomain,
+                code: CKError.partialFailure.rawValue,
+                userInfo: [CKPartialErrorsByItemIDKey: ["private-save": quotaError]]
+            )
+        )
+
+        XCTAssertEqual(
+            CloudKitPartnerSharingService.invitationError(from: partialError),
+            .iCloudStorageFull
+        )
+    }
+
     func testCloudKitPrivateInvitationCreatesAnonymousReadWriteParticipant() {
         let participant = CloudKitPartnerSharingService.makePrivateInvitationParticipant()
 

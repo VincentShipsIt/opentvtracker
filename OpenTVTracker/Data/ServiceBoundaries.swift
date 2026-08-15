@@ -192,6 +192,7 @@ protocol PartnerSharingProviding: Sendable {
 enum PartnerSharingError: LocalizedError, Equatable {
     case notConfigured
     case accountRequired
+    case iCloudStorageFull
     case shareUnavailable
     case acceptanceUnavailable
     case revokeUnavailable
@@ -201,6 +202,8 @@ enum PartnerSharingError: LocalizedError, Equatable {
         switch self {
         case .notConfigured: "CloudKit sharing is not configured for this build."
         case .accountRequired: "Sign in to iCloud on this iPhone to invite your partner."
+        case .iCloudStorageFull:
+            "Not enough iCloud storage to create this invitation. Manage iCloud storage in Settings, then try again."
         case .shareUnavailable: "OpenTV could not create the private invitation. Try again."
         case .acceptanceUnavailable: "OpenTV could not accept the private invitation. Try again."
         case .revokeUnavailable: "OpenTV could not revoke the private invitation. Try again."
