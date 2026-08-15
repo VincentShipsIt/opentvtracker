@@ -227,55 +227,27 @@ jobs:
           token="$header.$payload.$signature"
           echo "::add-mask::$token"
 
-          api_get() {
-            local url="$1"
-            local output="$2"
-            local status
-            status="$(curl --globoff -sS -o "$output" -w '%{http_code}' \
-              -H "Authorization: Bearer $token" \
-              "$url")"
-            if [[ "$status" != 200 ]]; then
-              cat "$output"
-              echo "::error::App Store Connect GET failed with HTTP $status: $url"
-              exit 1
-            fi
-          }
-
-          api_post() {
-            local url="$1"
-            local request="$2"
-            local output="$3"
-            local status
-            status="$(curl --globoff -sS -o "$output" -w '%{http_code}' \
-              -X POST \
-              -H "Authorization: Bearer $token" \
-              -H 'Content-Type: application/json' \
-              --data-binary "@$request" \
-              "$url")"
-            if [[ "$status" != 201 ]]; then
-              cat "$output"
-              echo "::error::App Store Connect POST failed with HTTP $status: $url"
-              exit 1
-            fi
-          }
+          export ASC_TOKEN="$token"
+          export ASC_TMPDIR="$RUNNER_TEMP"
+          # shellcheck source=../scripts/app-store-connect.sh
+          source "${GITHUB_WORKSPACE:-.}/.github/scripts/app-store-connect.sh"
 
           bundle_ids_body="$RUNNER_TEMP/bundle-ids.json"
-          status="$(curl -sS -o "$bundle_ids_body" -w '%{http_code}' \
-            -H "Authorization: Bearer $token" \
-            'https://api.appstoreconnect.apple.com/v1/bundleIds?limit=200')"
-          case "$status" in
-            200) ;;
-            401)
-              echo "::error::App Store Connect rejected the API key (401). Confirm the key is active and that APPLE_API_KEY_ID and APPLE_API_ISSUER_ID belong to the key stored in APPLE_API_PRIVATE_KEY_P8_BASE64."
-              exit 1 ;;
-            403)
-              echo "::error::The key authenticated but is not allowed to read provisioning data (403). xcodebuild needs a team key with the App Manager or Admin role — an individual key, or a Developer-role key, authenticates and still cannot provision. Create one under App Store Connect > Users and Access > Integrations > Team Keys."
-              exit 1 ;;
-            *)
-              cat "$bundle_ids_body"
-              echo "::error::Unexpected $status from the App Store Connect provisioning API."
-              exit 1 ;;
-          esac
+          if ! asc_get_collection \
+            'https://api.appstoreconnect.apple.com/v1/bundleIds?limit=200' \
+            "$bundle_ids_body"; then
+            case "${ASC_LAST_STATUS:-}" in
+              401)
+                echo "::error::App Store Connect rejected the API key (401). Confirm the key is active and that APPLE_API_KEY_ID and APPLE_API_ISSUER_ID belong to the key stored in APPLE_API_PRIVATE_KEY_P8_BASE64."
+                exit 1 ;;
+              403)
+                echo "::error::The key authenticated but is not allowed to read provisioning data (403). xcodebuild needs a team key with the App Manager or Admin role — an individual key, or a Developer-role key, authenticates and still cannot provision. Create one under App Store Connect > Users and Access > Integrations > Team Keys."
+                exit 1 ;;
+              *)
+                echo "::error::Unexpected ${ASC_LAST_STATUS:-unknown} from the App Store Connect provisioning API."
+                exit 1 ;;
+            esac
+          fi
           for identifier in dev.opentvtracker.app dev.opentvtracker.app.widgets; do
             if ! jq -e --arg identifier "$identifier" \
               '.data[] | select(.attributes.identifier == $identifier)' \
@@ -286,7 +258,7 @@ jobs:
           done
 
           certificates_body="$RUNNER_TEMP/certificates.json"
-          api_get \
+          asc_get_collection \
             'https://api.appstoreconnect.apple.com/v1/certificates?limit=200' \
             "$certificates_body"
           installed_certificate="$RUNNER_TEMP/distribution-certificate.pem"
@@ -322,7 +294,7 @@ jobs:
           fi
 
           profiles_body="$RUNNER_TEMP/app-store-profiles.json"
-          api_get \
+          asc_get_collection \
             'https://api.appstoreconnect.apple.com/v1/profiles?filter[profileType]=IOS_APP_STORE&filter[profileState]=ACTIVE&limit=200' \
             "$profiles_body"
           profiles_dir="$RUNNER_TEMP/provisioning-profiles"
@@ -390,7 +362,7 @@ jobs:
                     }
                   }
                 ' > "$profile_request"
-              api_post \
+              asc_post \
                 'https://api.appstoreconnect.apple.com/v1/profiles' \
                 "$profile_request" \
                 "$profile_response"
