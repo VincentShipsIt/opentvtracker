@@ -137,6 +137,9 @@ struct OpenTVTrackerApp: App {
                 .onReceive(NotificationCenter.default.publisher(for: .openTVCloudSharedStateChanged)) { _ in
                     Task { await model.applyLatestCloudSharedState() }
                 }
+                .onReceive(NotificationCenter.default.publisher(for: .openTVCloudShareRequiresInvitation)) { _ in
+                    model.markPartnerReinvitationRequired()
+                }
                 .onChange(of: scenePhase) { _, phase in
                     guard phase == .active else { return }
                     Task {

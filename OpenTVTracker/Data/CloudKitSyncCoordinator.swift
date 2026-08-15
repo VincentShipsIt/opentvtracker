@@ -1,29 +1,6 @@
 import CloudKit
 import Foundation
 
-enum CloudDatabaseScope: String, Codable, Sendable {
-    case privateDatabase
-    case sharedDatabase
-}
-
-struct CloudSyncMutation: Codable, Hashable, Identifiable, Sendable {
-    let id: String
-    let recordType: String
-    let recordName: String
-    let zoneName: String
-    let ownerName: String
-    let parentRecordName: String?
-    let payload: Data?
-    let updatedAt: Date
-
-    var recordID: CKRecord.ID {
-        CKRecord.ID(
-            recordName: recordName,
-            zoneID: CKRecordZone.ID(zoneName: zoneName, ownerName: ownerName)
-        )
-    }
-}
-
 actor CloudKitSyncCoordinator {
     static let shared = CloudKitSyncCoordinator()
 
@@ -97,9 +74,10 @@ private final class CloudKitSyncWorker: CKSyncEngineDelegate, @unchecked Sendabl
     private let scope: CloudDatabaseScope
     private let store: CloudKitSyncStore
     private let database: CKDatabase
+    private let persistence: CloudKitSyncPersistence
 
     private lazy var engine: CKSyncEngine = {
-        let serialization = CloudKitSyncPersistence.loadState(scope: scope)
+        let serialization = persistence.loadState()
         var configuration = CKSyncEngine.Configuration(
             database: database,
             stateSerialization: serialization,
@@ -113,15 +91,34 @@ private final class CloudKitSyncWorker: CKSyncEngineDelegate, @unchecked Sendabl
     init(database: CKDatabase, scope: CloudDatabaseScope) {
         self.database = database
         self.scope = scope
-        store = CloudKitSyncStore(scope: scope)
+        let persistence = CloudKitSyncPersistence(scope: scope)
+        self.persistence = persistence
+        store = CloudKitSyncStore(scope: scope, persistence: persistence)
     }
 
     func start() async {
         do {
             try await engine.fetchChanges()
+        } catch {
+            let diagnostic = CloudKitDiagnostics.record(
+                error,
+                operation: .syncFetchChanges,
+                scope: scope,
+                retryDecision: .noRetry
+            )
+            await store.recordRecoverableError(diagnostic.summary)
+            return
+        }
+        do {
             try await engine.sendChanges()
         } catch {
-            await store.recordRecoverableError(error.localizedDescription)
+            let diagnostic = CloudKitDiagnostics.record(
+                error,
+                operation: .syncSendChanges,
+                scope: scope,
+                retryDecision: .noRetry
+            )
+            await store.recordRecoverableError(diagnostic.summary)
         }
     }
 
@@ -146,7 +143,7 @@ private final class CloudKitSyncWorker: CKSyncEngineDelegate, @unchecked Sendabl
     func handleEvent(_ event: CKSyncEngine.Event, syncEngine: CKSyncEngine) async {
         switch event {
         case .stateUpdate(let update):
-            CloudKitSyncPersistence.saveState(update.stateSerialization, scope: scope)
+            persistence.saveState(update.stateSerialization)
         case .fetchedRecordZoneChanges(let changes):
             for modification in changes.modifications {
                 await store.cache(modification.record)
@@ -158,14 +155,182 @@ private final class CloudKitSyncWorker: CKSyncEngineDelegate, @unchecked Sendabl
                 await store.removeCached(recordID: deletion.recordID)
             }
         case .sentRecordZoneChanges(let changes):
-            await store.acknowledge(
-                saved: changes.savedRecords.map(\.recordID),
-                deleted: changes.deletedRecordIDs
-            )
+            await handleSentRecordZoneChanges(changes, syncEngine: syncEngine)
+        case .sentDatabaseChanges(let changes):
+            await handleSentDatabaseChanges(changes)
         case .accountChange(let change):
             await store.handleAccountChange(change.changeType)
         default:
             break
+        }
+    }
+}
+
+private extension CloudKitSyncWorker {
+    private func handleSentRecordZoneChanges(
+        _ changes: CKSyncEngine.Event.SentRecordZoneChanges,
+        syncEngine: CKSyncEngine
+    ) async {
+        await store.acknowledge(saved: changes.savedRecords, deleted: changes.deletedRecordIDs)
+        let pendingChanges = await retryChanges(for: changes.failedRecordSaves)
+        await handleFailedDeletes(changes.failedRecordDeletes)
+        syncEngine.state.add(pendingDatabaseChanges: pendingChanges.database)
+        syncEngine.state.add(pendingRecordZoneChanges: pendingChanges.records)
+    }
+
+    private func retryChanges(
+        for failedSaves: [CKSyncEngine.Event.SentRecordZoneChanges.FailedRecordSave]
+    ) async -> (records: [CKSyncEngine.PendingRecordZoneChange], database: [CKSyncEngine.PendingDatabaseChange]) {
+        var records: [CKSyncEngine.PendingRecordZoneChange] = []
+        var database: [CKSyncEngine.PendingDatabaseChange] = []
+        for failedSave in failedSaves {
+            let changes = await retryChanges(for: failedSave)
+            records.append(contentsOf: changes.records)
+            database.append(contentsOf: changes.database)
+        }
+        return (records, database)
+    }
+
+    private func retryChanges(
+        for failedSave: CKSyncEngine.Event.SentRecordZoneChanges.FailedRecordSave
+    ) async -> (records: [CKSyncEngine.PendingRecordZoneChange], database: [CKSyncEngine.PendingDatabaseChange]) {
+        let recordID = failedSave.record.recordID
+        let hasPendingZoneRecovery = await store.requiresZoneRecovery(for: recordID)
+        let retryReason = CloudSyncFailurePolicy.retryReason(
+            for: failedSave.error,
+            scope: scope,
+            pendingZoneRecovery: hasPendingZoneRecovery
+        )
+        let retryCount = if let retryReason {
+            await store.applicationRetryCount(for: recordID, reason: retryReason)
+        } else {
+            0
+        }
+        let decision = CloudSyncFailurePolicy.saveDecision(
+            for: failedSave.error,
+            scope: scope,
+            applicationRetryCount: retryCount,
+            pendingZoneRecovery: hasPendingZoneRecovery
+        )
+        let diagnostic = CloudKitDiagnostics.record(
+            failedSave.error,
+            operation: .syncRecordSave,
+            scope: scope,
+            retryDecision: decision
+        )
+
+        switch decision {
+        case .retryServerRecord:
+            return await conflictRetryChanges(for: failedSave, diagnostic: diagnostic)
+        case .recreateZoneAndRetry:
+            return await zoneRecoveryChanges(recordID: recordID, diagnostic: diagnostic)
+        case .retryWithoutSystemFields:
+            await store.prepareRetryWithoutSystemFields(recordID: recordID, reason: .missingRecord)
+            return ([.saveRecord(recordID)], [])
+        case .engineManaged:
+            return ([], [])
+        case .deferUntilNextSync, .noRetry:
+            await store.recordRecoverableError(diagnostic.summary)
+        case .acknowledgeAlreadyDeleted, .bootstrapZone:
+            await store.recordRecoverableError(diagnostic.summary)
+        }
+        return ([], [])
+    }
+
+    private func conflictRetryChanges(
+        for failedSave: CKSyncEngine.Event.SentRecordZoneChanges.FailedRecordSave,
+        diagnostic: CloudKitDiagnostic
+    ) async -> (records: [CKSyncEngine.PendingRecordZoneChange], database: [CKSyncEngine.PendingDatabaseChange]) {
+        let recordID = failedSave.record.recordID
+        guard let serverRecord = failedSave.error.serverRecord else {
+            await store.recordRecoverableError(diagnostic.summary)
+            return ([], [])
+        }
+        guard await store.prepareConflictRetry(serverRecord, recordID: recordID) else {
+            let deferred = CloudKitDiagnostics.record(
+                failedSave.error,
+                operation: .syncRecordSave,
+                scope: scope,
+                retryDecision: .deferUntilNextSync
+            )
+            await store.recordRecoverableError(deferred.summary)
+            return ([], [])
+        }
+        return ([.saveRecord(recordID)], [])
+    }
+
+    private func zoneRecoveryChanges(
+        recordID: CKRecord.ID,
+        diagnostic: CloudKitDiagnostic
+    ) async -> (records: [CKSyncEngine.PendingRecordZoneChange], database: [CKSyncEngine.PendingDatabaseChange]) {
+        guard let mutation = await store.mutation(for: recordID) else {
+            await store.recordRecoverableError(diagnostic.summary)
+            return ([], [])
+        }
+        await store.markZoneRecoveryRequired(for: recordID)
+        let recovery = CloudKitPartnerZoneRecovery(database: database, scope: scope)
+        let recoveryResult = await recovery.recreate(for: mutation)
+        if case .failed(let recoveryFailure) = recoveryResult {
+            await store.registerZoneRecoveryFailure(for: recordID)
+            await store.recordRecoverableError(recoveryFailure.summary)
+            return ([], [])
+        }
+        await store.completeZoneRecovery(for: recordID)
+        await store.prepareRetryWithoutSystemFields(recordID: recordID, reason: .zoneRecovery)
+        if case .createdShareRequiresInvitation = recoveryResult {
+            await MainActor.run {
+                NotificationCenter.default.post(name: .openTVCloudShareRequiresInvitation, object: nil)
+            }
+        }
+        return ([.saveRecord(recordID)], [])
+    }
+
+    private func handleFailedDeletes(_ failedDeletes: [CKRecord.ID: CKError]) async {
+        for (recordID, error) in failedDeletes {
+            let decision = CloudSyncFailurePolicy.deleteDecision(for: error)
+            let diagnostic = CloudKitDiagnostics.record(
+                error,
+                operation: .syncRecordDelete,
+                scope: scope,
+                retryDecision: decision
+            )
+            switch decision {
+            case .acknowledgeAlreadyDeleted:
+                await store.acknowledgeDeleted(recordID)
+            case .engineManaged:
+                break
+            default:
+                await store.recordRecoverableError(diagnostic.summary)
+            }
+        }
+    }
+
+    private func handleSentDatabaseChanges(
+        _ changes: CKSyncEngine.Event.SentDatabaseChanges
+    ) async {
+        for failedSave in changes.failedZoneSaves {
+            let decision = CloudSyncFailurePolicy.zoneSaveDecision(for: failedSave.error)
+            let diagnostic = CloudKitDiagnostics.record(
+                failedSave.error,
+                operation: .syncZoneSave,
+                scope: scope,
+                retryDecision: decision
+            )
+            if decision == .noRetry {
+                await store.recordRecoverableError(diagnostic.summary)
+            }
+        }
+        for error in changes.failedZoneDeletes.values {
+            let decision = CloudSyncFailurePolicy.deleteDecision(for: error)
+            let diagnostic = CloudKitDiagnostics.record(
+                error,
+                operation: .syncZoneDelete,
+                scope: scope,
+                retryDecision: decision
+            )
+            if decision == .noRetry {
+                await store.recordRecoverableError(diagnostic.summary)
+            }
         }
     }
 
@@ -182,138 +347,5 @@ private final class CloudKitSyncWorker: CKSyncEngineDelegate, @unchecked Sendabl
 
 extension Notification.Name {
     static let openTVCloudSharedStateChanged = Notification.Name("OpenTVCloudSharedStateChanged")
-}
-
-private actor CloudKitSyncStore {
-    private let scope: CloudDatabaseScope
-    private var outbox: [String: CloudSyncMutation]
-    private var cache: [String: Data]
-
-    init(scope: CloudDatabaseScope) {
-        self.scope = scope
-        outbox = CloudKitSyncPersistence.loadOutbox(scope: scope)
-        cache = CloudKitSyncPersistence.loadCache(scope: scope)
-    }
-
-    func enqueue(_ mutation: CloudSyncMutation) {
-        outbox[mutation.id] = mutation
-        persistOutbox()
-    }
-
-    func record(for recordID: CKRecord.ID) -> CKRecord? {
-        guard let mutation = outbox[recordID.recordName], let payload = mutation.payload else { return nil }
-        let record = CKRecord(recordType: mutation.recordType, recordID: recordID)
-        if let parentRecordName = mutation.parentRecordName {
-            let parentID = CKRecord.ID(recordName: parentRecordName, zoneID: recordID.zoneID)
-            record.parent = CKRecord.Reference(recordID: parentID, action: .none)
-        }
-        record["payload"] = payload as CKRecordValue
-        record["updatedAt"] = mutation.updatedAt as CKRecordValue
-        record["schemaVersion"] = 1 as CKRecordValue
-        return record
-    }
-
-    func cache(_ record: CKRecord) {
-        if let payload = record["payload"] as? Data {
-            cache[record.recordID.recordName] = payload
-            CloudKitSyncPersistence.saveCache(cache, scope: scope)
-        }
-    }
-
-    func removeCached(recordID: CKRecord.ID) {
-        cache.removeValue(forKey: recordID.recordName)
-        CloudKitSyncPersistence.saveCache(cache, scope: scope)
-    }
-
-    func cachedPayload(stableID: String) -> Data? {
-        cache[stableID]
-    }
-
-    func acknowledge(saved: [CKRecord.ID], deleted: [CKRecord.ID]) {
-        for recordID in saved + deleted { outbox.removeValue(forKey: recordID.recordName) }
-        persistOutbox()
-    }
-
-    func handleAccountChange(_ change: CKSyncEngine.Event.AccountChange.ChangeType) {
-        switch change {
-        case .signIn(let currentUser):
-            CloudKitSyncPersistence.saveAccountID(currentUser.recordName, scope: scope)
-        case .signOut, .switchAccounts:
-            cache = [:]
-            outbox = [:]
-            CloudKitSyncPersistence.purge(scope: scope)
-        @unknown default:
-            cache = [:]
-            outbox = [:]
-            CloudKitSyncPersistence.purge(scope: scope)
-        }
-    }
-
-    func recordRecoverableError(_ message: String) {
-        CloudKitSyncPersistence.saveError(message, scope: scope)
-    }
-
-    func purge() {
-        cache = [:]
-        outbox = [:]
-        CloudKitSyncPersistence.purge(scope: scope)
-    }
-
-    private func persistOutbox() {
-        CloudKitSyncPersistence.saveOutbox(outbox, scope: scope)
-    }
-}
-
-private enum CloudKitSyncPersistence {
-    static func loadState(scope: CloudDatabaseScope) -> CKSyncEngine.State.Serialization? {
-        data(key: "state", scope: scope).flatMap { try? JSONDecoder().decode(CKSyncEngine.State.Serialization.self, from: $0) }
-    }
-
-    static func saveState(_ state: CKSyncEngine.State.Serialization, scope: CloudDatabaseScope) {
-        save(try? JSONEncoder().encode(state), key: "state", scope: scope)
-    }
-
-    static func loadOutbox(scope: CloudDatabaseScope) -> [String: CloudSyncMutation] {
-        data(key: "outbox", scope: scope)
-            .flatMap { try? JSONDecoder().decode([String: CloudSyncMutation].self, from: $0) } ?? [:]
-    }
-
-    static func saveOutbox(_ outbox: [String: CloudSyncMutation], scope: CloudDatabaseScope) {
-        save(try? JSONEncoder().encode(outbox), key: "outbox", scope: scope)
-    }
-
-    static func loadCache(scope: CloudDatabaseScope) -> [String: Data] {
-        data(key: "cache", scope: scope)
-            .flatMap { try? JSONDecoder().decode([String: Data].self, from: $0) } ?? [:]
-    }
-
-    static func saveCache(_ cache: [String: Data], scope: CloudDatabaseScope) {
-        save(try? JSONEncoder().encode(cache), key: "cache", scope: scope)
-    }
-
-    static func saveAccountID(_ id: String, scope: CloudDatabaseScope) {
-        UserDefaults.standard.set(id, forKey: key("account", scope: scope))
-    }
-
-    static func saveError(_ message: String, scope: CloudDatabaseScope) {
-        UserDefaults.standard.set(message, forKey: key("error", scope: scope))
-    }
-
-    static func purge(scope: CloudDatabaseScope) {
-        for value in ["state", "outbox", "cache", "account", "error"] {
-            UserDefaults.standard.removeObject(forKey: key(value, scope: scope))
-        }
-    }
-
-    private static func data(key value: String, scope: CloudDatabaseScope) -> Data? {
-        UserDefaults.standard.data(forKey: key(value, scope: scope))
-    }
-
-    private static func save(_ data: Data?, key value: String, scope: CloudDatabaseScope) {
-        UserDefaults.standard.set(data, forKey: key(value, scope: scope))
-    }
-
-    private static func key(_ value: String, scope: CloudDatabaseScope) -> String {
-        "opentv.cloudkit.\(scope.rawValue).\(value)"
-    }
+    static let openTVCloudShareRequiresInvitation = Notification.Name("OpenTVCloudShareRequiresInvitation")
 }

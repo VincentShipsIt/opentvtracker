@@ -36,6 +36,12 @@ struct CloudKitPartnerSharingService: PartnerSharingProviding {
         do {
             return try await createInvitation(for: spaceID)
         } catch {
+            CloudKitDiagnostics.record(
+                error,
+                operation: .createInvitation,
+                scope: .privateDatabase,
+                retryDecision: .noRetry
+            )
             throw Self.invitationError(from: error)
         }
     }
@@ -70,6 +76,12 @@ struct CloudKitPartnerSharingService: PartnerSharingProviding {
             }
             _ = try result.get()
         } catch {
+            CloudKitDiagnostics.record(
+                error,
+                operation: .acceptInvitation,
+                scope: .sharedDatabase,
+                retryDecision: .noRetry
+            )
             throw PartnerSharingError.acceptanceUnavailable
         }
     }
@@ -80,7 +92,7 @@ struct CloudKitPartnerSharingService: PartnerSharingProviding {
         try await ensureZone(zoneID, database: database)
 
         let rootID = CKRecord.ID(recordName: "space-root", zoneID: zoneID)
-        if let existingShare = try await existingShare(rootID: rootID, database: database) {
+        if let existingShare = try await Self.existingShare(rootID: rootID, database: database) {
             return try await addInvitationParticipant(
                 to: existingShare,
                 rootID: rootID,
@@ -88,17 +100,26 @@ struct CloudKitPartnerSharingService: PartnerSharingProviding {
             )
         }
 
-        let root = CKRecord(recordType: "PartnerSpace", recordID: rootID)
-        root["spaceID"] = spaceID as CKRecordValue
-        root["schemaVersion"] = 1 as CKRecordValue
-        root["createdAt"] = Date.now as CKRecordValue
+        let (root, share) = Self.makeInitialShare(spaceID: spaceID, rootID: rootID)
+        let savedShare = try await Self.saveInitialShare(
+            root: root,
+            share: share,
+            rootID: rootID,
+            database: database
+        ).share
+        return try await addInvitationParticipant(
+            to: savedShare,
+            rootID: rootID,
+            database: database
+        )
+    }
 
-        let share = CKShare(rootRecord: root)
-        share[CKShare.SystemFieldKey.title] = "OpenTV partner space" as CKRecordValue
-        share[CKShare.SystemFieldKey.shareType] = "dev.opentvtracker.app.partner-space" as CKRecordValue
-        share.publicPermission = .none
-
-        let savedShare: CKShare
+    static func saveInitialShare(
+        root: CKRecord,
+        share: CKShare,
+        rootID: CKRecord.ID,
+        database: CKDatabase
+    ) async throws -> (share: CKShare, reusedExistingShare: Bool) {
         do {
             let result = try await database.modifyRecords(
                 saving: [root, share],
@@ -106,25 +127,30 @@ struct CloudKitPartnerSharingService: PartnerSharingProviding {
                 savePolicy: .ifServerRecordUnchanged,
                 atomically: true
             )
+            try CloudKitBatchResultValidator.savedRecords(
+                [root.recordID, share.recordID],
+                in: result.saveResults
+            )
             guard let shareResult = result.saveResults[share.recordID],
                   let share = try shareResult.get() as? CKShare else {
                 throw PartnerSharingError.invitationUnavailable
             }
-            savedShare = share
+            return (share, false)
         } catch {
             guard Self.isServerRecordChanged(error) else {
                 throw error
             }
+            CloudKitDiagnostics.record(
+                error,
+                operation: .createShare,
+                scope: .privateDatabase,
+                retryDecision: .retryServerRecord
+            )
             guard let existingShare = try await existingShare(rootID: rootID, database: database) else {
                 throw error
             }
-            savedShare = existingShare
+            return (existingShare, true)
         }
-        return try await addInvitationParticipant(
-            to: savedShare,
-            rootID: rootID,
-            database: database
-        )
     }
 
     private func addInvitationParticipant(
@@ -138,7 +164,13 @@ struct CloudKitPartnerSharingService: PartnerSharingProviding {
             guard Self.isServerRecordChanged(error) else {
                 throw error
             }
-            guard let latestShare = try await existingShare(rootID: rootID, database: database) else {
+            CloudKitDiagnostics.record(
+                error,
+                operation: .saveInvitationParticipant,
+                scope: .privateDatabase,
+                retryDecision: .retryServerRecord
+            )
+            guard let latestShare = try await Self.existingShare(rootID: rootID, database: database) else {
                 throw error
             }
             return try await saveInvitationParticipant(to: latestShare, database: database)
@@ -167,11 +199,48 @@ struct CloudKitPartnerSharingService: PartnerSharingProviding {
 
     private func ensureZone(_ zoneID: CKRecordZone.ID, database: CKDatabase) async throws {
         let results = try await database.recordZones(for: [zoneID])
-        if let result = results[zoneID], (try? result.get()) != nil { return }
-        _ = try await database.modifyRecordZones(saving: [CKRecordZone(zoneID: zoneID)], deleting: [])
+        guard let result = results[zoneID] else {
+            throw PartnerSharingError.invitationUnavailable
+        }
+        do {
+            _ = try result.get()
+            return
+        } catch {
+            guard Self.zoneBootstrapDecision(for: error) == .bootstrapZone else {
+                CloudKitDiagnostics.record(
+                    error,
+                    operation: .fetchZone,
+                    scope: .privateDatabase,
+                    retryDecision: .noRetry
+                )
+                throw error
+            }
+            CloudKitDiagnostics.record(
+                error,
+                operation: .fetchZone,
+                scope: .privateDatabase,
+                retryDecision: .bootstrapZone
+            )
+        }
+
+        do {
+            let result = try await database.modifyRecordZones(
+                saving: [CKRecordZone(zoneID: zoneID)],
+                deleting: []
+            )
+            try CloudKitBatchResultValidator.savedZone(zoneID, in: result.saveResults)
+        } catch {
+            CloudKitDiagnostics.record(
+                error,
+                operation: .saveZone,
+                scope: .privateDatabase,
+                retryDecision: .noRetry
+            )
+            throw error
+        }
     }
 
-    private func existingShare(rootID: CKRecord.ID, database: CKDatabase) async throws -> CKShare? {
+    static func existingShare(rootID: CKRecord.ID, database: CKDatabase) async throws -> CKShare? {
         let results = try await database.records(for: [rootID])
         guard let result = results[rootID], let root = try? result.get(),
               let reference = root[CKRecord.SystemFieldKey.share] as? CKRecord.Reference else { return nil }
@@ -180,7 +249,9 @@ struct CloudKitPartnerSharingService: PartnerSharingProviding {
               let share = try? shareResult.get() as? CKShare else { return nil }
         return share
     }
+}
 
+extension CloudKitPartnerSharingService {
     static func makePrivateInvitationParticipant() -> CKShare.Participant {
         let participant = CKShare.Participant.oneTimeURLParticipant()
         participant.permission = .readWrite
@@ -188,7 +259,11 @@ struct CloudKitPartnerSharingService: PartnerSharingProviding {
     }
 
     static func isServerRecordChanged(_ error: Error) -> Bool {
-        (error as? CKError)?.code == .serverRecordChanged
+        CloudKitErrorInspector.contains(.serverRecordChanged, in: error)
+    }
+
+    static func zoneBootstrapDecision(for error: Error) -> CloudKitRetryDecision {
+        CloudKitErrorInspector.contains(.zoneNotFound, in: error) ? .bootstrapZone : .noRetry
     }
 
     static func zoneID(for spaceID: SharedSpace.ID) -> CKRecordZone.ID {
@@ -198,8 +273,26 @@ struct CloudKitPartnerSharingService: PartnerSharingProviding {
         return CKRecordZone.ID(zoneName: "partner-\(safeID)")
     }
 
-    static func invitationError(from _: Error) -> PartnerSharingError {
-        .shareUnavailable
+    static func invitationError(from error: Error) -> PartnerSharingError {
+        CloudKitErrorInspector.contains(.quotaExceeded, in: error)
+            ? .iCloudStorageFull
+            : .shareUnavailable
+    }
+
+    static func makeInitialShare(
+        spaceID: SharedSpace.ID,
+        rootID: CKRecord.ID
+    ) -> (root: CKRecord, share: CKShare) {
+        let root = CKRecord(recordType: "PartnerSpace", recordID: rootID)
+        root["spaceID"] = spaceID as CKRecordValue
+        root["schemaVersion"] = 1 as CKRecordValue
+        root["createdAt"] = Date.now as CKRecordValue
+
+        let share = CKShare(rootRecord: root)
+        share[CKShare.SystemFieldKey.title] = "OpenTV partner space" as CKRecordValue
+        share[CKShare.SystemFieldKey.shareType] = "dev.opentvtracker.app.partner-space" as CKRecordValue
+        share.publicPermission = .none
+        return (root, share)
     }
 }
 
