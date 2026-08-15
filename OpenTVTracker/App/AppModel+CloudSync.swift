@@ -74,9 +74,7 @@ extension AppModel {
         remoteSpace.titleMetadata = mergingTitleMetadata(remote: remoteMetadata, local: localMetadata)
         mergeSharedTitleMetadataIntoLibrary(remoteSpace.titleMetadata ?? [])
         let hasPartner = remoteSpace.members.contains { !$0.isCurrentUser }
-        remoteSpace.membershipState = sharedSpace.isCurrentUserShareOwner == true && !hasPartner
-            ? .pending
-            : .accepted
+        remoteSpace.membershipState = resolvedCloudMembershipState(hasPartner: hasPartner)
         remoteSpace.isCloudSharingEnabled = true
         remoteSpace.cloudZoneName = context.zoneID.zoneName
         remoteSpace.cloudOwnerName = context.zoneID.ownerName
@@ -110,6 +108,14 @@ extension AppModel {
             }
             .map(SharedConversationNotificationEvent.reaction)
         return notes + reactions
+    }
+
+    private func resolvedCloudMembershipState(hasPartner: Bool) -> SharedMembershipState {
+        if sharedSpace.isCurrentUserShareOwner == true,
+           sharedSpace.resolvedMembershipState == .expired {
+            return .expired
+        }
+        return sharedSpace.isCurrentUserShareOwner == true && !hasPartner ? .pending : .accepted
     }
 
     private func reconcileConversation(
