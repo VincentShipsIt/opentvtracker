@@ -37,6 +37,19 @@ final class TogetherExperienceTests: XCTestCase {
         XCTAssertEqual(model.togetherConnectionPhase, .left)
     }
 
+    func testZoneRecreationRequiresOwnerToCreateFreshInvitation() {
+        var snapshot = LibrarySnapshot.empty
+        snapshot.sharedSpace.isCurrentUserShareOwner = true
+        snapshot.sharedSpace.isCloudSharingEnabled = true
+        snapshot.sharedSpace.membershipState = .accepted
+        let model = AppModel(store: MemoryLibraryStore(), seed: snapshot)
+
+        model.markPartnerReinvitationRequired()
+
+        XCTAssertEqual(model.togetherConnectionPhase, .expired)
+        XCTAssertTrue(model.sharedSpace.isCloudSharingEnabled)
+    }
+
     func testMemberProgressIsScopedAndIgnoresSupersededEvents() throws {
         var snapshot = LibrarySnapshot.sample
         let titleIndex = try XCTUnwrap(snapshot.titles.firstIndex(where: { $0.id == "severance" }))

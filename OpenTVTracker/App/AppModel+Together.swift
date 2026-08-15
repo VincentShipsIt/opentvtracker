@@ -106,6 +106,13 @@ extension AppModel {
         Task { await partnerActivityNotifier.requestAuthorization() }
     }
 
+    func markPartnerReinvitationRequired() {
+        guard sharedSpace.isCurrentUserShareOwner == true else { return }
+        sharedSpace.membershipState = .expired
+        sharedSpace.isCloudSharingEnabled = true
+        persist()
+    }
+
     func acceptPartnerShare(_ location: PartnerShareLocation) {
         sharedSpace.cloudZoneName = location.zoneName
         sharedSpace.cloudOwnerName = location.ownerName

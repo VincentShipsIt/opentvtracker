@@ -63,6 +63,106 @@ final class CloudKitSyncRecoveryTests: XCTestCase {
         let completedRecovery = await reloadedStore.requiresZoneRecovery(for: mutation.recordID)
         XCTAssertFalse(completedRecovery)
     }
+
+    func testPendingZoneRecoveryResumesForPrivateMissingRecord() {
+        let missingRecord = CKError(
+            _nsError: NSError(domain: CKErrorDomain, code: CKError.unknownItem.rawValue)
+        )
+
+        XCTAssertEqual(
+            CloudSyncFailurePolicy.saveDecision(
+                for: missingRecord,
+                scope: .privateDatabase,
+                applicationRetryCount: 0,
+                pendingZoneRecovery: true
+            ),
+            .recreateZoneAndRetry
+        )
+        XCTAssertEqual(
+            CloudSyncFailurePolicy.retryReason(
+                for: missingRecord,
+                scope: .privateDatabase,
+                pendingZoneRecovery: true
+            ),
+            .zoneRecovery
+        )
+        XCTAssertEqual(
+            CloudSyncFailurePolicy.saveDecision(
+                for: missingRecord,
+                scope: .sharedDatabase,
+                applicationRetryCount: 0,
+                pendingZoneRecovery: true
+            ),
+            .retryWithoutSystemFields
+        )
+    }
+
+    func testPendingZoneRecoveryDoesNotMaskConflictOrTransientFailures() {
+        let transient = CKError(
+            _nsError: NSError(domain: CKErrorDomain, code: CKError.networkFailure.rawValue)
+        )
+        let serverRecord = CKRecord(recordType: "PartnerSpaceState")
+        let conflict = CKError(
+            _nsError: NSError(
+                domain: CKErrorDomain,
+                code: CKError.serverRecordChanged.rawValue,
+                userInfo: [CKRecordChangedErrorServerRecordKey: serverRecord]
+            )
+        )
+
+        XCTAssertEqual(
+            CloudSyncFailurePolicy.saveDecision(
+                for: transient,
+                scope: .privateDatabase,
+                applicationRetryCount: 0,
+                pendingZoneRecovery: true
+            ),
+            .engineManaged
+        )
+        XCTAssertEqual(
+            CloudSyncFailurePolicy.saveDecision(
+                for: conflict,
+                scope: .privateDatabase,
+                applicationRetryCount: 0,
+                pendingZoneRecovery: true
+            ),
+            .retryServerRecord
+        )
+    }
+
+    func testAccountSignInPurgesSyncStateWhenPersistedAccountChanges() async throws {
+        let persistence = Self.persistence()
+        defer { persistence.purge() }
+        let mutation = try Self.mutation()
+        let store = CloudKitSyncStore(scope: .privateDatabase, persistence: persistence)
+        persistence.saveAccountID("first-account")
+        await store.enqueue(mutation)
+
+        await store.handleAccountChange(
+            .signIn(currentUser: CKRecord.ID(recordName: "second-account"))
+        )
+
+        let hasPendingMutation = await store.hasPendingMutation(for: mutation.recordID)
+        XCTAssertFalse(hasPendingMutation)
+        XCTAssertEqual(persistence.loadAccountID(), "second-account")
+    }
+
+    func testAccountSignInPreservesSyncStateForSamePersistedAccount() async throws {
+        let persistence = Self.persistence()
+        defer { persistence.purge() }
+        let mutation = try Self.mutation()
+        let store = CloudKitSyncStore(scope: .privateDatabase, persistence: persistence)
+        persistence.saveAccountID("current-account")
+        await store.enqueue(mutation)
+
+        await store.handleAccountChange(
+            .signIn(currentUser: CKRecord.ID(recordName: "current-account"))
+        )
+
+        let hasPendingMutation = await store.hasPendingMutation(for: mutation.recordID)
+        XCTAssertTrue(hasPendingMutation)
+        XCTAssertEqual(persistence.loadAccountID(), "current-account")
+    }
 }
 
 private extension CloudKitSyncRecoveryTests {

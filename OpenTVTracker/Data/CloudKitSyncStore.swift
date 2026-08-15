@@ -154,6 +154,10 @@ actor CloudKitSyncStore {
     func handleAccountChange(_ change: CKSyncEngine.Event.AccountChange.ChangeType) {
         switch change {
         case .signIn(let currentUser):
+            if let previousAccountID = persistence.loadAccountID(),
+               previousAccountID != currentUser.recordName {
+                purge()
+            }
             persistence.saveAccountID(currentUser.recordName)
         case .signOut, .switchAccounts:
             purge()
@@ -286,6 +290,10 @@ struct CloudKitSyncPersistence: @unchecked Sendable {
 
     func saveAccountID(_ id: String) {
         defaults.set(id, forKey: key("account"))
+    }
+
+    func loadAccountID() -> String? {
+        defaults.string(forKey: key("account"))
     }
 
     func saveError(_ message: String) {

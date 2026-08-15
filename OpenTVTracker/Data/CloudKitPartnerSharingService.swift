@@ -92,7 +92,7 @@ struct CloudKitPartnerSharingService: PartnerSharingProviding {
         try await ensureZone(zoneID, database: database)
 
         let rootID = CKRecord.ID(recordName: "space-root", zoneID: zoneID)
-        if let existingShare = try await existingShare(rootID: rootID, database: database) {
+        if let existingShare = try await Self.existingShare(rootID: rootID, database: database) {
             return try await addInvitationParticipant(
                 to: existingShare,
                 rootID: rootID,
@@ -101,12 +101,12 @@ struct CloudKitPartnerSharingService: PartnerSharingProviding {
         }
 
         let (root, share) = Self.makeInitialShare(spaceID: spaceID, rootID: rootID)
-        let savedShare = try await saveInitialShare(
+        let savedShare = try await Self.saveInitialShare(
             root: root,
             share: share,
             rootID: rootID,
             database: database
-        )
+        ).share
         return try await addInvitationParticipant(
             to: savedShare,
             rootID: rootID,
@@ -114,12 +114,12 @@ struct CloudKitPartnerSharingService: PartnerSharingProviding {
         )
     }
 
-    private func saveInitialShare(
+    static func saveInitialShare(
         root: CKRecord,
         share: CKShare,
         rootID: CKRecord.ID,
         database: CKDatabase
-    ) async throws -> CKShare {
+    ) async throws -> (share: CKShare, reusedExistingShare: Bool) {
         do {
             let result = try await database.modifyRecords(
                 saving: [root, share],
@@ -135,7 +135,7 @@ struct CloudKitPartnerSharingService: PartnerSharingProviding {
                   let share = try shareResult.get() as? CKShare else {
                 throw PartnerSharingError.invitationUnavailable
             }
-            return share
+            return (share, false)
         } catch {
             guard Self.isServerRecordChanged(error) else {
                 throw error
@@ -149,7 +149,7 @@ struct CloudKitPartnerSharingService: PartnerSharingProviding {
             guard let existingShare = try await existingShare(rootID: rootID, database: database) else {
                 throw error
             }
-            return existingShare
+            return (existingShare, true)
         }
     }
 
@@ -170,7 +170,7 @@ struct CloudKitPartnerSharingService: PartnerSharingProviding {
                 scope: .privateDatabase,
                 retryDecision: .retryServerRecord
             )
-            guard let latestShare = try await existingShare(rootID: rootID, database: database) else {
+            guard let latestShare = try await Self.existingShare(rootID: rootID, database: database) else {
                 throw error
             }
             return try await saveInvitationParticipant(to: latestShare, database: database)
@@ -240,7 +240,7 @@ struct CloudKitPartnerSharingService: PartnerSharingProviding {
         }
     }
 
-    private func existingShare(rootID: CKRecord.ID, database: CKDatabase) async throws -> CKShare? {
+    static func existingShare(rootID: CKRecord.ID, database: CKDatabase) async throws -> CKShare? {
         let results = try await database.records(for: [rootID])
         guard let result = results[rootID], let root = try? result.get(),
               let reference = root[CKRecord.SystemFieldKey.share] as? CKRecord.Reference else { return nil }

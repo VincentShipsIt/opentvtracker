@@ -170,9 +170,17 @@ enum CloudSyncFailurePolicy {
     static func saveDecision(
         for error: CKError,
         scope: CloudDatabaseScope,
-        applicationRetryCount: Int
+        applicationRetryCount: Int,
+        pendingZoneRecovery: Bool = false
     ) -> CloudKitRetryDecision {
         if isEngineManaged(error.code) { return .engineManaged }
+        if shouldResumePendingZoneRecovery(
+            for: error,
+            scope: scope,
+            pendingZoneRecovery: pendingZoneRecovery
+        ) {
+            return pendingZoneRecoveryDecision(applicationRetryCount: applicationRetryCount)
+        }
         switch error.code {
         case .serverRecordChanged where error.serverRecord != nil:
             return applicationRetryCount < maximumApplicationRetries
@@ -193,9 +201,17 @@ enum CloudSyncFailurePolicy {
 
     static func retryReason(
         for error: CKError,
-        scope: CloudDatabaseScope
+        scope: CloudDatabaseScope,
+        pendingZoneRecovery: Bool = false
     ) -> CloudSyncRetryReason? {
-        switch error.code {
+        if shouldResumePendingZoneRecovery(
+            for: error,
+            scope: scope,
+            pendingZoneRecovery: pendingZoneRecovery
+        ) {
+            return .zoneRecovery
+        }
+        return switch error.code {
         case .serverRecordChanged where error.serverRecord != nil:
             .conflict
         case .zoneNotFound where scope == .privateDatabase:
@@ -213,6 +229,16 @@ enum CloudSyncFailurePolicy {
         applicationRetryCount < maximumApplicationRetries
             ? .recreateZoneAndRetry
             : .deferUntilNextSync
+    }
+
+    private static func shouldResumePendingZoneRecovery(
+        for error: CKError,
+        scope: CloudDatabaseScope,
+        pendingZoneRecovery: Bool
+    ) -> Bool {
+        pendingZoneRecovery
+            && scope == .privateDatabase
+            && error.code == .unknownItem
     }
 
     static func zoneSaveDecision(for error: CKError) -> CloudKitRetryDecision {

@@ -196,21 +196,22 @@ private extension CloudKitSyncWorker {
     ) async -> (records: [CKSyncEngine.PendingRecordZoneChange], database: [CKSyncEngine.PendingDatabaseChange]) {
         let recordID = failedSave.record.recordID
         let hasPendingZoneRecovery = await store.requiresZoneRecovery(for: recordID)
-        let retryReason = hasPendingZoneRecovery
-            ? CloudSyncRetryReason.zoneRecovery
-            : CloudSyncFailurePolicy.retryReason(for: failedSave.error, scope: scope)
+        let retryReason = CloudSyncFailurePolicy.retryReason(
+            for: failedSave.error,
+            scope: scope,
+            pendingZoneRecovery: hasPendingZoneRecovery
+        )
         let retryCount = if let retryReason {
             await store.applicationRetryCount(for: recordID, reason: retryReason)
         } else {
             0
         }
-        let decision = hasPendingZoneRecovery
-            ? CloudSyncFailurePolicy.pendingZoneRecoveryDecision(applicationRetryCount: retryCount)
-            : CloudSyncFailurePolicy.saveDecision(
-                for: failedSave.error,
-                scope: scope,
-                applicationRetryCount: retryCount
-            )
+        let decision = CloudSyncFailurePolicy.saveDecision(
+            for: failedSave.error,
+            scope: scope,
+            applicationRetryCount: retryCount,
+            pendingZoneRecovery: hasPendingZoneRecovery
+        )
         let diagnostic = CloudKitDiagnostics.record(
             failedSave.error,
             operation: .syncRecordSave,
@@ -268,13 +269,19 @@ private extension CloudKitSyncWorker {
         }
         await store.markZoneRecoveryRequired(for: recordID)
         let recovery = CloudKitPartnerZoneRecovery(database: database, scope: scope)
-        if let recoveryFailure = await recovery.recreate(for: mutation) {
+        let recoveryResult = await recovery.recreate(for: mutation)
+        if case .failed(let recoveryFailure) = recoveryResult {
             await store.registerZoneRecoveryFailure(for: recordID)
             await store.recordRecoverableError(recoveryFailure.summary)
             return ([], [])
         }
         await store.completeZoneRecovery(for: recordID)
         await store.prepareRetryWithoutSystemFields(recordID: recordID, reason: .zoneRecovery)
+        if case .createdShareRequiresInvitation = recoveryResult {
+            await MainActor.run {
+                NotificationCenter.default.post(name: .openTVCloudShareRequiresInvitation, object: nil)
+            }
+        }
         return ([.saveRecord(recordID)], [])
     }
 
@@ -340,4 +347,5 @@ private extension CloudKitSyncWorker {
 
 extension Notification.Name {
     static let openTVCloudSharedStateChanged = Notification.Name("OpenTVCloudSharedStateChanged")
+    static let openTVCloudShareRequiresInvitation = Notification.Name("OpenTVCloudShareRequiresInvitation")
 }

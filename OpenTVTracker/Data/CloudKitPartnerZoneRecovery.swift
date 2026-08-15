@@ -27,21 +27,27 @@ struct CloudKitPartnerZoneRecoveryPlan {
     }
 }
 
+enum CloudKitPartnerZoneRecoveryResult {
+    case recoveredExistingShare
+    case createdShareRequiresInvitation
+    case failed(CloudKitDiagnostic)
+}
+
 struct CloudKitPartnerZoneRecovery {
     let database: CKDatabase
     let scope: CloudDatabaseScope
 
-    func recreate(for mutation: CloudSyncMutation) async -> CloudKitDiagnostic? {
+    func recreate(for mutation: CloudSyncMutation) async -> CloudKitPartnerZoneRecoveryResult {
         guard let plan = CloudKitPartnerZoneRecoveryPlan.make(mutation: mutation, scope: scope) else {
-            return CloudKitDiagnostics.record(
+            return .failed(CloudKitDiagnostics.record(
                 NSError(domain: "OpenTVCloudSync", code: 1),
                 operation: .syncZoneSave,
                 scope: scope,
                 retryDecision: .deferUntilNextSync
-            )
+            ))
         }
 
-        if let diagnostic = await saveZone(plan.zoneID) { return diagnostic }
+        if let diagnostic = await saveZone(plan.zoneID) { return .failed(diagnostic) }
         return await saveShare(root: plan.root, share: plan.share)
     }
 
@@ -63,26 +69,27 @@ struct CloudKitPartnerZoneRecovery {
         }
     }
 
-    private func saveShare(root: CKRecord, share: CKShare) async -> CloudKitDiagnostic? {
+    private func saveShare(
+        root: CKRecord,
+        share: CKShare
+    ) async -> CloudKitPartnerZoneRecoveryResult {
         do {
-            let result = try await database.modifyRecords(
-                saving: [root, share],
-                deleting: [],
-                savePolicy: .ifServerRecordUnchanged,
-                atomically: true
+            let result = try await CloudKitPartnerSharingService.saveInitialShare(
+                root: root,
+                share: share,
+                rootID: root.recordID,
+                database: database
             )
-            try CloudKitBatchResultValidator.savedRecords(
-                [root.recordID, share.recordID],
-                in: result.saveResults
-            )
-            return nil
+            return result.reusedExistingShare
+                ? .recoveredExistingShare
+                : .createdShareRequiresInvitation
         } catch {
-            return CloudKitDiagnostics.record(
+            return .failed(CloudKitDiagnostics.record(
                 error,
                 operation: .createShare,
                 scope: scope,
                 retryDecision: .deferUntilNextSync
-            )
+            ))
         }
     }
 }
