@@ -3,6 +3,26 @@ import Foundation
 struct TraktMediaKey: Codable, Hashable, Sendable {
     let kind: MediaKind
     let tmdbID: Int
+
+    init(kind: MediaKind, tmdbID: Int) {
+        self.kind = kind
+        self.tmdbID = tmdbID
+    }
+
+    /// Trakt keys are TMDB identities. Library titles carry TMDB and TVmaze
+    /// numeric IDs in the same `catalogID` field, so a TVmaze-sourced title
+    /// must never be joined to Trakt by its bare number.
+    init?(title: MediaTitle) {
+        guard title.catalogID > 0,
+              LibraryTransferService.resolvedMetadataSource(title) == .tmdb else {
+            return nil
+        }
+        self.init(kind: title.kind, tmdbID: title.catalogID)
+    }
+
+    func matches(_ title: MediaTitle) -> Bool {
+        TraktMediaKey(title: title) == self
+    }
 }
 
 struct TraktRatingBaseline: Codable, Hashable, Sendable {

@@ -32,6 +32,8 @@ extension LibraryTransferService {
             return index
         }
         let catalogID = intValue(in: values, keys: ["catalog_id", "tmdb_id", "id"])
+        let metadataSource = stringValue(in: values, keys: ["metadata_source", "source"])
+            .flatMap(MetadataSource.init(csvValue:))
         let titleName = stringValue(in: values, keys: ["title", "name", "series_name", "movie_name"])
         let year = intValue(in: values, keys: ["year", "release_year"])
         let kind = stringValue(in: values, keys: ["kind", "media_kind", "type"])
@@ -39,7 +41,9 @@ extension LibraryTransferService {
 
         return titles.firstIndex { title in
             if let catalogID, catalogID > 0 {
-                return title.catalogID == catalogID && (kind == nil || title.kind == kind)
+                return title.catalogID == catalogID
+                    && (kind == nil || title.kind == kind)
+                    && (metadataSource == nil || resolvedMetadataSource(title) == metadataSource)
             }
             guard let titleName else { return false }
             return normalizedTitle(title.title) == normalizedTitle(titleName)

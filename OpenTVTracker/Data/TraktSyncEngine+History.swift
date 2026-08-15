@@ -70,7 +70,7 @@ extension TraktSyncEngine {
                   event.memberID == currentMemberID,
                   event.kind != .correction,
                   let title = titlesByID[event.titleID],
-                  title.catalogID > 0 else {
+                  let media = TraktMediaKey(title: title) else {
                 return nil
             }
             if title.kind == .series, event.season == nil || event.episode == nil {
@@ -78,7 +78,7 @@ extension TraktSyncEngine {
             }
             return TraktHistoryMutation(
                 eventID: event.id,
-                media: TraktMediaKey(kind: title.kind, tmdbID: title.catalogID),
+                media: media,
                 season: event.season,
                 episode: event.episode,
                 watchedAt: event.occurredAt
@@ -88,15 +88,15 @@ extension TraktSyncEngine {
         let titleIDsWithEvents = Set((snapshot.sharedSpace.watchEvents ?? []).map(\.titleID))
         for title in snapshot.titles where
             title.kind == .movie
-            && title.catalogID > 0
             && title.state == .completed
             && !titleIDsWithEvents.contains(title.id) {
-            guard let watchedAt = title.lastWatchedAt else { continue }
+            guard let media = TraktMediaKey(title: title),
+                  let watchedAt = title.lastWatchedAt else { continue }
             let eventID = "legacy:\(title.id):\(watchedAt.timeIntervalSince1970)"
             guard !uploadedIDs.contains(eventID) else { continue }
             mutations.append(TraktHistoryMutation(
                 eventID: eventID,
-                media: TraktMediaKey(kind: .movie, tmdbID: title.catalogID),
+                media: media,
                 season: nil,
                 episode: nil,
                 watchedAt: watchedAt
@@ -113,7 +113,7 @@ extension TraktSyncEngine {
         for media: TraktMediaKey,
         in titles: [MediaTitle]
     ) -> Array<MediaTitle>.Index? {
-        titles.firstIndex { $0.kind == media.kind && $0.catalogID == media.tmdbID }
+        titles.firstIndex(where: media.matches)
     }
 
     static func ensureEpisode(

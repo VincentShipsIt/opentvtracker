@@ -10,6 +10,7 @@ struct AppSettingsView: View {
     private var hidesUnwatchedEpisodeDetails = false
     @State private var showsCredits = false
     @State private var showsDataTools = false
+    @State private var isAIRerankingAuthorized = false
 
     var body: some View {
         NavigationStack {
@@ -77,10 +78,15 @@ struct AppSettingsView: View {
                             set: { model.setAIRerankingEnabled($0) }
                         )
                     )
+                    .disabled(!isAIRerankingAuthorized)
                 } header: {
                     Text("Discovery")
                 } footer: {
-                    Text("Off by default. Deterministic on-device recommendations always remain available.")
+                    Text(
+                        isAIRerankingAuthorized
+                            ? "Off by default. Deterministic on-device recommendations always remain available."
+                            : "Connect OpenRouter from Discover › AI discovery to enable reranking. Deterministic on-device recommendations always remain available."
+                    )
                 }
 
                 Section {
@@ -148,6 +154,20 @@ struct AppSettingsView: View {
             .sheet(isPresented: $showsDataTools) {
                 LibraryDataView()
             }
+            .task { await refreshAIRerankingAuthorization() }
+        }
+    }
+
+    /// Mirrors `AIRankingSettingsView`: reranking needs a connected OpenRouter
+    /// key, so the toggle stays locked (and any stale "on" is cleared) without one.
+    private func refreshAIRerankingAuthorization() async {
+        guard let callbackURL = AppServiceConfiguration.openRouterOAuthCallbackURL else {
+            isAIRerankingAuthorized = false
+            return
+        }
+        isAIRerankingAuthorized = await OpenRouterOAuthClient(callbackURL: callbackURL).isAuthorized()
+        if !isAIRerankingAuthorized, model.allowsAIReranking {
+            model.setAIRerankingEnabled(false)
         }
     }
 

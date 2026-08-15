@@ -9,7 +9,8 @@ enum LibraryTransferService {
         let header = [
             "catalog_id", "title", "year", "kind", "state", "personal_watchlist", "season", "episode",
             "total_episodes", "rating", "notes", "rewatches", "last_watched_at",
-            "series_lifecycle", "is_up_next_pinned", "up_next_snoozed_until", "up_next_manual_order"
+            "series_lifecycle", "is_up_next_pinned", "up_next_snoozed_until", "up_next_manual_order",
+            "metadata_source"
         ]
         let rows = snapshot.titles.map(titleCSVRow)
         return csvData(header: header, rows: rows)
@@ -160,9 +161,7 @@ extension LibraryTransferService {
             var mergedAliases = merged.importResolutionAliases ?? [:]
             mergedAliases.merge(aliases) { _, importedAlias in importedAlias }
             merged.importResolutionAliases = mergedAliases.filter { _, alias in
-                merged.titles.contains {
-                    $0.kind == alias.kind && $0.catalogID == alias.catalogID
-                }
+                merged.titles.contains(where: alias.matches)
             }
         }
         merged.sharedSpace = LibraryBackupMerge.sharedSpace(
@@ -296,7 +295,8 @@ extension LibraryTransferService {
             title.seriesLifecycle?.rawValue ?? "",
             String(title.isUpNextPinned == true),
             snoozedUntil,
-            title.upNextManualOrder.map(String.init) ?? ""
+            title.upNextManualOrder.map(String.init) ?? "",
+            resolvedMetadataSource(title).rawValue
         ]
     }
 

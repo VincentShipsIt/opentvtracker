@@ -152,6 +152,31 @@ struct TVTimeEntity: Sendable {
     var rating: Double?
     var rewatchCount = 0
     var watches: [TVTimeWatch] = []
+    /// Positions in `watches` keyed by watch identity so archive parsing stays
+    /// linear. Real TV Time exports carry tens of thousands of episode rows;
+    /// a scan per row made a 100k-row archive take minutes to parse.
+    var watchIndexByIdentity: [TVTimeWatch.Identity: Int] = [:]
+
+    /// Records a watch, folding exact duplicates into the existing entry.
+    /// Returns `true` when the watch was already present.
+    @discardableResult
+    mutating func recordWatch(_ watch: TVTimeWatch) -> Bool {
+        if watchIndexByIdentity.count != watches.count {
+            watchIndexByIdentity = Dictionary(
+                watches.enumerated().map { ($0.element.identity, $0.offset) },
+                uniquingKeysWith: { first, _ in first }
+            )
+        }
+        if let index = watchIndexByIdentity[watch.identity] {
+            if let rating = watch.rating {
+                watches[index].rating = rating
+            }
+            return true
+        }
+        watchIndexByIdentity[watch.identity] = watches.count
+        watches.append(watch)
+        return false
+    }
 
     var importedRewatchCount: Int {
         if kind == .movie {
@@ -186,11 +211,17 @@ struct TVTimeWatch: Hashable, Sendable {
     var isRewatch: Bool
     var rewatchCount = 0
 
-    func hasSameIdentity(as other: TVTimeWatch) -> Bool {
-        season == other.season
-            && episode == other.episode
-            && occurredAt == other.occurredAt
-            && isRewatch == other.isRewatch
+    /// The fields that make two exported rows the same watch. Rating and
+    /// rewatch count are payload, not identity.
+    struct Identity: Hashable, Sendable {
+        let season: Int?
+        let episode: Int?
+        let occurredAt: Date?
+        let isRewatch: Bool
+    }
+
+    var identity: Identity {
+        Identity(season: season, episode: episode, occurredAt: occurredAt, isRewatch: isRewatch)
     }
 
     var importedRewatchCount: Int {

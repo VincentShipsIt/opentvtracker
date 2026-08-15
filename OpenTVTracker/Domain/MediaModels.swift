@@ -24,6 +24,17 @@ enum MetadataSource: String, Codable, Sendable {
     case tvmaze = "TVmaze"
 
     var displayName: String { rawValue }
+
+    /// Case-insensitive parse for hand-edited CSV values ("tmdb", "TVMaze").
+    init?(csvValue: String) {
+        let normalized = csvValue.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !normalized.isEmpty else { return nil }
+        switch normalized {
+        case "tmdb": self = .tmdb
+        case "tvmaze": self = .tvmaze
+        default: return nil
+        }
+    }
 }
 
 enum Mood: String, Codable, CaseIterable, Identifiable, Sendable {
@@ -352,6 +363,31 @@ struct SharedSpace: Codable, Hashable, Identifiable, Sendable {
 struct ImportResolutionAlias: Codable, Hashable, Sendable {
     let kind: MediaKind
     let catalogID: Int
+    /// Aliases persisted before catalog-source isolation are TMDB-only, so a
+    /// missing value decodes as `.tmdb` via `resolvedMetadataSource`.
+    let metadataSource: MetadataSource?
+
+    init(kind: MediaKind, catalogID: Int, metadataSource: MetadataSource? = nil) {
+        self.kind = kind
+        self.catalogID = catalogID
+        self.metadataSource = metadataSource
+    }
+
+    init(title: MediaTitle) {
+        self.init(
+            kind: title.kind,
+            catalogID: title.catalogID,
+            metadataSource: LibraryTransferService.resolvedMetadataSource(title)
+        )
+    }
+
+    var resolvedMetadataSource: MetadataSource { metadataSource ?? .tmdb }
+
+    func matches(_ title: MediaTitle) -> Bool {
+        title.kind == kind
+            && title.catalogID == catalogID
+            && LibraryTransferService.resolvedMetadataSource(title) == resolvedMetadataSource
+    }
 }
 
 struct LibrarySnapshot: Codable, Hashable, Sendable {
