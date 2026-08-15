@@ -54,6 +54,10 @@ enum TVTimeImportAliasResolver {
                 catalogID: alias.catalogID,
                 region: region
             )
+            // The active catalog may have changed namespace since the alias
+            // was saved (TVmaze fallback vs TMDB proxy). A numeric ID from the
+            // wrong namespace resolves to an unrelated title, so re-search.
+            guard alias.matches(title) else { throw ImportAliasError.namespaceMismatch }
             return .resolved(entity.identity, title)
         } catch {
             let displayName = entity.title.isEmpty
@@ -68,6 +72,10 @@ enum TVTimeImportAliasResolver {
             )
         }
     }
+}
+
+private enum ImportAliasError: Error {
+    case namespaceMismatch
 }
 
 private enum AliasResolutionResult: Sendable {

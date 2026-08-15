@@ -42,6 +42,11 @@ describe("server configuration", () => {
         CLIENT_IP_HEADER: "X-Forwarded-For\r\nInjected",
       }),
     ).toThrow("valid HTTP header name");
+    for (const header of ["X-Forwarded-For", "Forwarded"]) {
+      expect(() =>
+        loadConfig({ ...productionEnvironment(), CLIENT_IP_HEADER: header }),
+      ).toThrow("header your edge overwrites");
+    }
   });
 });
 

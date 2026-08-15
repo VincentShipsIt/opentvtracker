@@ -99,10 +99,19 @@ export function loadConfig(
   return config;
 }
 
+// Proxies append to these instead of overwriting them, so the first entry is
+// whatever the client sent. Rate limits keyed on it would be trivially bypassed.
+const APPEND_STYLE_CLIENT_IP_HEADERS = new Set(["x-forwarded-for", "forwarded"]);
+
 function headerName(value: string | undefined): string | undefined {
   const name = nonempty(value)?.toLowerCase();
   if (name && !/^[a-z0-9!#$%&'*+.^_`|~-]+$/.test(name)) {
     throw new Error("CLIENT_IP_HEADER must be a valid HTTP header name");
+  }
+  if (name && APPEND_STYLE_CLIENT_IP_HEADERS.has(name)) {
+    throw new Error(
+      `CLIENT_IP_HEADER must be a header your edge overwrites (for example CF-Connecting-IP), not ${name}`,
+    );
   }
   return name;
 }

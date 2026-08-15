@@ -22,9 +22,7 @@ enum TVTimeImportMerger {
         var aliasTitles: [String: MediaTitle] = [:]
         for entity in entities {
             guard let alias = aliases[entity.identity],
-                  let localTitle = current.titles.first(where: {
-                      $0.kind == alias.kind && $0.catalogID == alias.catalogID
-                  }) else { continue }
+                  let localTitle = current.titles.first(where: alias.matches) else { continue }
             aliasTitles[entity.identity] = localTitle
         }
 
@@ -141,7 +139,7 @@ private extension TVTimeImportMerger {
             )
             issues.removeValue(forKey: identity)
             var aliases = snapshot.importResolutionAliases ?? [:]
-            aliases[identity] = ImportResolutionAlias(kind: title.kind, catalogID: title.catalogID)
+            aliases[identity] = ImportResolutionAlias(title: title)
             snapshot.importResolutionAliases = aliases
         }
     }
@@ -154,10 +152,7 @@ private extension TVTimeImportMerger {
         var aliases = snapshot.importResolutionAliases ?? [:]
         for entity in entities {
             guard let title = resolved[entity.identity]?.title else { continue }
-            aliases[entity.identity] = ImportResolutionAlias(
-                kind: title.kind,
-                catalogID: title.catalogID
-            )
+            aliases[entity.identity] = ImportResolutionAlias(title: title)
         }
         snapshot.importResolutionAliases = aliases.isEmpty ? nil : aliases
     }

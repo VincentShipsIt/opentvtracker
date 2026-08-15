@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		006297290910922767B183C3 /* ImportReport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B6E1E150E3485F1D316843 /* ImportReport.swift */; };
+		007C153CCDAB1A27DF966265 /* CatalogSourceIsolationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECE41AE372A4692241B08E58 /* CatalogSourceIsolationTests.swift */; };
 		00B4BC458AFF915CA7FB436F /* AppModel+LocalePreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0593F8BE05D75250AB9A62DF /* AppModel+LocalePreferences.swift */; };
 		00F344FA01448C9151DA5644 /* LibrarySnapshotHydration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26856B28D62DEC4F2D364A9C /* LibrarySnapshotHydration.swift */; };
 		011F2EF0233A70A49BF7501E /* DiscoveryAssistantTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 058FC17069CAF8CCDAB3F30F /* DiscoveryAssistantTests.swift */; };
@@ -443,6 +444,7 @@
 		EAD71270E84B0549ECD57DA3 /* CatalogServices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CatalogServices.swift; sourceTree = "<group>"; };
 		EB79E25ACD6BC0B971DE878A /* CinemaModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CinemaModels.swift; sourceTree = "<group>"; };
 		EC075EAA6985B494E82C7BA2 /* TogetherRoutes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TogetherRoutes.swift; sourceTree = "<group>"; };
+		ECE41AE372A4692241B08E58 /* CatalogSourceIsolationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CatalogSourceIsolationTests.swift; sourceTree = "<group>"; };
 		ED1F457E4518F3048B524D01 /* TVTimeListImportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVTimeListImportTests.swift; sourceTree = "<group>"; };
 		EDCC6E021A77D2874816A3C9 /* CatalogImportResolutionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CatalogImportResolutionTests.swift; sourceTree = "<group>"; };
 		EF907450AFF0759C3920551C /* TVTimeListParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVTimeListParser.swift; sourceTree = "<group>"; };
@@ -773,6 +775,7 @@
 				309363E80A6210E762537FF3 /* CatalogImportSafetyTests.swift */,
 				1AE2BFDDA46C9B19B50C3C9A /* CatalogPaginationTests.swift */,
 				BD6A3D0987FC52CF8EF3EBAE /* CatalogSearchStub.swift */,
+				ECE41AE372A4692241B08E58 /* CatalogSourceIsolationTests.swift */,
 				B25783B9D6CF69BC074D6284 /* CloudSharingModelTests.swift */,
 				D679E7CC4B0CF707064EDE32 /* CommunityReviewPaginationTests.swift */,
 				178C82199F490D7D746E525E /* ContentLanguageTests.swift */,
@@ -978,7 +981,7 @@
 					};
 					96396D01C2F07D817EF2875C = {
 						DevelopmentTeam = C76R5DRH64;
-						SystemCapabilities = "[\"com.apple.iCloud\": [\"enabled\": 1], \"com.apple.DeviceCheck\": [\"enabled\": 1], \"com.apple.Push\": [\"enabled\": 1]]";
+						SystemCapabilities = "[\"com.apple.DeviceCheck\": [\"enabled\": 1], \"com.apple.iCloud\": [\"enabled\": 1], \"com.apple.Push\": [\"enabled\": 1]]";
 					};
 					B0AF29D3A827D293C2407B7B = {
 						DevelopmentTeam = C76R5DRH64;
@@ -1056,6 +1059,7 @@
 				8A48D3E61C7B95B35148DAFA /* CatalogImportSafetyTests.swift in Sources */,
 				A1AA199A6815DE76AEF7A7F2 /* CatalogPaginationTests.swift in Sources */,
 				C8D942744DED8EA9FDA39176 /* CatalogSearchStub.swift in Sources */,
+				007C153CCDAB1A27DF966265 /* CatalogSourceIsolationTests.swift in Sources */,
 				B74DEAEC1F08BBF6B9A49C63 /* CloudSharingModelTests.swift in Sources */,
 				988E17CBDA6986D933E04B32 /* CommunityReviewPaginationTests.swift in Sources */,
 				A4DCD103C5AE26A2FD573F8B /* ContentLanguageTests.swift in Sources */,

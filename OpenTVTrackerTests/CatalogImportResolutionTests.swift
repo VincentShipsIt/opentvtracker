@@ -28,7 +28,7 @@ final class CatalogImportResolutionTests: XCTestCase {
         XCTAssertEqual(first.addedCount, 1)
         XCTAssertEqual(
             first.snapshot.importResolutionAliases?["series:tvdb:371980"],
-            ImportResolutionAlias(kind: resolved.kind, catalogID: resolved.catalogID)
+            ImportResolutionAlias(title: resolved)
         )
         let firstCounts = await catalog.callCounts()
         XCTAssertEqual(firstCounts.resolve, 1)
@@ -161,7 +161,7 @@ final class CatalogImportResolutionTests: XCTestCase {
         XCTAssertEqual(resolved.addedCount, 1)
         XCTAssertEqual(
             resolved.snapshot.importResolutionAliases?[issue.id],
-            ImportResolutionAlias(kind: remake.kind, catalogID: remake.catalogID)
+            ImportResolutionAlias(title: remake)
         )
     }
 

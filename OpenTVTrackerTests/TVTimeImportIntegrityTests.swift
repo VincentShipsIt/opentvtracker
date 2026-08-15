@@ -153,7 +153,7 @@ extension TVTimeImportIntegrityTests {
         XCTAssertTrue(resolved.resolutionIssues.isEmpty)
         XCTAssertEqual(
             resolved.snapshot.importResolutionAliases?[issue.id],
-            ImportResolutionAlias(kind: chosenTitle.kind, catalogID: chosenTitle.catalogID)
+            ImportResolutionAlias(title: chosenTitle)
         )
 
         let reimported = try await TVTimeImportService.previewImport(

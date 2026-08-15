@@ -99,10 +99,7 @@ private extension TraktSyncEngine {
         _ remoteTitles: [TraktRemoteTitle],
         to snapshot: inout LibrarySnapshot
     ) {
-        var existing = Set(snapshot.titles.compactMap { title -> TraktMediaKey? in
-            guard title.catalogID > 0 else { return nil }
-            return TraktMediaKey(kind: title.kind, tmdbID: title.catalogID)
-        })
+        var existing = Set(snapshot.titles.compactMap(TraktMediaKey.init(title:)))
         for remoteTitle in remoteTitles where existing.insert(remoteTitle.media).inserted {
             snapshot.titles.append(remoteTitle.mediaTitle)
         }
@@ -146,8 +143,8 @@ private extension TraktSyncEngine {
     ) -> RatingReconciliation {
         let localRatings = ratings(in: local)
         let rawLocalRatings = local.titles.reduce(into: [TraktMediaKey: Double]()) { result, title in
-            guard title.catalogID > 0, let rating = title.userRating else { return }
-            result[TraktMediaKey(kind: title.kind, tmdbID: title.catalogID)] = rating
+            guard let media = TraktMediaKey(title: title), let rating = title.userRating else { return }
+            result[media] = rating
         }
         let baselineRatings = CollectionUniquing.dictionary(keepingLast: baseline.map { ($0.media, $0.rating) })
         let remoteRatings = latestRemoteRatings(remote)
@@ -203,16 +200,16 @@ private extension TraktSyncEngine {
 
     static func watchlist(in snapshot: LibrarySnapshot) -> Set<TraktMediaKey> {
         Set(snapshot.titles.compactMap { title in
-            guard title.catalogID > 0, title.isOnPersonalWatchlist else { return nil }
-            return TraktMediaKey(kind: title.kind, tmdbID: title.catalogID)
+            guard title.isOnPersonalWatchlist else { return nil }
+            return TraktMediaKey(title: title)
         })
     }
 
     static func ratings(in snapshot: LibrarySnapshot) -> [TraktMediaKey: Int] {
         snapshot.titles.reduce(into: [:]) { result, title in
-            guard title.catalogID > 0, let rating = title.userRating else { return }
+            guard let media = TraktMediaKey(title: title), let rating = title.userRating else { return }
             guard let traktRating = normalizedTraktRating(rating) else { return }
-            result[TraktMediaKey(kind: title.kind, tmdbID: title.catalogID)] = traktRating
+            result[media] = traktRating
         }
     }
 
