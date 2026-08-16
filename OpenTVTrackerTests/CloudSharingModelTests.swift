@@ -143,7 +143,7 @@ final class CloudSharingModelTests: XCTestCase {
         XCTAssertEqual(error, .iCloudStorageFull)
         XCTAssertEqual(
             error.localizedDescription,
-            "Not enough iCloud storage to create this invitation. Manage iCloud storage in Settings, then try again."
+            "iCloud reported that this invitation exceeded the account's storage quota. Check iCloud storage in Settings, then try again."
         )
     }
 
