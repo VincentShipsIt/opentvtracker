@@ -154,7 +154,7 @@ struct PartnerInvitationView: View {
                 }
                 .adaptiveGlassButton(prominent: true)
                 .disabled(isWorking || availability != .available)
-                .accessibilityHint("Reuses an existing invitation or creates a secure code to connect a nearby partner's iPhone")
+                .accessibilityHint("Creates a fresh private invitation and a secure code to connect a nearby partner's iPhone")
             }
 
             if !model.sharedSpace.isCloudSharingEnabled {
@@ -285,11 +285,8 @@ struct PartnerInvitationView: View {
     }
 
     private func prepareNearbyHosting() async {
-        if let existingURL = invitationLinks.first?.url {
-            requestGate.finish()
-            nearbyPairingRoute = .host(existingURL)
-            return
-        }
+        // CloudKit one-time invitation URLs are spent after the first open.
+        // Nearby join has to receive a freshly minted URL every pairing attempt.
         guard let url = await requestInvitation() else { return }
         nearbyPairingRoute = .host(url)
     }
