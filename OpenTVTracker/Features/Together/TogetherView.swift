@@ -142,7 +142,16 @@ struct PreviewPartnerSharingService: PartnerSharingProviding {
     func availability() async -> PartnerSharingAvailability { .available }
 
     func inviteURL(for _: SharedSpace.ID) async throws -> URL {
-        URL(string: "https://opentvtracker.dev/invite") ?? URL(fileURLWithPath: "/invite")
+        URL(string: "https://www.icloud.com/share/preview") ?? URL(fileURLWithPath: "/invite")
+    }
+
+    func invitationLinks(for _: SharedSpace.ID) async throws -> [PartnerInvitationLink] {
+        [
+            PartnerInvitationLink(
+                url: URL(string: "https://www.icloud.com/share/preview") ?? URL(fileURLWithPath: "/invite"),
+                createdAt: Date(timeIntervalSince1970: 1_800_000_000)
+            )
+        ]
     }
 
     func revoke(spaceID _: SharedSpace.ID) async throws {}
