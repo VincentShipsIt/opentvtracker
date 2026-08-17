@@ -182,9 +182,16 @@ enum PartnerSharingAvailability: Hashable, Sendable {
     case notConfigured
 }
 
+struct PartnerInvitationLink: Identifiable, Hashable, Codable, Sendable {
+    var id: String { url.absoluteString }
+    let url: URL
+    let createdAt: Date
+}
+
 protocol PartnerSharingProviding: Sendable {
     func availability() async -> PartnerSharingAvailability
     func inviteURL(for spaceID: SharedSpace.ID) async throws -> URL
+    func invitationLinks(for spaceID: SharedSpace.ID) async throws -> [PartnerInvitationLink]
     func revoke(spaceID: SharedSpace.ID) async throws
     func leave(space: SharedSpace) async throws
 }

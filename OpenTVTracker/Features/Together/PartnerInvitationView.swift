@@ -21,7 +21,7 @@ struct PartnerInvitationView: View {
     let space: SharedSpace
     let sharingService: any PartnerSharingProviding
     @State private var availability: PartnerSharingAvailability?
-    @State private var invitationURL: URL?
+    @State private var invitationLinks: [PartnerInvitationLink] = []
     @State private var nearbyPairingRoute: NearbyPairingRoute?
     @State private var requestGate = PartnerInvitationRequestGate()
     @State private var errorMessage: String?
@@ -30,65 +30,69 @@ struct PartnerInvitationView: View {
         NavigationStack {
             ZStack {
                 AmbientBackdrop()
-                VStack(spacing: 24) {
-                    Image(systemName: "person.2.badge.gearshape.fill")
-                        .font(.system(size: 54))
-                        .foregroundStyle(.tint)
-                        .accessibilityHidden(true)
+                ScrollView {
+                    VStack(spacing: 24) {
+                        Image(systemName: "person.2.badge.gearshape.fill")
+                            .font(.system(size: 54))
+                            .foregroundStyle(.tint)
+                            .accessibilityHidden(true)
 
-                    VStack(spacing: 8) {
-                        Text("Connect someone to \(space.name)")
-                            .font(.title2.weight(.bold))
-                        Text(invitationDescription)
-                            .multilineTextAlignment(.center)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    GlassSurface(cornerRadius: AppTheme.compactRadius) {
-                        VStack(alignment: .leading, spacing: 12) {
-                            Label("No OpenTV password", systemImage: "checkmark.circle")
-                            Label("Invitation-only iCloud share", systemImage: "lock.shield")
-                            Label("Separate from your personal library", systemImage: "rectangle.on.rectangle.slash")
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(16)
-                    }
-
-                    nearbyPairingActions
-
-                    if model.sharedSpace.isCurrentUserShareOwner != false {
-                        VStack(spacing: 10) {
-                            Text("OR SEND A LINK")
-                                .font(.caption.weight(.semibold))
+                        VStack(spacing: 8) {
+                            Text("Connect someone to \(space.name)")
+                                .font(.title2.weight(.bold))
+                            Text(invitationDescription)
+                                .multilineTextAlignment(.center)
                                 .foregroundStyle(.secondary)
-                            invitationAction
+                        }
+
+                        GlassSurface(cornerRadius: AppTheme.compactRadius) {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Label("No OpenTV password", systemImage: "checkmark.circle")
+                                Label("Invitation-only iCloud share", systemImage: "lock.shield")
+                                Label("Separate from your personal library", systemImage: "rectangle.on.rectangle.slash")
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(16)
+                        }
+
+                        nearbyPairingActions
+
+                        if model.sharedSpace.isCurrentUserShareOwner != false {
+                            VStack(spacing: 10) {
+                                Text("OR SEND A LINK")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.secondary)
+                                invitationLinksList
+                                invitationAction
+                            }
+                        }
+
+                        if model.sharedSpace.isCurrentUserShareOwner == true,
+                           model.sharedSpace.isCloudSharingEnabled {
+                            Button("Revoke shared space", role: .destructive) {
+                                beginRevokingInvitation()
+                            }
+                            .disabled(isWorking)
+                        }
+
+                        if model.sharedSpace.isCurrentUserShareOwner == false,
+                           model.sharedSpace.resolvedMembershipState == .accepted {
+                            Button("Leave shared space", role: .destructive) {
+                                beginLeavingSpace()
+                            }
+                            .disabled(isWorking)
+                        }
+
+                        if let errorMessage {
+                            Text(errorMessage)
+                                .font(.footnote)
+                                .foregroundStyle(.red)
+                                .multilineTextAlignment(.center)
                         }
                     }
-
-                    if model.sharedSpace.isCurrentUserShareOwner == true,
-                       model.sharedSpace.isCloudSharingEnabled {
-                        Button("Revoke shared space", role: .destructive) {
-                            beginRevokingInvitation()
-                        }
-                        .disabled(isWorking)
-                    }
-
-                    if model.sharedSpace.isCurrentUserShareOwner == false,
-                       model.sharedSpace.resolvedMembershipState == .accepted {
-                        Button("Leave shared space", role: .destructive) {
-                            beginLeavingSpace()
-                        }
-                        .disabled(isWorking)
-                    }
-
-                    if let errorMessage {
-                        Text(errorMessage)
-                            .font(.footnote)
-                            .foregroundStyle(.red)
-                            .multilineTextAlignment(.center)
-                    }
+                    .padding(AppTheme.horizontalPadding)
+                    .padding(.vertical, 8)
                 }
-                .padding(AppTheme.horizontalPadding)
             }
             // This sheet is presented from its own environment root, so without this the
             // backdrop falls back to the personal hue while every control on it is tinted
@@ -101,10 +105,16 @@ struct PartnerInvitationView: View {
                     Button("Done") { dismiss() }
                 }
             }
-            .task { await refreshAvailability() }
+            .task {
+                await refreshAvailability()
+                await refreshInvitationLinks()
+            }
             .onChange(of: scenePhase) { _, phase in
                 guard phase == .active else { return }
-                Task { await refreshAvailability() }
+                Task {
+                    await refreshAvailability()
+                    await refreshInvitationLinks()
+                }
             }
             .sheet(item: $nearbyPairingRoute) { route in
                 switch route {
@@ -144,7 +154,7 @@ struct PartnerInvitationView: View {
                 }
                 .adaptiveGlassButton(prominent: true)
                 .disabled(isWorking || availability != .available)
-                .accessibilityHint("Creates a secure code to connect a nearby partner's iPhone")
+                .accessibilityHint("Creates a fresh private invitation and a secure code to connect a nearby partner's iPhone")
             }
 
             if !model.sharedSpace.isCloudSharingEnabled {
@@ -160,32 +170,59 @@ struct PartnerInvitationView: View {
     }
 
     @ViewBuilder
+    private var invitationLinksList: some View {
+        if !invitationLinks.isEmpty {
+            GlassSurface(cornerRadius: AppTheme.compactRadius) {
+                VStack(alignment: .leading, spacing: 12) {
+                    ForEach(Array(invitationLinks.enumerated()), id: \.element.id) { index, link in
+                        HStack(alignment: .center, spacing: 12) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(index == 0 ? "Latest invitation" : "Private invitation")
+                                    .font(.subheadline.weight(.semibold))
+                                Text(link.createdAt, style: .relative)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                            ShareLink(
+                                item: link.url,
+                                subject: Text("Join \(space.name) on OpenTV")
+                            ) {
+                                Label("Send again", systemImage: "square.and.arrow.up")
+                            }
+                            .font(.subheadline.weight(.semibold))
+                        }
+                        .accessibilityElement(children: .contain)
+                        .accessibilityIdentifier("together.invitation-link")
+                    }
+                }
+                .padding(16)
+            }
+            .accessibilityIdentifier("together.invitation-links")
+        }
+    }
+
+    @ViewBuilder
     private var invitationAction: some View {
-        if let invitationURL {
-            ShareLink(item: invitationURL, subject: Text("Join \(space.name) on OpenTV")) {
-                Label("Send private invitation", systemImage: "square.and.arrow.up")
+        Button {
+            beginCreatingInvitation()
+        } label: {
+            if isWorking {
+                ProgressView().frame(maxWidth: .infinity)
+            } else {
+                Label(actionTitle, systemImage: "person.badge.plus")
                     .frame(maxWidth: .infinity)
             }
-            .adaptiveGlassButton(prominent: true)
-        } else {
-            Button {
-                beginCreatingInvitation()
-            } label: {
-                if isWorking {
-                    ProgressView().frame(maxWidth: .infinity)
-                } else {
-                    Label(actionTitle, systemImage: "person.badge.plus")
-                        .frame(maxWidth: .infinity)
-                }
-            }
-            .adaptiveGlassButton(prominent: true)
-            .disabled(isWorking || availability != .available)
         }
+        .adaptiveGlassButton(prominent: true)
+        .disabled(isWorking || availability != .available)
     }
 
     private var actionTitle: String {
         switch availability {
-        case .available: "Create private invitation"
+        case .available:
+            invitationLinks.isEmpty ? "Create private invitation" : "Create another invitation"
         case .iCloudAccountRequired: "Sign in to iCloud first"
         case .notConfigured: "Configure the iCloud container"
         case nil: "Checking iCloud…"
@@ -237,16 +274,19 @@ struct PartnerInvitationView: View {
             let url = try await sharingService.inviteURL(for: space.id)
             model.markPartnerShareCreated()
             await model.flushSharedState()
-            invitationURL = url
             errorMessage = nil
+            await refreshInvitationLinks()
             return url
         } catch {
             errorMessage = error.localizedDescription
+            await refreshInvitationLinks()
             return nil
         }
     }
 
     private func prepareNearbyHosting() async {
+        // CloudKit one-time invitation URLs are spent after the first open.
+        // Nearby join has to receive a freshly minted URL every pairing attempt.
         guard let url = await requestInvitation() else { return }
         nearbyPairingRoute = .host(url)
     }
@@ -259,11 +299,19 @@ struct PartnerInvitationView: View {
         availability = await sharingService.availability()
     }
 
+    private func refreshInvitationLinks() async {
+        do {
+            invitationLinks = try await sharingService.invitationLinks(for: space.id)
+        } catch {
+            return
+        }
+    }
+
     private func revokeInvitation() async {
         defer { requestGate.finish() }
         do {
             try await sharingService.revoke(spaceID: space.id)
-            invitationURL = nil
+            invitationLinks = []
             model.setSharedMembershipState(.revoked)
             errorMessage = nil
         } catch {

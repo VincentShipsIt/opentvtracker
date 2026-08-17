@@ -216,6 +216,132 @@ final class CloudSharingModelTests: XCTestCase {
         )
     }
 
+    func testInvitationBootstrapAttachesShareWhenRootExistsWithoutShare() {
+        XCTAssertEqual(
+            PartnerShareBootstrap.action(hasRoot: true, hasShare: false),
+            .attachShareToExistingRoot
+        )
+        XCTAssertEqual(
+            PartnerShareBootstrap.action(hasRoot: true, hasShare: true),
+            .reuseExistingShare
+        )
+        XCTAssertEqual(
+            PartnerShareBootstrap.action(hasRoot: false, hasShare: false),
+            .createInitialShare
+        )
+        XCTAssertEqual(
+            PartnerShareBootstrap.action(hasRoot: false, hasShare: true),
+            .createInitialShare
+        )
+    }
+
+    func testShareReferenceReadsSystemFieldPropertyNotSubscript() {
+        let zoneID = CKRecordZone.ID(zoneName: "partner-primary-partner-space")
+        let rootID = CKRecord.ID(recordName: "space-root", zoneID: zoneID)
+        let root = CKRecord(recordType: "PartnerSpace", recordID: rootID)
+        let share = CKShare(rootRecord: root)
+
+        XCTAssertNil(root[CKRecord.SystemFieldKey.share])
+        XCTAssertNil(root["share"])
+        XCTAssertEqual(
+            CloudKitPartnerSharingService.shareReference(on: root)?.recordID,
+            share.recordID
+        )
+    }
+
+    func testMakeShareOnExistingRootKeepsPrivateInvitationSettings() {
+        let zoneID = CKRecordZone.ID(zoneName: "partner-primary-partner-space")
+        let rootID = CKRecord.ID(recordName: "space-root", zoneID: zoneID)
+        let root = CKRecord(recordType: "PartnerSpace", recordID: rootID)
+        root["spaceID"] = "primary-partner-space" as CKRecordValue
+
+        let share = CloudKitPartnerSharingService.makeShare(on: root)
+
+        XCTAssertEqual(share.publicPermission, .none)
+        XCTAssertEqual(
+            share[CKShare.SystemFieldKey.shareType] as? String,
+            "dev.opentvtracker.app.partner-space"
+        )
+        XCTAssertEqual(
+            share[CKShare.SystemFieldKey.title] as? String,
+            "OpenTV partner space"
+        )
+        XCTAssertEqual(root.share?.recordID, share.recordID)
+        XCTAssertEqual(root.recordID.recordName, "space-root")
+        XCTAssertEqual(root["spaceID"] as? String, "primary-partner-space")
+    }
+
+    func testMakeShareReusesStaleShareRecordID() {
+        let zoneID = CKRecordZone.ID(zoneName: "partner-primary-partner-space")
+        let rootID = CKRecord.ID(recordName: "space-root", zoneID: zoneID)
+        let shareID = CKRecord.ID(recordName: "ckshare-stale", zoneID: zoneID)
+        let root = CKRecord(recordType: "PartnerSpace", recordID: rootID)
+        _ = CKShare(rootRecord: root, shareID: shareID)
+
+        let share = CloudKitPartnerSharingService.makeShare(on: root)
+
+        XCTAssertEqual(share.recordID, shareID)
+        XCTAssertEqual(share.publicPermission, .none)
+    }
+
+    func testInvitationLinkStoreKeepsCreatedLinksAcrossSessions() throws {
+        let suiteName = "partner-invitation-links-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { UserDefaults(suiteName: suiteName)?.removePersistentDomain(forName: suiteName) }
+        let firstStore = PartnerInvitationLinkStore(defaults: defaults)
+        let createdAt = Date(timeIntervalSince1970: 1_800_000_000)
+        let link = PartnerInvitationLink(
+            url: try XCTUnwrap(URL(string: "https://www.icloud.com/share/reopen-me")),
+            createdAt: createdAt
+        )
+
+        firstStore.append(link, spaceID: "primary-partner-space")
+
+        let reloaded = PartnerInvitationLinkStore(defaults: defaults)
+            .load(spaceID: "primary-partner-space")
+        XCTAssertEqual(reloaded, [link])
+    }
+
+    func testInvitationLinkStoreDeduplicatesAndClearsOnRevoke() throws {
+        let suiteName = "partner-invitation-links-clear-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { UserDefaults(suiteName: suiteName)?.removePersistentDomain(forName: suiteName) }
+        let store = PartnerInvitationLinkStore(defaults: defaults)
+        let url = try XCTUnwrap(URL(string: "https://www.icloud.com/share/same-link"))
+        let older = PartnerInvitationLink(url: url, createdAt: Date(timeIntervalSince1970: 10))
+        let newer = PartnerInvitationLink(url: url, createdAt: Date(timeIntervalSince1970: 20))
+        let other = PartnerInvitationLink(
+            url: try XCTUnwrap(URL(string: "https://www.icloud.com/share/other-link")),
+            createdAt: Date(timeIntervalSince1970: 15)
+        )
+
+        store.append(older, spaceID: "space")
+        store.append(other, spaceID: "space")
+        store.append(newer, spaceID: "space")
+
+        XCTAssertEqual(store.load(spaceID: "space").map(\.url), [url, other.url])
+        XCTAssertEqual(store.load(spaceID: "space").first?.createdAt, newer.createdAt)
+
+        store.removeAll(spaceID: "space")
+        XCTAssertTrue(store.load(spaceID: "space").isEmpty)
+    }
+
+    func testInvitationLinkMergeKeepsStoredCreatedAtAndAddsRemoteOnlyLinks() throws {
+        let storedURL = try XCTUnwrap(URL(string: "https://www.icloud.com/share/stored"))
+        let remoteOnlyURL = try XCTUnwrap(URL(string: "https://www.icloud.com/share/remote"))
+        let stored = PartnerInvitationLink(url: storedURL, createdAt: Date(timeIntervalSince1970: 50))
+        let remoteDuplicate = PartnerInvitationLink(url: storedURL, createdAt: Date(timeIntervalSince1970: 90))
+        let remoteOnly = PartnerInvitationLink(url: remoteOnlyURL, createdAt: Date(timeIntervalSince1970: 80))
+
+        let merged = PartnerInvitationLinkStore.merging(
+            stored: [stored],
+            remote: [remoteDuplicate, remoteOnly]
+        )
+
+        XCTAssertEqual(merged.map(\.url), [remoteOnlyURL, storedURL])
+        XCTAssertEqual(merged.first(where: { $0.url == storedURL })?.createdAt, stored.createdAt)
+    }
+
     private static let seasons = [
         SeasonSummary(
             id: "season-1",
