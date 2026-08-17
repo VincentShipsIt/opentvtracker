@@ -348,7 +348,9 @@ struct CloudKitPartnerSharingService: PartnerSharingProviding {
     }
 
     static func existingShare(root: CKRecord, database: CKDatabase) async throws -> CKShare? {
-        guard let reference = root[CKRecord.SystemFieldKey.share] as? CKRecord.Reference else {
+        // System fields are not exposed through CKRecord's subscript. After
+        // CKShare(rootRecord:) or a server fetch, only `root.share` is populated.
+        guard let reference = shareReference(on: root) else {
             return nil
         }
         let shareResults = try await database.records(for: [reference.recordID])
@@ -410,9 +412,13 @@ extension CloudKitPartnerSharingService {
             : .shareUnavailable
     }
 
+    static func shareReference(on root: CKRecord) -> CKRecord.Reference? {
+        root.share
+    }
+
     static func makeShare(on root: CKRecord) -> CKShare {
         let share: CKShare
-        if let shareID = root.share?.recordID {
+        if let shareID = shareReference(on: root)?.recordID {
             share = CKShare(rootRecord: root, shareID: shareID)
         } else {
             share = CKShare(rootRecord: root)

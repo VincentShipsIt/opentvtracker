@@ -235,6 +235,20 @@ final class CloudSharingModelTests: XCTestCase {
         )
     }
 
+    func testShareReferenceReadsSystemFieldPropertyNotSubscript() {
+        let zoneID = CKRecordZone.ID(zoneName: "partner-primary-partner-space")
+        let rootID = CKRecord.ID(recordName: "space-root", zoneID: zoneID)
+        let root = CKRecord(recordType: "PartnerSpace", recordID: rootID)
+        let share = CKShare(rootRecord: root)
+
+        XCTAssertNil(root[CKRecord.SystemFieldKey.share])
+        XCTAssertNil(root["share"])
+        XCTAssertEqual(
+            CloudKitPartnerSharingService.shareReference(on: root)?.recordID,
+            share.recordID
+        )
+    }
+
     func testMakeShareOnExistingRootKeepsPrivateInvitationSettings() {
         let zoneID = CKRecordZone.ID(zoneName: "partner-primary-partner-space")
         let rootID = CKRecord.ID(recordName: "space-root", zoneID: zoneID)
