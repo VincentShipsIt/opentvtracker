@@ -170,7 +170,8 @@ private func refreshCalendarTitle(
             kind: title.kind,
             catalogID: title.catalogID,
             region: region,
-            contentLanguage: contentLanguage
+            contentLanguage: contentLanguage,
+            metadataSource: title.metadataSource
         )
         return UpcomingCalendarTitleRefresh(titleID: title.id, details: details)
     } catch is CancellationError {

@@ -195,15 +195,25 @@ extension AppModel {
         }
     }
 
+    func catalogDetailError(for id: MediaTitle.ID) -> String? {
+        catalogDetailErrorTitleID == id ? catalogDetailError : nil
+    }
+
     func refreshCatalogDetails(for id: MediaTitle.ID) async {
         guard let existing = mediaTitle(withID: id) else { return }
+
+        if catalogDetailErrorTitleID == id {
+            catalogDetailError = nil
+            catalogDetailErrorTitleID = nil
+        }
 
         do {
             let details = try await catalogService.title(
                 kind: existing.kind,
                 catalogID: existing.catalogID,
                 region: streamingRegion,
-                contentLanguage: contentLanguage
+                contentLanguage: contentLanguage,
+                metadataSource: existing.metadataSource
             )
             let refreshed = mergingCatalogDetails(details, into: existing)
             // This runs on every appearance of a detail screen, so for an already-enriched
@@ -230,7 +240,8 @@ extension AppModel {
                 discoveryCatalogPagination = pagination
             }
         } catch {
-            catalogSearchError = error.localizedDescription
+            catalogDetailError = error.localizedDescription
+            catalogDetailErrorTitleID = id
         }
     }
 

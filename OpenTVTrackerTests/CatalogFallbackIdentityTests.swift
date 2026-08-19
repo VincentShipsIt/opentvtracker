@@ -35,6 +35,50 @@ final class CatalogFallbackIdentityTests: XCTestCase {
         XCTAssertEqual(fallback.searchCalls, 1)
     }
 
+    func testTitleWithTVMazeSourceUsesFallbackOnly() async throws {
+        let primary = RecordingCatalogStub(title: Self.tmdbTitle, shouldFailTitle: true)
+        let fallback = RecordingCatalogStub(title: Self.tvmazeTitle)
+        let catalog = FallbackCatalogService(primary: primary, fallback: fallback)
+
+        let result = try await catalog.title(
+            kind: .series,
+            catalogID: 1396,
+            region: .malta,
+            contentLanguage: .english,
+            metadataSource: .tvmaze
+        )
+
+        XCTAssertEqual(result.id, Self.tvmazeTitle.id)
+        XCTAssertTrue(primary.titleRequests.isEmpty)
+        XCTAssertEqual(fallback.titleRequests, [1396])
+    }
+
+    func testTitleWithTMDBSourceStillDoesNotAskFallback() async {
+        let primary = RecordingCatalogStub(title: Self.tmdbTitle, shouldFailTitle: true)
+        let fallback = RecordingCatalogStub(title: Self.tvmazeTitle)
+        let catalog = FallbackCatalogService(primary: primary, fallback: fallback)
+
+        do {
+            _ = try await catalog.title(
+                kind: .series,
+                catalogID: 95396,
+                region: .malta,
+                contentLanguage: .english,
+                metadataSource: .tmdb
+            )
+            XCTFail("Expected the primary failure to surface")
+        } catch let error as CatalogServiceError {
+            guard case .unavailable = error else {
+                return XCTFail("Unexpected error: \(error)")
+            }
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+
+        XCTAssertEqual(primary.titleRequests, [95396])
+        XCTAssertTrue(fallback.titleRequests.isEmpty)
+    }
+
     func testReviewsDoNotCrossNamespaces() async {
         let primary = RecordingCatalogStub(title: Self.tmdbTitle, shouldFailReviews: true)
         let fallback = RecordingCatalogStub(title: Self.tvmazeTitle)
@@ -85,7 +129,7 @@ final class CatalogFallbackIdentityTests: XCTestCase {
     }()
 }
 
-private final class RecordingCatalogStub: CatalogProviding, @unchecked Sendable {
+final class RecordingCatalogStub: CatalogProviding, @unchecked Sendable {
     let title: MediaTitle
     let searchResults: [MediaTitle]
     let shouldFailTitle: Bool

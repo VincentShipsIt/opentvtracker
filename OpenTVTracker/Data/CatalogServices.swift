@@ -213,8 +213,32 @@ struct FallbackCatalogService: CatalogProviding {
         region: StreamingRegion,
         contentLanguage: ContentLanguage
     ) async throws -> MediaTitle {
-        // Title IDs are namespace-specific (TMDB vs TVmaze). Never ask the
-        // public fallback for a primary catalog ID after a proxy miss.
+        try await title(
+            kind: kind,
+            catalogID: catalogID,
+            region: region,
+            contentLanguage: contentLanguage,
+            metadataSource: nil
+        )
+    }
+
+    func title(
+        kind: MediaKind,
+        catalogID: Int,
+        region: StreamingRegion,
+        contentLanguage: ContentLanguage,
+        metadataSource: MetadataSource?
+    ) async throws -> MediaTitle {
+        // Title IDs are namespace-specific (TMDB vs TVmaze). Search may fall
+        // back to TVmaze, but a TMDB/unknown ID must never be sent there.
+        if metadataSource == .tvmaze {
+            return try await fallback.title(
+                kind: kind,
+                catalogID: catalogID,
+                region: region,
+                contentLanguage: contentLanguage
+            )
+        }
         if let primary {
             return try await primary.title(
                 kind: kind,

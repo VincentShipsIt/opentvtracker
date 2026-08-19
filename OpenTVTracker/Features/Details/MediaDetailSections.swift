@@ -42,6 +42,29 @@ struct MediaEpisodeSection: View {
                     .accessibilityIdentifier("season.\(season.number)")
                 }
             }
+        } else if title.kind == .series, let error = model.catalogDetailError(for: title.id) {
+            VStack(alignment: .leading, spacing: 12) {
+                SectionHeading(
+                    title: "Episodes",
+                    subtitle: "Air dates and runtimes from \(title.metadataSource?.displayName ?? "the catalog")"
+                )
+                GlassSurface(cornerRadius: AppTheme.compactRadius, tint: .orange) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Label("Episode list unavailable", systemImage: "exclamationmark.triangle.fill")
+                            .font(.headline)
+                        Text(error)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        Button("Try again") {
+                            Task { await model.refreshCatalogDetails(for: title.id) }
+                        }
+                        .adaptiveGlassButton()
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(16)
+                }
+            }
+            .accessibilityIdentifier("episodes.unavailable")
         }
     }
 }

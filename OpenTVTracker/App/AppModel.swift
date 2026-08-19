@@ -43,6 +43,8 @@ final class AppModel {
     var recommendationRequestID = UUID()
     var catalogSearchResults: [MediaTitle] = []
     var catalogSearchError: String?
+    var catalogDetailError: String?
+    var catalogDetailErrorTitleID: MediaTitle.ID?
     var isSearchingCatalog = false
     var catalogSearchPage = 0
     var catalogSearchQuery = ""

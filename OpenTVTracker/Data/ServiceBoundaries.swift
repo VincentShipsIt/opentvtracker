@@ -33,6 +33,13 @@ protocol CatalogProviding: Sendable {
         region: StreamingRegion,
         contentLanguage: ContentLanguage
     ) async throws -> MediaTitle
+    func title(
+        kind: MediaKind,
+        catalogID: Int,
+        region: StreamingRegion,
+        contentLanguage: ContentLanguage,
+        metadataSource: MetadataSource?
+    ) async throws -> MediaTitle
     func reviews(kind: MediaKind, catalogID: Int, page: Int) async throws -> CommunityReviewPage
     func resolve(
         _ reference: ExternalCatalogReference,
@@ -48,6 +55,21 @@ extension CatalogProviding {
         contentLanguage _: ContentLanguage
     ) async throws -> MediaTitle {
         try await title(kind: kind, catalogID: catalogID, region: region)
+    }
+
+    func title(
+        kind: MediaKind,
+        catalogID: Int,
+        region: StreamingRegion,
+        contentLanguage: ContentLanguage,
+        metadataSource _: MetadataSource?
+    ) async throws -> MediaTitle {
+        try await title(
+            kind: kind,
+            catalogID: catalogID,
+            region: region,
+            contentLanguage: contentLanguage
+        )
     }
 
     func reviews(kind _: MediaKind, catalogID _: Int, page: Int) async throws -> CommunityReviewPage {
