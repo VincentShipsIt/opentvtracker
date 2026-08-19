@@ -32,6 +32,109 @@ final class CoreJourneySmokeUITests: XCTestCase {
         assertExists(app.staticTexts["Test Show"])
     }
 
+    func testFirstRunSpaceSwitchHintDoesNotMentionSwipe() {
+        launch(with: "-ui-testing-first-run")
+        tapContinue()
+        tapContinue()
+        assertExists(app.staticTexts["Watch together, privately"])
+
+        let hint = app.descendants(matching: .any)["first-run.space-switch-hint"]
+        assertExists(hint)
+        let label = hint.label.lowercased()
+        XCTAssertFalse(label.contains("swipe"), "Expected first-run copy to stop teaching the deleted swipe")
+        XCTAssertTrue(label.contains("shake"), "Expected first-run copy to name shaking the device")
+        XCTAssertTrue(
+            label.contains("people icon") || label.contains("top left"),
+            "Expected first-run copy to name the leading toolbar control"
+        )
+    }
+
+    func testActivityOpensFromDetailInOneTap() {
+        launchCoreJourneys()
+        app.buttons["home.up-next-title"].tap()
+
+        let primary = app.buttons["details.primary-action"]
+        assertExists(primary)
+        XCTAssertTrue(
+            primary.label.localizedCaseInsensitiveContains("Mark next watched"),
+            "Expected the primary action to stay Mark next watched while episodes remain"
+        )
+
+        let activity = app.buttons["details.activity-action"]
+        scrollToElement(activity)
+        activity.tap()
+
+        assertExists(app.navigationBars["Activity"])
+        assertExists(app.descendants(matching: .any)["tracking.status"])
+        assertExists(app.descendants(matching: .any)["tracking.rating"])
+        assertExists(app.descendants(matching: .any)["tracking.note"])
+        XCTAssertFalse(app.buttons["Activity and private note"].exists)
+    }
+
+    func testSettingsOpensViewingDiaryWithoutLibrarySectionMenu() {
+        launchCoreJourneys()
+        app.buttons["today.settings"].tap()
+
+        assertExists(app.descendants(matching: .any)["settings.space-switch"])
+        let spaceSwitch = app.descendants(matching: .any)["settings.space-switch"]
+        XCTAssertTrue(spaceSwitch.label.localizedCaseInsensitiveContains("Shake"))
+        XCTAssertTrue(spaceSwitch.label.localizedCaseInsensitiveContains("people icon"))
+
+        let diary = app.buttons["settings.viewing-diary"]
+        assertExists(diary)
+        diary.tap()
+
+        assertExists(app.navigationBars["Viewing diary"])
+        XCTAssertFalse(app.buttons["library.section-menu"].exists)
+    }
+
+    func testLibraryHistoryUsesHistoryNavigationTitle() {
+        launchCoreJourneys()
+        app.tabBars.buttons["Library"].tap()
+        assertExists(app.navigationBars["Library"])
+
+        let sectionMenu = app.buttons["library.section-menu"]
+        assertExists(sectionMenu)
+        sectionMenu.tap()
+
+        let history = app.buttons["History"]
+        assertExists(history)
+        history.tap()
+
+        assertExists(app.navigationBars["History"])
+    }
+
+    func testNonHeroQueueCardMarksProgressIntoPrivateDiary() {
+        launchCoreJourneys()
+
+        let queueMenu = app.buttons["today.queue-actions.ui-test-queue-show"]
+        scrollToElement(queueMenu)
+        queueMenu.tap()
+
+        let markByID = app.buttons["today.queue-mark-watched"]
+        if markByID.waitForExistence(timeout: 2) {
+            markByID.tap()
+        } else {
+            let markByLabel = app.buttons["Mark next episode watched"]
+            assertExists(markByLabel)
+            markByLabel.tap()
+        }
+
+        app.buttons["today.settings"].tap()
+        let diary = app.buttons["settings.viewing-diary"]
+        assertExists(diary)
+        diary.tap()
+
+        let diaryEntry = app.buttons.matching(
+            NSPredicate(
+                format: "identifier BEGINSWITH %@ AND label CONTAINS %@",
+                "diary.entry.",
+                "Queue Show"
+            )
+        ).firstMatch
+        assertExists(diaryEntry)
+    }
+
     func testSearchOpensDetailsAndInAppTrailerFallback() {
         launchCoreJourneys()
         app.tabBars.buttons["Discover"].tap()

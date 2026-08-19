@@ -37,8 +37,11 @@ struct LibraryView: View {
             // the trailing toolbar group, nothing duplicated in the scroll content. The
             // old screen stacked a hand-rolled title bar, a segmented control, and the
             // shelf pills into four tiers of chrome before a single title appeared.
-            .navigationTitle("Library")
+            .navigationTitle(section.navigationTitle)
             .navigationBarTitleDisplayMode(.large)
+            .onChange(of: section) { _, newSection in
+                AccessibilityNotification.Announcement(newSection.navigationTitle).post()
+            }
             .spaceModeToolbar()
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
@@ -87,6 +90,14 @@ enum LibrarySection: String, CaseIterable, Identifiable {
     var label: String {
         switch self {
         case .titles: "Titles"
+        case .lists: "Lists"
+        case .history: "History"
+        }
+    }
+
+    var navigationTitle: String {
+        switch self {
+        case .titles: "Library"
         case .lists: "Lists"
         case .history: "History"
         }

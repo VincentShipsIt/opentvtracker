@@ -52,6 +52,8 @@ enum AppSpaceMode: String, CaseIterable, Hashable, Identifiable {
 }
 
 extension EnvironmentValues {
+    @Entry var partnerSharingService: any PartnerSharingProviding = PreviewPartnerSharingService()
+
     @Entry var appSpaceMode: AppSpaceMode = .personal
 
     /// The live space selection, published so any screen can offer a way across.
@@ -265,6 +267,7 @@ struct RootTabView: View {
         // swap underneath it. `SpaceModeContainer` re-tints the content it wraps,
         // which sits deeper and therefore wins inside each tab.
         .tint(.accentColor)
+        .environment(\.partnerSharingService, partnerSharingService)
         .fullScreenCover(isPresented: $presentsFirstRun) {
             FirstRunView(partnerSharingService: partnerSharingService)
         }

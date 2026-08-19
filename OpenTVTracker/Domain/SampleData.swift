@@ -284,6 +284,7 @@ extension LibrarySnapshot {
         snapshot.titles[0].trailerURL = URL(
             string: "https://www.youtube.com/watch?v=abcdefghijk"
         )
+        snapshot.titles.append(queueShow)
         snapshot.titles.append(contentsOf: catalogShelfPicks)
         snapshot.sharedSpace = SharedSpace(
             id: "ui-test-space",
@@ -305,6 +306,49 @@ extension LibrarySnapshot {
         snapshot.hasCompletedFirstRun = true
         return snapshot
     }()
+
+    /// A second watching series so Today has a non-hero queue card to mark.
+    ///
+    /// `upNextManualOrder` keeps Test Show first. Alphabetical order would otherwise
+    /// promote Queue Show into the hero slot and break the existing smoke journeys.
+    private static let queueShow = MediaTitle(
+        id: "ui-test-queue-show",
+        catalogID: 99_002,
+        title: "Queue Show",
+        year: 2026,
+        kind: .series,
+        synopsis: "A deterministic second title used to mark progress from a non-hero queue card.",
+        genres: ["Drama"],
+        runtimeMinutes: 42,
+        state: .watching,
+        progress: EpisodeProgress(season: 1, episode: 0, totalEpisodes: 4),
+        rating: 8.1,
+        nextReleaseDescription: "Four episodes available",
+        recommendationReason: nil,
+        mood: .thoughtful,
+        palette: PosterPalette(primaryHex: "3155A4", secondaryHex: "111831"),
+        providers: [.appleTV],
+        reviews: [],
+        personalWatchlist: true,
+        seasons: [
+            SeasonSummary(
+                id: "ui-test-queue-season-1",
+                number: 1,
+                title: "Season 1",
+                episodes: (1...4).map { number in
+                    EpisodeSummary(
+                        id: "ui-test-queue-s1e\(number)",
+                        number: number,
+                        title: "Episode \(number)",
+                        airDate: nil,
+                        runtimeMinutes: 42
+                    )
+                }
+            )
+        ],
+        watchedEpisodeIDs: [],
+        upNextManualOrder: 1
+    )
 
     /// Gives the core-journey seed a horizontal carousel to actually own.
     ///

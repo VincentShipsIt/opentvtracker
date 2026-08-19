@@ -371,9 +371,20 @@ private struct UpNextPosterCard: View {
 private struct QueueActionsMenu: View {
     @Environment(AppModel.self) private var model
     let title: MediaTitle
+    @State private var progressTrigger = 0
 
     var body: some View {
         Menu {
+            if let progressAction {
+                Button {
+                    model.markNextWatched(title.id)
+                    progressTrigger += 1
+                } label: {
+                    Label(progressAction.label, systemImage: "checkmark.circle.fill")
+                }
+                .accessibilityIdentifier("today.queue-mark-watched")
+            }
+
             Button {
                 model.setUpNextPinned(title.isUpNextPinned != true, for: title.id)
             } label: {
@@ -415,11 +426,43 @@ private struct QueueActionsMenu: View {
                 .labelStyle(.iconOnly)
         }
         .accessibilityLabel("Queue actions for \(title.title)")
+        .accessibilityIdentifier("today.queue-actions.\(title.id)")
         .minimumTouchTarget()
+        .sensoryFeedback(.success, trigger: progressTrigger)
+    }
+
+    private var progressAction: QueueProgressAction? {
+        QueueProgressAction(
+            title: title,
+            hasUnwatchedReleasedEpisodes: model.hasUnwatchedReleasedEpisodes(for: title)
+        )
     }
 
     private var snoozeDate: Date {
         Calendar.current.date(byAdding: .day, value: 7, to: .now) ?? .now
+    }
+}
+
+enum QueueProgressAction: Equatable {
+    case markNextEpisode
+    case markMovieWatched
+
+    init?(title: MediaTitle, hasUnwatchedReleasedEpisodes: Bool) {
+        switch title.kind {
+        case .series:
+            guard hasUnwatchedReleasedEpisodes else { return nil }
+            self = .markNextEpisode
+        case .movie:
+            guard title.state != .completed else { return nil }
+            self = .markMovieWatched
+        }
+    }
+
+    var label: String {
+        switch self {
+        case .markNextEpisode: "Mark next episode watched"
+        case .markMovieWatched: "Mark watched"
+        }
     }
 }
 

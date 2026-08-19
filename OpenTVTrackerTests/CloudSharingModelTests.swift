@@ -6,6 +6,7 @@ import XCTest
 final class CloudSharingModelTests: XCTestCase {
     func testTogetherToggleStoresSanitizedMetadataAndIsReversible() {
         let model = AppModel(store: MemoryLibraryStore(), seed: .sample)
+        model.sharedSpace.membershipState = .accepted
         if let titleIndex = model.titles.firstIndex(where: { $0.id == "past-lives" }) {
             model.titles[titleIndex].isUpNextPinned = true
             model.titles[titleIndex].upNextSnoozedUntil = .now
@@ -43,6 +44,7 @@ final class CloudSharingModelTests: XCTestCase {
         await model.searchCatalog(text: "Past Lives")
         XCTAssertTrue(model.titles.isEmpty)
 
+        model.sharedSpace.membershipState = .accepted
         model.toggleTogether(catalogTitle.id)
         await model.flushPendingPersistence()
 
@@ -52,6 +54,29 @@ final class CloudSharingModelTests: XCTestCase {
         XCTAssertEqual(savedTitle.title, catalogTitle.title)
         XCTAssertEqual(saved.sharedSpace.titleIDs, [catalogTitle.id])
         XCTAssertEqual(saved.sharedSpace.titleMetadata?.first?.id, catalogTitle.id)
+    }
+
+    func testTogetherToggleDoesNotAddWithoutAcceptedMembership() {
+        let model = AppModel(store: MemoryLibraryStore(), seed: .sample)
+        model.sharedSpace.membershipState = .local
+        model.sharedSpace.titleIDs = []
+        model.sharedSpace.titleMetadata = []
+
+        model.toggleTogether("past-lives")
+
+        XCTAssertFalse(model.isShared("past-lives"))
+        XCTAssertTrue(model.sharedSpace.titleIDs.isEmpty)
+        XCTAssertEqual(model.sharedSpace.titleMetadata ?? [], [])
+    }
+
+    func testTogetherToggleStillRemovesWithoutAcceptedMembership() {
+        let model = AppModel(store: MemoryLibraryStore(), seed: .sample)
+        model.sharedSpace.membershipState = .local
+        XCTAssertTrue(model.isShared("past-lives"))
+
+        model.toggleTogether("past-lives")
+
+        XCTAssertFalse(model.isShared("past-lives"))
     }
 
     func testSharedTitleMetadataHydratesPartnerLibraryWithEpisodes() throws {

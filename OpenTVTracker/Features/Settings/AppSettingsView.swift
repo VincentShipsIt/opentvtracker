@@ -31,6 +31,40 @@ struct AppSettingsView: View {
                 }
 
                 Section {
+                    LabeledContent("Switch spaces") {
+                        Text("Shake this iPhone, or tap the people icon at the top left")
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("settings.space-switch")
+                } header: {
+                    Text("Personal and Shared")
+                } footer: {
+                    Text("The people icon sits at the top left of Today, Discover, and Library. Shake is the same switch.")
+                }
+
+                Section {
+                    NavigationLink {
+                        ViewingDiaryView()
+                            .environment(\.appSpaceMode, .personal)
+                    } label: {
+                        Label("Viewing diary", systemImage: "book")
+                    }
+                    .accessibilityIdentifier("settings.viewing-diary")
+
+                    NavigationLink {
+                        ViewingAnalyticsView(scope: .personal)
+                            .environment(\.appSpaceMode, .personal)
+                    } label: {
+                        Label("Viewing statistics", systemImage: "chart.bar")
+                    }
+                    .accessibilityIdentifier("settings.viewing-stats")
+                } header: {
+                    Text("Your viewing")
+                } footer: {
+                    Text("Diary and statistics stay on this iPhone. Opening them from Settings never places personal history in the Shared space.")
+                }
+
+                Section {
                     NavigationLink {
                         StreamingRegionPickerView()
                     } label: {
