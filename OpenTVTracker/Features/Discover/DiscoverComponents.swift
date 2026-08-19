@@ -195,6 +195,7 @@ struct CatalogSearchCard: View {
     @Environment(AppModel.self) private var model
     let result: MediaTitle
     let spaceMode: AppSpaceMode
+    var onInvitePartner: (() -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
@@ -239,14 +240,22 @@ struct CatalogSearchCard: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
         } else {
             Button("Add to shared", systemImage: "person.2.badge.plus") {
-                model.toggleTogether(title.id)
+                if model.togetherConnectionPhase == .connected {
+                    model.toggleTogether(title.id)
+                } else {
+                    onInvitePartner?()
+                }
             }
             .font(.caption.weight(.semibold))
             .buttonStyle(.bordered)
             .controlSize(.small)
             .minimumTouchTarget()
             .frame(maxWidth: .infinity, alignment: .leading)
-            .accessibilityHint("Adds this title to your private shared space")
+            .accessibilityHint(
+                model.togetherConnectionPhase == .connected
+                    ? "Adds this title to your private shared space"
+                    : "Opens the partner invitation before adding this title to the shared space"
+            )
         }
     }
 

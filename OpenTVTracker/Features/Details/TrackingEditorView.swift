@@ -37,7 +37,7 @@ struct TrackingEditorView: View {
                     .padding(.bottom, 36)
                 }
             }
-            .navigationTitle(currentTitle.title)
+            .navigationTitle("Activity")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -72,6 +72,7 @@ struct TrackingEditorView: View {
         ) { state in
             model.setWatchState(state, for: currentTitle.id)
         }
+        .accessibilityIdentifier("tracking.status")
     }
 
     @ViewBuilder
@@ -147,6 +148,7 @@ struct TrackingEditorView: View {
         TrackingRatingSection(rating: currentTitle.userRating) { rating in
             model.setUserRating(rating, for: currentTitle.id)
         }
+        .accessibilityIdentifier("tracking.rating")
     }
 
     private var noteLink: some View {
@@ -160,7 +162,7 @@ struct TrackingEditorView: View {
                         .foregroundStyle(.secondary)
 
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("Private note")
+                        Text("Note")
                             .font(.headline)
                         Text(notePreview)
                             .font(.subheadline)
@@ -178,6 +180,7 @@ struct TrackingEditorView: View {
         }
         .buttonStyle(.plain)
         .accessibilityHint("Opens your personal note editor")
+        .accessibilityIdentifier("tracking.note")
     }
 
     private var rewatchButton: some View {
@@ -200,7 +203,7 @@ struct TrackingEditorView: View {
                         .font(.title3)
                         .foregroundStyle(.secondary)
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("Watch dates")
+                        Text("Dates")
                             .font(.headline)
                         Text("Edit the first watch and each rewatch separately")
                             .font(.subheadline)

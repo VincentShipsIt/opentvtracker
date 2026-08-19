@@ -7,6 +7,7 @@ enum DiscoverSheet: Identifiable {
     case services
     case aiRanking
     case settings
+    case invite
     case trailer(TrailerPresentation)
 
     var id: String {
@@ -16,6 +17,7 @@ enum DiscoverSheet: Identifiable {
         case .services: "services"
         case .aiRanking: "ai-ranking"
         case .settings: "settings"
+        case .invite: "invite"
         case .trailer(let trailer): "trailer-\(trailer.id)"
         }
     }

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct MediaDetailView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.partnerSharingService) private var partnerSharingService
     let titleID: MediaTitle.ID
     @State private var presentedTrailer: TrailerPresentation?
     @State private var listPickerTitle: MediaTitle?
@@ -9,6 +10,7 @@ struct MediaDetailView: View {
     @State private var showsTrackingEditor = false
     @State private var showsSharedNoteEditor = false
     @State private var showsReminderEditor = false
+    @State private var showsPartnerInvitation = false
 
     var body: some View {
         ZStack {
@@ -63,6 +65,12 @@ struct MediaDetailView: View {
                 )
             }
         }
+        .sheet(isPresented: $showsPartnerInvitation) {
+            PartnerInvitationView(
+                space: model.sharedSpace,
+                sharingService: partnerSharingService
+            )
+        }
         .navigationDestination(isPresented: $presentsMoreLikeThis) {
             MoreLikeThisView(sourceTitleID: titleID)
         }
@@ -89,7 +97,8 @@ struct MediaDetailView: View {
             presentsMoreLikeThis: $presentsMoreLikeThis,
             showsTrackingEditor: $showsTrackingEditor,
             showsSharedNoteEditor: $showsSharedNoteEditor,
-            showsReminderEditor: $showsReminderEditor
+            showsReminderEditor: $showsReminderEditor,
+            showsPartnerInvitation: $showsPartnerInvitation
         )
     }
 

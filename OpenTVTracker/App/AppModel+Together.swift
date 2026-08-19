@@ -69,6 +69,9 @@ extension AppModel {
             sharedSpace.titleIDs.remove(at: index)
             sharedSpace.titleMetadata?.removeAll { $0.id == id }
         } else {
+            // Adding to Our list is invitation-only. Removal still works if the title is
+            // already shared so a leftover membership cannot trap a title on the list.
+            guard sharedSpace.resolvedMembershipState == .accepted else { return }
             guard let titleIndex = trackableTitleIndex(for: id) else { return }
             let title = titles[titleIndex]
             sharedSpace.titleIDs.append(id)

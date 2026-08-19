@@ -18,18 +18,12 @@ struct MediaDetailActions: View {
     @Binding var showsTrackingEditor: Bool
     @Binding var showsSharedNoteEditor: Bool
     @Binding var showsReminderEditor: Bool
+    @Binding var showsPartnerInvitation: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             primaryButton
-
-            HStack(spacing: 8) {
-                trailerAction
-                watchlistButton
-                togetherButton
-                overflowMenu
-            }
-            .controlSize(.small)
+            secondaryActions
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Actions for \(title.title)")
@@ -86,9 +80,56 @@ struct MediaDetailActions: View {
         .accessibilityHint("Adds or removes this title without changing your viewing progress")
     }
 
+    @ViewBuilder
+    private var secondaryActions: some View {
+        if shouldPromoteActivity {
+            ViewThatFits(in: .horizontal) {
+                compactActionRow(includesActivity: true)
+                VStack(alignment: .leading, spacing: 10) {
+                    activityButton(style: .fullWidth)
+                    compactActionRow(includesActivity: false)
+                }
+            }
+        } else {
+            compactActionRow(includesActivity: false)
+        }
+    }
+
+    private func compactActionRow(includesActivity: Bool) -> some View {
+        HStack(spacing: 8) {
+            trailerAction
+            if includesActivity {
+                activityButton(style: .compact)
+            }
+            watchlistButton
+            togetherButton
+            overflowMenu
+        }
+        .controlSize(.small)
+    }
+
+    private func activityButton(style: ActivityButtonStyle) -> some View {
+        Button {
+            showsTrackingEditor = true
+        } label: {
+            switch style {
+            case .compact:
+                compactLabel("Activity", systemImage: "checkmark.rectangle.stack")
+            case .fullWidth:
+                Label("Activity", systemImage: "checkmark.rectangle.stack")
+                    .frame(maxWidth: .infinity)
+            }
+        }
+        .controlSize(style == .fullWidth ? .large : .small)
+        .adaptiveGlassButton()
+        .accessibilityHint("Opens status, ratings, watch dates, and private notes")
+        .accessibilityIdentifier("details.activity-action")
+        .minimumTouchTarget()
+    }
+
     private var togetherButton: some View {
         Button {
-            model.toggleTogether(title.id)
+            performTogetherAction()
         } label: {
             compactLabel(
                 "Our list",
@@ -98,7 +139,7 @@ struct MediaDetailActions: View {
         .adaptiveGlassButton()
         .accessibilityLabel("Our watchlist")
         .accessibilityValue(model.isShared(title.id) ? "Added" : "Not added")
-        .accessibilityHint("Adds or removes this title from the watchlist you share")
+        .accessibilityHint(togetherHint)
     }
 
     private var overflowMenu: some View {
@@ -119,8 +160,10 @@ struct MediaDetailActions: View {
                 presentsMoreLikeThis = true
             }
 
-            Button("Activity and private note", systemImage: "checkmark.rectangle.stack") {
-                showsTrackingEditor = true
+            if !shouldPromoteActivity {
+                Button("Activity and private note", systemImage: "checkmark.rectangle.stack") {
+                    showsTrackingEditor = true
+                }
             }
 
             Button("Add to custom list", systemImage: "list.bullet.rectangle") {
@@ -132,7 +175,7 @@ struct MediaDetailActions: View {
             }
             .disabled(!title.isReminderEligible)
 
-            if model.isShared(title.id) {
+            if model.togetherConnectionPhase == .connected, model.isShared(title.id) {
                 Divider()
 
                 Button("Mark watched together", systemImage: "person.2.fill") {
@@ -148,9 +191,7 @@ struct MediaDetailActions: View {
         }
         .adaptiveGlassButton()
         .accessibilityLabel("More actions for \(title.title)")
-        .accessibilityHint(
-            "Marks the whole show watched, and shows recommendations, activity, notes, lists, reminders, and shared actions"
-        )
+        .accessibilityHint(overflowHint)
     }
 
     private var primaryAction: MediaDetailPrimaryAction {
@@ -184,6 +225,27 @@ struct MediaDetailActions: View {
         }
     }
 
+    private var shouldPromoteActivity: Bool {
+        title.state != .planned
+    }
+
+    private var hasAcceptedPartner: Bool {
+        model.togetherConnectionPhase == .connected
+    }
+
+    private var togetherHint: String {
+        if hasAcceptedPartner || model.isShared(title.id) {
+            return "Adds or removes this title from the watchlist you share"
+        }
+        return "Opens the partner invitation before adding this title to Our list"
+    }
+
+    private var overflowHint: String {
+        shouldPromoteActivity
+            ? "Marks the whole show watched, and shows recommendations, lists, reminders, and shared actions"
+            : "Marks the whole show watched, and shows recommendations, activity, notes, lists, reminders, and shared actions"
+    }
+
     private var reminderLabel: String {
         model.isReminderEnabled(for: title.id) ? "Edit reminder" : "Set reminder"
     }
@@ -211,4 +273,17 @@ struct MediaDetailActions: View {
             showsTrackingEditor = true
         }
     }
+
+    private func performTogetherAction() {
+        if hasAcceptedPartner || model.isShared(title.id) {
+            model.toggleTogether(title.id)
+        } else {
+            showsPartnerInvitation = true
+        }
+    }
+}
+
+private enum ActivityButtonStyle {
+    case compact
+    case fullWidth
 }

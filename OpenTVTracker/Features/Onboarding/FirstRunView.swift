@@ -215,12 +215,11 @@ struct FirstRunView: View {
         .tint(AppSpaceMode.shared.accent)
     }
 
-    /// The only place the space switch is ever spelled out.
+    /// The only place the space switch is ever spelled out during first run.
     ///
-    /// Nothing on the main screens names the swipe — a gesture with no label is a gesture
-    /// nobody finds — so onboarding has to say it once, plainly, next to the explanation of
-    /// what the shared space even is. The toolbar button is named too, because that is the
-    /// path that survives VoiceOver claiming horizontal swipes for its own navigation.
+    /// Shake is unnamed on the main screens, and the toolbar button is icon-only, so
+    /// onboarding has to say both once, plainly, next to the explanation of what the
+    /// shared space even is. Settings repeats the same two paths after first run.
     private var spaceSwitchHint: some View {
         GlassSurface(cornerRadius: AppTheme.compactRadius) {
             VStack(alignment: .leading, spacing: 12) {
@@ -228,7 +227,7 @@ struct FirstRunView: View {
                     .font(.headline)
 
                 VStack(alignment: .leading, spacing: 8) {
-                    Label("Swipe left or right across any screen", systemImage: "hand.draw")
+                    Label("Shake this iPhone", systemImage: "iphone.radiowaves.left.and.right")
                     // The toolbar button renders icon-only, so naming its label here would
                     // point at text the user never sees. Describe the glyph instead.
                     Label(

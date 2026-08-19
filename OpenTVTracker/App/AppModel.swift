@@ -174,7 +174,7 @@ final class AppModel {
     }
 
     func moreLikeThis(_ id: MediaTitle.ID, limit: Int = 12) -> [SimilarTitleMatch] {
-        guard let source = mediaTitle(withID: id), titleIndex(for: id) != nil else { return [] }
+        guard let source = mediaTitle(withID: id) else { return [] }
         return TitleSimilarity.matches(for: source, among: titlesOnSelectedProviders, limit: limit)
     }
 

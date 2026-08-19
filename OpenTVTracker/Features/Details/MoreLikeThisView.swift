@@ -3,6 +3,7 @@ import SwiftUI
 struct MoreLikeThisView: View {
     @Environment(AppModel.self) private var model
     let sourceTitleID: MediaTitle.ID
+    @State private var showsServiceManager = false
 
     var body: some View {
         ZStack {
@@ -14,13 +15,7 @@ struct MoreLikeThisView: View {
                         MoreLikeThisContextCard(title: sourceTitle)
 
                         if matches.isEmpty {
-                            ContentUnavailableView(
-                                "No matches on your services",
-                                systemImage: "sparkles.rectangle.stack",
-                                description: Text("Add another streaming service in Discover to widen the search.")
-                            )
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 42)
+                            emptyState
                         } else {
                             MoreLikeThisGrid(
                                 matches: matches,
@@ -41,10 +36,41 @@ struct MoreLikeThisView: View {
         .navigationDestination(for: MediaTitle.self) { title in
             MediaDetailView(titleID: title.id)
         }
+        .sheet(isPresented: $showsServiceManager) {
+            ServiceManagerView()
+        }
+    }
+
+    @ViewBuilder
+    private var emptyState: some View {
+        if model.selectedProviderIDs.isEmpty {
+            ContentUnavailableView {
+                Label("Choose a streaming service", systemImage: "play.tv")
+            } description: {
+                Text("More Like This looks for similar titles on the services you already subscribe to.")
+            } actions: {
+                Button("Choose services", systemImage: "slider.horizontal.3") {
+                    showsServiceManager = true
+                }
+                .adaptiveGlassButton(prominent: true)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 42)
+            .accessibilityIdentifier("more-like-this.empty")
+        } else {
+            ContentUnavailableView(
+                "No similar titles",
+                systemImage: "sparkles.rectangle.stack",
+                description: Text("Nothing on your selected services is a close match for this title.")
+            )
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 42)
+            .accessibilityIdentifier("more-like-this.empty")
+        }
     }
 
     private var sourceTitle: MediaTitle? {
-        model.titles.first(where: { $0.id == sourceTitleID })
+        model.mediaTitle(withID: sourceTitleID)
     }
 
     private var matches: [SimilarTitleMatch] {
