@@ -2,6 +2,7 @@ import SwiftUI
 
 struct DiscoverView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.partnerSharingService) private var partnerSharingService
     let spaceMode: AppSpaceMode
     @Binding private var searchText: String
     @State private var surpriseOffset = 0
@@ -30,7 +31,10 @@ struct DiscoverView: View {
                                 .padding(.horizontal, AppTheme.horizontalPadding)
                             recommendationShelf
                             providerShelves
-                            DiscoveryCatalogBrowser(spaceMode: spaceMode)
+                            DiscoveryCatalogBrowser(
+                                spaceMode: spaceMode,
+                                onInvitePartner: { presentedSheet = .invite }
+                            )
                             discoverySkill
                         } else {
                             searchResults
@@ -86,6 +90,11 @@ struct DiscoverView: View {
                     AIRankingSettingsView()
                 case .settings:
                     AppSettingsView()
+                case .invite:
+                    PartnerInvitationView(
+                        space: model.sharedSpace,
+                        sharingService: partnerSharingService
+                    )
                 case .trailer(let trailer):
                     TrailerPlayerView(trailer: trailer)
                 }
@@ -221,7 +230,11 @@ struct DiscoverView: View {
             } else {
                 AdaptiveGrid(rowSpacing: 18, columnSpacing: 14) {
                     ForEach(model.catalogSearchResults) { title in
-                        CatalogSearchCard(result: title, spaceMode: spaceMode)
+                        CatalogSearchCard(
+                            result: title,
+                            spaceMode: spaceMode,
+                            onInvitePartner: { presentedSheet = .invite }
+                        )
                             .task {
                                 if title.id == model.catalogSearchResults.last?.id {
                                     await model.loadMoreCatalogResults(text: searchText)
@@ -317,6 +330,7 @@ private extension DiscoverView {
 private struct DiscoveryCatalogBrowser: View {
     @Environment(AppModel.self) private var model
     let spaceMode: AppSpaceMode
+    let onInvitePartner: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -344,7 +358,11 @@ private struct DiscoveryCatalogBrowser: View {
             } else {
                 AdaptiveGrid(rowSpacing: 18, columnSpacing: 14) {
                     ForEach(model.discoveryCatalogTitles) { title in
-                        CatalogSearchCard(result: title, spaceMode: spaceMode)
+                        CatalogSearchCard(
+                            result: title,
+                            spaceMode: spaceMode,
+                            onInvitePartner: onInvitePartner
+                        )
                             .task {
                                 if title.id == model.discoveryCatalogTitles.last?.id {
                                     await model.loadMoreDiscoveryCatalog()

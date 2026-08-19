@@ -14,6 +14,7 @@ final class LocaleSettingsUITests: XCTestCase {
             NSPredicate(format: "label CONTAINS %@", "Content language")
         ).firstMatch
         XCTAssertTrue(contentLanguage.waitForExistence(timeout: 5))
+        scrollToHittable(contentLanguage, in: app)
         contentLanguage.tap()
 
         XCTAssertTrue(app.navigationBars["Content language"].waitForExistence(timeout: 5))
@@ -56,5 +57,14 @@ final class LocaleSettingsUITests: XCTestCase {
             )
         ).firstMatch
         XCTAssertTrue(restoredContentLanguage.waitForExistence(timeout: 5))
+        scrollToHittable(restoredContentLanguage, in: app)
+        XCTAssertTrue(restoredContentLanguage.isHittable)
+    }
+
+    private func scrollToHittable(_ element: XCUIElement, in app: XCUIApplication) {
+        for _ in 0..<8 where !element.isHittable {
+            app.swipeUp()
+        }
+        XCTAssertTrue(element.isHittable, "Expected \(element) to become hittable")
     }
 }

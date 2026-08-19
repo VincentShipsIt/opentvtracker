@@ -334,7 +334,7 @@ private struct UpNextHero: View {
         .foregroundStyle(.black)
         .sensoryFeedback(.success, trigger: progressTrigger)
 
-        QueueActionsMenu(title: title)
+        QueueActionsMenu(title: title, includesProgressAction: false)
             .controlSize(.large)
             .buttonStyle(.bordered)
             .tint(.white)
@@ -371,11 +371,12 @@ private struct UpNextPosterCard: View {
 private struct QueueActionsMenu: View {
     @Environment(AppModel.self) private var model
     let title: MediaTitle
+    var includesProgressAction = true
     @State private var progressTrigger = 0
 
     var body: some View {
         Menu {
-            if let progressAction {
+            if includesProgressAction, let progressAction {
                 Button {
                     model.markNextWatched(title.id)
                     progressTrigger += 1
