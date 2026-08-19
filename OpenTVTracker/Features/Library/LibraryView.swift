@@ -39,6 +39,7 @@ struct LibraryView: View {
             // shelf pills into four tiers of chrome before a single title appeared.
             .navigationTitle(section.navigationTitle)
             .navigationBarTitleDisplayMode(.large)
+            .accessibilityIdentifier("library.root")
             .onChange(of: section) { _, newSection in
                 AccessibilityNotification.Announcement(newSection.navigationTitle).post()
             }

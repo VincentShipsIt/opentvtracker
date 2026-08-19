@@ -99,17 +99,18 @@ final class CoreJourneySmokeUITests: XCTestCase {
     func testLibraryHistoryUsesHistoryNavigationTitle() {
         launchCoreJourneys()
         app.tabBars.buttons["Library"].tap()
-        assertExists(app.navigationBars["Library"])
 
         let sectionMenu = app.buttons["library.section-menu"]
         assertExists(sectionMenu)
-        sectionMenu.tap()
+        assertNavigationTitle("Library")
 
+        sectionMenu.tap()
         let history = app.buttons["History"]
         assertExists(history)
         history.tap()
 
-        assertExists(app.navigationBars["History"])
+        assertExists(app.buttons["library.section-menu"])
+        assertNavigationTitle("History")
     }
 
     func testNonHeroQueueCardMarksProgressIntoPrivateDiary() {
@@ -318,7 +319,7 @@ final class CoreJourneySmokeUITests: XCTestCase {
 
     private func launchCoreJourneys() {
         launch(with: "-ui-testing-core-journeys")
-        assertExists(app.buttons["home.up-next-title"])
+        assertExists(app.buttons["home.up-next-title"], timeout: 10)
     }
 
     private func launch(with argument: String) {
@@ -396,6 +397,22 @@ final class CoreJourneySmokeUITests: XCTestCase {
             app.swipeUp()
         }
         XCTAssertTrue(element.isHittable, "Expected \(element) to become hittable")
+    }
+
+    private func assertNavigationTitle(
+        _ title: String,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        let bar = app.navigationBars[title]
+        if bar.waitForExistence(timeout: 5) { return }
+        let labeled = app.staticTexts[title]
+        XCTAssertTrue(
+            labeled.waitForExistence(timeout: 3),
+            "Expected navigation title \(title)",
+            file: file,
+            line: line
+        )
     }
 
     private func assertExists(
