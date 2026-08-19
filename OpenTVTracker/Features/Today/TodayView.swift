@@ -454,7 +454,7 @@ enum QueueProgressAction: Equatable {
             guard hasUnwatchedReleasedEpisodes else { return nil }
             self = .markNextEpisode
         case .movie:
-            guard title.state != .completed else { return nil }
+            guard !title.state.isCurrentViewingComplete else { return nil }
             self = .markMovieWatched
         }
     }

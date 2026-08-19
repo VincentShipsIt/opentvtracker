@@ -68,7 +68,15 @@ final class CoreJourneySmokeUITests: XCTestCase {
         assertExists(app.descendants(matching: .any)["tracking.status"])
         assertExists(app.descendants(matching: .any)["tracking.rating"])
         assertExists(app.descendants(matching: .any)["tracking.note"])
-        XCTAssertFalse(app.buttons["Activity and private note"].exists)
+
+        app.buttons["Done"].tap()
+        let more = app.buttons["More actions for Test Show"]
+        scrollToElement(more)
+        more.tap()
+        XCTAssertFalse(
+            app.buttons["Activity and private note"].waitForExistence(timeout: 1),
+            "Expected Activity to be one tap, not duplicated in More"
+        )
     }
 
     func testSettingsOpensViewingDiaryWithoutLibrarySectionMenu() {

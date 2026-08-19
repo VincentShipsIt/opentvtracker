@@ -39,5 +39,9 @@ final class MediaDetailActionsTests: XCTestCase {
             "Mark watched"
         )
         XCTAssertNil(QueueProgressAction(title: completed, hasUnwatchedReleasedEpisodes: false))
+
+        var caughtUpMovie = movie
+        caughtUpMovie.state = .caughtUp
+        XCTAssertNil(QueueProgressAction(title: caughtUpMovie, hasUnwatchedReleasedEpisodes: false))
     }
 }
