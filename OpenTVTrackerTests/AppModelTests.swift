@@ -433,4 +433,103 @@ final class CatalogSearchTests: XCTestCase {
         XCTAssertEqual(model.catalogSearchError, CatalogServiceError.unavailable.localizedDescription)
         XCTAssertFalse(model.isSearchingCatalog)
     }
+
+    func testRefreshCatalogDetailsLoadsTVMazeSeasonsFromFallback() async throws {
+        var searchResult = try XCTUnwrap(Self.tvmazeSearchResult)
+        searchResult.seasons = nil
+        var detailed = searchResult
+        detailed.seasons = [
+            SeasonSummary(
+                id: "tvmaze-season-1396-1",
+                number: 1,
+                title: "Season 1",
+                episodes: [
+                    EpisodeSummary(
+                        id: "tvmaze-episode-1",
+                        number: 1,
+                        title: "Good News About Hell",
+                        airDate: nil,
+                        runtimeMinutes: 57
+                    )
+                ]
+            )
+        ]
+        let catalog = FallbackCatalogService(
+            primary: RecordingCatalogStub(title: detailed, searchResults: [], shouldFailTitle: true),
+            fallback: RecordingCatalogStub(title: detailed, searchResults: [searchResult])
+        )
+        let model = AppModel(
+            store: MemoryLibraryStore(),
+            catalogService: catalog,
+            seed: .empty
+        )
+
+        await model.searchCatalog(text: "Severance")
+        await model.refreshCatalogDetails(for: searchResult.id)
+
+        let refreshed = try XCTUnwrap(model.mediaTitle(withID: searchResult.id))
+        XCTAssertEqual(refreshed.seasons?.first?.episodes.first?.id, "tvmaze-episode-1")
+        XCTAssertNil(model.catalogSearchError)
+        XCTAssertNil(model.catalogDetailError(for: searchResult.id))
+    }
+
+    func testRefreshCatalogDetailsFailureDoesNotClobberSearchError() async throws {
+        let searchResult = try XCTUnwrap(Self.tvmazeSearchResult)
+        let catalog = FallbackCatalogService(
+            primary: RecordingCatalogStub(
+                title: searchResult,
+                searchResults: [],
+                shouldFailTitle: true
+            ),
+            fallback: RecordingCatalogStub(
+                title: searchResult,
+                searchResults: [searchResult],
+                shouldFailTitle: true
+            )
+        )
+        let model = AppModel(
+            store: MemoryLibraryStore(),
+            catalogService: catalog,
+            seed: .empty
+        )
+
+        await model.searchCatalog(text: "Severance")
+        XCTAssertNil(model.catalogSearchError)
+        await model.refreshCatalogDetails(for: searchResult.id)
+
+        XCTAssertEqual(model.catalogSearchResults.map(\.id), [searchResult.id])
+        XCTAssertNil(model.catalogSearchError)
+        XCTAssertEqual(
+            model.catalogDetailError(for: searchResult.id),
+            CatalogServiceError.unavailable.localizedDescription
+        )
+        XCTAssertNil(model.catalogDetailError(for: "severance"))
+    }
+
+    private static let tvmazeSearchResult: MediaTitle? = {
+        guard var title = LibrarySnapshot.sample.titles.first(where: { $0.id == "severance" }) else {
+            return nil
+        }
+        title = MediaTitle(
+            id: "tvmaze-series-1396",
+            catalogID: 1396,
+            title: title.title,
+            year: title.year,
+            kind: .series,
+            synopsis: title.synopsis,
+            genres: title.genres,
+            runtimeMinutes: title.runtimeMinutes,
+            state: .planned,
+            progress: nil,
+            rating: title.rating,
+            nextReleaseDescription: nil,
+            recommendationReason: nil,
+            mood: title.mood,
+            palette: title.palette,
+            providers: title.providers,
+            reviews: [],
+            metadataSource: .tvmaze
+        )
+        return title
+    }()
 }

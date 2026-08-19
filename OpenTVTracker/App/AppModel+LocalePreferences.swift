@@ -47,6 +47,8 @@ extension AppModel {
         catalogSearchRequestID = UUID()
         catalogSearchResults = []
         catalogSearchError = nil
+        catalogDetailError = nil
+        catalogDetailErrorTitleID = nil
         isSearchingCatalog = false
         catalogSearchPage = 0
         catalogSearchQuery = ""
