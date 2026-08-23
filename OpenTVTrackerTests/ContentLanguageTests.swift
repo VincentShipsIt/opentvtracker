@@ -52,8 +52,16 @@ final class ContentLanguageTests: XCTestCase {
 
     private func disposableCatalogTitle() throws -> MediaTitle {
         var title = try XCTUnwrap(LibrarySnapshot.sample.titles.first(where: { $0.id == "fallout" }))
+        title.state = .planned
         title.progress = nil
         title.personalWatchlist = false
+        title.userRating = nil
+        title.notes = nil
+        title.rewatchCount = nil
+        title.lastWatchedAt = nil
+        title.isUpNextPinned = nil
+        title.upNextSnoozedUntil = nil
+        title.upNextManualOrder = nil
         title.watchedEpisodeIDs = []
         return title
     }
