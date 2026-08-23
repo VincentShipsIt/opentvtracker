@@ -132,16 +132,192 @@ describe("server application", () => {
 
     const url =
       "https://example.test/v1/catalog/search?q=Drama&page=1&region=MT";
-    const unauthenticated = await app.fetch(new Request(url));
     const first = await app.fetch(developmentRequest(url));
     const second = await app.fetch(developmentRequest(url));
+    const unauthenticated = await app.fetch(new Request(url));
+    const limited = await app.fetch(developmentRequest(url));
 
     expect(unauthenticated.status).toBe(401);
     expect(first.status).toBe(200);
     expect(second.status).toBe(200);
+    expect(limited.status).toBe(429);
     expect(first.headers.get("Cache-Control")).toContain("max-age=300");
     expect(first.headers.get("CDN-Cache-Control")).toBe("no-store");
     expect(providerCalls).toBe(1);
+  });
+
+  test("coalesces concurrent authenticated cache misses into one completed entry", async () => {
+    let providerCalls = 0;
+    const loadStarted = deferred<void>();
+    const pendingTitle = deferred<CatalogTitle>();
+    const { app } = testApp(undefined, {
+      search: async () => [],
+      title: async () => {
+        providerCalls += 1;
+        loadStarted.resolve();
+        return pendingTitle.promise;
+      },
+      reviews: async () => ({ page: 1, totalPages: 1, results: [] }),
+      resolveExternalID: async () => null,
+    });
+    const url =
+      "https://example.test/v1/catalog/series/95396?region=MT&language=en";
+
+    const firstPending = app.fetch(developmentRequest(url));
+    const secondPending = app.fetch(developmentRequest(url));
+    await loadStarted.promise;
+
+    pendingTitle.resolve(catalogTitle());
+    const [first, second] = await Promise.all([firstPending, secondPending]);
+    const [firstBody, secondBody] = await Promise.all([
+      first.text(),
+      second.text(),
+    ]);
+
+    expect([first.status, second.status]).toEqual([200, 200]);
+    expect(providerCalls).toBe(1);
+    expect(secondBody).toBe(firstBody);
+    expect(first.headers.get("ETag")).not.toBeNull();
+    expect(second.headers.get("ETag")).toBe(first.headers.get("ETag"));
+    expect(first.headers.get("Cache-Control")).toContain("private");
+    expect(first.headers.get("CDN-Cache-Control")).toBe("no-store");
+    expect(first.headers.get("Vary")).toBe(
+      "Authorization, X-App-Attest-Key-ID",
+    );
+
+    const conditional = developmentRequest(url);
+    conditional.headers.set("If-None-Match", first.headers.get("ETag")!);
+    const notModified = await app.fetch(conditional);
+
+    expect(notModified.status).toBe(304);
+    expect(notModified.headers.get("ETag")).toBe(first.headers.get("ETag"));
+    expect(notModified.headers.get("Cache-Control")).toBe(
+      first.headers.get("Cache-Control"),
+    );
+    expect(notModified.headers.get("CDN-Cache-Control")).toBe("no-store");
+    expect(notModified.headers.get("Vary")).toBe(
+      "Authorization, X-App-Attest-Key-ID",
+    );
+    expect(providerCalls).toBe(1);
+  });
+
+  test("clears a rejected shared load so a later request retries", async () => {
+    let providerCalls = 0;
+    const loadStarted = deferred<void>();
+    const firstLoad = deferred<CatalogTitle>();
+    const { app } = testApp(undefined, {
+      search: async () => [],
+      title: async () => {
+        providerCalls += 1;
+        if (providerCalls === 1) {
+          loadStarted.resolve();
+          return firstLoad.promise;
+        }
+        return catalogTitle();
+      },
+      reviews: async () => ({ page: 1, totalPages: 1, results: [] }),
+      resolveExternalID: async () => null,
+    });
+    const url = "https://example.test/v1/catalog/series/95396?region=MT";
+
+    const firstPending = app.fetch(developmentRequest(url));
+    const secondPending = app.fetch(developmentRequest(url));
+    await loadStarted.promise;
+
+    firstLoad.reject(new Error("upstream failed"));
+    const failures = await Promise.all([firstPending, secondPending]);
+
+    expect(failures.map((result) => result.status)).toEqual([502, 502]);
+    expect(providerCalls).toBe(1);
+    expect(await failures[0].text()).toBe(await failures[1].text());
+
+    const retry = await app.fetch(developmentRequest(url));
+    const cached = await app.fetch(developmentRequest(url));
+
+    expect([retry.status, cached.status]).toEqual([200, 200]);
+    expect(providerCalls).toBe(2);
+  });
+
+  test("coalesces concurrent unresolved external IDs without caching null", async () => {
+    let providerCalls = 0;
+    const loadStarted = deferred<void>();
+    const firstLoad = deferred<CatalogTitle | null>();
+    const { app } = testApp(undefined, {
+      search: async () => [],
+      title: async () => {
+        throw new Error("not expected");
+      },
+      reviews: async () => ({ page: 1, totalPages: 1, results: [] }),
+      resolveExternalID: async () => {
+        providerCalls += 1;
+        if (providerCalls === 1) {
+          loadStarted.resolve();
+          return firstLoad.promise;
+        }
+        return null;
+      },
+    });
+    const url =
+      "https://example.test/v1/catalog/resolve/tvdb/999999?kind=series&region=MT";
+
+    const firstPending = app.fetch(developmentRequest(url));
+    const secondPending = app.fetch(developmentRequest(url));
+    await loadStarted.promise;
+
+    firstLoad.resolve(null);
+    const unresolved = await Promise.all([firstPending, secondPending]);
+
+    expect(unresolved.map((result) => result.status)).toEqual([404, 404]);
+    expect(providerCalls).toBe(1);
+    expect(await unresolved[0].text()).toBe(await unresolved[1].text());
+    expect(unresolved[0].headers.get("Cache-Control")).toBe("no-store");
+    expect(unresolved[0].headers.get("ETag")).toBeNull();
+
+    const later = await app.fetch(developmentRequest(url));
+
+    expect(later.status).toBe(404);
+    expect(providerCalls).toBe(2);
+  });
+
+  test("loads distinct cache keys independently", async () => {
+    let providerCalls = 0;
+    let activeLoads = 0;
+    let maximumActiveLoads = 0;
+    const { app } = testApp(undefined, {
+      search: async () => [],
+      title: async (_kind, id) => {
+        providerCalls += 1;
+        activeLoads += 1;
+        maximumActiveLoads = Math.max(maximumActiveLoads, activeLoads);
+        await Promise.resolve();
+        activeLoads -= 1;
+        return { ...catalogTitle(), catalogID: id, title: `Title ${id}` };
+      },
+      reviews: async () => ({ page: 1, totalPages: 1, results: [] }),
+      resolveExternalID: async () => null,
+    });
+    const [first, second] = await Promise.all([
+      app.fetch(
+        developmentRequest(
+          "https://example.test/v1/catalog/series/95396?region=MT",
+        ),
+      ),
+      app.fetch(
+        developmentRequest(
+          "https://example.test/v1/catalog/series/1396?region=MT",
+        ),
+      ),
+    ]);
+    const [firstBody, secondBody] = await Promise.all([
+      first.json(),
+      second.json(),
+    ]);
+
+    expect([first.status, second.status]).toEqual([200, 200]);
+    expect(providerCalls).toBe(2);
+    expect(maximumActiveLoads).toBe(2);
+    expect(firstBody.title).toBe("Title 95396");
+    expect(secondBody.title).toBe("Title 1396");
   });
 
   test("forwards content language to catalog search and title requests", async () => {
@@ -371,6 +547,20 @@ function developmentRequest(url: string): Request {
   return new Request(url, {
     headers: { "X-OpenTV-Development-Token": "local-development-only" },
   });
+}
+
+function deferred<T>(): {
+  promise: Promise<T>;
+  resolve: (value: T | PromiseLike<T>) => void;
+  reject: (reason?: unknown) => void;
+} {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
 }
 
 function testConfig(): ServerConfig {
