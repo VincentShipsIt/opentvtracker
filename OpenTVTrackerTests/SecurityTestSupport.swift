@@ -3,11 +3,32 @@ import Foundation
 
 final class TestURLProtocol: URLProtocol, @unchecked Sendable {
     nonisolated(unsafe) static var handler: (@Sendable (URLRequest) throws -> (HTTPURLResponse, Data))?
+    nonisolated(unsafe) static var asyncHandler: (@Sendable (URLRequest) async throws -> (HTTPURLResponse, Data))?
+
+    private var loadingTask: Task<Void, Never>?
 
     override static func canInit(with request: URLRequest) -> Bool { true }
     override static func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
     override func startLoading() {
+        if let asyncHandler = Self.asyncHandler {
+            let owner = UncheckedWeakReference(self)
+            let request = request
+            loadingTask = Task { [owner, request] in
+                guard let owner = owner.value else { return }
+                do {
+                    let (response, data) = try await asyncHandler(request)
+                    guard !Task.isCancelled else { return }
+                    owner.client?.urlProtocol(owner, didReceive: response, cacheStoragePolicy: .notAllowed)
+                    owner.client?.urlProtocol(owner, didLoad: data)
+                    owner.client?.urlProtocolDidFinishLoading(owner)
+                } catch {
+                    guard !Task.isCancelled else { return }
+                    owner.client?.urlProtocol(owner, didFailWithError: error)
+                }
+            }
+            return
+        }
         do {
             guard let handler = Self.handler else { throw URLError(.unsupportedURL) }
             let (response, data) = try handler(request)
@@ -19,7 +40,10 @@ final class TestURLProtocol: URLProtocol, @unchecked Sendable {
         }
     }
 
-    override func stopLoading() {}
+    override func stopLoading() {
+        loadingTask?.cancel()
+        loadingTask = nil
+    }
 
     static func session() -> URLSession {
         let configuration = URLSessionConfiguration.ephemeral
@@ -45,6 +69,14 @@ final class TestURLProtocol: URLProtocol, @unchecked Sendable {
             body.append(contentsOf: buffer.prefix(count))
         }
         return body
+    }
+}
+
+private final class UncheckedWeakReference<Value: AnyObject>: @unchecked Sendable {
+    weak var value: Value?
+
+    init(_ value: Value) {
+        self.value = value
     }
 }
 
