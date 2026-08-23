@@ -1,0 +1,2 @@
+# Prepare local agent session paths for a separate untracking change.
+.agents/sessions/** -diff linguist-generated
