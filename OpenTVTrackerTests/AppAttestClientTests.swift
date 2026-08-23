@@ -180,7 +180,7 @@ final class AppAttestClientTests: XCTestCase {
         let first = Task {
             try await firstClient.data(for: firstRequest)
         }
-        await service.waitUntilGenerateKeyCallCount(1)
+        try await service.waitUntilGenerateKeyCallCount(1)
         let survivingClient = clients[1]
         let survivingRequest = Self.catalogRequest(index: 1)
         let survivor = Task {
@@ -189,7 +189,7 @@ final class AppAttestClientTests: XCTestCase {
 
         first.cancel()
         await registrationGate.open()
-        await Self.releaseSignedResponses(server, count: 2)
+        try await Self.releaseSignedResponses(server, count: 2)
 
         do {
             _ = try await first.value
@@ -370,7 +370,7 @@ final class AppAttestClientTests: XCTestCase {
                 }
             }
 
-            await releaseSignedResponses(server, count: signedRequestCount)
+            try await releaseSignedResponses(server, count: signedRequestCount)
             var responses: [HTTPURLResponse] = []
             for try await response in group {
                 responses.append(response)
@@ -382,19 +382,25 @@ final class AppAttestClientTests: XCTestCase {
     private static func releaseSignedResponses(
         _ server: AppAttestServerHarness,
         count: Int
-    ) async {
-        for expectedCount in 1...count {
-            await server.waitUntilSignedRequestCount(expectedCount)
-            let snapshot = await server.snapshot()
-            XCTAssertEqual(snapshot.signedRequestsInFlight, 1)
-            XCTAssertEqual(snapshot.maximumSignedRequestsInFlight, 1)
-            guard snapshot.signedRequestsInFlight == 1,
-                  snapshot.maximumSignedRequestsInFlight == 1 else {
-                await server.releaseAllSignedResponses()
-                return
+    ) async throws {
+        do {
+            for expectedCount in 1...count {
+                try await server.waitUntilSignedRequestCount(expectedCount)
+                let snapshot = await server.snapshot()
+                guard snapshot.signedRequestsInFlight == 1,
+                      snapshot.maximumSignedRequestsInFlight == 1 else {
+                    throw AppAttestTestHarnessError.overlappingSignedRequests(
+                        inFlight: snapshot.signedRequestsInFlight,
+                        maximum: snapshot.maximumSignedRequestsInFlight
+                    )
+                }
+                await server.releaseNextSignedResponse()
             }
-            await server.releaseNextSignedResponse()
+        } catch {
+            await server.releaseAllSignedResponses()
+            throw error
         }
+        await server.releaseAllSignedResponses()
     }
 
     private static func catalogRequest(index: Int) -> URLRequest {
@@ -419,6 +425,11 @@ private struct DeviceCredentialsProbe: Encodable {
     let keyID: String
     let token: String
     let tokenExpiresAt: Date
+}
+
+private enum AppAttestTestHarnessError: Error {
+    case timedOut(waitingFor: String)
+    case overlappingSignedRequests(inFlight: Int, maximum: Int)
 }
 
 private final class RequestCounter: @unchecked Sendable {
@@ -549,8 +560,16 @@ private actor AppAttestServerHarness {
         )
     }
 
-    func waitUntilSignedRequestCount(_ expectedCount: Int) async {
+    func waitUntilSignedRequestCount(_ expectedCount: Int) async throws {
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: .seconds(5))
         while signedRequestCount < expectedCount {
+            try Task.checkCancellation()
+            guard clock.now < deadline else {
+                throw AppAttestTestHarnessError.timedOut(
+                    waitingFor: "signed request \(expectedCount)"
+                )
+            }
             await Task.yield()
         }
     }
@@ -654,8 +673,16 @@ private final class MockAppAttestService: AppAttestServicing, @unchecked Sendabl
         return Data("assertion-object".utf8)
     }
 
-    func waitUntilGenerateKeyCallCount(_ expectedCount: Int) async {
+    func waitUntilGenerateKeyCallCount(_ expectedCount: Int) async throws {
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: .seconds(5))
         while generateKeyCallCount < expectedCount {
+            try Task.checkCancellation()
+            guard clock.now < deadline else {
+                throw AppAttestTestHarnessError.timedOut(
+                    waitingFor: "generateKey call \(expectedCount)"
+                )
+            }
             await Task.yield()
         }
     }
