@@ -1,41 +1,18 @@
 import Foundation
 
 enum TVTimeCSV {
-    static func rows(_ csv: String) -> [[String]] {
-        var rows: [[String]] = []
-        var row: [String] = []
-        var field = ""
-        var isQuoted = false
-        var index = csv.startIndex
-
-        while index < csv.endIndex {
-            let character = csv[index]
-            if character == "\"" {
-                let next = csv.index(after: index)
-                if isQuoted, next < csv.endIndex, csv[next] == "\"" {
-                    field.append("\"")
-                    index = next
-                } else {
-                    isQuoted.toggle()
-                }
-            } else if character == ",", !isQuoted {
-                row.append(field)
-                field = ""
-            } else if character == "\n", !isQuoted {
-                row.append(field.trimmingCharacters(in: .newlines))
-                rows.append(row)
-                row = []
-                field = ""
-            } else if character != "\r" || isQuoted {
-                field.append(character)
-            }
-            index = csv.index(after: index)
-        }
-        if !field.isEmpty || !row.isEmpty {
-            row.append(field)
-            rows.append(row)
-        }
-        return rows
+    static func rows(
+        _ csv: String,
+        maximumRecordCount: Int = LibraryImportLimits.maximumRecordCount,
+        maximumFieldSize: Int = LibraryImportLimits.maximumFieldSize,
+        maximumValueCount: Int = LibraryImportLimits.maximumCSVValueCount
+    ) throws -> [[String]] {
+        try BoundedCSVParser.rows(
+            csv,
+            maximumRecordCount: maximumRecordCount,
+            maximumFieldSize: maximumFieldSize,
+            maximumValueCount: maximumValueCount
+        )
     }
 
     static func record(header: [String], row: [String]) -> [String: String] {

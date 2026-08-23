@@ -37,19 +37,29 @@ enum LibraryTransferService {
     }
 
     static func previewImport(_ data: Data, into current: LibrarySnapshot) throws -> LibraryImportPreview {
+        guard data.count <= LibraryImportLimits.maximumLibraryFileSize else {
+            throw LibraryImportSafetyError.fileTooLarge
+        }
         if LibraryBackupMerge.appearsToBeJSON(data) {
+            try LibraryJSONImportValidator.validateEncodedFields(in: data)
+            let imported: LibrarySnapshot
             do {
-                return merge(imported: try LibraryArchiveCodec.decode(data), into: current)
+                imported = try LibraryArchiveCodec.decode(data)
             } catch let error as LibraryArchiveError {
                 throw error
             } catch {
                 throw LibraryTransferError.unreadableFile
             }
+            try LibraryJSONImportValidator.validateCollections(in: imported)
+            return merge(
+                imported: ImportedLibraryMetadataSanitizer.sanitized(imported),
+                into: current
+            )
         }
         guard let csv = String(data: data, encoding: .utf8) else {
             throw LibraryTransferError.unreadableFile
         }
-        let rows = parseCSV(csv)
+        let rows = try BoundedCSVParser.rows(csv)
         if let listPreview = previewListImport(rows, into: current) {
             return listPreview
         }
@@ -58,7 +68,7 @@ enum LibraryTransferService {
                 return try mergeDiaryCSV(rows, into: current)
             }
         }
-        return try mergeCSV(csv, into: current)
+        return try mergeCSV(rows, into: current)
     }
 }
 
@@ -177,10 +187,9 @@ extension LibraryTransferService {
     }
 
     private static func mergeCSV(
-        _ csv: String,
+        _ rows: [[String]],
         into current: LibrarySnapshot
     ) throws -> LibraryImportPreview {
-        let rows = parseCSV(csv)
         guard let header = rows.first, !header.isEmpty else { throw LibraryTransferError.emptyFile }
         let normalizedHeader = header.map(normalizedHeaderName)
         var merged = current
@@ -314,44 +323,6 @@ extension LibraryTransferService {
             return field
         }
         return "\"\(field.replacingOccurrences(of: "\"", with: "\"\""))\""
-    }
-
-    private static func parseCSV(_ csv: String) -> [[String]] {
-        var rows: [[String]] = []
-        var row: [String] = []
-        var field = ""
-        var isQuoted = false
-        var index = csv.startIndex
-
-        while index < csv.endIndex {
-            let character = csv[index]
-            if character == "\"" {
-                let next = csv.index(after: index)
-                if isQuoted, next < csv.endIndex, csv[next] == "\"" {
-                    field.append("\"")
-                    index = next
-                } else {
-                    isQuoted.toggle()
-                }
-            } else if character == ",", !isQuoted {
-                row.append(field)
-                field = ""
-            } else if character == "\n", !isQuoted {
-                row.append(field.trimmingCharacters(in: .newlines))
-                rows.append(row)
-                row = []
-                field = ""
-            } else if character != "\r" || isQuoted {
-                field.append(character)
-            }
-            index = csv.index(after: index)
-        }
-
-        if !field.isEmpty || !row.isEmpty {
-            row.append(field)
-            rows.append(row)
-        }
-        return rows
     }
 
     static func normalizedHeaderName(_ header: String) -> String {

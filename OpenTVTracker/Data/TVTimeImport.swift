@@ -244,6 +244,8 @@ enum TVTimeImportError: LocalizedError {
     case emptyArchive
     case invalidArchive
     case archiveTooLarge
+    case tooManyArchiveEntries
+    case duplicateRecognizedPath
     case noSupportedData
 
     var errorDescription: String? {
@@ -251,6 +253,8 @@ enum TVTimeImportError: LocalizedError {
         case .emptyArchive: "The TV Time export ZIP is empty."
         case .invalidArchive: "OpenTV could not read this TV Time export ZIP."
         case .archiveTooLarge: "This archive is too large to import safely."
+        case .tooManyArchiveEntries: "This ZIP contains more entries than OpenTV can safely process."
+        case .duplicateRecognizedPath: "This ZIP contains duplicate TV Time data files."
         case .noSupportedData: "This ZIP does not contain recognizable TV Time tracking data."
         }
     }

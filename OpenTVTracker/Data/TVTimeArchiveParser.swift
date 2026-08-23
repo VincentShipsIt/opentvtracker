@@ -7,15 +7,26 @@ enum TVTimeArchiveParser {
 
     private static func parse(files: [String: Data]) throws -> TVTimeArchive {
         var state = TVTimeArchiveParseState()
+        var recordCount = 0
+        var valueCount = 0
 
         for (path, data) in files.sorted(by: { filePriority($0.key) < filePriority($1.key) }) {
             guard let csv = String(data: data, encoding: .utf8) else {
                 state.diagnostics.unreadableFileCount += 1
                 continue
             }
-            let rows = TVTimeCSV.rows(csv)
-            guard let header = rows.first, !header.isEmpty else { continue }
             let filename = URL(fileURLWithPath: path).lastPathComponent.lowercased()
+            let rows = try TVTimeCSV.rows(
+                csv,
+                maximumRecordCount: LibraryImportLimits.maximumRecordCount - recordCount,
+                maximumFieldSize: filename == "lists-prod-lists.csv"
+                    ? LibraryImportLimits.maximumTVTimeListFieldSize
+                    : LibraryImportLimits.maximumFieldSize,
+                maximumValueCount: LibraryImportLimits.maximumCSVValueCount - valueCount
+            )
+            recordCount += max(rows.count - 1, 0)
+            valueCount += rows.reduce(0) { $0 + $1.count }
+            guard let header = rows.first, !header.isEmpty else { continue }
             for row in rows.dropFirst() where row.contains(where: { !$0.isEmpty }) {
                 parseRecord(
                     filename,

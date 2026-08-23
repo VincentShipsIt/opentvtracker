@@ -306,6 +306,60 @@ extension TVTimeImportTests {
         }
     }
 
+    func testZIPRejectsCaseInsensitiveDuplicateRecognizedFullPaths() throws {
+        let archive = try makeArchive([
+            (
+                path: "Exports/TRACKING-PROD-RECORDS-V2.CSV",
+                contents: "key,s_id,series_name,s_no,ep_no\nfirst,42,Severance,1,1\n"
+            ),
+            (
+                path: "exports/tracking-prod-records-v2.csv",
+                contents: "key,s_id,series_name,s_no,ep_no\nsecond,42,Severance,1,2\n"
+            )
+        ])
+
+        XCTAssertThrowsError(try TVTimeZIPReader.recognizedFiles(in: archive)) { error in
+            guard let importError = error as? TVTimeImportError,
+                  case .duplicateRecognizedPath = importError else {
+                return XCTFail("Expected duplicateRecognizedPath, got \(error)")
+            }
+        }
+    }
+
+    func testZIPRejectsExcessiveTotalEntryCount() throws {
+        var files = [
+            (
+                path: "tracking-prod-records-v2.csv",
+                contents: "key,s_id,series_name,s_no,ep_no\nfirst,42,Severance,1,1\n"
+            )
+        ]
+        files.append(contentsOf: (0..<LibraryImportLimits.maximumZIPEntryCount).map { index in
+            (path: "unrecognized/entry-\(index).txt", contents: "")
+        })
+        let archive = try makeArchive(files)
+
+        XCTAssertThrowsError(try TVTimeZIPReader.recognizedFiles(in: archive)) { error in
+            guard let importError = error as? TVTimeImportError,
+                  case .tooManyArchiveEntries = importError else {
+                return XCTFail("Expected tooManyArchiveEntries, got \(error)")
+            }
+        }
+    }
+
+    func testGDPRListAggregateFieldMayExceedNormalFieldLimit() throws {
+        let objects = String(
+            repeating: "x",
+            count: LibraryImportLimits.maximumFieldSize + 1
+        )
+        let archive = try makeArchive([
+            "lists-prod-lists.csv": "name,objects\nLarge list,\(objects)\n"
+        ])
+
+        let parsed = try TVTimeArchiveParser.parse(archive)
+
+        XCTAssertEqual(parsed.lists.map(\.name), ["Large list"])
+    }
+
     private func snapshotWithSeveranceEpisodes() -> LibrarySnapshot {
         var snapshot = LibrarySnapshot.sample
         guard let index = snapshot.titles.firstIndex(where: { $0.id == "severance" }) else {
@@ -355,11 +409,19 @@ extension TVTimeImportTests {
     }
 
     private func makeArchive(_ files: [String: String]) throws -> Data {
+        try makeArchive(
+            files.sorted(by: { $0.key < $1.key }).map { path, contents in
+                (path: path, contents: contents)
+            }
+        )
+    }
+
+    private func makeArchive(_ files: [(path: String, contents: String)]) throws -> Data {
         let archive = try Archive(accessMode: .create)
-        for (path, contents) in files.sorted(by: { $0.key < $1.key }) {
-            let data = Data(contents.utf8)
+        for file in files {
+            let data = Data(file.contents.utf8)
             try archive.addEntry(
-                with: path,
+                with: file.path,
                 type: .file,
                 uncompressedSize: Int64(data.count),
                 provider: { position, size in
