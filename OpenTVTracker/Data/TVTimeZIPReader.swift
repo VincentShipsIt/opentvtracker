@@ -24,15 +24,20 @@ enum TVTimeZIPReader {
         var files: [String: Data] = [:]
         var extractedSize: UInt64 = 0
         for entry in recognizedEntries {
-            guard entry.uncompressedSize <= maximumEntrySize else {
+            guard extractedSize <= maximumExpandedSize else {
                 throw TVTimeImportError.archiveTooLarge
             }
-            let contents = try extract(entry, from: archive)
-            let addition = extractedSize.addingReportingOverflow(UInt64(contents.count))
-            guard !addition.overflow, addition.partialValue <= maximumExpandedSize else {
+            let remainingAggregateSize = maximumExpandedSize - extractedSize
+            let extractionLimit = min(maximumEntrySize, remainingAggregateSize)
+            guard entry.uncompressedSize <= extractionLimit else {
                 throw TVTimeImportError.archiveTooLarge
             }
-            extractedSize = addition.partialValue
+            let contents = try extract(
+                entry,
+                from: archive,
+                remainingAggregateSize: remainingAggregateSize
+            )
+            extractedSize += UInt64(contents.count)
             files[canonicalPath(entry.path)] = contents
         }
         guard !files.isEmpty else { throw TVTimeImportError.noSupportedData }
@@ -76,22 +81,45 @@ enum TVTimeZIPReader {
         guard expandedSize <= maximumExpandedSize else { throw TVTimeImportError.archiveTooLarge }
     }
 
-    private static func extract(_ entry: Entry, from archive: Archive) throws -> Data {
-        var contents = Data()
-        contents.reserveCapacity(Int(entry.uncompressedSize))
+    private static func extract(
+        _ entry: Entry,
+        from archive: Archive,
+        remainingAggregateSize: UInt64
+    ) throws -> Data {
+        let extractionLimit = min(maximumEntrySize, remainingAggregateSize)
         do {
-            _ = try archive.extract(entry) { chunk in
-                guard chunk.count <= Int(maximumEntrySize) - contents.count else {
-                    throw TVTimeImportError.archiveTooLarge
-                }
-                contents.append(chunk)
+            return try boundedExtraction(
+                declaredSize: entry.uncompressedSize,
+                maximumSize: extractionLimit
+            ) { consumer in
+                _ = try archive.extract(entry, consumer: consumer)
             }
-            return contents
         } catch let error as TVTimeImportError {
             throw error
         } catch {
             throw TVTimeImportError.invalidArchive
         }
+    }
+
+    static func boundedExtraction(
+        declaredSize: UInt64,
+        maximumSize: UInt64,
+        producer: (_ consumer: Consumer) throws -> Void
+    ) throws -> Data {
+        guard let maximumCount = Int(exactly: maximumSize),
+              let declaredCount = Int(exactly: min(declaredSize, maximumSize)) else {
+            throw TVTimeImportError.archiveTooLarge
+        }
+        var contents = Data()
+        contents.reserveCapacity(declaredCount)
+        try producer { chunk in
+            guard contents.count <= maximumCount,
+                  chunk.count <= maximumCount - contents.count else {
+                throw TVTimeImportError.archiveTooLarge
+            }
+            contents.append(chunk)
+        }
+        return contents
     }
 
     private static func isRecognized(_ path: String) -> Bool {
@@ -109,6 +137,12 @@ enum TVTimeZIPReader {
     }
 
     private static func canonicalPath(_ path: String) -> String {
-        path.precomposedStringWithCanonicalMapping.lowercased()
+        path
+            .precomposedStringWithCanonicalMapping
+            .folding(
+                options: [.caseInsensitive],
+                locale: Locale(identifier: "en_US_POSIX")
+            )
+            .precomposedStringWithCanonicalMapping
     }
 }

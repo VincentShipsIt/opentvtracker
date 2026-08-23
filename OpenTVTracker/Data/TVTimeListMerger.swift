@@ -9,6 +9,11 @@ enum TVTimeListMerger {
         var lists = current
         var importedMemberships = 0
         var skippedMemberships = 0
+        var listIndexByID: [MediaList.ID: Array<MediaList>.Index] = [:]
+        listIndexByID.reserveCapacity(current.count + imported.count)
+        for index in lists.indices where listIndexByID[lists[index].id] == nil {
+            listIndexByID[lists[index].id] = index
+        }
 
         for importedList in imported {
             var seen = Set<MediaTitle.ID>()
@@ -27,7 +32,7 @@ enum TVTimeListMerger {
                     return titleID
                 }
 
-            if let index = lists.firstIndex(where: { $0.id == importedList.id }) {
+            if let index = listIndexByID[importedList.id] {
                 let existingIDs = Set(lists[index].titleIDs)
                 let addedIDs = resolvedIDs.filter { !existingIDs.contains($0) }
                 lists[index].titleIDs.append(contentsOf: addedIDs)
@@ -42,6 +47,7 @@ enum TVTimeListMerger {
                         updatedAt: .now
                     )
                 )
+                listIndexByID[importedList.id] = lists.index(before: lists.endIndex)
                 importedMemberships += resolvedIDs.count
             }
         }

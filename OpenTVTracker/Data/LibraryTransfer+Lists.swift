@@ -46,8 +46,13 @@ extension LibraryTransferService {
         preservingExistingIDs: Set<MediaList.ID> = []
     ) -> [MediaList] {
         var merged = current
+        var indexByID: [MediaList.ID: Array<MediaList>.Index] = [:]
+        indexByID.reserveCapacity(current.count + imported.count)
+        for index in merged.indices where indexByID[merged[index].id] == nil {
+            indexByID[merged[index].id] = index
+        }
         for importedList in imported {
-            if let index = merged.firstIndex(where: { $0.id == importedList.id }) {
+            if let index = indexByID[importedList.id] {
                 if preservingExistingIDs.contains(importedList.id) {
                     let existingIDs = Set(merged[index].titleIDs)
                     merged[index].titleIDs.append(
@@ -59,6 +64,7 @@ extension LibraryTransferService {
                 }
             } else {
                 merged.append(importedList)
+                indexByID[importedList.id] = merged.index(before: merged.endIndex)
             }
         }
         return merged

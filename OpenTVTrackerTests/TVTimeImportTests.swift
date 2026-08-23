@@ -326,6 +326,76 @@ extension TVTimeImportTests {
         }
     }
 
+    func testZIPRejectsUnicodeCaseFoldDuplicateRecognizedFullPaths() throws {
+        let archive = try makeArchive([
+            (
+                path: "Σ/tracking-prod-records-v2.csv",
+                contents: "key,s_id,series_name,s_no,ep_no\nfirst,42,Severance,1,1\n"
+            ),
+            (
+                path: "ς/tracking-prod-records-v2.csv",
+                contents: "key,s_id,series_name,s_no,ep_no\nsecond,42,Severance,1,2\n"
+            )
+        ])
+
+        XCTAssertThrowsError(try TVTimeZIPReader.recognizedFiles(in: archive)) { error in
+            guard let importError = error as? TVTimeImportError,
+                  case .duplicateRecognizedPath = importError else {
+                return XCTFail("Expected duplicateRecognizedPath, got \(error)")
+            }
+        }
+    }
+
+    func testZIPRejectsMultiScalarCaseFoldDuplicateRecognizedFullPaths() throws {
+        let archive = try makeArchive([
+            (
+                path: "Straße/tracking-prod-records-v2.csv",
+                contents: "key,s_id,series_name,s_no,ep_no\nfirst,42,Severance,1,1\n"
+            ),
+            (
+                path: "STRASSE/tracking-prod-records-v2.csv",
+                contents: "key,s_id,series_name,s_no,ep_no\nsecond,42,Severance,1,2\n"
+            )
+        ])
+
+        XCTAssertThrowsError(try TVTimeZIPReader.recognizedFiles(in: archive)) { error in
+            guard let importError = error as? TVTimeImportError,
+                  case .duplicateRecognizedPath = importError else {
+                return XCTFail("Expected duplicateRecognizedPath, got \(error)")
+            }
+        }
+    }
+
+    func testBoundedExtractionRejectsUnderreportedOutputBeforeAppendingPastLimit() throws {
+        let exact = try TVTimeZIPReader.boundedExtraction(
+            declaredSize: 1,
+            maximumSize: 4
+        ) { consumer in
+            try consumer(Data([0, 1]))
+            try consumer(Data([2, 3]))
+        }
+        XCTAssertEqual(exact, Data([0, 1, 2, 3]))
+
+        var completedConsumerCalls = 0
+        XCTAssertThrowsError(
+            try TVTimeZIPReader.boundedExtraction(
+                declaredSize: 1,
+                maximumSize: 4
+            ) { consumer in
+                try consumer(Data([0, 1, 2]))
+                completedConsumerCalls += 1
+                try consumer(Data([3, 4]))
+                completedConsumerCalls += 1
+            }
+        ) { error in
+            guard let importError = error as? TVTimeImportError,
+                  case .archiveTooLarge = importError else {
+                return XCTFail("Expected archiveTooLarge, got \(error)")
+            }
+        }
+        XCTAssertEqual(completedConsumerCalls, 1)
+    }
+
     func testZIPRejectsExcessiveTotalEntryCount() throws {
         var files = [
             (

@@ -388,6 +388,150 @@ extension LibraryTransferTests {
 }
 
 extension LibraryTransferTests {
+    func testCompactJSONImportMergesTwentyThousandUniqueTitlesAliasesAndLists() throws {
+        let titleCount = 20_000
+        var imported = LibrarySnapshot.empty
+        imported.titles = (0..<titleCount).map { offset in
+            var title = Self.importTitle(
+                id: "bulk-title-\(offset)",
+                catalogID: offset + 1,
+                title: "Bulk Title \(offset)",
+                year: 2_000 + offset % 25,
+                kind: offset.isMultiple(of: 2) ? .movie : .series
+            )
+            if offset == titleCount - 1 {
+                title.state = .paused
+                title.userRating = 9.5
+                title.notes = "Private final-title note"
+                title.personalWatchlist = true
+            }
+            return title
+        }
+        imported.importResolutionAliases = Dictionary(
+            uniqueKeysWithValues: imported.titles.map { title in
+                ("bulk-alias-\(title.id)", ImportResolutionAlias(title: title))
+            }
+        )
+        imported.lists = imported.titles.map { title in
+            MediaList(
+                id: "bulk-list-\(title.id)",
+                name: "List for \(title.title)",
+                titleIDs: [title.id],
+                updatedAt: Date(timeIntervalSince1970: 1_700_000_000)
+            )
+        }
+        let compactJSON = try LibraryArchiveCodec.encode(imported, prettyPrinted: false)
+
+        let preview = try LibraryTransferService.previewImport(compactJSON, into: .empty)
+
+        XCTAssertEqual(preview.addedCount, titleCount)
+        XCTAssertEqual(preview.matchedCount, 0)
+        XCTAssertEqual(preview.duplicateCount, 0)
+        XCTAssertEqual(preview.snapshot.titles.count, titleCount)
+        XCTAssertEqual(preview.snapshot.importResolutionAliases?.count, titleCount)
+        XCTAssertEqual(preview.snapshot.lists?.count, titleCount)
+        let finalTitle = try XCTUnwrap(preview.snapshot.titles.last)
+        XCTAssertEqual(finalTitle.id, "bulk-title-\(titleCount - 1)")
+        XCTAssertEqual(finalTitle.state, .paused)
+        XCTAssertEqual(finalTitle.userRating, 9.5)
+        XCTAssertEqual(finalTitle.notes, "Private final-title note")
+        XCTAssertTrue(finalTitle.isOnPersonalWatchlist)
+        XCTAssertEqual(preview.snapshot.lists?.last?.titleIDs, [finalTitle.id])
+    }
+
+    func testJSONImportPreservesFirstMatchAcrossCatalogAndLegacyTitleIdentities() throws {
+        var current = LibrarySnapshot.empty
+        current.titles = [
+            Self.importTitle(
+                id: "legacy-first",
+                catalogID: 0,
+                title: "Dual Match",
+                year: 2024,
+                kind: .series
+            ),
+            Self.importTitle(
+                id: "catalog-second",
+                catalogID: 42,
+                title: "Different Catalog Title",
+                year: 2024,
+                kind: .series
+            ),
+            Self.importTitle(
+                id: "positive-title-match",
+                catalogID: 77,
+                title: "Legacy Import Match",
+                year: 2023,
+                kind: .movie
+            )
+        ]
+        var positiveImport = Self.importTitle(
+            id: "foreign-positive",
+            catalogID: 42,
+            title: "Dual Match",
+            year: 2024,
+            kind: .series
+        )
+        positiveImport.notes = "Matched the earlier uncataloged title"
+        var legacyImport = Self.importTitle(
+            id: "foreign-legacy",
+            catalogID: 0,
+            title: "Legacy Import Match",
+            year: 2023,
+            kind: .movie
+        )
+        legacyImport.userRating = 8.5
+        var imported = LibrarySnapshot.empty
+        imported.titles = [positiveImport, legacyImport]
+
+        let preview = try LibraryTransferService.previewImport(
+            LibraryArchiveCodec.encode(imported, prettyPrinted: false),
+            into: current
+        )
+
+        XCTAssertEqual(preview.matchedCount, 2)
+        XCTAssertEqual(preview.addedCount, 0)
+        XCTAssertEqual(preview.snapshot.titles.count, current.titles.count)
+        XCTAssertEqual(
+            preview.snapshot.titles.first(where: { $0.id == "legacy-first" })?.notes,
+            "Matched the earlier uncataloged title"
+        )
+        XCTAssertNil(
+            preview.snapshot.titles.first(where: { $0.id == "catalog-second" })?.notes
+        )
+        XCTAssertEqual(
+            preview.snapshot.titles.first(where: { $0.id == "positive-title-match" })?.userRating,
+            8.5
+        )
+    }
+
+    private static func importTitle(
+        id: String,
+        catalogID: Int,
+        title: String,
+        year: Int,
+        kind: MediaKind
+    ) -> MediaTitle {
+        MediaTitle(
+            id: id,
+            catalogID: catalogID,
+            title: title,
+            year: year,
+            kind: kind,
+            synopsis: "",
+            genres: [],
+            runtimeMinutes: 0,
+            state: .planned,
+            progress: nil,
+            rating: 0,
+            nextReleaseDescription: nil,
+            recommendationReason: nil,
+            mood: .any,
+            palette: PosterPalette(primaryHex: "000000", secondaryHex: "000000"),
+            providers: [],
+            reviews: []
+        )
+    }
+
     func testJSONImportRejectsOversizedInMemoryPayloadBeforeDecode() {
         let data = Data(
             repeating: 0x7B,

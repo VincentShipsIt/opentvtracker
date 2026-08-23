@@ -4,6 +4,93 @@ import ZIPFoundation
 @testable import OpenTVTracker
 
 final class TVTimeListImportTests: XCTestCase {
+    func testTwentyThousandUniqueTVTimeListsMergeWithoutRepeatedListScans() {
+        let listCount = 20_000
+        let imported = (0..<listCount).map { index in
+            TVTimeList(
+                id: "tvtime:bulk:\(index)",
+                name: "Bulk list \(index)",
+                memberships: []
+            )
+        }
+
+        let result = TVTimeListMerger.merge(imported, into: [], resolved: [:])
+
+        XCTAssertEqual(result.lists.count, listCount)
+        XCTAssertEqual(result.lists.first?.id, "tvtime:bulk:0")
+        XCTAssertEqual(result.lists.last?.id, "tvtime:bulk:\(listCount - 1)")
+        XCTAssertEqual(result.importedMemberships, 0)
+        XCTAssertEqual(result.skippedMemberships, 0)
+    }
+
+    func testGDPRObjectsIsTheOnlyFieldGrantedTheLargerByteLimit() throws {
+        let rows = try TVTimeCSV.rows(
+            "name,objects\nList,123456789",
+            maximumFieldSize: 8,
+            maximumFieldSizesByHeader: ["objects": 16]
+        )
+        XCTAssertEqual(rows.last, ["List", "123456789"])
+
+        XCTAssertThrowsError(
+            try TVTimeCSV.rows(
+                "name,objects\n123456789,short",
+                maximumFieldSize: 8,
+                maximumFieldSizesByHeader: ["objects": 16]
+            )
+        ) { error in
+            XCTAssertEqual(error as? LibraryImportSafetyError, .fieldTooLarge)
+        }
+    }
+
+    func testGDPRMembershipLimitDeduplicatesBeforeAppending() throws {
+        var lists: [MediaList.ID: TVTimeList] = [:]
+        var membershipAccumulator = TVTimeListMembershipAccumulator(maximumCount: 2)
+        let records = [[
+            "name": "Favorites",
+            "objects": """
+            [map[id:1 type:series] map[id:1 type:series] map[id:2 type:series] map[id:3 type:series]]
+            """
+        ]]
+
+        XCTAssertThrowsError(
+            try TVTimeListParser.parseGDPR(
+                records,
+                lists: &lists,
+                membershipAccumulator: &membershipAccumulator
+            )
+        ) { error in
+            XCTAssertEqual(error as? LibraryImportSafetyError, .tooManyTVTimeListMemberships)
+        }
+
+        let list = try XCTUnwrap(lists["tvtime:gdpr:4661766f7269746573"])
+        XCTAssertEqual(list.memberships.map(\.entityIdentity), [
+            "series:source:1",
+            "series:source:2"
+        ])
+        XCTAssertEqual(list.memberships.map(\.order), [0, 2])
+        XCTAssertEqual(membershipAccumulator.count, 2)
+        XCTAssertEqual(membershipAccumulator.identityIndex[list.id]?.count, 2)
+    }
+
+    func testGDPRObjectSubfieldsRemainNormallyBounded() throws {
+        var lists: [MediaList.ID: TVTimeList] = [:]
+        var membershipAccumulator = TVTimeListMembershipAccumulator()
+
+        XCTAssertThrowsError(
+            try TVTimeListParser.parseGDPR(
+                [["name": "Favorites", "objects": "[map[id:12345 type:series]]"]],
+                lists: &lists,
+                membershipAccumulator: &membershipAccumulator,
+                maximumObjectFieldSize: 4
+            )
+        ) { error in
+            XCTAssertEqual(error as? LibraryImportSafetyError, .fieldTooLarge)
+        }
+
+        XCTAssertTrue(lists.isEmpty)
+        XCTAssertEqual(membershipAccumulator.count, 0)
+    }
+
     func testNativeExportImportsMixedCustomListInManualOrder() async throws {
         let archive = try makeArchive([
             "tvtime-lists-2026-07-05.csv": """

@@ -8,7 +8,9 @@ enum LibraryImportLimits {
     static let maximumCSVValueCount = 2_000_000
     static let maximumJSONSeparatorCount = 2_000_000
     static let maximumFieldSize = 1 * 1_024 * 1_024
-    static let maximumTVTimeListFieldSize = 8 * 1_024 * 1_024
+    static let maximumTVTimeListObjectsFieldSize = 8 * 1_024 * 1_024
+    static let maximumTVTimeEntityCount = 10_000
+    static let maximumTVTimeListMembershipCount = maximumRecordCount
     static let maximumCSVFieldCount = 128
     static let maximumJSONDepth = 64
     static let maximumZIPEntryCount = 1_024
@@ -22,6 +24,8 @@ enum LibraryImportSafetyError: LocalizedError, Equatable {
     case tooManyValues
     case structureTooDeep
     case malformedCSV
+    case tooManyTVTimeEntities
+    case tooManyTVTimeListMemberships
 
     var errorDescription: String? {
         switch self {
@@ -39,6 +43,10 @@ enum LibraryImportSafetyError: LocalizedError, Equatable {
             "The selected JSON is nested more deeply than OpenTV allows."
         case .malformedCSV:
             "OpenTV could not read the structure of this CSV file."
+        case .tooManyTVTimeEntities:
+            "This TV Time export contains more unique titles than OpenTV can safely resolve."
+        case .tooManyTVTimeListMemberships:
+            "This TV Time export contains more list memberships than OpenTV can safely import."
         }
     }
 }
@@ -98,7 +106,8 @@ enum BoundedCSVParser {
         _ csv: String,
         maximumRecordCount: Int = LibraryImportLimits.maximumRecordCount,
         maximumFieldSize: Int = LibraryImportLimits.maximumFieldSize,
-        maximumValueCount: Int = LibraryImportLimits.maximumCSVValueCount
+        maximumValueCount: Int = LibraryImportLimits.maximumCSVValueCount,
+        maximumFieldSizesByHeader: [String: Int] = [:]
     ) throws -> [[String]] {
         var rows: [[String]] = []
         var row: [String] = []
@@ -108,9 +117,14 @@ enum BoundedCSVParser {
         var valueCount = 0
         var isQuoted = false
         var index = bytes.startIndex
+        var fieldSizeOverridesByIndex: [Int: Int] = [:]
+
+        func currentFieldSizeLimit() -> Int {
+            fieldSizeOverridesByIndex[row.count] ?? maximumFieldSize
+        }
 
         func appendToField(_ byte: UInt8) throws {
-            guard fieldBytes.count < maximumFieldSize else {
+            guard fieldBytes.count < currentFieldSizeLimit() else {
                 throw LibraryImportSafetyError.fieldTooLarge
             }
             fieldBytes.append(byte)
@@ -133,6 +147,17 @@ enum BoundedCSVParser {
             // The first logical row is the header and is not an imported record.
             guard rows.count < maximumRecordCount + 1 else {
                 throw LibraryImportSafetyError.tooManyRecords
+            }
+            if rows.isEmpty, !maximumFieldSizesByHeader.isEmpty {
+                fieldSizeOverridesByIndex = Dictionary(
+                    uniqueKeysWithValues: row.enumerated().compactMap { index, fieldName in
+                        let normalized = fieldName
+                            .trimmingCharacters(in: .whitespacesAndNewlines)
+                            .lowercased()
+                            .replacingOccurrences(of: " ", with: "_")
+                        return maximumFieldSizesByHeader[normalized].map { (index, $0) }
+                    }
+                )
             }
             rows.append(row)
             row = []

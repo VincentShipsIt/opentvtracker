@@ -5,13 +5,15 @@ enum TVTimeCSV {
         _ csv: String,
         maximumRecordCount: Int = LibraryImportLimits.maximumRecordCount,
         maximumFieldSize: Int = LibraryImportLimits.maximumFieldSize,
-        maximumValueCount: Int = LibraryImportLimits.maximumCSVValueCount
+        maximumValueCount: Int = LibraryImportLimits.maximumCSVValueCount,
+        maximumFieldSizesByHeader: [String: Int] = [:]
     ) throws -> [[String]] {
         try BoundedCSVParser.rows(
             csv,
             maximumRecordCount: maximumRecordCount,
             maximumFieldSize: maximumFieldSize,
-            maximumValueCount: maximumValueCount
+            maximumValueCount: maximumValueCount,
+            maximumFieldSizesByHeader: maximumFieldSizesByHeader
         )
     }
 

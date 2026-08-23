@@ -19,20 +19,24 @@ enum TVTimeArchiveParser {
             let rows = try TVTimeCSV.rows(
                 csv,
                 maximumRecordCount: LibraryImportLimits.maximumRecordCount - recordCount,
-                maximumFieldSize: filename == "lists-prod-lists.csv"
-                    ? LibraryImportLimits.maximumTVTimeListFieldSize
-                    : LibraryImportLimits.maximumFieldSize,
-                maximumValueCount: LibraryImportLimits.maximumCSVValueCount - valueCount
+                maximumFieldSize: LibraryImportLimits.maximumFieldSize,
+                maximumValueCount: LibraryImportLimits.maximumCSVValueCount - valueCount,
+                maximumFieldSizesByHeader: filename == "lists-prod-lists.csv"
+                    ? ["objects": LibraryImportLimits.maximumTVTimeListObjectsFieldSize]
+                    : [:]
             )
             recordCount += max(rows.count - 1, 0)
             valueCount += rows.reduce(0) { $0 + $1.count }
             guard let header = rows.first, !header.isEmpty else { continue }
             for row in rows.dropFirst() where row.contains(where: { !$0.isEmpty }) {
-                parseRecord(
+                try parseRecord(
                     filename,
                     values: TVTimeCSV.record(header: header, row: row),
                     state: &state
                 )
+                guard state.entities.count <= LibraryImportLimits.maximumTVTimeEntityCount else {
+                    throw LibraryImportSafetyError.tooManyTVTimeEntities
+                }
             }
         }
 
@@ -51,7 +55,7 @@ enum TVTimeArchiveParser {
         _ filename: String,
         values: [String: String],
         state: inout TVTimeArchiveParseState
-    ) {
+    ) throws {
         if filename == "tracking-prod-records-v2.csv" {
             parseEpisodeRecord(
                 values,
@@ -93,12 +97,17 @@ enum TVTimeArchiveParser {
         } else if filename == "ratings-live-votes.csv" {
             parseRatingVote(values, entities: &state.entities, diagnostics: &state.diagnostics)
         } else if filename == "lists-prod-lists.csv" {
-            TVTimeListParser.parseGDPR([values], lists: &state.lists)
+            try TVTimeListParser.parseGDPR(
+                [values],
+                lists: &state.lists,
+                membershipAccumulator: &state.membershipAccumulator
+            )
         } else if filename.contains("tvtime-lists-") {
-            TVTimeListParser.parseNative(
+            try TVTimeListParser.parseNative(
                 [values],
                 entities: &state.entities,
-                lists: &state.lists
+                lists: &state.lists,
+                membershipAccumulator: &state.membershipAccumulator
             )
         }
     }
@@ -115,6 +124,7 @@ enum TVTimeArchiveParser {
 private struct TVTimeArchiveParseState {
     var entities: [String: TVTimeEntity] = [:]
     var lists: [MediaList.ID: TVTimeList] = [:]
+    var membershipAccumulator = TVTimeListMembershipAccumulator()
     var duplicateCount = 0
     var diagnostics = TVTimeImportDiagnostics()
 }

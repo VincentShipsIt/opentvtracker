@@ -1,7 +1,83 @@
 import XCTest
+import ZIPFoundation
 @testable import OpenTVTracker
 
 final class CatalogImportSafetyTests: XCTestCase {
+    func testDistinctEntityLimitRejectsBeforeCatalogResolution() async throws {
+        var rows = ["tv_show_id,tv_show_name,is_followed"]
+        rows.reserveCapacity(LibraryImportLimits.maximumTVTimeEntityCount + 2)
+        for index in 0...LibraryImportLimits.maximumTVTimeEntityCount {
+            rows.append("source-\(index),Title \(index),true")
+        }
+        let archive = try makeArchive(
+            path: "followed_tv_show.csv",
+            contents: rows.joined(separator: "\n")
+        )
+        let catalog = CountingSafetyCatalog()
+
+        do {
+            _ = try await TVTimeImportService.previewImport(
+                archive,
+                into: .empty,
+                catalog: catalog,
+                region: .malta
+            )
+            XCTFail("Expected the semantic entity limit to reject the archive")
+        } catch {
+            XCTAssertEqual(error as? LibraryImportSafetyError, .tooManyTVTimeEntities)
+        }
+
+        let requestCount = await catalog.requestCount
+        XCTAssertEqual(requestCount, 0)
+    }
+
+    func testMaximumAllowedEntitiesReuseLegacyAliasesWithoutRepeatedTitleScans() async {
+        let entityCount = LibraryImportLimits.maximumTVTimeEntityCount
+        var current = LibrarySnapshot.empty
+        current.titles = (0..<entityCount).map { index in
+            Self.title(
+                id: "local-\(index)",
+                catalogID: index + 1,
+                title: "Local Title \(index)",
+                year: 2_000 + index % 25
+            )
+        }
+        let entities = current.titles.enumerated().map { index, title in
+            TVTimeEntity(
+                identity: "series:source:\(index)",
+                sourceID: "\(index)",
+                title: title.title,
+                year: title.year,
+                kind: title.kind
+            )
+        }
+        current.importResolutionAliases = Dictionary(
+            uniqueKeysWithValues: entities.enumerated().map { index, entity in
+                (
+                    entity.identity,
+                    ImportResolutionAlias(
+                        kind: entity.kind,
+                        catalogID: index + 1
+                    )
+                )
+            }
+        )
+        let catalog = CountingSafetyCatalog()
+
+        let resolution = await TVTimeImportMerger.resolveTitles(
+            entities,
+            current: current,
+            catalog: catalog,
+            region: .malta
+        )
+
+        XCTAssertEqual(resolution.resolved.count, entityCount)
+        XCTAssertTrue(resolution.issues.isEmpty)
+        XCTAssertTrue(resolution.warnings.isEmpty)
+        let requestCount = await catalog.requestCount
+        XCTAssertEqual(requestCount, 0)
+    }
+
     func testAnimeSeasonMustExistOnDetailedCatalogTitle() async {
         let anime = Self.title(
             id: "anime",
@@ -94,6 +170,21 @@ final class CatalogImportSafetyTests: XCTestCase {
             seasons: seasons
         )
     }
+
+    private func makeArchive(path: String, contents: String) throws -> Data {
+        let archive = try Archive(accessMode: .create)
+        let data = Data(contents.utf8)
+        try archive.addEntry(
+            with: path,
+            type: .file,
+            uncompressedSize: Int64(data.count),
+            provider: { position, size in
+                let start = Int(position)
+                return data.subdata(in: start..<(start + size))
+            }
+        )
+        return try XCTUnwrap(archive.data)
+    }
 }
 
 private actor SafetyCatalog: CatalogProviding {
@@ -119,5 +210,24 @@ private actor SafetyCatalog: CatalogProviding {
 
     func resolve(_: ExternalCatalogReference, region _: StreamingRegion) async throws -> MediaTitle? {
         nil
+    }
+}
+
+private actor CountingSafetyCatalog: CatalogProviding {
+    private(set) var requestCount = 0
+
+    func search(_: MediaSearchQuery) async throws -> [MediaTitle] {
+        requestCount += 1
+        return []
+    }
+
+    func title(kind _: MediaKind, catalogID _: Int, region _: StreamingRegion) async throws -> MediaTitle {
+        requestCount += 1
+        throw CatalogServiceError.notFound
+    }
+
+    func resolve(_: ExternalCatalogReference, region _: StreamingRegion) async throws -> MediaTitle? {
+        requestCount += 1
+        return nil
     }
 }

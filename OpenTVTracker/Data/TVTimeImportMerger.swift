@@ -19,10 +19,23 @@ enum TVTimeImportMerger {
         var unresolved: [TVTimeEntity] = []
         let currentTitles = TVTimeMediaTitleLookup(current.titles)
         let aliases = current.importResolutionAliases ?? [:]
+        var currentTitleByAlias: [ImportResolutionAlias: MediaTitle] = [:]
+        currentTitleByAlias.reserveCapacity(current.titles.count)
+        for title in current.titles {
+            let alias = ImportResolutionAlias(title: title)
+            if currentTitleByAlias[alias] == nil {
+                currentTitleByAlias[alias] = title
+            }
+        }
         var aliasTitles: [String: MediaTitle] = [:]
         for entity in entities {
-            guard let alias = aliases[entity.identity],
-                  let localTitle = current.titles.first(where: alias.matches) else { continue }
+            guard let alias = aliases[entity.identity] else { continue }
+            let normalizedAlias = ImportResolutionAlias(
+                kind: alias.kind,
+                catalogID: alias.catalogID,
+                metadataSource: alias.resolvedMetadataSource
+            )
+            guard let localTitle = currentTitleByAlias[normalizedAlias] else { continue }
             aliasTitles[entity.identity] = localTitle
         }
 
@@ -169,13 +182,15 @@ private extension TVTimeImportMerger {
         var watchEvents = snapshot.sharedSpace.watchEvents ?? []
         var diaryEntries = snapshot.diaryEntries ?? []
         var mergeState = TVTimeMergeState(snapshot: snapshot)
+        let listMembershipEntityIdentities = archive.listMembershipEntityIdentities
         for entity in archive.entities {
             guard let result = merge(
                 entity,
                 into: &snapshot,
                 resolved: resolved,
                 state: &mergeState,
-                shouldShare: !archive.containsListOnly(entity)
+                shouldShare: entity.hasTrackingData
+                    || !listMembershipEntityIdentities.contains(entity.identity)
             ) else {
                 totals.skippedCount += 1
                 continue

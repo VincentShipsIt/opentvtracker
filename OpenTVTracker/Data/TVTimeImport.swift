@@ -123,11 +123,14 @@ struct TVTimeArchive: Sendable {
     var duplicateCount: Int
     var diagnostics: TVTimeImportDiagnostics
 
-    func containsListOnly(_ entity: TVTimeEntity) -> Bool {
-        !entity.hasTrackingData
-            && lists.contains { list in
-                list.memberships.contains { $0.entityIdentity == entity.identity }
+    var listMembershipEntityIdentities: Set<String> {
+        var identities = Set<String>()
+        for list in lists {
+            for membership in list.memberships {
+                identities.insert(membership.entityIdentity)
             }
+        }
+        return identities
     }
 }
 

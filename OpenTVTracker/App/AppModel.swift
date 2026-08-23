@@ -184,7 +184,8 @@ final class AppModel {
         var canReconcileReminders = true
 
         do {
-            if let snapshot = try await store.load() {
+            if let storedSnapshot = try await store.load() {
+                let snapshot = ImportedLibraryMetadataSanitizer.sanitized(storedSnapshot)
                 applyLibraryState(
                     titles: migratedTrackingTitles(
                         merging(savedTitles: snapshot.titles, catalogTitles: seed.titles),
@@ -195,6 +196,13 @@ final class AppModel {
                         defaultFirstRunCompleted: true
                     )
                 )
+                if snapshot != storedSnapshot {
+                    do {
+                        try await store.save(snapshot)
+                    } catch {
+                        persistenceError = "Your saved library was opened safely, but its cleanup could not be saved."
+                    }
+                }
             }
         } catch {
             persistenceError = "Your saved library could not be opened. Your catalog and saved data remain separate."

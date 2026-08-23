@@ -16,7 +16,11 @@ extension LibraryTransferService {
         if title.catalogID > 0 {
             return "catalog:\(resolvedMetadataSource(title).rawValue):\(title.kind.rawValue):\(title.catalogID)"
         }
-        return "title:\(title.kind.rawValue):\(normalizedTitle(title.title)):\(title.year)"
+        return titleIdentityKey(for: title)
+    }
+
+    static func titleIdentityKey(for title: MediaTitle) -> String {
+        "title:\(title.kind.rawValue):\(normalizedTitle(title.title)):\(title.year)"
     }
 
     static func resolvedMetadataSource(_ title: MediaTitle) -> MetadataSource {

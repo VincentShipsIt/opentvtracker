@@ -83,21 +83,55 @@ extension LibraryTransferService {
         var duplicates = 0
         var seen = Set<String>()
         var importedTitleIDMap: [MediaTitle.ID: MediaTitle.ID] = [:]
+        var catalogIndexByIdentity: [String: Array<MediaTitle>.Index] = [:]
+        var allTitleIndexByIdentity: [String: Array<MediaTitle>.Index] = [:]
+        var uncatalogedTitleIndexByIdentity: [String: Array<MediaTitle>.Index] = [:]
+        catalogIndexByIdentity.reserveCapacity(merged.titles.count)
+        allTitleIndexByIdentity.reserveCapacity(merged.titles.count)
+        uncatalogedTitleIndexByIdentity.reserveCapacity(merged.titles.count)
+        for index in merged.titles.indices {
+            let title = merged.titles[index]
+            let titleIdentity = titleIdentityKey(for: title)
+            if allTitleIndexByIdentity[titleIdentity] == nil {
+                allTitleIndexByIdentity[titleIdentity] = index
+            }
+            if title.catalogID > 0 {
+                let catalogIdentity = identityKey(for: title)
+                if catalogIndexByIdentity[catalogIdentity] == nil {
+                    catalogIndexByIdentity[catalogIdentity] = index
+                }
+            } else if uncatalogedTitleIndexByIdentity[titleIdentity] == nil {
+                uncatalogedTitleIndexByIdentity[titleIdentity] = index
+            }
+        }
 
         for sourceTitle in imported.titles {
             let importedTitle = sourceTitle.migratedTrackingState(
                 fromSchemaVersion: imported.schemaVersion
             )
             let identity = identityKey(for: importedTitle)
+            let titleIdentity = titleIdentityKey(for: importedTitle)
+            let destinationIndex: Array<MediaTitle>.Index?
+            if importedTitle.catalogID > 0 {
+                let catalogIndex = catalogIndexByIdentity[identity]
+                let uncatalogedIndex = uncatalogedTitleIndexByIdentity[titleIdentity]
+                if let catalogIndex, let uncatalogedIndex {
+                    destinationIndex = min(catalogIndex, uncatalogedIndex)
+                } else {
+                    destinationIndex = catalogIndex ?? uncatalogedIndex
+                }
+            } else {
+                destinationIndex = allTitleIndexByIdentity[titleIdentity]
+            }
             guard seen.insert(identity).inserted else {
-                if let destination = merged.titles.first(where: { titlesMatch($0, importedTitle) }) {
-                    importedTitleIDMap[importedTitle.id] = destination.id
+                if let index = destinationIndex {
+                    importedTitleIDMap[importedTitle.id] = merged.titles[index].id
                 }
                 duplicates += 1
                 continue
             }
 
-            if let index = merged.titles.firstIndex(where: { titlesMatch($0, importedTitle) }) {
+            if let index = destinationIndex {
                 importedTitleIDMap[importedTitle.id] = merged.titles[index].id
                 merged.titles[index] = mergingTracking(
                     from: importedTitle,
@@ -108,6 +142,17 @@ extension LibraryTransferService {
             } else {
                 importedTitleIDMap[importedTitle.id] = importedTitle.id
                 merged.titles.append(importedTitle)
+                let appendedIndex = merged.titles.index(before: merged.titles.endIndex)
+                if allTitleIndexByIdentity[titleIdentity] == nil {
+                    allTitleIndexByIdentity[titleIdentity] = appendedIndex
+                }
+                if importedTitle.catalogID > 0 {
+                    if catalogIndexByIdentity[identity] == nil {
+                        catalogIndexByIdentity[identity] = appendedIndex
+                    }
+                } else if uncatalogedTitleIndexByIdentity[titleIdentity] == nil {
+                    uncatalogedTitleIndexByIdentity[titleIdentity] = appendedIndex
+                }
                 added += 1
             }
         }
@@ -170,8 +215,15 @@ extension LibraryTransferService {
         if let aliases = imported.importResolutionAliases {
             var mergedAliases = merged.importResolutionAliases ?? [:]
             mergedAliases.merge(aliases) { _, importedAlias in importedAlias }
+            let retainedAliases = Set(merged.titles.map(ImportResolutionAlias.init(title:)))
             merged.importResolutionAliases = mergedAliases.filter { _, alias in
-                merged.titles.contains(where: alias.matches)
+                retainedAliases.contains(
+                    ImportResolutionAlias(
+                        kind: alias.kind,
+                        catalogID: alias.catalogID,
+                        metadataSource: alias.resolvedMetadataSource
+                    )
+                )
             }
         }
         merged.sharedSpace = LibraryBackupMerge.sharedSpace(
