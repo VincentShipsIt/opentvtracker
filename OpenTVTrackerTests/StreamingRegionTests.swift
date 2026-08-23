@@ -70,10 +70,53 @@ final class StreamingRegionTests: XCTestCase {
         XCTAssertEqual(saved?.streamingRegionCode, "GB")
     }
 
+    func testRegionChangePersistsUntrackedCatalogCleanupAcrossReload() async throws {
+        let disposableTitle = try disposableCatalogTitle()
+        let seed = LibrarySnapshot(
+            titles: [disposableTitle],
+            sharedSpace: LibrarySnapshot.empty.sharedSpace,
+            streamingRegionCode: "MT",
+            contentLanguageCode: "en"
+        )
+        let store = MemoryLibraryStore()
+        let model = AppModel(store: store, seed: seed)
+        let region = try XCTUnwrap(StreamingRegion(code: "GB"))
+
+        model.setStreamingRegionOverride(region)
+        await model.flushPendingPersistence()
+
+        let reloaded = makeReloadedModel(store: store)
+        await reloaded.load()
+
+        XCTAssertFalse(reloaded.titles.contains(where: { $0.id == disposableTitle.id }))
+        XCTAssertEqual(reloaded.streamingRegionOverride, region)
+    }
+
     private func queryValue(_ name: String, in url: URL) -> String? {
         URLComponents(url: url, resolvingAgainstBaseURL: false)?
             .queryItems?
             .first(where: { $0.name == name })?
             .value
+    }
+
+    private func disposableCatalogTitle() throws -> MediaTitle {
+        var title = try XCTUnwrap(LibrarySnapshot.sample.titles.first(where: { $0.id == "fallout" }))
+        title.progress = nil
+        title.personalWatchlist = false
+        title.watchedEpisodeIDs = []
+        return title
+    }
+
+    private func makeReloadedModel(store: any LibraryPersisting) -> AppModel {
+        AppModel(
+            store: store,
+            recommendationService: DeterministicRecommendationService(),
+            sharedConversationNotifier: NoopSharedConversationNotifier(),
+            reminderScheduler: NoopReminderScheduler(),
+            partnerActivityNotifier: NoopPartnerActivityNotifier(),
+            catalogService: LocalCatalogService(titles: []),
+            traktService: UnconfiguredTraktSyncService(),
+            seed: .empty
+        )
     }
 }
