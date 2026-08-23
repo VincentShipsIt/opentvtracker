@@ -8,6 +8,7 @@ import SwiftUI
 /// entirely depending on whether anything was up next — and the one title the app is
 /// actively pitching got the smallest artwork on the screen.
 struct TodayRecommendationCard: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let title: MediaTitle
     let onAdd: () -> Void
     let onOpenDiscover: () -> Void
@@ -37,12 +38,14 @@ struct TodayRecommendationCard: View {
                         Text(title.title)
                             .font(.largeTitle.weight(.black))
                             .foregroundStyle(.white)
-                            .lineLimit(2)
+                            .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 2)
+                            .fixedSize(horizontal: false, vertical: dynamicTypeSize.isAccessibilitySize)
                         Text(title.recommendationReason ?? "A strong match on one of your selected services.")
                             .font(.subheadline.weight(.medium))
                             .foregroundStyle(.white)
                             .multilineTextAlignment(.leading)
-                            .lineLimit(3)
+                            .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 3)
+                            .fixedSize(horizontal: false, vertical: dynamicTypeSize.isAccessibilitySize)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -112,6 +115,7 @@ struct TodayRecommendationCard: View {
 }
 
 struct TodayRecoveryCard: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let hasSelectedServices: Bool
     let catalogError: String?
     let onManageServices: () -> Void
@@ -122,9 +126,15 @@ struct TodayRecoveryCard: View {
             VStack(spacing: 14) {
                 ContentUnavailableView(title, systemImage: "sparkles.tv", description: Text(description))
 
-                ViewThatFits(in: .horizontal) {
-                    HStack(spacing: 10) { actionButtons }
-                    VStack(spacing: 10) { actionButtons }
+                Group {
+                    if dynamicTypeSize.isAccessibilitySize {
+                        VStack(spacing: 10) { actionButtons }
+                    } else {
+                        ViewThatFits(in: .horizontal) {
+                            HStack(spacing: 10) { actionButtons }
+                            VStack(spacing: 10) { actionButtons }
+                        }
+                    }
                 }
                 .padding(.horizontal, 18)
             }
@@ -136,11 +146,11 @@ struct TodayRecoveryCard: View {
     private var actionButtons: some View {
         Button("Manage services", systemImage: "slider.horizontal.3", action: onManageServices)
             .adaptiveGlassButton(prominent: !hasSelectedServices)
-            .lineLimit(1)
+            .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
             .frame(maxWidth: .infinity)
         Button("Open Discover", systemImage: "magnifyingglass", action: onOpenDiscover)
             .adaptiveGlassButton(prominent: hasSelectedServices)
-            .lineLimit(1)
+            .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
             .frame(maxWidth: .infinity)
     }
 
