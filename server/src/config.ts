@@ -28,6 +28,8 @@ export function loadConfig(
   env: Record<string, string | undefined> = Bun.env,
 ): ServerConfig {
   const mode = appAttestMode(env.APP_ATTEST_MODE);
+  const productionRuntime =
+    env.NODE_ENV?.trim().toLowerCase() === "production";
   const config: ServerConfig = {
     port: boundedInteger(env.PORT, 8787, 1, 65_535),
     databaseURL: nonempty(env.DATABASE_URL),
@@ -56,14 +58,40 @@ export function loadConfig(
       developmentBypassToken: nonempty(env.APP_ATTEST_DEVELOPMENT_BYPASS_TOKEN),
     },
     controls: {
-      proxyEnabled: enabled(env.PROXY_ENABLED, true),
-      catalogEnabled: enabled(env.CATALOG_ENABLED, true),
-      cinemaEnabled: enabled(env.CINEMA_ENABLED, true),
-      registrationEnabled: enabled(env.APP_ATTEST_REGISTRATION_ENABLED, true),
+      proxyEnabled: securityBoolean(env.PROXY_ENABLED, true, "PROXY_ENABLED"),
+      catalogEnabled: securityBoolean(
+        env.CATALOG_ENABLED,
+        true,
+        "CATALOG_ENABLED",
+      ),
+      cinemaEnabled: securityBoolean(
+        env.CINEMA_ENABLED,
+        true,
+        "CINEMA_ENABLED",
+      ),
+      registrationEnabled: securityBoolean(
+        env.APP_ATTEST_REGISTRATION_ENABLED,
+        true,
+        "APP_ATTEST_REGISTRATION_ENABLED",
+      ),
     },
     corsAllowedOrigin: nonempty(env.CORS_ALLOWED_ORIGIN),
     clientIPHeader: headerName(env.CLIENT_IP_HEADER),
   };
+
+  if (
+    (productionRuntime || mode === "production") &&
+    config.appAttest.developmentBypassToken
+  ) {
+    throw new Error(
+      "APP_ATTEST_DEVELOPMENT_BYPASS_TOKEN is forbidden in production",
+    );
+  }
+  if (productionRuntime && mode !== "production") {
+    throw new Error(
+      "APP_ATTEST_MODE must be production when NODE_ENV=production",
+    );
+  }
 
   if (mode === "production") {
     const missing = [
@@ -82,11 +110,6 @@ export function loadConfig(
     if (config.appAttest.tokenSecret.length < 32) {
       throw new Error(
         "APP_ATTEST_TOKEN_SECRET must contain at least 32 characters in production",
-      );
-    }
-    if (config.appAttest.developmentBypassToken) {
-      throw new Error(
-        "APP_ATTEST_DEVELOPMENT_BYPASS_TOKEN is forbidden in production",
       );
     }
   }
@@ -117,8 +140,13 @@ function headerName(value: string | undefined): string | undefined {
 }
 
 function appAttestMode(value: string | undefined): AppAttestMode {
-  if (value === "development" || value === "test") return value;
-  return "production";
+  if (value === undefined) return "production";
+  if (value === "production" || value === "development" || value === "test") {
+    return value;
+  }
+  throw new Error(
+    "APP_ATTEST_MODE must be one of production, development, or test",
+  );
 }
 
 function nonempty(value: string | undefined): string | undefined {
@@ -126,9 +154,18 @@ function nonempty(value: string | undefined): string | undefined {
   return trimmed ? trimmed : undefined;
 }
 
-function enabled(value: string | undefined, fallback: boolean): boolean {
+function securityBoolean(
+  value: string | undefined,
+  fallback: boolean,
+  key: string,
+): boolean {
   if (value === undefined) return fallback;
-  return !["0", "false", "off", "no"].includes(value.trim().toLowerCase());
+  const normalized = value.trim().toLowerCase();
+  if (["1", "true", "on", "yes"].includes(normalized)) return true;
+  if (["0", "false", "off", "no"].includes(normalized)) return false;
+  throw new Error(
+    `${key} must be one of true, false, 1, 0, on, off, yes, or no`,
+  );
 }
 
 function boundedInteger(
