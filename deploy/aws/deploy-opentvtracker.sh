@@ -76,10 +76,10 @@ declare -A seen_keys=()
 declare -A parameter_values=()
 parameter_keys=()
 while IFS= read -r parameter_row; do
-  if jq -e '.[1] | contains("\r") or contains("\n")' \
+  if jq -e '.[1] | contains("\u0000") or contains("\r") or contains("\n")' \
     <<<"$parameter_row" >/dev/null
   then
-    echo "SSM values must be single-line strings without CR or LF" >&2
+    echo "SSM values must not contain NUL, CR, or LF" >&2
     exit 1
   fi
   parameter_name="$(jq -r '.[0]' <<<"$parameter_row")"

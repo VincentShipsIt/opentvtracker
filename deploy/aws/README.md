@@ -15,7 +15,7 @@ Store (`us-east-1`). The host deployment fails closed unless `DATABASE_URL`,
 `APP_ATTEST_TOKEN_SECRET`, and `TMDB_READ_ACCESS_TOKEN` all exist.
 The host must provide `jq` so the script can validate the structured SSM response.
 Every parameter name and value is validated before the Docker environment file is
-installed: values must not contain CR or LF, `APP_ATTEST_MODE` must be exactly
+installed: values must not contain NUL, CR, or LF, `APP_ATTEST_MODE` must be exactly
 `production`, and the `APP_ATTEST_DEVELOPMENT_BYPASS_TOKEN` key is forbidden even
 when its value is empty.
 

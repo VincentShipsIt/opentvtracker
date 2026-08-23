@@ -215,10 +215,35 @@ for separator in lf trailing-lf cr; do
   run_deploy
   expect_rejected_before_install \
     "an SSM value containing ${separator^^}" \
-    "SSM values must be single-line strings without CR or LF"
+    "SSM values must not contain NUL, CR, or LF"
   if grep -Fq "injected-value" "$STDERR_LOG"; then
     fail "the ${separator^^} rejection logged the rejected value"
   fi
+done
+
+for nul_case in mode credential; do
+  case "$nul_case" in
+    mode)
+      nul_key="${PARAMETER_PATH}APP_ATTEST_MODE"
+      nul_prefix="pro"
+      nul_suffix="duction"
+      ;;
+    credential)
+      nul_key="${PARAMETER_PATH}TMDB_READ_ACCESS_TOKEN"
+      nul_prefix="test-only-read"
+      nul_suffix="-token"
+      ;;
+  esac
+  jq \
+    --arg key "$nul_key" \
+    --arg prefix "$nul_prefix" \
+    --arg suffix "$nul_suffix" \
+    'map(if .[0] == $key then .[1] = ($prefix + "\u0000" + $suffix) else . end)' \
+    "$BASE_PARAMETERS" >"$PARAMETERS"
+  run_deploy
+  expect_rejected_before_install \
+    "a NUL byte in the ${nul_case} SSM value" \
+    "SSM values must not contain NUL, CR, or LF"
 done
 
 jq --arg key "${PARAMETER_PATH}APP_ATTEST_TEAM_ID" \
