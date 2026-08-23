@@ -15,9 +15,13 @@ Protected catalog/cinema requests require an official App Attest key, a valid sh
 - `DATABASE_URL` — PostgreSQL storage for App Attest device keys and counters
 - `TMDB_READ_ACCESS_TOKEN` — dedicated read-only token for this service
 
+Whenever `NODE_ENV=production`, startup also requires `APP_ATTEST_MODE=production`; development and test modes are rejected before the server opens a device store.
+
 `PostgresDeviceStore` is the multi-instance production store. `APP_ATTEST_STATE_PATH` remains available only for development and test environments without `DATABASE_URL`. Production uses PostgreSQL so assertion-counter updates remain atomic across restarts and multiple API instances. The database contains no accounts, watch history, taste profile, or recommendation data.
 
 Optional TTLs default to 60 seconds for challenges and 10 minutes for tokens. Native iOS clients do not need CORS. If `CORS_ALLOWED_ORIGIN` is set, it permits one exact origin but does not change App Attest authorization.
+
+Security controls accept `true`, `false`, `1`, `0`, `on`, `off`, `yes`, or `no` (case-insensitive). Any other configured value stops startup rather than silently enabling a mistyped kill switch.
 
 By default, per-IP quotas use the direct peer address. Set `CLIENT_IP_HEADER` only when the origin accepts traffic exclusively from a trusted edge that overwrites that header (for example, `CF-Connecting-IP` behind Cloudflare). Never trust a client-supplied forwarding header on a directly reachable origin.
 
@@ -34,6 +38,8 @@ cp .env.example .env
 ```
 
 For a local simulator only, set `APP_ATTEST_MODE=development` and a random `APP_ATTEST_DEVELOPMENT_BYPASS_TOKEN`, then put the matching value in ignored `Config/Secrets.xcconfig` as `APP_ATTEST_DEVELOPMENT_TOKEN`. Development bypass traffic receives one quarter of normal origin quotas. Never configure or ship the bypass in production.
+
+The repository Docker image defaults `NODE_ENV=production`. To use that image with the simulator-only bypass, explicitly override it with `NODE_ENV=development`; changing only `APP_ATTEST_MODE` is intentionally rejected.
 
 Release builds ignore `APP_ATTEST_DEVELOPMENT_TOKEN` at compile time and accept only an HTTPS proxy origin. Debug builds additionally permit loopback HTTP for local development.
 
