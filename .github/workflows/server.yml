@@ -16,6 +16,9 @@ jobs:
         working-directory: server
     steps:
       - uses: actions/checkout@v6
+      - name: Exercise production deploy validation
+        working-directory: .
+        run: bash deploy/aws/deploy-opentvtracker.test.sh
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - run: bun test

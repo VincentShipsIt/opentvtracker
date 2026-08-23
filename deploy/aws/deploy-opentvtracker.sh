@@ -41,25 +41,51 @@ reclaim_docker_space() {
   docker network prune -f || true
 }
 
-parameter_rows="$(
+if ! command -v jq >/dev/null 2>&1; then
+  echo "jq is required to validate SSM parameters safely" >&2
+  exit 1
+fi
+
+parameter_rows_json="$(
   aws ssm get-parameters-by-path \
     --path "$parameter_path" \
     --recursive \
     --with-decryption \
     --region "$parameter_region" \
     --query "Parameters[].[Name,Value]" \
-    --output text
+    --output json
 )"
-if [[ -z "$parameter_rows" || "$parameter_rows" == "None" ]]; then
+if ! jq -e '
+  type == "array" and
+  all(.[];
+    type == "array" and
+    length == 2 and
+    (.[0] | type == "string") and
+    (.[1] | type == "string")
+  )
+' <<<"$parameter_rows_json" >/dev/null 2>&1; then
+  echo "SSM response must contain string name/value pairs" >&2
+  exit 1
+fi
+if [[ "$(jq -r 'length' <<<"$parameter_rows_json")" == "0" ]]; then
   echo "No SSM parameters found under ${parameter_path}" >&2
   exit 1
 fi
 
 declare -A seen_keys=()
-while IFS=$'\t' read -r parameter_name parameter_value; do
-  [[ -n "$parameter_name" ]] || continue
-  if [[ "$parameter_name" != /* ]]; then
-    echo "SSM values must be single-line strings" >&2
+declare -A parameter_values=()
+parameter_keys=()
+while IFS= read -r parameter_row; do
+  if jq -e '.[1] | contains("\u0000") or contains("\r") or contains("\n")' \
+    <<<"$parameter_row" >/dev/null
+  then
+    echo "SSM values must not contain NUL, CR, or LF" >&2
+    exit 1
+  fi
+  parameter_name="$(jq -r '.[0]' <<<"$parameter_row")"
+  parameter_value="$(jq -r '.[1]' <<<"$parameter_row")"
+  if [[ "$parameter_name" != "${parameter_path}"* ]]; then
+    echo "SSM parameter is outside the required path" >&2
     exit 1
   fi
   parameter_key="${parameter_name##*/}"
@@ -72,8 +98,9 @@ while IFS=$'\t' read -r parameter_name parameter_value; do
     exit 1
   fi
   seen_keys["$parameter_key"]=1
-  printf '%s=%s\n' "$parameter_key" "$parameter_value" >>"$temporary_environment"
-done <<<"$parameter_rows"
+  parameter_values["$parameter_key"]="$parameter_value"
+  parameter_keys+=("$parameter_key")
+done < <(jq -c '.[]' <<<"$parameter_rows_json")
 
 required_keys=(
   DATABASE_URL
@@ -88,6 +115,22 @@ for required_key in "${required_keys[@]}"; do
     echo "Required SSM parameter is missing: ${parameter_path}${required_key}" >&2
     exit 1
   fi
+done
+
+if [[ "${parameter_values[APP_ATTEST_MODE]}" != "production" ]]; then
+  echo "APP_ATTEST_MODE must be exactly production for deployment" >&2
+  exit 1
+fi
+if [[ -n "${seen_keys[APP_ATTEST_DEVELOPMENT_BYPASS_TOKEN]:-}" ]]; then
+  echo "APP_ATTEST_DEVELOPMENT_BYPASS_TOKEN is forbidden in production deployment" >&2
+  exit 1
+fi
+
+for parameter_key in "${parameter_keys[@]}"; do
+  printf '%s=%s\n' \
+    "$parameter_key" \
+    "${parameter_values[$parameter_key]}" \
+    >>"$temporary_environment"
 done
 
 printf '%s\n' \
