@@ -135,4 +135,3 @@ extension AppModel {
         return lhs.title.localizedStandardCompare(rhs.title) == .orderedAscending
     }
 }
-

@@ -195,7 +195,7 @@ struct CatalogSearchCard: View {
     @Environment(AppModel.self) private var model
     let result: MediaTitle
     let spaceMode: AppSpaceMode
-    var onInvitePartner: (() -> Void)? = nil
+    var onInvitePartner: (() -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
