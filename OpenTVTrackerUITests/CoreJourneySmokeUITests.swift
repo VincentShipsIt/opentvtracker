@@ -1,7 +1,7 @@
 import XCTest
 
 final class CoreJourneySmokeUITests: XCTestCase {
-    private var app: XCUIApplication!
+    var app: XCUIApplication!
 
     override func tearDownWithError() throws {
         if testRun?.hasSucceeded == false, let app {
@@ -47,101 +47,6 @@ final class CoreJourneySmokeUITests: XCTestCase {
             label.contains("people icon") || label.contains("top left"),
             "Expected first-run copy to name the leading toolbar control"
         )
-    }
-
-    func testActivityOpensFromDetailInOneTap() {
-        launchCoreJourneys()
-        app.buttons["home.up-next-title"].tap()
-
-        let primary = app.buttons["details.primary-action"]
-        assertExists(primary)
-        XCTAssertTrue(
-            primary.label.localizedCaseInsensitiveContains("Mark next watched"),
-            "Expected the primary action to stay Mark next watched while episodes remain"
-        )
-
-        let activity = app.buttons["details.activity-action"]
-        scrollToElement(activity)
-        activity.tap()
-
-        assertExists(app.navigationBars["Activity"])
-        assertExists(app.descendants(matching: .any)["tracking.status"])
-        assertExists(app.descendants(matching: .any)["tracking.rating"])
-        assertExists(app.descendants(matching: .any)["tracking.note"])
-
-        app.buttons["Done"].tap()
-        let more = app.buttons["More actions for Test Show"]
-        scrollToElement(more)
-        more.tap()
-        XCTAssertFalse(
-            app.buttons["Activity and private note"].waitForExistence(timeout: 1),
-            "Expected Activity to be one tap, not duplicated in More"
-        )
-    }
-
-    func testSettingsOpensViewingDiaryWithoutLibrarySectionMenu() {
-        launchCoreJourneys()
-        app.buttons["today.settings"].tap()
-
-        assertExists(app.descendants(matching: .any)["settings.space-switch"])
-        let spaceSwitch = app.descendants(matching: .any)["settings.space-switch"]
-        XCTAssertTrue(spaceSwitch.label.localizedCaseInsensitiveContains("Shake"))
-        XCTAssertTrue(spaceSwitch.label.localizedCaseInsensitiveContains("people icon"))
-
-        let diary = app.buttons["settings.viewing-diary"]
-        assertExists(diary)
-        diary.tap()
-
-        assertExists(app.navigationBars["Viewing diary"])
-        XCTAssertFalse(app.buttons["library.section-menu"].exists)
-    }
-
-    func testLibraryHistoryUsesHistoryNavigationTitle() {
-        launchCoreJourneys()
-        app.tabBars.buttons["Library"].tap()
-
-        let sectionMenu = app.buttons["library.section-menu"]
-        assertExists(sectionMenu)
-        assertNavigationTitle("Library")
-
-        sectionMenu.tap()
-        let history = app.buttons["History"]
-        assertExists(history)
-        history.tap()
-
-        assertExists(app.buttons["library.section-menu"])
-        assertNavigationTitle("History")
-    }
-
-    func testNonHeroQueueCardMarksProgressIntoPrivateDiary() {
-        launchCoreJourneys()
-
-        let queueMenu = app.buttons["today.queue-actions.ui-test-queue-show"]
-        scrollToElement(queueMenu)
-        queueMenu.tap()
-
-        let markByID = app.buttons["today.queue-mark-watched"]
-        if markByID.waitForExistence(timeout: 2) {
-            markByID.tap()
-        } else {
-            let markByLabel = app.buttons["Mark next episode watched"]
-            assertExists(markByLabel)
-            markByLabel.tap()
-        }
-
-        app.buttons["today.settings"].tap()
-        let diary = app.buttons["settings.viewing-diary"]
-        assertExists(diary)
-        diary.tap()
-
-        let diaryEntry = app.buttons.matching(
-            NSPredicate(
-                format: "identifier BEGINSWITH %@ AND label CONTAINS %@",
-                "diary.entry.",
-                "Queue Show"
-            )
-        ).firstMatch
-        assertExists(diaryEntry)
     }
 
     func testSearchOpensDetailsAndInAppTrailerFallback() {
@@ -209,60 +114,6 @@ final class CoreJourneySmokeUITests: XCTestCase {
         )
     }
 
-    func testEpisodeTrackingAppearsInPrivateDiary() {
-        launchCoreJourneys()
-        openFirstEpisode()
-
-        let markWatched = app.buttons["episode.mark-watched"]
-        assertExists(markWatched)
-        markWatched.tap()
-        assertExists(app.buttons["Mark episode unwatched"])
-
-        app.tabBars.buttons["Library"].tap()
-        openViewingDiary()
-
-        let diaryEntry = app.buttons.matching(
-            NSPredicate(format: "identifier BEGINSWITH %@", "diary.entry.")
-        ).firstMatch
-        assertExists(diaryEntry)
-        XCTAssertTrue(
-            diaryEntry.label.contains("Test Show")
-                && diaryEntry.label.contains("S1 E1")
-                && diaryEntry.label.contains("Episode 1")
-        )
-    }
-
-    func testPrivatePartnerJourneyOpensEpisodeConversation() {
-        launchCoreJourneys()
-        XCTAssertFalse(app.tabBars.buttons["Together"].exists)
-        XCTAssertEqual(app.tabBars.buttons.count, 3)
-        switchToSharedSpace()
-
-        assertExists(app.staticTexts["Test couch"])
-        app.tabBars.buttons["Library"].tap()
-        assertExists(app.buttons["together.viewing-analytics"])
-        app.tabBars.buttons["Today"].tap()
-
-        let manageSharing = app.buttons["together.manage-sharing"]
-        assertExists(manageSharing)
-        manageSharing.tap()
-        assertExists(app.navigationBars["Connect partner"])
-        assertExists(app.staticTexts["Invitation-only iCloud share"])
-        app.buttons["Done"].tap()
-
-        let sharedTitle = app.buttons["together.shared-title.ui-test-show"]
-        assertExists(sharedTitle)
-        sharedTitle.tap()
-        openFirstEpisodeFromDetails()
-
-        let markTogether = app.buttons["Mark watched together"]
-        scrollToElement(markTogether)
-        assertExists(app.staticTexts["Private episode thread"])
-        assertExists(markTogether)
-        markTogether.tap()
-        assertExists(app.textFields["Add a private note"])
-    }
-
     /// Guards the return leg specifically. Only the outbound crossing was covered, so a
     /// regression that left the toolbar button pointing at the space it was already in
     /// stranded anyone who crossed over, and still left CI green.
@@ -317,7 +168,7 @@ final class CoreJourneySmokeUITests: XCTestCase {
         )
     }
 
-    private func launchCoreJourneys() {
+    func launchCoreJourneys() {
         launch(with: "-ui-testing-core-journeys")
         assertExists(app.buttons["home.up-next-title"], timeout: 10)
     }
@@ -339,7 +190,7 @@ final class CoreJourneySmokeUITests: XCTestCase {
     /// the toolbar button that stands for the same action. That button is not a test-only
     /// affordance: it is what carries the switch for anyone who cannot shake the phone, and
     /// the only path VoiceOver has to it.
-    private func switchToSharedSpace() {
+    func switchToSharedSpace() {
         tapSpaceToggle()
     }
 
@@ -361,12 +212,12 @@ final class CoreJourneySmokeUITests: XCTestCase {
         start.press(forDuration: 0.05, thenDragTo: end)
     }
 
-    private func openFirstEpisode() {
+    func openFirstEpisode() {
         app.buttons["home.up-next-title"].tap()
         openFirstEpisodeFromDetails()
     }
 
-    private func openFirstEpisodeFromDetails() {
+    func openFirstEpisodeFromDetails() {
         let season = app.buttons["season.1"]
         scrollToElement(season)
         season.tap()
@@ -378,7 +229,7 @@ final class CoreJourneySmokeUITests: XCTestCase {
 
     /// Library has no segmented control any more: the section switch is an inline picker
     /// inside a single toolbar menu, so reaching History is open-then-choose.
-    private func openViewingDiary() {
+    func openViewingDiary() {
         let sectionMenu = app.buttons["library.section-menu"]
         assertExists(sectionMenu)
         sectionMenu.tap()
@@ -392,14 +243,14 @@ final class CoreJourneySmokeUITests: XCTestCase {
         diary.tap()
     }
 
-    private func scrollToElement(_ element: XCUIElement) {
+    func scrollToElement(_ element: XCUIElement) {
         for _ in 0..<10 where !element.isHittable {
             app.swipeUp()
         }
         XCTAssertTrue(element.isHittable, "Expected \(element) to become hittable")
     }
 
-    private func assertNavigationTitle(
+    func assertNavigationTitle(
         _ title: String,
         file: StaticString = #filePath,
         line: UInt = #line
@@ -415,7 +266,7 @@ final class CoreJourneySmokeUITests: XCTestCase {
         )
     }
 
-    private func assertExists(
+    func assertExists(
         _ element: XCUIElement,
         timeout: TimeInterval = 5,
         file: StaticString = #filePath,
