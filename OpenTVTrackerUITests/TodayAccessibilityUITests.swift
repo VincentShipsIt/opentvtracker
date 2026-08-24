@@ -20,12 +20,14 @@ final class TodayAccessibilityUITests: XCTestCase {
 
     func testTodayPreservesHorizontalShelfAtDefaultDynamicType() {
         launchAtDefaultDynamicType()
+        attachScreenshot(named: "today-default-top")
 
         let shelf = app.descendants(matching: .any)["today.start-watching"]
         assertExists(shelf)
         let carousel = shelf.scrollViews.firstMatch
         assertExists(carousel)
         scrollToHittable(carousel)
+        attachScreenshot(named: "today-default-horizontal-shelf")
 
         let firstPoster = carousel.buttons.firstMatch
         assertExists(firstPoster)
