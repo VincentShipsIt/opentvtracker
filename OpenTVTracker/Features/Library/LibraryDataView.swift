@@ -258,7 +258,7 @@ private extension LibraryDataView {
                     if hasAccess { url.stopAccessingSecurityScopedResource() }
                 }
                 let data = try await Task.detached(priority: .userInitiated) {
-                    try Data(contentsOf: url, options: .mappedIfSafe)
+                    try LibraryImportFileReader.read(from: url)
                 }.value
                 let snapshot = model.snapshot
 

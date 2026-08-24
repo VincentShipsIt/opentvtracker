@@ -17,20 +17,34 @@ enum TVTimeImportMerger {
         var issues: [String: ImportResolutionIssue] = [:]
         var warnings: [ImportWarning] = []
         var unresolved: [TVTimeEntity] = []
+        let requestBudget = TVTimeCatalogRequestBudget(catalog: catalog)
         let currentTitles = TVTimeMediaTitleLookup(current.titles)
         let aliases = current.importResolutionAliases ?? [:]
+        var currentTitleByAlias: [ImportResolutionAlias: MediaTitle] = [:]
+        currentTitleByAlias.reserveCapacity(current.titles.count)
+        for title in current.titles {
+            let alias = ImportResolutionAlias(title: title)
+            if currentTitleByAlias[alias] == nil {
+                currentTitleByAlias[alias] = title
+            }
+        }
         var aliasTitles: [String: MediaTitle] = [:]
         for entity in entities {
-            guard let alias = aliases[entity.identity],
-                  let localTitle = current.titles.first(where: alias.matches) else { continue }
+            guard let alias = aliases[entity.identity] else { continue }
+            let normalizedAlias = ImportResolutionAlias(
+                kind: alias.kind,
+                catalogID: alias.catalogID,
+                metadataSource: alias.resolvedMetadataSource
+            )
+            guard let localTitle = currentTitleByAlias[normalizedAlias] else { continue }
             aliasTitles[entity.identity] = localTitle
         }
 
         let aliasResolution = await TVTimeImportAliasResolver.resolve(
             entities.filter { aliasTitles[$0.identity] == nil },
             aliases: aliases,
-            catalog: catalog,
-            region: region
+            region: region,
+            requestBudget: requestBudget
         )
         aliasTitles.merge(aliasResolution.resolved) { _, remoteTitle in remoteTitle }
         let validatedAliases = TVTimeCatalogResolver.validatedAliases(
@@ -57,8 +71,8 @@ enum TVTimeImportMerger {
 
         let catalogResolution = await TVTimeCatalogResolver.resolveTitles(
             unresolved,
-            catalog: catalog,
-            region: region
+            region: region,
+            requestBudget: requestBudget
         )
         resolved.merge(catalogResolution.resolved) { _, catalogTitle in catalogTitle }
         issues.merge(catalogResolution.issues) { _, catalogIssue in catalogIssue }
@@ -169,15 +183,17 @@ private extension TVTimeImportMerger {
         var watchEvents = snapshot.sharedSpace.watchEvents ?? []
         var diaryEntries = snapshot.diaryEntries ?? []
         var mergeState = TVTimeMergeState(snapshot: snapshot)
+        let listMembershipEntityIdentities = archive.listMembershipEntityIdentities
         for entity in archive.entities {
             guard let result = merge(
                 entity,
                 into: &snapshot,
                 resolved: resolved,
                 state: &mergeState,
-                shouldShare: !archive.containsListOnly(entity)
+                shouldShare: entity.hasTrackingData
+                    || !listMembershipEntityIdentities.contains(entity.identity)
             ) else {
-                totals.skippedCount += 1
+                totals.skippedCount = LibraryImportLimits.saturatingAdd(totals.skippedCount, 1)
                 continue
             }
             totals.add(result)
@@ -194,7 +210,10 @@ private extension TVTimeImportMerger {
         snapshot.lists = listMerge.lists
         totals.listCount = archive.lists.count
         totals.listMembershipCount = listMerge.importedMemberships
-        totals.skippedCount += listMerge.skippedMemberships
+        totals.skippedCount = LibraryImportLimits.saturatingAdd(
+            totals.skippedCount,
+            listMerge.skippedMemberships
+        )
         return totals
     }
 
@@ -269,14 +288,26 @@ private struct PreviewMergeTotals {
     )
 
     mutating func add(_ result: EntityMergeResult) {
-        matchedCount += result.matchedCount
-        addedCount += result.addedCount
-        watchedEpisodeCount += result.watchedEpisodeCount
-        watchEventCount += result.watchEventCount
-        unmatchedEpisodeCount += result.unmatchedEpisodeCount
-        skippedCount += result.skippedCount
+        matchedCount = LibraryImportLimits.saturatingAdd(matchedCount, result.matchedCount)
+        addedCount = LibraryImportLimits.saturatingAdd(addedCount, result.addedCount)
+        watchedEpisodeCount = LibraryImportLimits.saturatingAdd(
+            watchedEpisodeCount,
+            result.watchedEpisodeCount
+        )
+        watchEventCount = LibraryImportLimits.saturatingAdd(
+            watchEventCount,
+            result.watchEventCount
+        )
+        unmatchedEpisodeCount = LibraryImportLimits.saturatingAdd(
+            unmatchedEpisodeCount,
+            result.unmatchedEpisodeCount
+        )
+        skippedCount = LibraryImportLimits.saturatingAdd(skippedCount, result.skippedCount)
         for (category, count) in result.destinationCounts {
-            destinationCounts[category, default: 0] += count
+            destinationCounts[category] = LibraryImportLimits.saturatingAdd(
+                destinationCounts[category, default: 0],
+                count
+            )
         }
     }
 }
