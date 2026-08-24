@@ -201,7 +201,9 @@ final class ViewingDiaryTests: XCTestCase {
             )
         ]
     }
+}
 
+extension ViewingDiaryTests {
     func testTrackingEditsStayInSyncWithTitleDiaryMetadata() throws {
         let model = try makeModel()
         let target = ViewingDiaryTarget.title(titleID: "past-lives")

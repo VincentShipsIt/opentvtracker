@@ -140,7 +140,9 @@ final class CloudSharingModelTests: XCTestCase {
 
         XCTAssertTrue(model.partnerSharedLists.isEmpty)
     }
+}
 
+extension CloudSharingModelTests {
     func testCloudKitInvitationFailureUsesSafeUserFacingMessage() {
         let underlyingError = NSError(
             domain: CKErrorDomain,
