@@ -186,18 +186,12 @@ final class LibraryShelfAccessibilityUITests: AccessibilityEvidenceUITestCase {
                     normalizedDelta: normalizedDelta
                 )
                 let updatedMinX = element.frame.minX
-                if normalizedDelta < 0 {
-                    XCTAssertLessThan(
-                        updatedMinX,
-                        frame.minX - 1,
-                        "Expected the trailing shelf action to move toward the viewport"
-                    )
-                } else {
-                    XCTAssertGreaterThan(
-                        updatedMinX,
-                        frame.minX + 1,
-                        "Expected the leading shelf action to move toward the viewport"
-                    )
+                let directionalProgress = normalizedDelta < 0
+                    ? frame.minX - updatedMinX
+                    : updatedMinX - frame.minX
+                guard directionalProgress > 1 else {
+                    XCTFail("Expected the shelf action to move toward the viewport")
+                    return
                 }
             }
         }
