@@ -6,6 +6,22 @@ struct PendingLibraryPersistence: Sendable {
 }
 
 extension AppModel {
+    /// Registers a load-time metadata cleanup with the same revisioned writer as UI mutations.
+    /// A user edit made while this save is suspended becomes a newer pending revision and is
+    /// therefore written only after the cleanup finishes.
+    func persistMetadataCleanup(_ cleanedSnapshot: LibrarySnapshot) async -> Bool {
+        persistenceRevision += 1
+        let revision = persistenceRevision
+        pendingPersistence = PendingLibraryPersistence(
+            revision: revision,
+            snapshot: cleanedSnapshot
+        )
+        persistenceDebounceTask?.cancel()
+        persistenceDebounceTask = nil
+        await savePendingPersistence(expectedRevision: revision)
+        return lastPersistedRevision >= revision
+    }
+
     func merging(savedTitles: [MediaTitle], catalogTitles: [MediaTitle]) -> [MediaTitle] {
         let savedByID = savedTitles.keyedByKeepingFirst(\.id)
         let catalogIDs = Set(catalogTitles.map(\.id))

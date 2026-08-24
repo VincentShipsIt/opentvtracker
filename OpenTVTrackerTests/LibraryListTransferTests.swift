@@ -133,4 +133,125 @@ final class LibraryListTransferTests: XCTestCase {
         XCTAssertEqual(preview.snapshot.lists?.first?.titleIDs, ["past-lives", "severance"])
         XCTAssertEqual(preview.skippedCount, 1)
     }
+
+    func testTitleMatchIndexPreservesFirstMatchAndFallbackSemantics() {
+        let titles = [
+            Self.title(id: "first", catalogID: 42, title: "First", source: .tmdb),
+            Self.title(id: "movie", catalogID: 42, title: "Movie", kind: .movie, source: .tmdb),
+            Self.title(id: "alternate", catalogID: 42, title: "Alternate", source: .tvmaze),
+            Self.title(
+                id: "fallback",
+                catalogID: 0,
+                title: "Résumé",
+                year: 2023,
+                kind: .movie
+            )
+        ]
+        let index = LibraryTitleMatchIndex(titles: titles)
+
+        XCTAssertEqual(index.matchingIndex(["catalog_id": "42"]), 0)
+        XCTAssertEqual(index.matchingIndex(["catalog_id": "42", "kind": "movie"]), 1)
+        XCTAssertEqual(
+            index.matchingIndex([
+                "catalog_id": "42", "kind": "series", "metadata_source": "tvmaze"
+            ]),
+            2
+        )
+        XCTAssertEqual(
+            index.matchingIndex([
+                "title_id": "missing", "catalog_id": "42", "kind": "series"
+            ]),
+            0
+        )
+        XCTAssertEqual(
+            index.matchingIndex(["title": "resume", "year": "2023", "kind": "movie"]),
+            3
+        )
+        XCTAssertNil(index.matchingIndex(["catalog_id": "999", "title": "Résumé"]))
+    }
+
+    func testListsCSVIndexesLargeLibraryForRepeatedAndUnmatchedRows() throws {
+        let titleCount = 5_000
+        let rowCount = 5_000
+        var current = LibrarySnapshot.empty
+        current.titles = (0..<titleCount).map { offset in
+            Self.title(
+                id: "list-csv-title-\(offset)",
+                catalogID: offset + 1,
+                title: "List CSV Title \(offset)"
+            )
+        }
+        var rows = [
+            "list_id,list_name,list_position,item_position,catalog_id,kind"
+        ]
+        rows.reserveCapacity(rowCount + 1)
+        for offset in 0..<rowCount {
+            let catalogID = offset.isMultiple(of: 2) ? titleCount : 900_000_000
+            rows.append("bulk-\(offset),Bulk \(offset),\(offset),0,\(catalogID),series")
+        }
+        let data = Data(rows.joined(separator: "\n").utf8)
+
+        let preview = try LibraryTransferService.previewImport(data, into: current)
+
+        XCTAssertEqual(preview.matchedCount, rowCount / 2)
+        XCTAssertEqual(preview.skippedCount, rowCount / 2)
+        XCTAssertEqual(preview.listCount, rowCount)
+        XCTAssertEqual(preview.listMembershipCount, rowCount / 2)
+        XCTAssertEqual(
+            preview.snapshot.lists?.first?.titleIDs,
+            ["list-csv-title-\(titleCount - 1)"]
+        )
+        XCTAssertTrue(preview.snapshot.lists?.last?.titleIDs.isEmpty == true)
+    }
+
+    func testMergingDuplicateJSONListIDsMaintainsGrowingMembershipIndex() {
+        let membershipCount = 5_000
+        let timestamp = Date(timeIntervalSince1970: 1_700_000_000)
+        let imported = (0..<membershipCount).map { offset in
+            MediaList(
+                id: "growing-list",
+                name: "Growing list",
+                titleIDs: ["membership-\(offset)"],
+                updatedAt: timestamp
+            )
+        }
+
+        let merged = LibraryTransferService.mergingLists(imported, into: [])
+
+        XCTAssertEqual(merged.count, 1)
+        XCTAssertEqual(merged[0].titleIDs.count, membershipCount)
+        XCTAssertEqual(merged[0].titleIDs.first, "membership-0")
+        XCTAssertEqual(merged[0].titleIDs.last, "membership-\(membershipCount - 1)")
+    }
+
+    private static func title(
+        id: String,
+        catalogID: Int,
+        title: String,
+        year: Int = 2026,
+        kind: MediaKind = .series,
+        source: MetadataSource? = nil
+    ) -> MediaTitle {
+        var result = MediaTitle(
+            id: id,
+            catalogID: catalogID,
+            title: title,
+            year: year,
+            kind: kind,
+            synopsis: "",
+            genres: [],
+            runtimeMinutes: 0,
+            state: .planned,
+            progress: nil,
+            rating: 0,
+            nextReleaseDescription: nil,
+            recommendationReason: nil,
+            mood: .any,
+            palette: PosterPalette(primaryHex: "000000", secondaryHex: "000000"),
+            providers: [],
+            reviews: []
+        )
+        result.metadataSource = source
+        return result
+    }
 }

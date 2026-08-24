@@ -4,8 +4,8 @@ enum TVTimeImportAliasResolver {
     static func resolve(
         _ entities: [TVTimeEntity],
         aliases: [String: ImportResolutionAlias],
-        catalog: any CatalogProviding,
-        region: StreamingRegion
+        region: StreamingRegion,
+        requestBudget: TVTimeCatalogRequestBudget
     ) async -> (resolved: [String: MediaTitle], warnings: [ImportWarning]) {
         let aliasedEntities = entities.compactMap { entity -> (TVTimeEntity, ImportResolutionAlias)? in
             guard let alias = aliases[entity.identity] else { return nil }
@@ -24,8 +24,8 @@ enum TVTimeImportAliasResolver {
                         await resolve(
                             entity,
                             alias: alias,
-                            catalog: catalog,
-                            region: region
+                            region: region,
+                            requestBudget: requestBudget
                         )
                     }
                 }
@@ -35,6 +35,8 @@ enum TVTimeImportAliasResolver {
                         resolved[identity] = title
                     case .stale(let warning):
                         warnings.append(warning)
+                    case .requestLimitReached:
+                        break
                     }
                 }
             }
@@ -45,40 +47,43 @@ enum TVTimeImportAliasResolver {
     private static func resolve(
         _ entity: TVTimeEntity,
         alias: ImportResolutionAlias,
-        catalog: any CatalogProviding,
-        region: StreamingRegion
+        region: StreamingRegion,
+        requestBudget: TVTimeCatalogRequestBudget
     ) async -> AliasResolutionResult {
-        do {
-            let title = try await catalog.title(
-                kind: alias.kind,
-                catalogID: alias.catalogID,
-                region: region
-            )
+        switch await requestBudget.title(
+            kind: alias.kind,
+            catalogID: alias.catalogID,
+            region: region
+        ) {
+        case .value(let title):
             // The active catalog may have changed namespace since the alias
             // was saved (TVmaze fallback vs TMDB proxy). A numeric ID from the
             // wrong namespace resolves to an unrelated title, so re-search.
-            guard alias.matches(title) else { throw ImportAliasError.namespaceMismatch }
+            guard alias.matches(title) else {
+                return .stale(staleAliasWarning(for: entity))
+            }
             return .resolved(entity.identity, title)
-        } catch {
-            let displayName = entity.title.isEmpty
-                ? entity.sourceID.map { "\(entity.kind.label) source ID \($0)" }
-                    ?? "an unnamed \(entity.kind.label.lowercased())"
-                : entity.title
-            return .stale(
-                ImportWarning(
-                    id: "stale-alias-\(entity.identity)",
-                    message: "A saved match for \(displayName) is no longer available. OpenTV searched the catalog again."
-                )
-            )
+        case .unavailable:
+            return .stale(staleAliasWarning(for: entity))
+        case .requestLimitReached:
+            return .requestLimitReached
         }
     }
-}
 
-private enum ImportAliasError: Error {
-    case namespaceMismatch
+    private static func staleAliasWarning(for entity: TVTimeEntity) -> ImportWarning {
+        let displayName = entity.title.isEmpty
+            ? entity.sourceID.map { "\(entity.kind.label) source ID \($0)" }
+                ?? "an unnamed \(entity.kind.label.lowercased())"
+            : entity.title
+        return ImportWarning(
+            id: "stale-alias-\(entity.identity)",
+            message: "A saved match for \(displayName) is no longer available. OpenTV ignored that saved match rather than trusting it."
+        )
+    }
 }
 
 private enum AliasResolutionResult: Sendable {
     case resolved(String, MediaTitle)
     case stale(ImportWarning)
+    case requestLimitReached
 }

@@ -153,7 +153,9 @@ extension AppModel {
         titles[index].lastWatchedAt = watchedAt
         if titles[index].kind == .movie {
             if isRewatch {
-                titles[index].rewatchCount = titles[index].completedRewatches + 1
+                titles[index].rewatchCount = LibraryImportLimits.incrementedRewatchCount(
+                    titles[index].completedRewatches
+                )
             }
             appendDiaryWatch(title: titles[index], watchedAt: watchedAt, isRewatch: isRewatch)
         }

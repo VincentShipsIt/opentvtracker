@@ -130,6 +130,142 @@ final class AppModelTests: XCTestCase {
         XCTAssertTrue(model.titles.contains(where: { $0.id == "fallout" }))
     }
 
+    func testLoadingScrubsAndPersistsLegacyUnsafeRemoteMetadata() async throws {
+        let snapshot = try remoteMetadataSnapshot(
+            posterURL: URL(string: "https://attacker.invalid/poster.jpg")!,
+            backdropURL: URL(string: "http://media.themoviedb.org/backdrop.jpg")!,
+            trailerURL: URL(fileURLWithPath: "/private/trailer.mov"),
+            sourceURL: URL(string: "https://www.themoviedb.org@attacker.invalid/tv/95396")!,
+            reviewAvatarURL: URL(string: "https://secure.gravatar.com@attacker.invalid/avatar")!,
+            reviewSourceURL: URL(string: "https://attacker.invalid/review")!,
+            seasonArtworkURL: URL(string: "https://static.tvmaze.com.attacker.invalid/season.jpg")!,
+            episodeStillURL: URL(string: "http://image.tmdb.org/still.jpg")!
+        )
+        let originalTitle = try XCTUnwrap(snapshot.titles.first)
+        let store = MemoryLibraryStore(snapshot: snapshot)
+        let model = AppModel(
+            store: store,
+            reminderScheduler: NoopReminderScheduler(),
+            partnerActivityNotifier: NoopPartnerActivityNotifier(),
+            catalogService: LocalCatalogService(titles: []),
+            traktService: UnconfiguredTraktSyncService(),
+            seed: .empty
+        )
+
+        await model.load()
+
+        let loadedTitle = try XCTUnwrap(model.titles.first)
+        let loadedSharedTitle = try XCTUnwrap(model.sharedSpace.titleMetadata?.first)
+        XCTAssertNil(loadedTitle.posterURL)
+        XCTAssertNil(loadedTitle.backdropURL)
+        XCTAssertNil(loadedTitle.trailerURL)
+        XCTAssertNil(loadedTitle.sourceURL)
+        XCTAssertNil(loadedTitle.reviews.first?.avatarURL)
+        XCTAssertNil(loadedTitle.reviews.first?.sourceURL)
+        XCTAssertNil(loadedTitle.seasons?.first?.artworkURL)
+        XCTAssertNil(loadedTitle.seasons?.first?.episodes.first?.stillURL)
+        XCTAssertNil(loadedSharedTitle.posterURL)
+        XCTAssertNil(loadedSharedTitle.reviews.first?.avatarURL)
+        XCTAssertNil(loadedSharedTitle.seasons?.first?.episodes.first?.stillURL)
+        XCTAssertEqual(loadedTitle.state, originalTitle.state)
+        XCTAssertEqual(loadedTitle.progress, originalTitle.progress)
+        XCTAssertEqual(loadedTitle.userRating, originalTitle.userRating)
+        XCTAssertEqual(loadedTitle.notes, originalTitle.notes)
+        XCTAssertEqual(loadedTitle.rewatchCount, originalTitle.rewatchCount)
+        XCTAssertEqual(loadedTitle.lastWatchedAt, originalTitle.lastWatchedAt)
+        XCTAssertEqual(loadedTitle.personalWatchlist, originalTitle.personalWatchlist)
+        XCTAssertEqual(loadedTitle.watchedEpisodeIDs, originalTitle.watchedEpisodeIDs)
+        XCTAssertEqual(model.diaryEntries, snapshot.diaryEntries)
+        XCTAssertEqual(model.lists, snapshot.lists)
+
+        let persistedSnapshot = try await store.load()
+        let persisted = try XCTUnwrap(persistedSnapshot)
+        XCTAssertEqual(persisted, ImportedLibraryMetadataSanitizer.sanitized(snapshot))
+        let persistedTitle = try XCTUnwrap(persisted.titles.first)
+        let persistedSharedTitle = try XCTUnwrap(persisted.sharedSpace.titleMetadata?.first)
+        XCTAssertNil(persistedTitle.posterURL)
+        XCTAssertNil(persistedTitle.reviews.first?.avatarURL)
+        XCTAssertNil(persistedTitle.seasons?.first?.artworkURL)
+        XCTAssertNil(persistedSharedTitle.backdropURL)
+        XCTAssertNil(persistedSharedTitle.reviews.first?.sourceURL)
+        XCTAssertNil(persistedSharedTitle.seasons?.first?.episodes.first?.stillURL)
+        XCTAssertEqual(persistedTitle.userRating, originalTitle.userRating)
+        XCTAssertEqual(persistedTitle.notes, originalTitle.notes)
+        XCTAssertEqual(persisted.diaryEntries, snapshot.diaryEntries)
+        XCTAssertEqual(persisted.lists, snapshot.lists)
+    }
+
+    func testLoadingCleanupCannotOverwriteNewerMutationWhileItsSaveIsSuspended() async throws {
+        let snapshot = try remoteMetadataSnapshot(
+            posterURL: URL(string: "https://attacker.invalid/poster.jpg")!,
+            backdropURL: URL(string: "https://attacker.invalid/backdrop.jpg")!,
+            trailerURL: URL(string: "https://attacker.invalid/trailer")!,
+            sourceURL: URL(string: "https://attacker.invalid/source")!,
+            reviewAvatarURL: URL(string: "https://attacker.invalid/avatar")!,
+            reviewSourceURL: URL(string: "https://attacker.invalid/review")!,
+            seasonArtworkURL: URL(string: "https://attacker.invalid/season.jpg")!,
+            episodeStillURL: URL(string: "https://attacker.invalid/episode.jpg")!
+        )
+        let store = RecordingLibraryStore(snapshot: snapshot, suspendsFirstSave: true)
+        let model = AppModel(
+            store: store,
+            reminderScheduler: NoopReminderScheduler(),
+            partnerActivityNotifier: NoopPartnerActivityNotifier(),
+            catalogService: LocalCatalogService(titles: []),
+            traktService: UnconfiguredTraktSyncService(),
+            seed: .empty
+        )
+
+        let load = Task { await model.load() }
+        await store.waitUntilFirstSaveStarts()
+        model.updateNotes("Newer note written while cleanup was suspended.", for: "severance")
+        await store.releaseFirstSave()
+        await load.value
+        await model.flushPendingPersistence()
+
+        let storedSnapshot = try await store.load()
+        let saved = try XCTUnwrap(storedSnapshot)
+        let savedTitle = try XCTUnwrap(saved.titles.first(where: { $0.id == "severance" }))
+        let metrics = await store.metrics()
+        XCTAssertEqual(savedTitle.notes, "Newer note written while cleanup was suspended.")
+        XCTAssertNil(savedTitle.posterURL)
+        XCTAssertEqual(metrics.saveCount, 2)
+        XCTAssertEqual(metrics.maximumConcurrentSaveCount, 1)
+    }
+
+    func testLoadingPreservesAllowlistedHTTPSMetadataAndPrivateState() async throws {
+        let snapshot = try remoteMetadataSnapshot(
+            posterURL: URL(string: "https://image.tmdb.org/t/p/w500/poster.jpg")!,
+            backdropURL: URL(string: "https://media.themoviedb.org/t/p/w780/backdrop.jpg")!,
+            trailerURL: URL(string: "https://www.youtube.com/watch?v=abcdefghijk")!,
+            sourceURL: URL(string: "https://www.themoviedb.org/tv/95396")!,
+            reviewAvatarURL: URL(string: "https://secure.gravatar.com/avatar/hash")!,
+            reviewSourceURL: URL(string: "https://www.themoviedb.org/review/1")!,
+            seasonArtworkURL: URL(string: "https://static.tvmaze.com/uploads/season.jpg")!,
+            episodeStillURL: URL(string: "https://image.tmdb.org/t/p/w300/still.jpg")!
+        )
+        let store = MemoryLibraryStore(snapshot: snapshot)
+        let model = AppModel(
+            store: store,
+            reminderScheduler: NoopReminderScheduler(),
+            partnerActivityNotifier: NoopPartnerActivityNotifier(),
+            catalogService: LocalCatalogService(titles: []),
+            traktService: UnconfiguredTraktSyncService(),
+            seed: .empty
+        )
+
+        await model.load()
+
+        let loadedTitle = try XCTUnwrap(model.titles.first)
+        let expectedTitle = try XCTUnwrap(snapshot.titles.first)
+        XCTAssertEqual(loadedTitle, expectedTitle)
+        XCTAssertEqual(model.sharedSpace.titleMetadata, snapshot.sharedSpace.titleMetadata)
+        XCTAssertEqual(model.diaryEntries, snapshot.diaryEntries)
+        XCTAssertEqual(model.lists, snapshot.lists)
+        let persisted = try await store.load()
+        XCTAssertEqual(persisted, snapshot)
+    }
+
     func testRefreshingCatalogDetailsPreservesTrackingAndLoadsEpisodes() async throws {
         var liveSnapshot = LibrarySnapshot.sample
         let liveIndex = try XCTUnwrap(liveSnapshot.titles.firstIndex(where: { $0.id == "severance" }))
@@ -321,6 +457,68 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(model.sharedSpace.watchEvents?.map(\.kind), [.watched, .correction])
     }
 
+    private func remoteMetadataSnapshot(
+        posterURL: URL,
+        backdropURL: URL,
+        trailerURL: URL,
+        sourceURL: URL,
+        reviewAvatarURL: URL,
+        reviewSourceURL: URL,
+        seasonArtworkURL: URL,
+        episodeStillURL: URL
+    ) throws -> LibrarySnapshot {
+        var snapshot = LibrarySnapshot.sample
+        var title = try XCTUnwrap(snapshot.titles.first(where: { $0.id == "severance" }))
+        title.state = .paused
+        title.progress = EpisodeProgress(season: 1, episode: 1, totalEpisodes: 9)
+        title.userRating = 9.25
+        title.notes = "Private load migration note"
+        title.rewatchCount = 3
+        title.lastWatchedAt = Date(timeIntervalSince1970: 1_700_000_000)
+        title.personalWatchlist = true
+        title.watchedEpisodeIDs = ["severance-s1e1"]
+        title.posterURL = posterURL
+        title.backdropURL = backdropURL
+        title.trailerURL = trailerURL
+        title.sourceURL = sourceURL
+
+        var review = try XCTUnwrap(title.reviews.first)
+        review.avatarURL = reviewAvatarURL
+        review.sourceURL = reviewSourceURL
+        title.reviews = [review]
+
+        var episode = EpisodeSummary(
+            id: "severance-s1e1",
+            number: 1,
+            title: "Good News About Hell",
+            airDate: Date(timeIntervalSince1970: 1_645_142_400),
+            runtimeMinutes: 57
+        )
+        episode.stillURL = episodeStillURL
+        var season = SeasonSummary(
+            id: "severance-s1",
+            number: 1,
+            title: "Season 1",
+            episodes: [episode]
+        )
+        season.artworkURL = seasonArtworkURL
+        title.seasons = [season]
+
+        snapshot.titles = [title]
+        snapshot.sharedSpace.titleIDs = [title.id]
+        snapshot.sharedSpace.titleMetadata = [title]
+        snapshot.diaryEntries = [LibraryDiaryTransferTests.diaryEntry]
+        snapshot.lists = [
+            MediaList(
+                id: "private-list",
+                name: "Private list",
+                titleIDs: [title.id],
+                updatedAt: Date(timeIntervalSince1970: 1_700_000_100)
+            )
+        ]
+        return snapshot
+    }
+
     private static let episodeTrackingSeasons = [
         SeasonSummary(
             id: "season-1",
@@ -491,7 +689,12 @@ private actor RecordingLibraryStore: LibraryPersisting {
     private var firstSaveStarted = false
     private var firstSaveReleased = false
 
-    init(suspendsFirstSave: Bool = false, failsFirstSave: Bool = false) {
+    init(
+        snapshot: LibrarySnapshot? = nil,
+        suspendsFirstSave: Bool = false,
+        failsFirstSave: Bool = false
+    ) {
+        self.snapshot = snapshot
         self.suspendsFirstSave = suspendsFirstSave
         self.failsFirstSave = failsFirstSave
     }

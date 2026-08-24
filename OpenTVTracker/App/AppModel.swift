@@ -188,7 +188,8 @@ final class AppModel {
         var canReconcileReminders = true
 
         do {
-            if let snapshot = try await store.load() {
+            if let storedSnapshot = try await store.load() {
+                let snapshot = ImportedLibraryMetadataSanitizer.sanitized(storedSnapshot)
                 applyLibraryState(
                     titles: migratedTrackingTitles(
                         merging(savedTitles: snapshot.titles, catalogTitles: seed.titles),
@@ -199,6 +200,12 @@ final class AppModel {
                         defaultFirstRunCompleted: true
                     )
                 )
+                if snapshot != storedSnapshot {
+                    let didPersistCleanup = await persistMetadataCleanup(snapshot)
+                    if !didPersistCleanup {
+                        persistenceError = "Your saved library was opened safely, but its cleanup could not be saved."
+                    }
+                }
             }
         } catch {
             persistenceError = "Your saved library could not be opened. Your catalog and saved data remain separate."
@@ -267,7 +274,9 @@ extension AppModel {
     func recordRewatch(_ id: MediaTitle.ID) {
         guard let index = ensureTrackableTitleIndex(for: id) else { return }
         let watchedAt = Date.now
-        titles[index].rewatchCount = titles[index].completedRewatches + 1
+        titles[index].rewatchCount = LibraryImportLimits.incrementedRewatchCount(
+            titles[index].completedRewatches
+        )
         titles[index].lastWatchedAt = watchedAt
         recordTitleRewatchInDiary(titles[index], watchedAt: watchedAt)
         appendWatchEvent(title: titles[index], kind: .rewatch, occurredAt: watchedAt)

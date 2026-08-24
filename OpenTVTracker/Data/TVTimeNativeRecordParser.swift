@@ -23,11 +23,17 @@ enum TVTimeNativeRecordParser {
             title: title ?? "",
             kind: .series
         )
-        let rewatchCount = max(TVTimeCSV.int(values, ["rewatch_count"]) ?? 0, 0)
+        let rewatchCount = LibraryImportLimits.boundedRewatchCount(
+            TVTimeCSV.int(values, ["rewatch_count"]) ?? 0
+        )
         addWatch(
             TVTimeWatch(
-                season: TVTimeCSV.int(values, ["season", "episode_season_number", "season_number"]),
-                episode: TVTimeCSV.int(values, ["episode", "episode_number"]),
+                season: TVTimeCSV.int(
+                    values,
+                    ["season", "episode_season_number", "season_number"]
+                ).map(LibraryImportLimits.boundedProgressValue),
+                episode: TVTimeCSV.int(values, ["episode", "episode_number"])
+                    .map(LibraryImportLimits.boundedProgressValue),
                 occurredAt: TVTimeCSV.date(values, ["watched_at", "ts", "created_at"]),
                 rating: TVTimeCSV.double(values, ["episode_rating", "rating", "rate"]),
                 isRewatch: rewatchCount > 0,
@@ -70,7 +76,9 @@ enum TVTimeNativeRecordParser {
                 to: &entities[identity, default: initial],
                 duplicates: &duplicates
             )
-            let importedRewatchCount = TVTimeCSV.int(values, ["rewatch_count"]) ?? 0
+            let importedRewatchCount = LibraryImportLimits.boundedRewatchCount(
+                TVTimeCSV.int(values, ["rewatch_count"]) ?? 0
+            )
             let existingRewatchCount = entities[identity, default: initial].rewatchCount
             entities[identity, default: initial].rewatchCount = max(
                 existingRewatchCount,
