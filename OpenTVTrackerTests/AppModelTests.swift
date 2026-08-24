@@ -504,6 +504,201 @@ final class AppModelTests: XCTestCase {
 }
 
 @MainActor
+final class AppModelPersistenceDurabilityTests: XCTestCase {
+    func testPrepareForSuspensionFlushesLatestMutationBeforeRelaunch() async throws {
+        let store = RecordingLibraryStore()
+        let model = AppModel(store: store, seed: .sample)
+
+        model.updateNotes("Saved on the way to the background.", for: "severance")
+        await model.prepareForSuspension()
+
+        let reloaded = makeReloadedModel(store: store)
+        await reloaded.load()
+        let metrics = await store.metrics()
+
+        XCTAssertEqual(
+            reloaded.mediaTitle(withID: "severance")?.notes,
+            "Saved on the way to the background."
+        )
+        XCTAssertEqual(metrics.saveCount, 1)
+    }
+
+    func testRapidForegroundMutationsCoalesceIntoSingleSave() async throws {
+        let store = RecordingLibraryStore()
+        let model = AppModel(store: store, seed: .sample)
+
+        model.setUserRating(7, for: "severance")
+        model.setUserRating(8, for: "severance")
+        model.setUserRating(9, for: "severance")
+        await store.waitUntilFirstSaveStarts()
+        await model.flushPendingPersistence()
+
+        let loaded = try await store.load()
+        let saved = try XCTUnwrap(loaded)
+        let metrics = await store.metrics()
+
+        XCTAssertEqual(saved.titles.first(where: { $0.id == "severance" })?.userRating, 9)
+        XCTAssertEqual(metrics.saveCount, 1)
+    }
+
+    func testConcurrentSuspensionFlushesJoinSingleWriter() async throws {
+        let store = RecordingLibraryStore(suspendsFirstSave: true)
+        let model = AppModel(store: store, seed: .sample)
+        model.updateNotes("One pending revision.", for: "severance")
+
+        let inactiveFlush = Task { await model.prepareForSuspension() }
+        await store.waitUntilFirstSaveStarts()
+        let backgroundFlush = Task { await model.prepareForSuspension() }
+        while model.persistenceFlushCount < 2 {
+            await Task.yield()
+        }
+
+        await store.releaseFirstSave()
+        await inactiveFlush.value
+        await backgroundFlush.value
+        let metrics = await store.metrics()
+
+        XCTAssertEqual(metrics.saveCount, 1)
+        XCTAssertEqual(metrics.maximumConcurrentSaveCount, 1)
+    }
+
+    func testMutationDuringSuspensionFlushIsWrittenAfterOlderSave() async throws {
+        let store = RecordingLibraryStore(suspendsFirstSave: true)
+        let model = AppModel(store: store, seed: .sample)
+        model.updateNotes("Older value", for: "severance")
+
+        let flush = Task { await model.prepareForSuspension() }
+        await store.waitUntilFirstSaveStarts()
+        model.updateNotes("Newest value", for: "severance")
+        await store.releaseFirstSave()
+        await flush.value
+
+        let reloaded = makeReloadedModel(store: store)
+        await reloaded.load()
+        let metrics = await store.metrics()
+
+        XCTAssertEqual(reloaded.mediaTitle(withID: "severance")?.notes, "Newest value")
+        XCTAssertEqual(metrics.saveCount, 2)
+        XCTAssertEqual(metrics.maximumConcurrentSaveCount, 1)
+    }
+
+    func testMutationDuringForegroundSaveIsWrittenAfterOlderSave() async throws {
+        let store = RecordingLibraryStore(suspendsFirstSave: true)
+        let model = AppModel(store: store, seed: .sample)
+        model.updateNotes("Older value", for: "severance")
+
+        await store.waitUntilFirstSaveStarts()
+        model.updateNotes("Newest value", for: "severance")
+        let newestDebounce = try XCTUnwrap(model.persistenceDebounceTask)
+        await store.releaseFirstSave()
+        await newestDebounce.value
+
+        let reloaded = makeReloadedModel(store: store)
+        await reloaded.load()
+        let metrics = await store.metrics()
+
+        XCTAssertEqual(reloaded.mediaTitle(withID: "severance")?.notes, "Newest value")
+        XCTAssertEqual(metrics.saveCount, 2)
+        XCTAssertEqual(metrics.maximumConcurrentSaveCount, 1)
+    }
+
+    func testNewerMutationDuringFailedSuspensionSaveIsRetried() async throws {
+        let store = RecordingLibraryStore(suspendsFirstSave: true, failsFirstSave: true)
+        let model = AppModel(store: store, seed: .sample)
+        model.updateNotes("Older value", for: "severance")
+
+        let flush = Task { await model.prepareForSuspension() }
+        await store.waitUntilFirstSaveStarts()
+        model.updateNotes("Newest value", for: "severance")
+        await store.releaseFirstSave()
+        await flush.value
+
+        let reloaded = makeReloadedModel(store: store)
+        await reloaded.load()
+        let metrics = await store.metrics()
+
+        XCTAssertEqual(reloaded.mediaTitle(withID: "severance")?.notes, "Newest value")
+        XCTAssertEqual(metrics.saveCount, 2)
+        XCTAssertEqual(metrics.maximumConcurrentSaveCount, 1)
+        XCTAssertNil(model.persistenceError)
+    }
+
+    private func makeReloadedModel(store: any LibraryPersisting) -> AppModel {
+        AppModel(
+            store: store,
+            recommendationService: DeterministicRecommendationService(),
+            sharedConversationNotifier: NoopSharedConversationNotifier(),
+            reminderScheduler: NoopReminderScheduler(),
+            partnerActivityNotifier: NoopPartnerActivityNotifier(),
+            catalogService: LocalCatalogService(titles: []),
+            traktService: UnconfiguredTraktSyncService(),
+            seed: .empty
+        )
+    }
+}
+
+private enum RecordingLibraryStoreError: Error {
+    case forcedFailure
+}
+
+private actor RecordingLibraryStore: LibraryPersisting {
+    private let suspendsFirstSave: Bool
+    private let failsFirstSave: Bool
+    private var snapshot: LibrarySnapshot?
+    private var saveCount = 0
+    private var activeSaveCount = 0
+    private var maximumConcurrentSaveCount = 0
+    private var firstSaveStarted = false
+    private var firstSaveReleased = false
+
+    init(suspendsFirstSave: Bool = false, failsFirstSave: Bool = false) {
+        self.suspendsFirstSave = suspendsFirstSave
+        self.failsFirstSave = failsFirstSave
+    }
+
+    func load() async throws -> LibrarySnapshot? {
+        snapshot
+    }
+
+    func save(_ snapshot: LibrarySnapshot) async throws {
+        saveCount += 1
+        let saveNumber = saveCount
+        activeSaveCount += 1
+        maximumConcurrentSaveCount = max(maximumConcurrentSaveCount, activeSaveCount)
+        defer { activeSaveCount -= 1 }
+
+        if saveNumber == 1 {
+            firstSaveStarted = true
+        }
+        if suspendsFirstSave, saveNumber == 1 {
+            while !firstSaveReleased {
+                // Deliberately ignore cancellation to model a write that has already started.
+                await Task.yield()
+            }
+        }
+        if failsFirstSave, saveNumber == 1 {
+            throw RecordingLibraryStoreError.forcedFailure
+        }
+
+        self.snapshot = snapshot
+    }
+
+    func waitUntilFirstSaveStarts() async {
+        while !firstSaveStarted {
+            await Task.yield()
+        }
+    }
+
+    func releaseFirstSave() {
+        firstSaveReleased = true
+    }
+
+    func metrics() -> (saveCount: Int, maximumConcurrentSaveCount: Int) {
+        (saveCount, maximumConcurrentSaveCount)
+    }
+}
+
+@MainActor
 final class CatalogSearchTests: XCTestCase {
     func testCatalogSearchKeepsProviderFuzzyMatches() async throws {
         let fuzzyMatch = try XCTUnwrap(LibrarySnapshot.sample.titles.first(where: { $0.id == "past-lives" }))
