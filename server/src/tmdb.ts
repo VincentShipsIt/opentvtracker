@@ -639,7 +639,7 @@ export function mapReviews(
       return {
         id: providerID
           ? `tmdb-review-${providerID}`
-          : `tmdb-review-${page}-${index}`,
+          : `tmdb-review-fallback-${page}-${index}`,
         author: stringValue(review.author) ?? "TMDB member",
         excerpt: content,
         rating: numberValue(authorDetails.rating),

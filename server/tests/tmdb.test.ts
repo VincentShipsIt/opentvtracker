@@ -176,7 +176,7 @@ describe("mapReviews", () => {
     expect(page.totalPages).toBe(100);
     expect(page.results.map((review) => review.id)).toEqual([
       "tmdb-review-stable",
-      "tmdb-review-2-1",
+      "tmdb-review-fallback-2-1",
     ]);
   });
 
@@ -187,7 +187,31 @@ describe("mapReviews", () => {
     );
 
     expect(page.page).toBe(3);
-    expect(page.results[0]?.id).toBe("tmdb-review-3-0");
+    expect(page.results[0]?.id).toBe("tmdb-review-fallback-3-0");
+  });
+
+  test("keeps provider and fallback identities distinct during pagination deduplication", () => {
+    const fallback = mapReviewPage(
+      { results: [{ content: "Fallback review" }] },
+      1,
+    ).results[0]!;
+    const provider = mapReviewPage(
+      { results: [{ id: "1-0", content: "Provider review" }] },
+      2,
+    ).results[0]!;
+    const seenIDs = new Set<string>();
+    const paginated = [fallback, fallback, provider, provider].filter((review) =>
+      seenIDs.has(review.id) ? false : Boolean(seenIDs.add(review.id)),
+    );
+
+    expect(paginated.map((review) => review.id)).toEqual([
+      "tmdb-review-fallback-1-0",
+      "tmdb-review-1-0",
+    ]);
+    expect(paginated.map((review) => review.excerpt)).toEqual([
+      "Fallback review",
+      "Provider review",
+    ]);
   });
 
   test("accepts only provider-relative avatar artwork on the TMDB image CDN", () => {
@@ -275,7 +299,7 @@ describe("mapReviews", () => {
       sourceURLs.map(([, expected]) => expected),
     );
     expect(mapped.map((review) => review.id)).toEqual(
-      sourceURLs.map((_, index) => `tmdb-review-4-${index}`),
+      sourceURLs.map((_, index) => `tmdb-review-fallback-4-${index}`),
     );
   });
 
@@ -303,7 +327,7 @@ describe("mapReviews", () => {
     );
 
     expect(page.results.map((review) => review.id)).toEqual(
-      invalidIDs.map((_, index) => `tmdb-review-3-${index}`),
+      invalidIDs.map((_, index) => `tmdb-review-fallback-3-${index}`),
     );
     expect(page.results.every((review) => review.sourceURL === null)).toBe(true);
   });
