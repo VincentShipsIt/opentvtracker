@@ -137,7 +137,9 @@ struct PartnerInvitationView: View {
         // personal one.
         .tint(AppSpaceMode.shared.accent)
     }
+}
 
+private extension PartnerInvitationView {
     private var nearbyPairingActions: some View {
         VStack(spacing: 12) {
             if model.sharedSpace.isCurrentUserShareOwner != false,
