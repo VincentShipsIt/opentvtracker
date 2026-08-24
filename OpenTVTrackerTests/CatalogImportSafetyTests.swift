@@ -202,7 +202,9 @@ final class CatalogImportSafetyTests: XCTestCase {
         XCTAssertEqual(coordinator.preview?.resolutionIssues.map(\.id), [issue.id])
         XCTAssertNotNil(coordinator.errorMessage)
     }
+}
 
+private extension CatalogImportSafetyTests {
     private static func title(
         id: String,
         catalogID: Int,

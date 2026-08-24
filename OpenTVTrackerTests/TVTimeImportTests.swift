@@ -264,7 +264,9 @@ final class TVTimeImportTests: XCTestCase {
             ImportCountComparison(category: .rewatches, sourceCount: 2, importedCount: 2)
         )
     }
+}
 
+extension TVTimeImportTests {
     @MainActor
     func testCancelledResolutionSearchDoesNotSurfaceCatalogError() async throws {
         let session = TVTimeImportSession(
@@ -286,9 +288,7 @@ final class TVTimeImportTests: XCTestCase {
             XCTAssertNil(coordinator.errorMessage)
         }
     }
-}
 
-extension TVTimeImportTests {
     @MainActor
     func testConcurrentManualResolutionsAreSerialized() async throws {
         let candidates = Array(LibrarySnapshot.sample.titles.prefix(2))

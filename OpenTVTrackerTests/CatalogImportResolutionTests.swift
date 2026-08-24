@@ -275,7 +275,9 @@ final class CatalogImportResolutionTests: XCTestCase {
             XCTFail("Anime season labels must map to an existing catalog season")
         }
     }
+}
 
+private extension CatalogImportResolutionTests {
     private func makeArchive(_ files: [String: String]) throws -> Data {
         let archive = try Archive(accessMode: .create)
         for (path, contents) in files.sorted(by: { $0.key < $1.key }) {
