@@ -638,7 +638,7 @@ export function mapReviews(
       const providerID = reviewID(stringValue(review.id));
       return {
         id: providerID
-          ? `tmdb-review-${providerID}`
+          ? `tmdb-review-provider-${providerID}`
           : `tmdb-review-fallback-${page}-${index}`,
         author: stringValue(review.author) ?? "TMDB member",
         excerpt: content,

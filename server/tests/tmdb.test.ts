@@ -145,7 +145,7 @@ describe("mapReviews", () => {
         ],
       })[0],
     ).toEqual({
-      id: "tmdb-review-review-id",
+      id: "tmdb-review-provider-review-id",
       author: "Reviewer",
       excerpt: content,
       rating: 8,
@@ -175,7 +175,7 @@ describe("mapReviews", () => {
     expect(page.page).toBe(2);
     expect(page.totalPages).toBe(100);
     expect(page.results.map((review) => review.id)).toEqual([
-      "tmdb-review-stable",
+      "tmdb-review-provider-stable",
       "tmdb-review-fallback-2-1",
     ]);
   });
@@ -196,7 +196,7 @@ describe("mapReviews", () => {
       1,
     ).results[0]!;
     const provider = mapReviewPage(
-      { results: [{ id: "1-0", content: "Provider review" }] },
+      { results: [{ id: "fallback-1-0", content: "Provider review" }] },
       2,
     ).results[0]!;
     const seenIDs = new Set<string>();
@@ -206,7 +206,7 @@ describe("mapReviews", () => {
 
     expect(paginated.map((review) => review.id)).toEqual([
       "tmdb-review-fallback-1-0",
-      "tmdb-review-1-0",
+      "tmdb-review-provider-fallback-1-0",
     ]);
     expect(paginated.map((review) => review.excerpt)).toEqual([
       "Fallback review",
