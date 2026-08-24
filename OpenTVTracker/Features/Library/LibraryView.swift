@@ -236,21 +236,46 @@ private struct LibrarySectionMenu: View {
 /// count carries the information the icon never did, and shelves that are empty say so by
 /// not showing one.
 private struct LibraryShelfPicker: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Binding var selection: LibraryShelf
     let titles: [MediaTitle]
 
     var body: some View {
-        HorizontalShelf {
+        HorizontalShelf(
+            showsIndicators: dynamicTypeSize.isAccessibilitySize,
+            snapsToItems: dynamicTypeSize.isAccessibilitySize
+        ) {
             HStack(spacing: 8) {
                 ForEach(LibraryShelf.allCases) { shelf in
-                    chip(for: shelf)
+                    if dynamicTypeSize.isAccessibilitySize {
+                        chip(for: shelf)
+                            .containerRelativeFrame(.horizontal) { width, _ in
+                                accessiblePageWidth(for: width)
+                            }
+                    } else {
+                        chip(for: shelf)
+                    }
                 }
             }
+            .scrollTargetLayout()
             .padding(.horizontal, AppTheme.horizontalPadding)
             .padding(.vertical, 2)
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Library shelves")
+    }
+
+    private func accessiblePageWidth(for proposedWidth: CGFloat) -> CGFloat {
+        let minimumWidth = AppAccessibility.minimumTouchTarget
+        let horizontalInset = AppTheme.horizontalPadding * 2
+
+        guard proposedWidth.isFinite,
+              horizontalInset.isFinite,
+              proposedWidth > horizontalInset else {
+            return minimumWidth
+        }
+
+        return max(minimumWidth, proposedWidth - horizontalInset)
     }
 
     private func chip(for shelf: LibraryShelf) -> some View {
@@ -263,7 +288,8 @@ private struct LibraryShelfPicker: View {
             HStack(spacing: 6) {
                 Text(shelf.label)
                     .font(.subheadline.weight(.semibold))
-                    .lineLimit(1)
+                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 if count > 0 {
                     Text(count.formatted())
