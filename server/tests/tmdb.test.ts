@@ -811,12 +811,21 @@ describe("TMDBClient upstream scheduling", () => {
   });
 
   test("rejects unsafe injected scheduler limits", () => {
+    expect(
+      () =>
+        new TMDBClient("test-token", {
+          requestDeadlineMilliseconds: 2_147_483_647,
+        }),
+    ).not.toThrow();
+
     const invalidOptions = [
       { maximumActiveRequests: 0 },
       { maximumActiveRequests: 1.5 },
       { maximumPendingRequests: -1 },
       { maximumPendingRequests: Number.POSITIVE_INFINITY },
       { requestDeadlineMilliseconds: 0 },
+      { requestDeadlineMilliseconds: 2_147_483_648 },
+      { requestDeadlineMilliseconds: Number.MAX_SAFE_INTEGER },
       { requestDeadlineMilliseconds: Number.MAX_SAFE_INTEGER + 1 },
     ];
 

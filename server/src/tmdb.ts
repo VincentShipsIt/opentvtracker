@@ -140,6 +140,7 @@ const DEFAULT_MAXIMUM_ACTIVE_REQUESTS = 8;
 const DEFAULT_MAXIMUM_PENDING_REQUESTS = 64;
 const DEFAULT_REQUEST_DEADLINE_MILLISECONDS = 8_000;
 const MAXIMUM_ENRICHMENT_WORKERS = 8;
+const MAXIMUM_TIMER_MILLISECONDS = 2_147_483_647;
 
 export type TMDBFetch = (
   input: string | URL | Request,
@@ -293,6 +294,7 @@ export class TMDBClient {
         DEFAULT_REQUEST_DEADLINE_MILLISECONDS,
         1,
         "requestDeadlineMilliseconds",
+        MAXIMUM_TIMER_MILLISECONDS,
       ),
     );
   }
@@ -959,10 +961,13 @@ function validatedSchedulerInteger(
   fallback: number,
   minimum: number,
   name: string,
+  maximum = Number.MAX_SAFE_INTEGER,
 ): number {
   if (value === undefined) return fallback;
-  if (!Number.isSafeInteger(value) || value < minimum) {
-    throw new RangeError(`${name} must be a safe integer >= ${minimum}`);
+  if (!Number.isSafeInteger(value) || value < minimum || value > maximum) {
+    throw new RangeError(
+      `${name} must be a safe integer between ${minimum} and ${maximum}`,
+    );
   }
   return value;
 }
