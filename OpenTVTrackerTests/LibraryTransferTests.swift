@@ -388,6 +388,39 @@ extension LibraryTransferTests {
 }
 
 extension LibraryTransferTests {
+    func testCSVImportIndexesLargeLibraryForRepeatedAndUnmatchedRows() throws {
+        let titleCount = 20_000
+        let rowCount = 20_000
+        var current = LibrarySnapshot.empty
+        current.titles = (0..<titleCount).map { offset in
+            Self.importTitle(
+                id: "csv-title-\(offset)",
+                catalogID: offset + 1,
+                title: "CSV Title \(offset)",
+                year: 2_000 + offset % 25,
+                kind: offset.isMultiple(of: 2) ? .movie : .series
+            )
+        }
+        var rows = ["catalog_id,kind,state"]
+        rows.reserveCapacity(rowCount + 1)
+        for offset in 0..<rowCount {
+            rows.append(
+                offset.isMultiple(of: 2)
+                    ? "\(titleCount),series,paused"
+                    : "900000000,series,completed"
+            )
+        }
+        let data = Data(rows.joined(separator: "\n").utf8)
+
+        let preview = try LibraryTransferService.previewImport(data, into: current)
+
+        XCTAssertEqual(preview.matchedCount, 1)
+        XCTAssertEqual(preview.duplicateCount, rowCount / 2 - 1)
+        XCTAssertEqual(preview.skippedCount, rowCount / 2)
+        XCTAssertEqual(preview.snapshot.titles.last?.id, "csv-title-\(titleCount - 1)")
+        XCTAssertEqual(preview.snapshot.titles.last?.state, .paused)
+    }
+
     func testCompactJSONImportMergesTwentyThousandUniqueTitlesAliasesAndLists() throws {
         let titleCount = 20_000
         var imported = LibrarySnapshot.empty

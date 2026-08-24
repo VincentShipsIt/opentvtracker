@@ -5,7 +5,8 @@ enum TVTimeImportAliasResolver {
         _ entities: [TVTimeEntity],
         aliases: [String: ImportResolutionAlias],
         catalog: any CatalogProviding,
-        region: StreamingRegion
+        region: StreamingRegion,
+        requestBudget: TVTimeCatalogRequestBudget
     ) async -> (resolved: [String: MediaTitle], warnings: [ImportWarning]) {
         let aliasedEntities = entities.compactMap { entity -> (TVTimeEntity, ImportResolutionAlias)? in
             guard let alias = aliases[entity.identity] else { return nil }
@@ -25,7 +26,8 @@ enum TVTimeImportAliasResolver {
                             entity,
                             alias: alias,
                             catalog: catalog,
-                            region: region
+                            region: region,
+                            requestBudget: requestBudget
                         )
                     }
                 }
@@ -35,6 +37,8 @@ enum TVTimeImportAliasResolver {
                         resolved[identity] = title
                     case .stale(let warning):
                         warnings.append(warning)
+                    case .requestLimitReached:
+                        break
                     }
                 }
             }
@@ -46,8 +50,12 @@ enum TVTimeImportAliasResolver {
         _ entity: TVTimeEntity,
         alias: ImportResolutionAlias,
         catalog: any CatalogProviding,
-        region: StreamingRegion
+        region: StreamingRegion,
+        requestBudget: TVTimeCatalogRequestBudget
     ) async -> AliasResolutionResult {
+        guard await requestBudget.reserveRequest() else {
+            return .requestLimitReached
+        }
         do {
             let title = try await catalog.title(
                 kind: alias.kind,
@@ -67,7 +75,7 @@ enum TVTimeImportAliasResolver {
             return .stale(
                 ImportWarning(
                     id: "stale-alias-\(entity.identity)",
-                    message: "A saved match for \(displayName) is no longer available. OpenTV searched the catalog again."
+                    message: "A saved match for \(displayName) is no longer available. OpenTV ignored that saved match rather than trusting it."
                 )
             )
         }
@@ -81,4 +89,5 @@ private enum ImportAliasError: Error {
 private enum AliasResolutionResult: Sendable {
     case resolved(String, MediaTitle)
     case stale(ImportWarning)
+    case requestLimitReached
 }

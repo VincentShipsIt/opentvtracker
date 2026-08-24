@@ -69,6 +69,7 @@ private extension LibraryListTransferService {
         isTVTime: Bool
     ) -> ListCSVAccumulation {
         var result = ListCSVAccumulation()
+        let titleMatchIndex = LibraryTitleMatchIndex(titles: current.titles)
         for row in rows where row.contains(where: { !$0.isEmpty }) {
             let values = LibraryTransferService.csvValues(header: header, row: row)
             guard let name = LibraryTransferService.stringValue(
@@ -90,10 +91,7 @@ private extension LibraryListTransferService {
             )
 
             if hasTitleReference(values) {
-                guard let titleIndex = LibraryTransferService.matchingTitleIndex(
-                    values,
-                    titles: current.titles
-                ) else {
+                guard let titleIndex = titleMatchIndex.matchingIndex(values) else {
                     result.skippedCount += 1
                     result.listIDsWithSkippedMemberships.insert(listID)
                     result.importedByID[listID] = accumulator
@@ -149,7 +147,7 @@ private extension LibraryListTransferService {
     }
 
     static func stableListIdentifier(_ name: String) -> String {
-        name.utf8.map { String(format: "%02x", $0) }.joined()
+        BoundedStableIdentifier.identifier(for: name)
     }
 }
 

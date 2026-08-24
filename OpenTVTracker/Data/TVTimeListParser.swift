@@ -1,4 +1,79 @@
+import CryptoKit
 import Foundation
+
+enum BoundedStableIdentifier {
+    private static let hexadecimalDigits = Array("0123456789abcdef".utf8)
+    private static let chunkSize = 4 * 1_024
+
+    static func identifier(for value: String, collisionAttempt: Int = 0) -> String {
+        var hasher = SHA256()
+        if collisionAttempt > 0 {
+            hasher.update(data: Data("collision:\(collisionAttempt)\u{0}".utf8))
+        }
+
+        var chunk: [UInt8] = []
+        chunk.reserveCapacity(chunkSize)
+        for byte in value.utf8 {
+            chunk.append(byte)
+            if chunk.count == chunkSize {
+                chunk.withUnsafeBytes { hasher.update(bufferPointer: $0) }
+                chunk.removeAll(keepingCapacity: true)
+            }
+        }
+        if !chunk.isEmpty {
+            chunk.withUnsafeBytes { hasher.update(bufferPointer: $0) }
+        }
+
+        let digest = hasher.finalize()
+        var encoded: [UInt8] = []
+        encoded.reserveCapacity("sha256-".utf8.count + SHA256.Digest.byteCount * 2)
+        encoded.append(contentsOf: "sha256-".utf8)
+        for byte in digest {
+            encoded.append(hexadecimalDigits[Int(byte >> 4)])
+            encoded.append(hexadecimalDigits[Int(byte & 0x0F)])
+        }
+        return String(bytes: encoded, encoding: .utf8) ?? ""
+    }
+
+    static func legacyHexIdentifier(_ identifier: Substring, matches value: String) -> Bool {
+        let encoded = identifier.utf8
+        var cursor = encoded.startIndex
+        for byte in value.utf8 {
+            guard cursor != encoded.endIndex,
+                  encoded[cursor] == hexadecimalDigits[Int(byte >> 4)] else {
+                return false
+            }
+            cursor = encoded.index(after: cursor)
+            guard cursor != encoded.endIndex,
+                  encoded[cursor] == hexadecimalDigits[Int(byte & 0x0F)] else {
+                return false
+            }
+            cursor = encoded.index(after: cursor)
+        }
+        return cursor == encoded.endIndex
+    }
+}
+
+enum TVTimeListIdentifier {
+    static let maximumCollisionAttempts = 16
+
+    static func generatedID(
+        prefix: String,
+        name: String,
+        lists: [MediaList.ID: TVTimeList],
+        identifier: (String, Int) -> String = {
+            BoundedStableIdentifier.identifier(for: $0, collisionAttempt: $1)
+        }
+    ) throws -> MediaList.ID {
+        for collisionAttempt in 0..<maximumCollisionAttempts {
+            let candidate = prefix + identifier(name, collisionAttempt)
+            guard let existing = lists[candidate] else { return candidate }
+            if existing.name == name { return candidate }
+        }
+        throw TVTimeImportError.invalidArchive
+    }
+
+}
 
 struct TVTimeListMembershipAccumulator {
     private(set) var identityIndex: [MediaList.ID: Set<String>] = [:]
@@ -13,8 +88,15 @@ struct TVTimeListMembershipAccumulator {
         _ membership: TVTimeListMembership,
         listID: MediaList.ID,
         name: String,
+        generatedIDPrefix: String? = nil,
         lists: inout [MediaList.ID: TVTimeList]
     ) throws {
+        if let existing = lists[listID],
+           existing.name != name,
+           existing.generatedIDPrefix != generatedIDPrefix,
+           existing.generatedIDPrefix != nil || generatedIDPrefix != nil {
+            throw TVTimeImportError.invalidArchive
+        }
         guard identityIndex[listID]?.contains(membership.entityIdentity) != true else {
             return
         }
@@ -22,7 +104,15 @@ struct TVTimeListMembershipAccumulator {
             throw LibraryImportSafetyError.tooManyTVTimeListMemberships
         }
         identityIndex[listID, default: []].insert(membership.entityIdentity)
-        lists[listID, default: TVTimeList(id: listID, name: name, memberships: [])]
+        lists[
+            listID,
+            default: TVTimeList(
+                id: listID,
+                name: name,
+                memberships: [],
+                generatedIDPrefix: generatedIDPrefix
+            )
+        ]
             .memberships.append(membership)
         count += 1
     }
@@ -136,8 +226,6 @@ private struct TVTimeGDPRObjectScanner {
 }
 
 enum TVTimeListParser {
-    private static let hexadecimalDigits = Array("0123456789abcdef".utf8)
-
     static func parseNative(
         _ records: [[String: String]],
         entities: inout [String: TVTimeEntity],
@@ -151,8 +239,19 @@ enum TVTimeListParser {
                 let sourceID = TVTimeCSV.string(values, ["tvdb_id"]) else {
                 continue
             }
-            let sourceListID = TVTimeCSV.string(values, ["list_id"]) ?? stableIdentifier(name)
-            let listID = "tvtime:\(sourceListID)"
+            let listID: MediaList.ID
+            let generatedIDPrefix: String?
+            if let sourceListID = TVTimeCSV.string(values, ["list_id"]) {
+                listID = "tvtime:\(sourceListID)"
+                generatedIDPrefix = nil
+            } else {
+                generatedIDPrefix = "tvtime:"
+                listID = try TVTimeListIdentifier.generatedID(
+                    prefix: "tvtime:",
+                    name: name,
+                    lists: lists
+                )
+            }
             let kind: MediaKind = TVTimeCSV.string(values, ["item_type"])?.lowercased() == "movie"
                 ? .movie : .series
             let title = TVTimeCSV.string(values, ["name", "title"])
@@ -175,6 +274,7 @@ enum TVTimeListParser {
                 ),
                 listID: listID,
                 name: name,
+                generatedIDPrefix: generatedIDPrefix,
                 lists: &lists
             )
         }
@@ -193,7 +293,11 @@ enum TVTimeListParser {
                 let objects = TVTimeCSV.string(values, ["objects"]) else {
                 continue
             }
-            let listID = "tvtime:gdpr:\(stableIdentifier(name))"
+            let listID = try TVTimeListIdentifier.generatedID(
+                prefix: "tvtime:gdpr:",
+                name: name,
+                lists: lists
+            )
             var order = 0
             try forEachObject(in: objects, maximumFieldSize: maximumObjectFieldSize) { fields in
                 let membershipOrder = order
@@ -214,11 +318,17 @@ enum TVTimeListParser {
                     ),
                     listID: listID,
                     name: name,
+                    generatedIDPrefix: "tvtime:gdpr:",
                     lists: &lists
                 )
             }
             if lists[listID] == nil {
-                lists[listID] = TVTimeList(id: listID, name: name, memberships: [])
+                lists[listID] = TVTimeList(
+                    id: listID,
+                    name: name,
+                    memberships: [],
+                    generatedIDPrefix: "tvtime:gdpr:"
+                )
             }
         }
     }
@@ -236,17 +346,6 @@ private extension TVTimeListParser {
             return "\(kind.rawValue):\(namespace):\(sourceID)"
         }
         return "\(kind.rawValue):title:\(TVTimeCSV.normalizedTitle(title ?? ""))"
-    }
-
-    static func stableIdentifier(_ name: String) -> String {
-        let bytes = name.utf8
-        var encoded: [UInt8] = []
-        encoded.reserveCapacity(bytes.count * 2)
-        for byte in bytes {
-            encoded.append(hexadecimalDigits[Int(byte >> 4)])
-            encoded.append(hexadecimalDigits[Int(byte & 0x0F)])
-        }
-        return String(bytes: encoded, encoding: .utf8) ?? ""
     }
 
     static func forEachObject(

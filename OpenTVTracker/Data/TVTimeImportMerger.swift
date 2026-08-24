@@ -17,6 +17,7 @@ enum TVTimeImportMerger {
         var issues: [String: ImportResolutionIssue] = [:]
         var warnings: [ImportWarning] = []
         var unresolved: [TVTimeEntity] = []
+        let requestBudget = TVTimeCatalogRequestBudget()
         let currentTitles = TVTimeMediaTitleLookup(current.titles)
         let aliases = current.importResolutionAliases ?? [:]
         var currentTitleByAlias: [ImportResolutionAlias: MediaTitle] = [:]
@@ -43,7 +44,8 @@ enum TVTimeImportMerger {
             entities.filter { aliasTitles[$0.identity] == nil },
             aliases: aliases,
             catalog: catalog,
-            region: region
+            region: region,
+            requestBudget: requestBudget
         )
         aliasTitles.merge(aliasResolution.resolved) { _, remoteTitle in remoteTitle }
         let validatedAliases = TVTimeCatalogResolver.validatedAliases(
@@ -71,7 +73,8 @@ enum TVTimeImportMerger {
         let catalogResolution = await TVTimeCatalogResolver.resolveTitles(
             unresolved,
             catalog: catalog,
-            region: region
+            region: region,
+            requestBudget: requestBudget
         )
         resolved.merge(catalogResolution.resolved) { _, catalogTitle in catalogTitle }
         issues.merge(catalogResolution.issues) { _, catalogIssue in catalogIssue }

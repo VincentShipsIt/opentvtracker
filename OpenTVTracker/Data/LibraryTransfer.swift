@@ -249,10 +249,16 @@ extension LibraryTransferService {
         var duplicates = 0
         var skipped = 0
         var seen = Set<MediaTitle.ID>()
+        let titleMatchIndex = LibraryTitleMatchIndex(titles: current.titles)
 
         for row in rows.dropFirst() where row.contains(where: { !$0.isEmpty }) {
             let values = csvValues(header: normalizedHeader, row: row)
-            switch applyCSVRow(values, titles: &merged.titles, seen: &seen) {
+            switch applyCSVRow(
+                values,
+                titles: &merged.titles,
+                titleMatchIndex: titleMatchIndex,
+                seen: &seen
+            ) {
             case .matched: matched += 1
             case .duplicate: duplicates += 1
             case .skipped: skipped += 1
@@ -278,9 +284,10 @@ extension LibraryTransferService {
     private static func applyCSVRow(
         _ values: [String: String],
         titles: inout [MediaTitle],
+        titleMatchIndex: LibraryTitleMatchIndex,
         seen: inout Set<MediaTitle.ID>
     ) -> CSVRowResult {
-        guard let index = matchingTitleIndex(values, titles: titles) else { return .skipped }
+        guard let index = titleMatchIndex.matchingIndex(values) else { return .skipped }
         guard seen.insert(titles[index].id).inserted else { return .duplicate }
         applyCSVTracking(values, title: &titles[index])
         applyCSVProgress(values, title: &titles[index])

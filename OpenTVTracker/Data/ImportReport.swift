@@ -36,6 +36,7 @@ enum ImportResolutionReason: String, Hashable, Sendable {
     case ambiguousCatalogMatch
     case unsafeAnimeRelation
     case catalogUnavailable
+    case automaticResolutionLimit
 
     var label: String {
         switch self {
@@ -44,6 +45,7 @@ enum ImportResolutionReason: String, Hashable, Sendable {
         case .ambiguousCatalogMatch: "Several possible matches"
         case .unsafeAnimeRelation: "Anime relation needs confirmation"
         case .catalogUnavailable: "Catalog unavailable"
+        case .automaticResolutionLimit: "Resolve manually"
         }
     }
 }

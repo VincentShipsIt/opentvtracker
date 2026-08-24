@@ -78,6 +78,42 @@ final class CatalogImportSafetyTests: XCTestCase {
         XCTAssertEqual(requestCount, 0)
     }
 
+    func testThousandsOfUnresolvedEntitiesShareOneAutomaticCatalogRequestBudget() async {
+        let entityCount = 2_000
+        let aliasedEntityCount = 25
+        let entities = Self.unresolvedEntities(count: entityCount)
+        let current = Self.snapshotWithAliases(
+            for: entities,
+            count: aliasedEntityCount
+        )
+        let catalog = CountingSafetyCatalog(
+            searchResultsByText: Self.searchResults(for: entities)
+        )
+
+        let resolution = await TVTimeImportMerger.resolveTitles(
+            entities,
+            current: current,
+            catalog: catalog,
+            region: .malta
+        )
+
+        let counts = await catalog.callCounts()
+        XCTAssertEqual(counts.total, LibraryImportLimits.maximumTVTimeCatalogRequestCount)
+        XCTAssertGreaterThan(counts.title, aliasedEntityCount)
+        XCTAssertGreaterThan(counts.resolve, 0)
+        XCTAssertGreaterThan(counts.search, 0)
+        XCTAssertFalse(resolution.resolved.isEmpty)
+        XCTAssertEqual(resolution.resolved.count + resolution.issues.count, entityCount)
+        let deferredCount = resolution.issues.values.filter {
+            $0.reason == .automaticResolutionLimit
+        }.count
+        XCTAssertEqual(deferredCount, resolution.issues.count)
+        XCTAssertGreaterThanOrEqual(
+            deferredCount,
+            entityCount - LibraryImportLimits.maximumTVTimeCatalogRequestCount
+        )
+    }
+
     func testAnimeSeasonMustExistOnDetailedCatalogTitle() async {
         let anime = Self.title(
             id: "anime",
@@ -171,6 +207,53 @@ final class CatalogImportSafetyTests: XCTestCase {
         )
     }
 
+    private static func unresolvedEntities(count: Int) -> [TVTimeEntity] {
+        (0..<count).map { index in
+            TVTimeEntity(
+                identity: "series:tvdb:\(index + 1)",
+                sourceID: "\(index + 1)",
+                source: .tvdb,
+                title: "Unresolved Title \(index)",
+                year: 2_000 + index % 25,
+                kind: .series
+            )
+        }
+    }
+
+    private static func snapshotWithAliases(
+        for entities: [TVTimeEntity],
+        count: Int
+    ) -> LibrarySnapshot {
+        var snapshot = LibrarySnapshot.empty
+        snapshot.importResolutionAliases = Dictionary(
+            uniqueKeysWithValues: entities.prefix(count).enumerated().map { index, entity in
+                (
+                    entity.identity,
+                    ImportResolutionAlias(kind: .series, catalogID: index + 1)
+                )
+            }
+        )
+        return snapshot
+    }
+
+    private static func searchResults(
+        for entities: [TVTimeEntity]
+    ) -> [String: MediaTitle] {
+        Dictionary(
+            uniqueKeysWithValues: entities.enumerated().map { index, entity in
+                (
+                    entity.title,
+                    title(
+                        id: "catalog-\(index)",
+                        catalogID: 10_001 + index,
+                        title: entity.title,
+                        year: entity.year ?? 2_000
+                    )
+                )
+            }
+        )
+    }
+
     private func makeArchive(path: String, contents: String) throws -> Data {
         let archive = try Archive(accessMode: .create)
         let data = Data(contents.utf8)
@@ -214,20 +297,47 @@ private actor SafetyCatalog: CatalogProviding {
 }
 
 private actor CountingSafetyCatalog: CatalogProviding {
-    private(set) var requestCount = 0
+    private let searchResultsByText: [String: MediaTitle]
+    private var searchRequestCount = 0
+    private var titleRequestCount = 0
+    private var resolveRequestCount = 0
 
-    func search(_: MediaSearchQuery) async throws -> [MediaTitle] {
-        requestCount += 1
-        return []
+    var requestCount: Int {
+        searchRequestCount + titleRequestCount + resolveRequestCount
+    }
+
+    init(searchResultsByText: [String: MediaTitle] = [:]) {
+        self.searchResultsByText = searchResultsByText
+    }
+
+    func search(_ query: MediaSearchQuery) async throws -> [MediaTitle] {
+        searchRequestCount += 1
+        return searchResultsByText[query.text].map { [$0] } ?? []
     }
 
     func title(kind _: MediaKind, catalogID _: Int, region _: StreamingRegion) async throws -> MediaTitle {
-        requestCount += 1
+        titleRequestCount += 1
         throw CatalogServiceError.notFound
     }
 
     func resolve(_: ExternalCatalogReference, region _: StreamingRegion) async throws -> MediaTitle? {
-        requestCount += 1
+        resolveRequestCount += 1
         return nil
     }
+
+    func callCounts() -> CatalogRequestCounts {
+        CatalogRequestCounts(
+            search: searchRequestCount,
+            title: titleRequestCount,
+            resolve: resolveRequestCount,
+            total: requestCount
+        )
+    }
+}
+
+private struct CatalogRequestCounts {
+    let search: Int
+    let title: Int
+    let resolve: Int
+    let total: Int
 }

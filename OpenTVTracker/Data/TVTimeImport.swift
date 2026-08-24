@@ -236,6 +236,19 @@ struct TVTimeList: Sendable {
     let id: MediaList.ID
     var name: String
     var memberships: [TVTimeListMembership]
+    let generatedIDPrefix: String?
+
+    init(
+        id: MediaList.ID,
+        name: String,
+        memberships: [TVTimeListMembership],
+        generatedIDPrefix: String? = nil
+    ) {
+        self.id = id
+        self.name = name
+        self.memberships = memberships
+        self.generatedIDPrefix = generatedIDPrefix
+    }
 }
 
 struct TVTimeListMembership: Hashable, Sendable {

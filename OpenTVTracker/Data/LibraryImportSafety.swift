@@ -10,6 +10,7 @@ enum LibraryImportLimits {
     static let maximumFieldSize = 1 * 1_024 * 1_024
     static let maximumTVTimeListObjectsFieldSize = 8 * 1_024 * 1_024
     static let maximumTVTimeEntityCount = 10_000
+    static let maximumTVTimeCatalogRequestCount = 250
     static let maximumTVTimeListMembershipCount = maximumRecordCount
     static let maximumCSVFieldCount = 128
     static let maximumJSONDepth = 64
