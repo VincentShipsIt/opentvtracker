@@ -130,6 +130,11 @@ type ProviderPayload = {
 
 const API_URL = "https://api.themoviedb.org/3";
 const IMAGE_URL = "https://image.tmdb.org/t/p";
+const REVIEW_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
+const REVIEW_SOURCE_URL_PATTERN =
+  /^https:\/\/www\.themoviedb\.org\/review\/([A-Za-z0-9_-]{1,128})$/;
+const REVIEW_AVATAR_PATH_PATTERN =
+  /^\/[A-Za-z0-9][A-Za-z0-9._-]{0,511}$/;
 
 export class TMDBClient {
   constructor(private readonly token: string) {}
@@ -630,11 +635,11 @@ export function mapReviews(
       const authorDetails = asRecord(review.author_details);
       const content =
         stringValue(review.content)?.replace(/\s+/g, " ").trim() ?? "";
-      const providerID = stringValue(review.id);
+      const providerID = reviewID(stringValue(review.id));
       return {
         id: providerID
-          ? `tmdb-review-${providerID}`
-          : `tmdb-review-${page}-${index}`,
+          ? `tmdb-review-provider-${providerID}`
+          : `tmdb-review-fallback-${page}-${index}`,
         author: stringValue(review.author) ?? "TMDB member",
         excerpt: content,
         rating: numberValue(authorDetails.rating),
@@ -642,7 +647,7 @@ export function mapReviews(
         containsSpoilers: true,
         username: stringValue(authorDetails.username),
         avatarURL: reviewAvatarURL(stringValue(authorDetails.avatar_path)),
-        sourceURL: stringValue(review.url),
+        sourceURL: reviewSourceURL(providerID, stringValue(review.url)),
         createdAt: isoTimestamp(stringValue(review.created_at)),
         updatedAt: isoTimestamp(stringValue(review.updated_at)),
       };
@@ -675,10 +680,26 @@ function imageURL(
 }
 
 function reviewAvatarURL(path: string | null): string | null {
-  if (!path) return null;
-  if (path.startsWith("/https://") || path.startsWith("/http://"))
-    return path.slice(1);
-  return imageURL(path, "w185");
+  return path && REVIEW_AVATAR_PATH_PATTERN.test(path)
+    ? `${IMAGE_URL}/w185${path}`
+    : null;
+}
+
+function reviewID(value: string | null): string | null {
+  return value && REVIEW_ID_PATTERN.test(value) ? value : null;
+}
+
+function reviewSourceURL(
+  providerID: string | null,
+  upstreamURL: string | null,
+): string | null {
+  if (providerID) {
+    return `https://www.themoviedb.org/review/${providerID}`;
+  }
+  const fallbackID = upstreamURL?.match(REVIEW_SOURCE_URL_PATTERN)?.[1] ?? null;
+  return fallbackID
+    ? `https://www.themoviedb.org/review/${fallbackID}`
+    : null;
 }
 
 function youtubeURL(key: string | null): string | null {
