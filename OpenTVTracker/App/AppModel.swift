@@ -271,7 +271,9 @@ extension AppModel {
     func recordRewatch(_ id: MediaTitle.ID) {
         guard let index = ensureTrackableTitleIndex(for: id) else { return }
         let watchedAt = Date.now
-        titles[index].rewatchCount = titles[index].completedRewatches + 1
+        titles[index].rewatchCount = LibraryImportLimits.incrementedRewatchCount(
+            titles[index].completedRewatches
+        )
         titles[index].lastWatchedAt = watchedAt
         recordTitleRewatchInDiary(titles[index], watchedAt: watchedAt)
         appendWatchEvent(title: titles[index], kind: .rewatch, occurredAt: watchedAt)

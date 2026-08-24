@@ -3,6 +3,47 @@ import ZIPFoundation
 @testable import OpenTVTracker
 
 final class TVTimeImportTests: XCTestCase {
+    func testDateParserPreservesInternetAndLegacyFormats() throws {
+        let standard = try XCTUnwrap(TVTimeCSV.date(
+            ["watched_at": "2025-02-14T20:30:00Z"],
+            ["watched_at"]
+        ))
+        let fractional = try XCTUnwrap(TVTimeCSV.date(
+            ["watched_at": "2025-02-14T20:30:00.125Z"],
+            ["watched_at"]
+        ))
+        let legacy = try XCTUnwrap(TVTimeCSV.date(
+            ["watched_at": "2025-02-14 20:30:00"],
+            ["watched_at"]
+        ))
+
+        XCTAssertEqual(standard.timeIntervalSince1970, 1_739_565_000, accuracy: 0.001)
+        XCTAssertEqual(fractional.timeIntervalSince1970, 1_739_565_000.125, accuracy: 0.001)
+        XCTAssertEqual(legacy, standard)
+    }
+
+    func testHostileTVTimeNumbersAreRejectedOrBounded() throws {
+        XCTAssertNil(TVTimeCSV.int(["value": "1e100"], ["value"]))
+        XCTAssertNil(TVTimeCSV.double(["value": "1e309"], ["value"]))
+
+        let maximum = String(Int.max)
+        let archive = try TVTimeArchiveParser.parse(makeArchive([
+            "tvtime-series-episodes-2026.csv": """
+            series_tvdb_id,title,season,episode,is_watched,rewatch_count
+            37,Hostile Series,\(maximum),\(maximum),true,\(maximum)
+            """
+        ]))
+        let entity = try XCTUnwrap(archive.entities.first)
+        let watch = try XCTUnwrap(entity.watches.first)
+
+        XCTAssertEqual(watch.season, LibraryImportLimits.maximumImportedProgressValue)
+        XCTAssertEqual(watch.episode, LibraryImportLimits.maximumImportedProgressValue)
+        XCTAssertEqual(
+            watch.importedRewatchCount,
+            LibraryImportLimits.maximumImportedRewatchCount
+        )
+    }
+
     func testTVTimeZIPRestoresEpisodeHistoryRatingAndWatchDate() async throws {
         let archive = try makeArchive([
             "tracking-prod-records-v2.csv": """

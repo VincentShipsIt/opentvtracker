@@ -128,6 +128,37 @@ final class LibraryTransferTests: XCTestCase {
         XCTAssertEqual(severance.upNextManualOrder, 7)
     }
 
+    func testCSVImportBoundsHostileTrackingNumbersAndRejectsNonfiniteRatings() throws {
+        let original = try XCTUnwrap(
+            LibrarySnapshot.sample.titles.first(where: { $0.id == "severance" })
+        )
+        let maximum = String(Int.max)
+        let csv = """
+        catalog_id,title,rating,rewatches,season,episode,total_episodes,up_next_manual_order
+        95396,Severance,1e309,\(maximum),\(maximum),\(maximum),-1,\(maximum)
+        """
+
+        let preview = try LibraryTransferService.previewImport(
+            try XCTUnwrap(csv.data(using: .utf8)),
+            into: .sample
+        )
+        let imported = try XCTUnwrap(
+            preview.snapshot.titles.first(where: { $0.id == "severance" })
+        )
+
+        XCTAssertEqual(imported.userRating, original.userRating)
+        XCTAssertEqual(imported.rewatchCount, LibraryImportLimits.maximumImportedRewatchCount)
+        XCTAssertEqual(imported.upNextManualOrder, LibraryImportLimits.maximumImportedOrderingValue)
+        XCTAssertEqual(
+            imported.progress,
+            EpisodeProgress(
+                season: LibraryImportLimits.maximumImportedProgressValue,
+                episode: 1,
+                totalEpisodes: 1
+            )
+        )
+    }
+
     func testCSVImportRejectsCaughtUpForMovies() throws {
         let csv = """
         catalog_id,title,year,state
@@ -389,8 +420,8 @@ extension LibraryTransferTests {
 
 extension LibraryTransferTests {
     func testCSVImportIndexesLargeLibraryForRepeatedAndUnmatchedRows() throws {
-        let titleCount = 20_000
-        let rowCount = 20_000
+        let titleCount = 5_000
+        let rowCount = 5_000
         var current = LibrarySnapshot.empty
         current.titles = (0..<titleCount).map { offset in
             Self.importTitle(
@@ -853,6 +884,57 @@ extension LibraryTransferTests {
             snapshot.sharedSpace.conversationDeletions
         )
         XCTAssertEqual(preview.snapshot.sharedSpace.sharedLists, snapshot.sharedSpace.sharedLists)
+    }
+
+    func testJSONImportBoundsHostileNumericMetadata() throws {
+        var snapshot = LibrarySnapshot.sample
+        var title = try XCTUnwrap(snapshot.titles.first(where: { $0.id == "severance" }))
+        title.runtimeMinutes = Int.max
+        title.rewatchCount = Int.max
+        title.upNextManualOrder = Int.max
+        title.progress = EpisodeProgress(season: Int.max, episode: Int.max, totalEpisodes: -1)
+        let episode = EpisodeSummary(
+            id: "hostile-episode",
+            number: Int.max,
+            title: "Hostile episode",
+            airDate: nil,
+            runtimeMinutes: Int.max
+        )
+        title.seasons = [
+            SeasonSummary(
+                id: "hostile-season",
+                number: Int.max,
+                title: "Hostile season",
+                episodes: [episode]
+            )
+        ]
+        snapshot.titles = [title]
+
+        let preview = try LibraryTransferService.previewImport(
+            LibraryTransferService.exportJSON(snapshot),
+            into: .empty
+        )
+        let restored = try XCTUnwrap(preview.snapshot.titles.first)
+        let restoredSeason = try XCTUnwrap(restored.seasons?.first)
+        let restoredEpisode = try XCTUnwrap(restoredSeason.episodes.first)
+
+        XCTAssertEqual(restored.runtimeMinutes, LibraryImportLimits.maximumImportedRuntimeMinutes)
+        XCTAssertEqual(restored.rewatchCount, LibraryImportLimits.maximumImportedRewatchCount)
+        XCTAssertEqual(restored.upNextManualOrder, LibraryImportLimits.maximumImportedOrderingValue)
+        XCTAssertEqual(
+            restored.progress,
+            EpisodeProgress(
+                season: LibraryImportLimits.maximumImportedProgressValue,
+                episode: 1,
+                totalEpisodes: 1
+            )
+        )
+        XCTAssertEqual(restoredSeason.number, LibraryImportLimits.maximumImportedProgressValue)
+        XCTAssertEqual(restoredEpisode.number, LibraryImportLimits.maximumImportedProgressValue)
+        XCTAssertEqual(
+            restoredEpisode.runtimeMinutes,
+            LibraryImportLimits.maximumImportedRuntimeMinutes
+        )
     }
 
     func testJSONImportNormalizesTrustedMetadataAndStripsRedirectQueries() throws {

@@ -82,8 +82,10 @@ private extension LibraryListTransferService {
             let sourceID = LibraryTransferService.stringValue(in: values, keys: ["list_id"])
                 ?? stableListIdentifier(name)
             let listID = isTVTime ? "tvtime:\(sourceID)" : sourceID
-            let listPosition = LibraryTransferService.intValue(in: values, keys: ["list_position"])
-                ?? result.importedByID.count
+            let listPosition = LibraryTransferService.intValue(
+                in: values,
+                keys: ["list_position"]
+            ).map(LibraryImportLimits.boundedOrderingValue) ?? result.importedByID.count
             var accumulator = result.importedByID[listID] ?? ListCSVAccumulator(
                 id: listID,
                 name: name,
@@ -100,7 +102,7 @@ private extension LibraryListTransferService {
                 let itemPosition = LibraryTransferService.intValue(
                     in: values,
                     keys: ["item_position", "custom_order"]
-                ) ?? accumulator.members.count
+                ).map(LibraryImportLimits.boundedOrderingValue) ?? accumulator.members.count
                 accumulator.members.append(
                     (position: itemPosition, titleID: current.titles[titleIndex].id)
                 )

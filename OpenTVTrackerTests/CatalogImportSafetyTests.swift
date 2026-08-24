@@ -114,6 +114,36 @@ final class CatalogImportSafetyTests: XCTestCase {
         )
     }
 
+    func testCatalogBudgetDeduplicatesRequestsBeforeChargingTheLimit() async {
+        let catalog = CountingSafetyCatalog()
+        let budget = TVTimeCatalogRequestBudget(catalog: catalog, maximumRequestCount: 2)
+        let query = MediaSearchQuery(
+            text: "Severance",
+            kind: .series,
+            page: 1,
+            region: .malta
+        )
+
+        async let firstSearch = budget.search(query)
+        async let duplicateSearch = budget.search(query)
+        _ = await (firstSearch, duplicateSearch)
+        _ = await budget.title(kind: .series, catalogID: 95_396, region: .malta)
+        _ = await budget.title(kind: .series, catalogID: 95_396, region: .malta)
+        let exhausted = await budget.resolve(
+            ExternalCatalogReference(source: .tvdb, sourceID: 37_383, kind: .series),
+            region: .malta
+        )
+
+        guard case .requestLimitReached = exhausted else {
+            return XCTFail("Expected duplicate requests to consume only two budget slots")
+        }
+        let counts = await catalog.callCounts()
+        XCTAssertEqual(counts.search, 1)
+        XCTAssertEqual(counts.title, 1)
+        XCTAssertEqual(counts.resolve, 0)
+        XCTAssertEqual(counts.total, 2)
+    }
+
     func testAnimeSeasonMustExistOnDetailedCatalogTitle() async {
         let anime = Self.title(
             id: "anime",

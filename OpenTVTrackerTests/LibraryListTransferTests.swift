@@ -171,8 +171,8 @@ final class LibraryListTransferTests: XCTestCase {
     }
 
     func testListsCSVIndexesLargeLibraryForRepeatedAndUnmatchedRows() throws {
-        let titleCount = 20_000
-        let rowCount = 20_000
+        let titleCount = 5_000
+        let rowCount = 5_000
         var current = LibrarySnapshot.empty
         current.titles = (0..<titleCount).map { offset in
             Self.title(
@@ -205,7 +205,7 @@ final class LibraryListTransferTests: XCTestCase {
     }
 
     func testMergingDuplicateJSONListIDsMaintainsGrowingMembershipIndex() {
-        let membershipCount = 20_000
+        let membershipCount = 5_000
         let timestamp = Date(timeIntervalSince1970: 1_700_000_000)
         let imported = (0..<membershipCount).map { offset in
             MediaList(

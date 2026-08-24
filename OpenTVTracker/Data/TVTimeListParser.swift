@@ -270,7 +270,8 @@ enum TVTimeListParser {
             try membershipAccumulator.append(
                 TVTimeListMembership(
                     entityIdentity: entityIdentity,
-                    order: TVTimeCSV.int(values, ["custom_order"]) ?? Int.max
+                    order: TVTimeCSV.int(values, ["custom_order"])
+                        .map(LibraryImportLimits.boundedOrderingValue) ?? Int.max
                 ),
                 listID: listID,
                 name: name,

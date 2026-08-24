@@ -16,22 +16,26 @@ enum TVTimeArchiveParser {
                 continue
             }
             let filename = URL(fileURLWithPath: path).lastPathComponent.lowercased()
-            let rows = try TVTimeCSV.rows(
-                csv,
+            var normalizedHeader: [String]?
+            try TVTimeCSV.forEachRow(
+                in: csv,
                 maximumRecordCount: LibraryImportLimits.maximumRecordCount - recordCount,
                 maximumFieldSize: LibraryImportLimits.maximumFieldSize,
                 maximumValueCount: LibraryImportLimits.maximumCSVValueCount - valueCount,
                 maximumFieldSizesByHeader: filename == "lists-prod-lists.csv"
                     ? ["objects": LibraryImportLimits.maximumTVTimeListObjectsFieldSize]
                     : [:]
-            )
-            recordCount += max(rows.count - 1, 0)
-            valueCount += rows.reduce(0) { $0 + $1.count }
-            guard let header = rows.first, !header.isEmpty else { continue }
-            for row in rows.dropFirst() where row.contains(where: { !$0.isEmpty }) {
+            ) { row in
+                valueCount += row.count
+                guard let header = normalizedHeader else {
+                    normalizedHeader = TVTimeCSV.normalizedHeader(row)
+                    return
+                }
+                recordCount += 1
+                guard row.contains(where: { !$0.isEmpty }) else { return }
                 try parseRecord(
                     filename,
-                    values: TVTimeCSV.record(header: header, row: row),
+                    values: TVTimeCSV.record(normalizedHeader: header, row: row),
                     state: &state
                 )
                 guard state.entities.count <= LibraryImportLimits.maximumTVTimeEntityCount else {
@@ -168,7 +172,9 @@ private extension TVTimeArchiveParser {
         fillFlags(values, entity: &entities[identity, default: initial])
 
         let season = TVTimeCSV.int(values, ["s_no", "season_number", "season"])
+            .map(LibraryImportLimits.boundedProgressValue)
         let episode = TVTimeCSV.int(values, ["ep_no", "episode_number", "episode"])
+            .map(LibraryImportLimits.boundedProgressValue)
         let isEpisodeWatch = season != nil && episode != nil
             && (key.contains("watch") || key.isEmpty)
             && !key.contains("unwatch")
@@ -229,8 +235,14 @@ private extension TVTimeArchiveParser {
         } else {
             addWatch(
                 TVTimeWatch(
-                    season: kind == .series ? TVTimeCSV.int(values, ["season_number", "season", "s_no"]) : nil,
-                    episode: kind == .series ? TVTimeCSV.int(values, ["episode_number", "episode", "ep_no"]) : nil,
+                    season: kind == .series
+                        ? TVTimeCSV.int(values, ["season_number", "season", "s_no"])
+                            .map(LibraryImportLimits.boundedProgressValue)
+                        : nil,
+                    episode: kind == .series
+                        ? TVTimeCSV.int(values, ["episode_number", "episode", "ep_no"])
+                            .map(LibraryImportLimits.boundedProgressValue)
+                        : nil,
                     occurredAt: TVTimeCSV.date(values, ["watch_date_range_key", "watched_at", "created_at"]),
                     rating: TVTimeCSV.double(values, ["episode_rating", "rating", "rate"]),
                     isRewatch: false
@@ -306,7 +318,8 @@ private extension TVTimeArchiveParser {
         diagnostics: inout TVTimeImportDiagnostics
     ) {
         let scores = [1: 2.0, 27: 4.0, 28: 6.0, 29: 8.0, 3: 10.0]
-        guard TVTimeCSV.int(values, ["episode_id"]) ?? 0 == 0 else {
+        guard TVTimeCSV.string(values, ["episode_id"]) == nil
+                || TVTimeCSV.int(values, ["episode_id"]) == 0 else {
             diagnostics.unsupportedEpisodeRatingCount += 1
             return
         }

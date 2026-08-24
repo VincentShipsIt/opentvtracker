@@ -47,7 +47,9 @@ extension AppModel {
     func moveUpNextLower(_ id: MediaTitle.ID) {
         guard let index = trackableTitleIndex(for: id) else { return }
         let lowestOrder = titles.compactMap(\.upNextManualOrder).max() ?? 0
-        titles[index].upNextManualOrder = lowestOrder + 1
+        titles[index].upNextManualOrder = LibraryImportLimits.nextOrderingValue(
+            after: lowestOrder
+        )
         persist()
     }
 

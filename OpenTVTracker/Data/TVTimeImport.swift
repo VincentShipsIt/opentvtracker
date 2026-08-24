@@ -189,8 +189,8 @@ struct TVTimeEntity: Sendable {
                 watches.filter(\.isRewatch).count
             ].max() ?? 0
         }
-        return watches.reduce(0) {
-            $0 + $1.importedRewatchCount
+        return watches.reduce(0) { total, watch in
+            LibraryImportLimits.saturatingAdd(total, watch.importedRewatchCount)
         }
     }
 }

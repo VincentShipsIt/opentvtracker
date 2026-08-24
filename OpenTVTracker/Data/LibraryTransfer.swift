@@ -312,7 +312,7 @@ extension LibraryTransferService {
             title.notes = notes
         }
         if let rewatches = intValue(in: values, keys: ["rewatches", "rewatch_count"]) {
-            title.rewatchCount = max(rewatches, 0)
+            title.rewatchCount = LibraryImportLimits.boundedRewatchCount(rewatches)
         }
         if let watchedAt = stringValue(in: values, keys: ["last_watched_at", "watched_at"]) {
             title.lastWatchedAt = iso8601Date(watchedAt)
@@ -328,7 +328,7 @@ extension LibraryTransferService {
             title.upNextSnoozedUntil = iso8601Date(snoozedUntil)
         }
         if let manualOrder = intValue(in: values, keys: ["up_next_manual_order"]) {
-            title.upNextManualOrder = max(manualOrder, 0)
+            title.upNextManualOrder = LibraryImportLimits.boundedOrderingValue(manualOrder)
         }
     }
 
@@ -337,10 +337,15 @@ extension LibraryTransferService {
         let episode = intValue(in: values, keys: ["episode", "episode_number"])
         let totalEpisodes = intValue(in: values, keys: ["total_episodes", "episode_count"])
         guard let season, let episode else { return }
+        let boundedEpisode = LibraryImportLimits.boundedProgressValue(episode)
+        let boundedTotal = max(
+            LibraryImportLimits.boundedProgressValue(totalEpisodes ?? episode),
+            1
+        )
         title.progress = EpisodeProgress(
-            season: max(season, 1),
-            episode: max(episode, 0),
-            totalEpisodes: max(totalEpisodes ?? episode, 1)
+            season: max(LibraryImportLimits.boundedProgressValue(season), 1),
+            episode: min(boundedEpisode, boundedTotal),
+            totalEpisodes: boundedTotal
         )
     }
 
@@ -399,7 +404,11 @@ extension LibraryTransferService {
     }
 
     static func doubleValue(in values: [String: String], keys: [String]) -> Double? {
-        stringValue(in: values, keys: keys).flatMap(Double.init)
+        guard let value = stringValue(in: values, keys: keys).flatMap(Double.init),
+              value.isFinite else {
+            return nil
+        }
+        return value
     }
 
     static func boolValue(in values: [String: String], keys: [String]) -> Bool? {

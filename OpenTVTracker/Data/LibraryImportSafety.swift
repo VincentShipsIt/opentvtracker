@@ -12,9 +12,45 @@ enum LibraryImportLimits {
     static let maximumTVTimeEntityCount = 10_000
     static let maximumTVTimeCatalogRequestCount = 250
     static let maximumTVTimeListMembershipCount = maximumRecordCount
+    static let maximumImportedRewatchCount = 10_000
+    static let maximumImportedOrderingValue = maximumRecordCount
+    static let maximumImportedProgressValue = maximumRecordCount
+    static let maximumImportedRuntimeMinutes = 7 * 24 * 60
     static let maximumCSVFieldCount = 128
     static let maximumJSONDepth = 64
     static let maximumZIPEntryCount = 1_024
+
+    static func boundedRewatchCount(_ value: Int) -> Int {
+        min(max(value, 0), maximumImportedRewatchCount)
+    }
+
+    static func boundedOrderingValue(_ value: Int) -> Int {
+        min(max(value, 0), maximumImportedOrderingValue)
+    }
+
+    static func boundedProgressValue(_ value: Int) -> Int {
+        min(max(value, 0), maximumImportedProgressValue)
+    }
+
+    static func boundedRuntimeMinutes(_ value: Int) -> Int {
+        min(max(value, 0), maximumImportedRuntimeMinutes)
+    }
+
+    static func incrementedRewatchCount(_ value: Int) -> Int {
+        let bounded = boundedRewatchCount(value)
+        return bounded < maximumImportedRewatchCount ? bounded + 1 : bounded
+    }
+
+    static func nextOrderingValue(after value: Int) -> Int {
+        let bounded = boundedOrderingValue(value)
+        return bounded < maximumImportedOrderingValue ? bounded + 1 : bounded
+    }
+
+    static func saturatingAdd(_ lhs: Int, _ rhs: Int) -> Int {
+        let result = lhs.addingReportingOverflow(rhs)
+        guard result.overflow else { return result.partialValue }
+        return rhs >= 0 ? Int.max : Int.min
+    }
 }
 
 enum LibraryImportSafetyError: LocalizedError, Equatable {
@@ -110,7 +146,30 @@ enum BoundedCSVParser {
         maximumValueCount: Int = LibraryImportLimits.maximumCSVValueCount,
         maximumFieldSizesByHeader: [String: Int] = [:]
     ) throws -> [[String]] {
-        var rows: [[String]] = []
+        var result: [[String]] = []
+        try forEachRow(
+            in: csv,
+            maximumRecordCount: maximumRecordCount,
+            maximumFieldSize: maximumFieldSize,
+            maximumValueCount: maximumValueCount,
+            maximumFieldSizesByHeader: maximumFieldSizesByHeader
+        ) { row in
+            result.append(row)
+        }
+        return result
+    }
+
+    /// Parses and releases each logical row before continuing. Large TV Time exports can contain
+    /// hundreds of thousands of rows, so retaining the complete row matrix alongside the archive
+    /// model defeats the otherwise bounded file and record limits.
+    static func forEachRow(
+        in csv: String,
+        maximumRecordCount: Int = LibraryImportLimits.maximumRecordCount,
+        maximumFieldSize: Int = LibraryImportLimits.maximumFieldSize,
+        maximumValueCount: Int = LibraryImportLimits.maximumCSVValueCount,
+        maximumFieldSizesByHeader: [String: Int] = [:],
+        _ body: ([String]) throws -> Void
+    ) throws {
         var row: [String] = []
         let bytes = csv.utf8
         var fieldBytes: [UInt8] = []
@@ -119,6 +178,7 @@ enum BoundedCSVParser {
         var isQuoted = false
         var index = bytes.startIndex
         var fieldSizeOverridesByIndex: [Int: Int] = [:]
+        var completedRowCount = 0
 
         func currentFieldSizeLimit() -> Int {
             fieldSizeOverridesByIndex[row.count] ?? maximumFieldSize
@@ -146,10 +206,12 @@ enum BoundedCSVParser {
         func finishRow() throws {
             try finishField()
             // The first logical row is the header and is not an imported record.
-            guard rows.count < maximumRecordCount + 1 else {
+            let isHeader = completedRowCount == 0
+            let importedRecordCount = max(completedRowCount - 1, 0)
+            guard isHeader || importedRecordCount < max(maximumRecordCount, 0) else {
                 throw LibraryImportSafetyError.tooManyRecords
             }
-            if rows.isEmpty, !maximumFieldSizesByHeader.isEmpty {
+            if isHeader, !maximumFieldSizesByHeader.isEmpty {
                 fieldSizeOverridesByIndex = Dictionary(
                     uniqueKeysWithValues: row.enumerated().compactMap { index, fieldName in
                         let normalized = fieldName
@@ -160,8 +222,9 @@ enum BoundedCSVParser {
                     }
                 )
             }
-            rows.append(row)
-            row = []
+            try body(row)
+            completedRowCount += 1
+            row.removeAll(keepingCapacity: true)
         }
 
         while index != bytes.endIndex {
@@ -191,7 +254,6 @@ enum BoundedCSVParser {
         if !fieldBytes.isEmpty || !row.isEmpty {
             try finishRow()
         }
-        return rows
     }
 }
 
@@ -347,6 +409,25 @@ enum ImportedLibraryMetadataSanitizer {
 
     private static func sanitized(_ source: MediaTitle) -> MediaTitle {
         var title = source
+        title.runtimeMinutes = LibraryImportLimits.boundedRuntimeMinutes(source.runtimeMinutes)
+        title.rewatchCount = source.rewatchCount.map(LibraryImportLimits.boundedRewatchCount)
+        title.upNextManualOrder = source.upNextManualOrder.map(
+            LibraryImportLimits.boundedOrderingValue
+        )
+        title.progress = source.progress.map { progress in
+            let totalEpisodes = max(
+                LibraryImportLimits.boundedProgressValue(progress.totalEpisodes),
+                1
+            )
+            return EpisodeProgress(
+                season: max(LibraryImportLimits.boundedProgressValue(progress.season), 1),
+                episode: min(
+                    LibraryImportLimits.boundedProgressValue(progress.episode),
+                    totalEpisodes
+                ),
+                totalEpisodes: totalEpisodes
+            )
+        }
         title.posterURL = normalizedArtworkURL(source.posterURL)
         title.backdropURL = normalizedArtworkURL(source.backdropURL)
         title.trailerURL = normalizedHTTPSURL(source.trailerURL, allowedHosts: trailerHosts)
@@ -360,12 +441,23 @@ enum ImportedLibraryMetadataSanitizer {
         title.seasons = source.seasons?.map { season in
             SeasonSummary(
                 id: season.id,
-                number: season.number,
+                number: LibraryImportLimits.boundedProgressValue(season.number),
                 title: season.title,
                 episodes: season.episodes.map { episode in
-                    var result = episode
-                    result.stillURL = normalizedArtworkURL(episode.stillURL)
-                    return result
+                    EpisodeSummary(
+                        id: episode.id,
+                        number: LibraryImportLimits.boundedProgressValue(episode.number),
+                        title: episode.title,
+                        airDate: episode.airDate,
+                        runtimeMinutes: episode.runtimeMinutes.map(
+                            LibraryImportLimits.boundedRuntimeMinutes
+                        ),
+                        overview: episode.overview,
+                        stillURL: normalizedArtworkURL(episode.stillURL),
+                        rating: episode.rating,
+                        releaseType: episode.releaseType,
+                        airDateIsAllDay: episode.airDateIsAllDay
+                    )
                 },
                 artworkURL: normalizedArtworkURL(season.artworkURL)
             )

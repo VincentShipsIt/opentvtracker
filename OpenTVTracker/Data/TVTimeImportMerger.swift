@@ -17,7 +17,7 @@ enum TVTimeImportMerger {
         var issues: [String: ImportResolutionIssue] = [:]
         var warnings: [ImportWarning] = []
         var unresolved: [TVTimeEntity] = []
-        let requestBudget = TVTimeCatalogRequestBudget()
+        let requestBudget = TVTimeCatalogRequestBudget(catalog: catalog)
         let currentTitles = TVTimeMediaTitleLookup(current.titles)
         let aliases = current.importResolutionAliases ?? [:]
         var currentTitleByAlias: [ImportResolutionAlias: MediaTitle] = [:]
@@ -43,7 +43,6 @@ enum TVTimeImportMerger {
         let aliasResolution = await TVTimeImportAliasResolver.resolve(
             entities.filter { aliasTitles[$0.identity] == nil },
             aliases: aliases,
-            catalog: catalog,
             region: region,
             requestBudget: requestBudget
         )
@@ -72,7 +71,6 @@ enum TVTimeImportMerger {
 
         let catalogResolution = await TVTimeCatalogResolver.resolveTitles(
             unresolved,
-            catalog: catalog,
             region: region,
             requestBudget: requestBudget
         )
@@ -195,7 +193,7 @@ private extension TVTimeImportMerger {
                 shouldShare: entity.hasTrackingData
                     || !listMembershipEntityIdentities.contains(entity.identity)
             ) else {
-                totals.skippedCount += 1
+                totals.skippedCount = LibraryImportLimits.saturatingAdd(totals.skippedCount, 1)
                 continue
             }
             totals.add(result)
@@ -212,7 +210,10 @@ private extension TVTimeImportMerger {
         snapshot.lists = listMerge.lists
         totals.listCount = archive.lists.count
         totals.listMembershipCount = listMerge.importedMemberships
-        totals.skippedCount += listMerge.skippedMemberships
+        totals.skippedCount = LibraryImportLimits.saturatingAdd(
+            totals.skippedCount,
+            listMerge.skippedMemberships
+        )
         return totals
     }
 
@@ -287,14 +288,26 @@ private struct PreviewMergeTotals {
     )
 
     mutating func add(_ result: EntityMergeResult) {
-        matchedCount += result.matchedCount
-        addedCount += result.addedCount
-        watchedEpisodeCount += result.watchedEpisodeCount
-        watchEventCount += result.watchEventCount
-        unmatchedEpisodeCount += result.unmatchedEpisodeCount
-        skippedCount += result.skippedCount
+        matchedCount = LibraryImportLimits.saturatingAdd(matchedCount, result.matchedCount)
+        addedCount = LibraryImportLimits.saturatingAdd(addedCount, result.addedCount)
+        watchedEpisodeCount = LibraryImportLimits.saturatingAdd(
+            watchedEpisodeCount,
+            result.watchedEpisodeCount
+        )
+        watchEventCount = LibraryImportLimits.saturatingAdd(
+            watchEventCount,
+            result.watchEventCount
+        )
+        unmatchedEpisodeCount = LibraryImportLimits.saturatingAdd(
+            unmatchedEpisodeCount,
+            result.unmatchedEpisodeCount
+        )
+        skippedCount = LibraryImportLimits.saturatingAdd(skippedCount, result.skippedCount)
         for (category, count) in result.destinationCounts {
-            destinationCounts[category, default: 0] += count
+            destinationCounts[category] = LibraryImportLimits.saturatingAdd(
+                destinationCounts[category, default: 0],
+                count
+            )
         }
     }
 }
