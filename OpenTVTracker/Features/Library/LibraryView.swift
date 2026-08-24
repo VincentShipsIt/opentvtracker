@@ -250,7 +250,7 @@ private struct LibraryShelfPicker: View {
                     if dynamicTypeSize.isAccessibilitySize {
                         chip(for: shelf)
                             .containerRelativeFrame(.horizontal) { width, _ in
-                                width - (AppTheme.horizontalPadding * 2)
+                                accessiblePageWidth(for: width)
                             }
                     } else {
                         chip(for: shelf)
@@ -263,6 +263,19 @@ private struct LibraryShelfPicker: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Library shelves")
+    }
+
+    private func accessiblePageWidth(for proposedWidth: CGFloat) -> CGFloat {
+        let minimumWidth = AppAccessibility.minimumTouchTarget
+        let horizontalInset = AppTheme.horizontalPadding * 2
+
+        guard proposedWidth.isFinite,
+              horizontalInset.isFinite,
+              proposedWidth > horizontalInset else {
+            return minimumWidth
+        }
+
+        return max(minimumWidth, proposedWidth - horizontalInset)
     }
 
     private func chip(for shelf: LibraryShelf) -> some View {
