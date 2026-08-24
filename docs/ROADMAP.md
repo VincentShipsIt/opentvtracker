@@ -1,6 +1,6 @@
 # Roadmap
 
-Last reviewed 2026-08-12. Marketing version 0.1.1, build 6. Latest GitHub source release v0.1.3.
+Last reviewed 2026-08-24. Current app version and build metadata are defined in [`project.yml`](../project.yml); published source versions are listed under [GitHub Releases](https://github.com/VincentShipsIt/opentvtracker/releases).
 
 ## Shipped
 
