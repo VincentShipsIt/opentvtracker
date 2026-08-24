@@ -141,6 +141,10 @@ struct OpenTVTrackerApp: App {
                     model.markPartnerReinvitationRequired()
                 }
                 .onChange(of: scenePhase) { _, phase in
+                    if phase == .inactive || phase == .background {
+                        Task { await model.prepareForSuspension() }
+                        return
+                    }
                     guard phase == .active else { return }
                     Task {
                         await model.startCloudSyncIfNeeded()
