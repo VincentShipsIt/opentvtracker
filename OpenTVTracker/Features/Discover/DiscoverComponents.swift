@@ -197,6 +197,16 @@ struct CatalogSearchCard: View {
     let spaceMode: AppSpaceMode
     var onInvitePartner: (() -> Void)?
 
+    init(
+        result: MediaTitle,
+        spaceMode: AppSpaceMode,
+        onInvitePartner: (() -> Void)? = nil
+    ) {
+        self.result = result
+        self.spaceMode = spaceMode
+        self.onInvitePartner = onInvitePartner
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
             NavigationLink(value: title) {
