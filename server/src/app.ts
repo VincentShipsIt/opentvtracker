@@ -48,6 +48,11 @@ type CachedValue = { body: string; etag: string; expiresAt: number };
 export class ResponseCache {
   /** Insertion order is treated as LRU: re-get/set moves keys to the end. */
   private readonly values = new Map<string, CachedValue>();
+  /** Pending entries exist only for the lifetime of their unsettled loads. */
+  private readonly pendingLoads = new Map<
+    string,
+    Promise<CachedValue | null>
+  >();
 
   constructor(
     private readonly maximumEntries = 500,
@@ -81,6 +86,36 @@ export class ResponseCache {
     };
     this.values.set(key, value);
     return value;
+  }
+
+  load(
+    key: string,
+    ttlMilliseconds: number,
+    load: () => Promise<string>,
+  ): Promise<CachedValue>;
+  load(
+    key: string,
+    ttlMilliseconds: number,
+    load: () => Promise<string | null>,
+  ): Promise<CachedValue | null>;
+  load(
+    key: string,
+    ttlMilliseconds: number,
+    load: () => Promise<string | null>,
+  ): Promise<CachedValue | null> {
+    const pending = this.pendingLoads.get(key);
+    if (pending) return pending;
+
+    const next = Promise.resolve()
+      .then(load)
+      .then((body) =>
+        body === null ? null : this.set(key, body, ttlMilliseconds),
+      )
+      .finally(() => {
+        this.pendingLoads.delete(key);
+      });
+    this.pendingLoads.set(key, next);
+    return next;
   }
 }
 
@@ -491,10 +526,11 @@ async function cachedJSON(
       config,
       cacheHeaders(cached.etag, tag, ttlMilliseconds),
     );
-  const body = JSON.stringify(await load());
-  const value = cache.set(key, body, ttlMilliseconds);
+  const value = await cache.load(key, ttlMilliseconds, async () =>
+    JSON.stringify(await load()),
+  );
   return rawJSON(
-    body,
+    value.body,
     200,
     config,
     cacheHeaders(value.etag, tag, ttlMilliseconds),
@@ -526,12 +562,13 @@ async function cachedOptionalJSON(
       config,
       cacheHeaders(cached.etag, tag, ttlMilliseconds),
     );
-  const loaded = await load();
-  if (loaded === null) return response({ error: "Not found" }, 404, config);
-  const body = JSON.stringify(loaded);
-  const value = cache.set(key, body, ttlMilliseconds);
+  const value = await cache.load(key, ttlMilliseconds, async () => {
+    const loaded = await load();
+    return loaded === null ? null : JSON.stringify(loaded);
+  });
+  if (value === null) return response({ error: "Not found" }, 404, config);
   return rawJSON(
-    body,
+    value.body,
     200,
     config,
     cacheHeaders(value.etag, tag, ttlMilliseconds),
