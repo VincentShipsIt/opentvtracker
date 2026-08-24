@@ -41,12 +41,15 @@ The three tabs are **Today**, **Discover**, and **Library**. Tracking works with
 
 ## Development
 
-The Xcode project is generated from `project.yml` using [XcodeGen](https://github.com/yonaskolb/XcodeGen). The app targets iPhone and iPad (`TARGETED_DEVICE_FAMILY: 1,2`) on iOS 26+.
+The Xcode project is generated from `project.yml` using the repository-pinned XcodeGen 2.46.0 entrypoint. The app targets iPhone and iPad (`TARGETED_DEVICE_FAMILY: 1,2`) on iOS 26+.
 
 ```sh
-xcodegen generate
+.github/scripts/generate-ios-project.sh generate
+.github/scripts/generate-ios-project.sh check
 open OpenTVTracker.xcodeproj
 ```
+
+`generate` verifies the pinned XcodeGen release checksum, the exact ZIPFoundation lock, and the app's entitlement contract before regenerating the project. `check` generates twice, requires byte-stable output, and rejects committed-project drift. Keep `OpenTVTracker.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved` committed; CI refuses package versions outside that lock.
 
 The keyless build works with public TV sources. For a local proxy, copy `Config/Secrets.example.xcconfig` to the ignored `Config/Secrets.xcconfig`, set your proxy URL, and use the development-only App Attest bypass described in [self-hosting](docs/SELF_HOSTING.md). Never ship that bypass token.
 

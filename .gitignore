@@ -15,6 +15,7 @@ ExportOptions.plist
 .build/
 .swiftpm/
 Package.resolved
+!OpenTVTracker.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
 
 # Credentials
 Config/Secrets.xcconfig

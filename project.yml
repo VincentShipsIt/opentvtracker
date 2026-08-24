@@ -17,7 +17,7 @@ settings:
 packages:
   ZIPFoundation:
     url: https://github.com/weichsel/ZIPFoundation
-    from: 0.9.20
+    exactVersion: 0.9.20
 targets:
   OpenTVTracker:
     type: application
@@ -83,14 +83,6 @@ targets:
           CODE_SIGN_STYLE: Manual
           PROVISIONING_PROFILE_SPECIFIER: $(APP_STORE_PROFILE_NAME)
           PUSH_NOTIFICATIONS_ENVIRONMENT: production
-    attributes:
-      SystemCapabilities:
-        com.apple.iCloud:
-          enabled: 1
-        com.apple.Push:
-          enabled: 1
-        com.apple.DeviceCheck:
-          enabled: 1
     dependencies:
       - package: ZIPFoundation
       - target: OpenTVWidgets
