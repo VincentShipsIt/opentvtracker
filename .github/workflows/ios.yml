@@ -25,6 +25,8 @@ jobs:
         run: xcodebuild -version
       - name: Verify reproducible Xcode project
         run: .github/scripts/generate-ios-project.sh check
+      - name: Enforce pinned SwiftLint
+        run: .github/scripts/run-swiftlint.sh
       - name: Resolve locked Swift packages
         run: >-
           xcodebuild -resolvePackageDependencies

@@ -4,7 +4,7 @@ The app target links ZIPFoundation (MIT) to inspect TV Time data-export ZIP arch
 
 The remaining app dependencies are Apple system frameworks: SwiftUI, Observation, Foundation, SwiftData, CloudKit, UIKit, UniformTypeIdentifiers, Speech, and WebKit. No third-party binary SDK is embedded.
 
-Development uses XcodeGen through the checksum-verified repository entrypoint. XcodeGen is MIT licensed. [`.swiftlint.yml`](../.swiftlint.yml) configures optional local SwiftLint checks; SwiftLint is not a required CI job. GitHub Action versions are owned by the workflow manifests in [`.github/workflows`](../.github/workflows).
+Development uses XcodeGen through the checksum-verified repository entrypoint. XcodeGen is MIT licensed. The existing iOS build-and-test job runs [SwiftLint](https://github.com/realm/SwiftLint/blob/0.65.0/LICENSE) under its MIT license through the checksum-verified [`.github/scripts/run-swiftlint.sh`](../.github/scripts/run-swiftlint.sh) entrypoint; [`.swiftlint.yml`](../.swiftlint.yml) owns the lint configuration. GitHub Action versions are owned by the workflow manifests in [`.github/workflows`](../.github/workflows).
 
 The optional Bun proxy depends on `node-app-attest` (MIT) for Apple App Attest verification. Its cryptography and CBOR dependency tree includes `asn1js` and `pkijs` (BSD-3-Clause) and `cbor` (MIT), plus their transitive dependencies recorded in `server/bun.lock`. Distribution of a self-hosted proxy must retain the dependency license notices shipped in `server/node_modules` or the corresponding package archives.
 
