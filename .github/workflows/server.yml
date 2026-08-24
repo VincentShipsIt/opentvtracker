@@ -13,6 +13,8 @@ concurrency:
 jobs:
   test-and-typecheck:
     name: test-and-typecheck
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     defaults:
       run:

@@ -72,7 +72,7 @@ jobs:
             echo "::error::TestFlight must be dispatched from the protected main workflow; received workflow ref $WORKFLOW_REF."
             exit 1
           fi
-          git fetch origin main --no-tags
+          git fetch --no-tags origin '+refs/heads/main:refs/remotes/origin/main'
           source_sha="$(git rev-parse 'HEAD^{commit}')"
           if [[ ! "$source_sha" =~ ^[0-9a-f]{40}$ ]]; then
             echo "::error::Release source did not resolve to one full Git SHA: $source_sha"
@@ -129,6 +129,7 @@ jobs:
         with:
           ref: ${{ needs.verify-source.outputs.source_sha }}
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Select Xcode
         run: |

@@ -87,4 +87,4 @@ Operational gates for a public or TestFlight source release. The former standalo
 - [ ] On two devices, test invite, accept, watched-together partner notification, denied-then-enabled notification permission, decline, revoke, leave, offline retry, relaunch persistence, and Apple ID switch.
 - [ ] Test JSON/CSV export/import rollback (including diary and lists CSV), VoiceOver, Dynamic Type, contrast, reduced motion/transparency, and button shapes.
 - [ ] Verify TMDB/JustWatch/TVmaze attribution and official cinema links (live Embassy showtimes; Eden/Citadel booking links).
-- [ ] Require exact-SHA `build-and-test`, `test-and-typecheck`, and `gitleaks` success from their push-to-`main` workflow suites, publish a `vX.Y.Z` GitHub release, then dispatch the protected-main TestFlight workflow using the steps above.
+- [ ] Publish a `vX.Y.Z` GitHub release, dispatch the protected-main TestFlight workflow using the steps above, and require its pre-upload gate to confirm exact-SHA `build-and-test`, `test-and-typecheck`, and `gitleaks` success from the push-to-`main` workflow suites.

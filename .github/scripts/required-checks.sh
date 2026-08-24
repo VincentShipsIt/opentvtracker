@@ -121,7 +121,7 @@ required_checks_api_collection() {
 
   jq -s --arg key "$collection_key" '{
     total_count: (map(.total_count) | max),
-    items: [.[].[$key][]]
+    items: [.[] | .[$key][]]
   }' "${page_files[@]}" > "$output"
   rm -f "${page_files[@]}"
 }
