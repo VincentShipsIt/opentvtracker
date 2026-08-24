@@ -364,7 +364,9 @@ extension LibrarySnapshot {
         MediaTitle(
             id: "ui-test-catalog-\(index)",
             catalogID: 99_100 + index,
-            title: "Catalog Pick \(index)",
+            title: index == 1
+                ? "A Deliberately Long Catalog Pick for Accessibility Layout Verification"
+                : "Catalog Pick \(index)",
             year: 2019 + index,
             kind: .movie,
             synopsis: "A deterministic catalog title used to populate browsable shelves.",
