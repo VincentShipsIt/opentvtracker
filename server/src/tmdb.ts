@@ -136,8 +136,166 @@ const REVIEW_SOURCE_URL_PATTERN =
 const REVIEW_AVATAR_PATH_PATTERN =
   /^\/[A-Za-z0-9][A-Za-z0-9._-]{0,511}$/;
 
+const DEFAULT_MAXIMUM_ACTIVE_REQUESTS = 8;
+const DEFAULT_MAXIMUM_PENDING_REQUESTS = 64;
+const DEFAULT_REQUEST_DEADLINE_MILLISECONDS = 8_000;
+const MAXIMUM_ENRICHMENT_WORKERS = 8;
+
+export type TMDBFetch = (
+  input: string | URL | Request,
+  init?: RequestInit,
+) => Promise<Response>;
+
+export type TMDBClientOptions = {
+  fetch?: TMDBFetch;
+  maximumActiveRequests?: number;
+  maximumPendingRequests?: number;
+  requestDeadlineMilliseconds?: number;
+};
+
+export class TMDBCapacityError extends Error {
+  constructor() {
+    super("TMDB request capacity exhausted");
+    this.name = "TMDBCapacityError";
+  }
+}
+
+export class TMDBTimeoutError extends Error {
+  constructor() {
+    super("TMDB request timed out");
+    this.name = "TMDBTimeoutError";
+  }
+}
+
+type ScheduledRequest = {
+  controller: AbortController;
+  task: (signal: AbortSignal) => Promise<unknown>;
+  resolve: (value: unknown) => void;
+  reject: (error: unknown) => void;
+  timer: ReturnType<typeof setTimeout> | null;
+  state: "queued" | "active" | "settled";
+};
+
+/** Per-client FIFO ceiling for every TMDB fetch, including response decoding. */
+class TMDBRequestScheduler {
+  private activeRequests = 0;
+  private readonly pendingRequests: ScheduledRequest[] = [];
+
+  constructor(
+    private readonly maximumActiveRequests: number,
+    private readonly maximumPendingRequests: number,
+    private readonly requestDeadlineMilliseconds: number,
+  ) {}
+
+  run<Value>(task: (signal: AbortSignal) => Promise<Value>): Promise<Value> {
+    const controller = new AbortController();
+    return new Promise<Value>((resolve, reject) => {
+      const request: ScheduledRequest = {
+        controller,
+        task,
+        resolve: (value: unknown) => resolve(value as Value),
+        reject,
+        timer: null,
+        state: "queued",
+      };
+      // The deadline includes queueing so pending work cannot live forever.
+      request.timer = setTimeout(
+        () => this.expire(request),
+        this.requestDeadlineMilliseconds,
+      );
+
+      if (this.activeRequests < this.maximumActiveRequests) {
+        this.start(request);
+      } else if (this.pendingRequests.length < this.maximumPendingRequests) {
+        this.pendingRequests.push(request);
+      } else {
+        if (request.timer !== null) clearTimeout(request.timer);
+        request.state = "settled";
+        reject(new TMDBCapacityError());
+      }
+    });
+  }
+
+  private start(request: ScheduledRequest): void {
+    if (request.state !== "queued") return;
+    request.state = "active";
+    this.activeRequests += 1;
+    Promise.resolve()
+      .then(() => request.task(request.controller.signal))
+      .then(
+        (value) => this.settleActive(request, true, value),
+        (error: unknown) => this.settleActive(request, false, error),
+      );
+  }
+
+  private expire(request: ScheduledRequest): void {
+    if (request.state === "settled") return;
+    const wasActive = request.state === "active";
+    if (!wasActive) {
+      const index = this.pendingRequests.indexOf(request);
+      if (index >= 0) this.pendingRequests.splice(index, 1);
+    }
+    request.state = "settled";
+    request.controller.abort();
+    request.reject(new TMDBTimeoutError());
+    if (wasActive) this.releasePermit();
+  }
+
+  private settleActive(
+    request: ScheduledRequest,
+    succeeded: boolean,
+    result: unknown,
+  ): void {
+    if (request.state !== "active") return;
+    if (request.timer !== null) clearTimeout(request.timer);
+    request.state = "settled";
+    if (succeeded) request.resolve(result);
+    else request.reject(result);
+    this.releasePermit();
+  }
+
+  private releasePermit(): void {
+    this.activeRequests -= 1;
+    while (
+      this.activeRequests < this.maximumActiveRequests &&
+      this.pendingRequests.length > 0
+    ) {
+      const next = this.pendingRequests.shift();
+      if (next?.state === "queued") this.start(next);
+    }
+  }
+}
+
 export class TMDBClient {
-  constructor(private readonly token: string) {}
+  private readonly fetchImplementation: TMDBFetch;
+  private readonly scheduler: TMDBRequestScheduler;
+
+  constructor(
+    private readonly token: string,
+    options: TMDBClientOptions = {},
+  ) {
+    this.fetchImplementation = options.fetch ?? globalThis.fetch;
+    this.scheduler = new TMDBRequestScheduler(
+      validatedSchedulerInteger(
+        options.maximumActiveRequests,
+        DEFAULT_MAXIMUM_ACTIVE_REQUESTS,
+        1,
+        "maximumActiveRequests",
+      ),
+      validatedSchedulerInteger(
+        options.maximumPendingRequests,
+        DEFAULT_MAXIMUM_PENDING_REQUESTS,
+        0,
+        "maximumPendingRequests",
+      ),
+      validatedSchedulerInteger(
+        options.requestDeadlineMilliseconds,
+        DEFAULT_REQUEST_DEADLINE_MILLISECONDS,
+        1,
+        "requestDeadlineMilliseconds",
+      ),
+    );
+  }
 
   async search(
     query: string,
@@ -151,15 +309,17 @@ export class TMDBClient {
       ? await this.searchItems(query, kind, page, locale)
       : await this.browseItems(kind, page, language);
 
-    const settled = await Promise.allSettled(
-      items.map(async (item) => {
+    const settled = await settledMapBounded(
+      items,
+      MAXIMUM_ENRICHMENT_WORKERS,
+      async (item) => {
         const resolvedKind = mediaKind(item.media_type);
         const namespace = resolvedKind === "movie" ? "movie" : "tv";
         const details = await this.get<Record<string, unknown>>(
           `/${namespace}/${item.id}?append_to_response=watch/providers,alternative_titles,translations&language=${locale}`,
         );
         return mapDetails(details, resolvedKind, region, null);
-      }),
+      },
     );
     return settled.flatMap((result) =>
       result.status === "fulfilled" ? [result.value] : [],
@@ -276,17 +436,25 @@ export class TMDBClient {
     locale: string,
   ): Promise<SeasonSummary[]> {
     const listedSeasons = Array.isArray(details.seasons) ? details.seasons : [];
-    const seasonNumbers = listedSeasons
-      .map((value) => asRecord(value))
-      .map((season) => numberValue(season.season_number))
-      .filter((number): number is number => number !== null);
+    const seasonNumbers = [
+      ...new Set(
+        listedSeasons
+          .map((value) => asRecord(value))
+          .map((season) => numberValue(season.season_number))
+          .filter(
+            (number): number is number =>
+              number !== null && Number.isSafeInteger(number) && number >= 0,
+          ),
+      ),
+    ];
 
-    const settled = await Promise.allSettled(
-      seasonNumbers.map((number) =>
+    const settled = await settledMapBounded(
+      seasonNumbers,
+      MAXIMUM_ENRICHMENT_WORKERS,
+      (number) =>
         this.get<Record<string, unknown>>(
           `/tv/${showID}/season/${number}?language=${locale}`,
         ),
-      ),
     );
     return settled
       .flatMap((result) => {
@@ -311,17 +479,48 @@ export class TMDBClient {
   }
 
   private async get<Response>(path: string): Promise<Response> {
-    const response = await fetch(`${API_URL}${path}`, {
-      headers: {
-        Accept: "application/json",
-        Authorization: `Bearer ${this.token}`,
-        "User-Agent": "OpenTVTracker/0.1",
-      },
-      signal: AbortSignal.timeout(8_000),
+    return this.scheduler.run(async (signal) => {
+      const response = await this.fetchImplementation(`${API_URL}${path}`, {
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${this.token}`,
+          "User-Agent": "OpenTVTracker/0.1",
+        },
+        signal,
+      });
+      if (!response.ok) throw new Error(`TMDB returned ${response.status}`);
+      return response.json() as Promise<Response>;
     });
-    if (!response.ok) throw new Error(`TMDB returned ${response.status}`);
-    return response.json() as Promise<Response>;
   }
+}
+
+async function settledMapBounded<Input, Output>(
+  values: readonly Input[],
+  maximumWorkers: number,
+  transform: (value: Input, index: number) => Promise<Output>,
+): Promise<PromiseSettledResult<Output>[]> {
+  const results = new Array<PromiseSettledResult<Output>>(values.length);
+  let nextIndex = 0;
+  const worker = async (): Promise<void> => {
+    while (nextIndex < values.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      try {
+        results[index] = {
+          status: "fulfilled",
+          value: await transform(values[index]!, index),
+        };
+      } catch (reason) {
+        results[index] = { status: "rejected", reason };
+      }
+    }
+  };
+  const workers = Array.from(
+    { length: Math.min(maximumWorkers, values.length) },
+    () => worker(),
+  );
+  await Promise.all(workers);
+  return results;
 }
 
 export function tmdbLocale(language: string): string {
@@ -753,6 +952,19 @@ function boundedInteger(
     parsed <= maximum
     ? parsed
     : fallback;
+}
+
+function validatedSchedulerInteger(
+  value: number | undefined,
+  fallback: number,
+  minimum: number,
+  name: string,
+): number {
+  if (value === undefined) return fallback;
+  if (!Number.isSafeInteger(value) || value < minimum) {
+    throw new RangeError(`${name} must be a safe integer >= ${minimum}`);
+  }
+  return value;
 }
 
 function normalizedTitle(value: string): string {
