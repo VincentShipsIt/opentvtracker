@@ -44,7 +44,7 @@ final class CatalogPaginationTests: XCTestCase {
             pages: [
                 1: [severance, theBear],
                 2: [theBear, fallout],
-                3: [fallout, slowHorses],
+                3: [fallout, slowHorses]
             ],
             pageThatFailsOnce: 3,
             notFoundPage: 4
@@ -60,7 +60,7 @@ final class CatalogPaginationTests: XCTestCase {
         XCTAssertEqual(model.discoveryCatalogTitles.map(\.id), [
             severance.id,
             theBear.id,
-            fallout.id,
+            fallout.id
         ])
         XCTAssertEqual(model.discoveryCatalogPagination.nextPage, 3)
         XCTAssertTrue(model.hasMoreDiscoveryCatalogTitles)
@@ -77,7 +77,7 @@ final class CatalogPaginationTests: XCTestCase {
             severance.id,
             theBear.id,
             fallout.id,
-            slowHorses.id,
+            slowHorses.id
         ])
         XCTAssertEqual(model.discoveryCatalogPagination.nextPage, 4)
         // Discovery rows are readable without entering the durable library.
@@ -119,7 +119,7 @@ final class CatalogPaginationTests: XCTestCase {
         let service = DiscoveryCatalogPaginationStub(
             pages: [
                 1: [severance],
-                2: [fallout],
+                2: [fallout]
             ],
             pageThatFailsOnce: 2,
             notFoundPage: 3

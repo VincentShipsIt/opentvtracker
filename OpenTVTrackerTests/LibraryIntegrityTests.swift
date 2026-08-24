@@ -7,14 +7,14 @@ final class LibraryIntegrityTests: XCTestCase {
         let firstWins = CollectionUniquing.dictionary(keepingFirst: [
             ("a", 1),
             ("a", 2),
-            ("b", 3),
+            ("b", 3)
         ])
         XCTAssertEqual(firstWins, ["a": 1, "b": 3])
 
         let lastWins = CollectionUniquing.dictionary(keepingLast: [
             ("a", 1),
             ("a", 2),
-            ("b", 3),
+            ("b", 3)
         ])
         XCTAssertEqual(lastWins, ["a": 2, "b": 3])
     }
@@ -51,7 +51,7 @@ final class LibraryIntegrityTests: XCTestCase {
         let fallout = try XCTUnwrap(LibrarySnapshot.sample.titles.first { $0.id == "fallout" })
         let service = IntegrityDiscoveryStub(pages: [
             1: [severance],
-            2: [fallout],
+            2: [fallout]
         ])
         let store = MemoryLibraryStore()
         let model = AppModel(store: store, catalogService: service, seed: .empty)
@@ -124,7 +124,7 @@ final class LibraryIntegrityTests: XCTestCase {
 
         space.members = [
             SpaceMember(id: "partner", name: "P", initials: "P", isCurrentUser: false),
-            SpaceMember(id: "me", name: "Me", initials: "ME", isCurrentUser: true),
+            SpaceMember(id: "me", name: "Me", initials: "ME", isCurrentUser: true)
         ]
         XCTAssertEqual(space.currentMemberID, "me")
         XCTAssertEqual(space.resolvedCurrentMemberID, "me")
