@@ -35,16 +35,33 @@ enum TVTimeImportReportBuilder {
             keepingFirst: ImportMetricCategory.allCases.map { ($0, 0) }
         )
         for entity in archive.entities {
-            counts[entity.kind == .series ? .shows : .movies, default: 0] += 1
-            counts[.episodes, default: 0] += entity.watches.filter {
+            let kindCategory: ImportMetricCategory = entity.kind == .series ? .shows : .movies
+            counts[kindCategory] = LibraryImportLimits.saturatingAdd(
+                counts[kindCategory, default: 0],
+                1
+            )
+            let episodeCount = entity.watches.filter {
                 entity.kind == .series && $0.season != nil && $0.episode != nil
             }.count
-            counts[.rewatches, default: 0] += entity.importedRewatchCount
+            counts[.episodes] = LibraryImportLimits.saturatingAdd(
+                counts[.episodes, default: 0],
+                episodeCount
+            )
+            counts[.rewatches] = LibraryImportLimits.saturatingAdd(
+                counts[.rewatches, default: 0],
+                entity.importedRewatchCount
+            )
             if entity.rating != nil {
-                counts[.ratings, default: 0] += 1
+                counts[.ratings] = LibraryImportLimits.saturatingAdd(
+                    counts[.ratings, default: 0],
+                    1
+                )
             }
             if isWatchlistEntry(entity) {
-                counts[.watchlist, default: 0] += 1
+                counts[.watchlist] = LibraryImportLimits.saturatingAdd(
+                    counts[.watchlist, default: 0],
+                    1
+                )
             }
         }
         return counts

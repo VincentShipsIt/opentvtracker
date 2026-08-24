@@ -123,11 +123,14 @@ struct TVTimeArchive: Sendable {
     var duplicateCount: Int
     var diagnostics: TVTimeImportDiagnostics
 
-    func containsListOnly(_ entity: TVTimeEntity) -> Bool {
-        !entity.hasTrackingData
-            && lists.contains { list in
-                list.memberships.contains { $0.entityIdentity == entity.identity }
+    var listMembershipEntityIdentities: Set<String> {
+        var identities = Set<String>()
+        for list in lists {
+            for membership in list.memberships {
+                identities.insert(membership.entityIdentity)
             }
+        }
+        return identities
     }
 }
 
@@ -186,8 +189,8 @@ struct TVTimeEntity: Sendable {
                 watches.filter(\.isRewatch).count
             ].max() ?? 0
         }
-        return watches.reduce(0) {
-            $0 + $1.importedRewatchCount
+        return watches.reduce(0) { total, watch in
+            LibraryImportLimits.saturatingAdd(total, watch.importedRewatchCount)
         }
     }
 }
@@ -233,6 +236,19 @@ struct TVTimeList: Sendable {
     let id: MediaList.ID
     var name: String
     var memberships: [TVTimeListMembership]
+    let generatedIDPrefix: String?
+
+    init(
+        id: MediaList.ID,
+        name: String,
+        memberships: [TVTimeListMembership],
+        generatedIDPrefix: String? = nil
+    ) {
+        self.id = id
+        self.name = name
+        self.memberships = memberships
+        self.generatedIDPrefix = generatedIDPrefix
+    }
 }
 
 struct TVTimeListMembership: Hashable, Sendable {
@@ -244,6 +260,8 @@ enum TVTimeImportError: LocalizedError {
     case emptyArchive
     case invalidArchive
     case archiveTooLarge
+    case tooManyArchiveEntries
+    case duplicateRecognizedPath
     case noSupportedData
 
     var errorDescription: String? {
@@ -251,6 +269,8 @@ enum TVTimeImportError: LocalizedError {
         case .emptyArchive: "The TV Time export ZIP is empty."
         case .invalidArchive: "OpenTV could not read this TV Time export ZIP."
         case .archiveTooLarge: "This archive is too large to import safely."
+        case .tooManyArchiveEntries: "This ZIP contains more entries than OpenTV can safely process."
+        case .duplicateRecognizedPath: "This ZIP contains duplicate TV Time data files."
         case .noSupportedData: "This ZIP does not contain recognizable TV Time tracking data."
         }
     }

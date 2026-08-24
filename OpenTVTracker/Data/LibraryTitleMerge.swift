@@ -16,40 +16,15 @@ extension LibraryTransferService {
         if title.catalogID > 0 {
             return "catalog:\(resolvedMetadataSource(title).rawValue):\(title.kind.rawValue):\(title.catalogID)"
         }
-        return "title:\(title.kind.rawValue):\(normalizedTitle(title.title)):\(title.year)"
+        return titleIdentityKey(for: title)
+    }
+
+    static func titleIdentityKey(for title: MediaTitle) -> String {
+        "title:\(title.kind.rawValue):\(normalizedTitle(title.title)):\(title.year)"
     }
 
     static func resolvedMetadataSource(_ title: MediaTitle) -> MetadataSource {
         title.metadataSource ?? .tmdb
-    }
-
-    static func matchingTitleIndex(
-        _ values: [String: String],
-        titles: [MediaTitle]
-    ) -> Array<MediaTitle>.Index? {
-        if let titleID = stringValue(in: values, keys: ["title_id"]),
-           let index = titles.firstIndex(where: { $0.id == titleID }) {
-            return index
-        }
-        let catalogID = intValue(in: values, keys: ["catalog_id", "tmdb_id", "id"])
-        let metadataSource = stringValue(in: values, keys: ["metadata_source", "source"])
-            .flatMap(MetadataSource.init(csvValue:))
-        let titleName = stringValue(in: values, keys: ["title", "name", "series_name", "movie_name"])
-        let year = intValue(in: values, keys: ["year", "release_year"])
-        let kind = stringValue(in: values, keys: ["kind", "media_kind", "type"])
-            .flatMap(MediaKind.init(rawValue:))
-
-        return titles.firstIndex { title in
-            if let catalogID, catalogID > 0 {
-                return title.catalogID == catalogID
-                    && (kind == nil || title.kind == kind)
-                    && (metadataSource == nil || resolvedMetadataSource(title) == metadataSource)
-            }
-            guard let titleName else { return false }
-            return normalizedTitle(title.title) == normalizedTitle(titleName)
-                && (year == nil || title.year == year)
-                && (kind == nil || title.kind == kind)
-        }
     }
 
     static func normalizedTitle(_ title: String) -> String {
@@ -81,5 +56,107 @@ extension LibraryTransferService {
         result.upNextSnoozedUntil = preservesMissingLegacyValues ? imported.upNextSnoozedUntil ?? catalog.upNextSnoozedUntil : imported.upNextSnoozedUntil
         result.upNextManualOrder = preservesMissingLegacyValues ? imported.upNextManualOrder ?? catalog.upNextManualOrder : imported.upNextManualOrder
         return result
+    }
+}
+
+struct LibraryTitleMatchIndex {
+    private struct CatalogKey: Hashable {
+        let catalogID: Int
+        let kind: MediaKind?
+        let metadataSource: MetadataSource?
+    }
+
+    private struct TitleKey: Hashable {
+        let normalizedTitle: String
+        let year: Int?
+        let kind: MediaKind?
+    }
+
+    typealias TitleIndex = Array<MediaTitle>.Index
+
+    private var indexByTitleID: [MediaTitle.ID: TitleIndex] = [:]
+    private var catalogIndex: [CatalogKey: TitleIndex] = [:]
+    private var titleIndex: [TitleKey: TitleIndex] = [:]
+
+    init(titles: [MediaTitle]) {
+        indexByTitleID.reserveCapacity(titles.count)
+        catalogIndex.reserveCapacity(titles.count)
+        titleIndex.reserveCapacity(titles.count)
+
+        for index in titles.indices {
+            let title = titles[index]
+            if indexByTitleID[title.id] == nil {
+                indexByTitleID[title.id] = index
+            }
+
+            if title.catalogID > 0 {
+                let metadataSource = LibraryTransferService.resolvedMetadataSource(title)
+                for key in [
+                    CatalogKey(catalogID: title.catalogID, kind: nil, metadataSource: nil),
+                    CatalogKey(catalogID: title.catalogID, kind: title.kind, metadataSource: nil),
+                    CatalogKey(catalogID: title.catalogID, kind: nil, metadataSource: metadataSource),
+                    CatalogKey(
+                        catalogID: title.catalogID,
+                        kind: title.kind,
+                        metadataSource: metadataSource
+                    )
+                ] where catalogIndex[key] == nil {
+                    catalogIndex[key] = index
+                }
+            }
+
+            let normalizedTitle = LibraryTransferService.normalizedTitle(title.title)
+            for key in [
+                TitleKey(normalizedTitle: normalizedTitle, year: nil, kind: nil),
+                TitleKey(normalizedTitle: normalizedTitle, year: title.year, kind: nil),
+                TitleKey(normalizedTitle: normalizedTitle, year: nil, kind: title.kind),
+                TitleKey(normalizedTitle: normalizedTitle, year: title.year, kind: title.kind)
+            ] where titleIndex[key] == nil {
+                titleIndex[key] = index
+            }
+        }
+    }
+
+    func matchingIndex(_ values: [String: String]) -> TitleIndex? {
+        if let titleID = LibraryTransferService.stringValue(in: values, keys: ["title_id"]),
+           let index = indexByTitleID[titleID] {
+            return index
+        }
+        let catalogID = LibraryTransferService.intValue(
+            in: values,
+            keys: ["catalog_id", "tmdb_id", "id"]
+        )
+        let metadataSource = LibraryTransferService.stringValue(
+            in: values,
+            keys: ["metadata_source", "source"]
+        ).flatMap(MetadataSource.init(csvValue:))
+        let kind = LibraryTransferService.stringValue(
+            in: values,
+            keys: ["kind", "media_kind", "type"]
+        ).flatMap(MediaKind.init(rawValue:))
+
+        if let catalogID, catalogID > 0 {
+            return catalogIndex[
+                CatalogKey(
+                    catalogID: catalogID,
+                    kind: kind,
+                    metadataSource: metadataSource
+                )
+            ]
+        }
+        guard let titleName = LibraryTransferService.stringValue(
+            in: values,
+            keys: ["title", "name", "series_name", "movie_name"]
+        ) else {
+            return nil
+        }
+        let year = LibraryTransferService.intValue(in: values, keys: ["year", "release_year"])
+        return titleIndex[
+            TitleKey(
+                normalizedTitle: LibraryTransferService.normalizedTitle(titleName),
+                year: year,
+                kind: kind
+            )
+        ]
     }
 }

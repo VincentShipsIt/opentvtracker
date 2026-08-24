@@ -46,25 +46,44 @@ extension LibraryTransferService {
         preservingExistingIDs: Set<MediaList.ID> = []
     ) -> [MediaList] {
         var merged = current
+        var indexByID: [MediaList.ID: Array<MediaList>.Index] = [:]
+        var membershipIndexes = current.map { Set($0.titleIDs) }
+        indexByID.reserveCapacity(current.count + imported.count)
+        membershipIndexes.reserveCapacity(current.count + imported.count)
+        for index in merged.indices where indexByID[merged[index].id] == nil {
+            indexByID[merged[index].id] = index
+        }
         for importedList in imported {
-            if let index = merged.firstIndex(where: { $0.id == importedList.id }) {
+            if let index = indexByID[importedList.id] {
                 if preservingExistingIDs.contains(importedList.id) {
-                    let existingIDs = Set(merged[index].titleIDs)
                     merged[index].titleIDs.append(
-                        contentsOf: importedList.titleIDs.filter { !existingIDs.contains($0) }
+                        contentsOf: importedList.titleIDs.filter {
+                            !membershipIndexes[index].contains($0)
+                        }
                     )
                     merged[index].updatedAt = .now
                 } else {
-                    merged[index] = mergingList(importedList, into: merged[index])
+                    merged[index] = mergingList(
+                        importedList,
+                        into: merged[index],
+                        currentMembershipIDs: membershipIndexes[index]
+                    )
                 }
+                membershipIndexes[index].formUnion(importedList.titleIDs)
             } else {
                 merged.append(importedList)
+                indexByID[importedList.id] = merged.index(before: merged.endIndex)
+                membershipIndexes.append(Set(importedList.titleIDs))
             }
         }
         return merged
     }
 
-    private static func mergingList(_ imported: MediaList, into current: MediaList) -> MediaList {
+    private static func mergingList(
+        _ imported: MediaList,
+        into current: MediaList,
+        currentMembershipIDs: Set<MediaTitle.ID>
+    ) -> MediaList {
         if imported.updatedAt > current.updatedAt {
             var merged = imported
             let importedIDs = Set(imported.titleIDs)
@@ -72,8 +91,9 @@ extension LibraryTransferService {
             return merged
         }
         var merged = current
-        let currentIDs = Set(current.titleIDs)
-        merged.titleIDs.append(contentsOf: imported.titleIDs.filter { !currentIDs.contains($0) })
+        merged.titleIDs.append(
+            contentsOf: imported.titleIDs.filter { !currentMembershipIDs.contains($0) }
+        )
         return merged
     }
 }

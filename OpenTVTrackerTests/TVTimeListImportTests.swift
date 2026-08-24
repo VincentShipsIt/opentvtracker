@@ -4,6 +4,121 @@ import ZIPFoundation
 @testable import OpenTVTracker
 
 final class TVTimeListImportTests: XCTestCase {
+    func testTwentyThousandUniqueTVTimeListsMergeWithoutRepeatedListScans() {
+        let listCount = 20_000
+        let imported = (0..<listCount).map { index in
+            TVTimeList(
+                id: "tvtime:bulk:\(index)",
+                name: "Bulk list \(index)",
+                memberships: []
+            )
+        }
+
+        let result = TVTimeListMerger.merge(imported, into: [], resolved: [:])
+
+        XCTAssertEqual(result.lists.count, listCount)
+        XCTAssertEqual(result.lists.first?.id, "tvtime:bulk:0")
+        XCTAssertEqual(result.lists.last?.id, "tvtime:bulk:\(listCount - 1)")
+        XCTAssertEqual(result.importedMemberships, 0)
+        XCTAssertEqual(result.skippedMemberships, 0)
+    }
+
+    func testGDPRObjectsIsTheOnlyFieldGrantedTheLargerByteLimit() throws {
+        let rows = try TVTimeCSV.rows(
+            "name,objects\nList,123456789",
+            maximumFieldSize: 8,
+            maximumFieldSizesByHeader: ["objects": 16]
+        )
+        XCTAssertEqual(rows.last, ["List", "123456789"])
+
+        XCTAssertThrowsError(
+            try TVTimeCSV.rows(
+                "name,objects\n123456789,short",
+                maximumFieldSize: 8,
+                maximumFieldSizesByHeader: ["objects": 16]
+            )
+        ) { error in
+            XCTAssertEqual(error as? LibraryImportSafetyError, .fieldTooLarge)
+        }
+    }
+
+    func testGDPRMembershipLimitDeduplicatesBeforeAppending() throws {
+        var lists: [MediaList.ID: TVTimeList] = [:]
+        var membershipAccumulator = TVTimeListMembershipAccumulator(maximumCount: 2)
+        let records = [[
+            "name": "Favorites",
+            "objects": """
+            [map[id:1 type:series] map[id:1 type:series] map[id:2 type:series] map[id:3 type:series]]
+            """
+        ]]
+
+        XCTAssertThrowsError(
+            try TVTimeListParser.parseGDPR(
+                records,
+                lists: &lists,
+                membershipAccumulator: &membershipAccumulator
+            )
+        ) { error in
+            XCTAssertEqual(error as? LibraryImportSafetyError, .tooManyTVTimeListMemberships)
+        }
+
+        let list = try XCTUnwrap(
+            lists[
+                "tvtime:gdpr:sha256-7a1f2a83aca9a0819f244d5b4a7a0e7f6b779eb709dd4744136b22e724dbb10b"
+            ]
+        )
+        XCTAssertEqual(list.memberships.map(\.entityIdentity), [
+            "series:source:1",
+            "series:source:2"
+        ])
+        XCTAssertEqual(list.memberships.map(\.order), [0, 2])
+        XCTAssertEqual(membershipAccumulator.count, 2)
+        XCTAssertEqual(membershipAccumulator.identityIndex[list.id]?.count, 2)
+    }
+
+    func testMaximumLengthGDPRListNameUsesFixedIdentifierForManyMemberships() throws {
+        let name = String(repeating: "n", count: LibraryImportLimits.maximumFieldSize)
+        let membershipCount = LibraryImportLimits.maximumTVTimeEntityCount
+        let objects = (0..<membershipCount)
+            .map { "map[id:\($0) type:series]" }
+            .joined(separator: " ")
+        var lists: [MediaList.ID: TVTimeList] = [:]
+        var membershipAccumulator = TVTimeListMembershipAccumulator()
+
+        try TVTimeListParser.parseGDPR(
+            [["name": name, "objects": objects]],
+            lists: &lists,
+            membershipAccumulator: &membershipAccumulator
+        )
+
+        let list = try XCTUnwrap(lists.values.first)
+        XCTAssertEqual(name.utf8.count, LibraryImportLimits.maximumFieldSize)
+        XCTAssertEqual(list.id.utf8.count, "tvtime:gdpr:sha256-".utf8.count + 64)
+        XCTAssertTrue(list.id.hasPrefix("tvtime:gdpr:sha256-"))
+        XCTAssertEqual(list.memberships.count, membershipCount)
+        XCTAssertEqual(membershipAccumulator.count, membershipCount)
+        XCTAssertEqual(membershipAccumulator.identityIndex[list.id]?.count, membershipCount)
+    }
+
+    func testGDPRObjectSubfieldsRemainNormallyBounded() throws {
+        var lists: [MediaList.ID: TVTimeList] = [:]
+        var membershipAccumulator = TVTimeListMembershipAccumulator()
+
+        XCTAssertThrowsError(
+            try TVTimeListParser.parseGDPR(
+                [["name": "Favorites", "objects": "[map[id:12345 type:series]]"]],
+                lists: &lists,
+                membershipAccumulator: &membershipAccumulator,
+                maximumObjectFieldSize: 4
+            )
+        ) { error in
+            XCTAssertEqual(error as? LibraryImportSafetyError, .fieldTooLarge)
+        }
+
+        XCTAssertTrue(lists.isEmpty)
+        XCTAssertEqual(membershipAccumulator.count, 0)
+    }
+
     func testNativeExportImportsMixedCustomListInManualOrder() async throws {
         let archive = try makeArchive([
             "tvtime-lists-2026-07-05.csv": """
@@ -112,5 +227,95 @@ final class TVTimeListImportTests: XCTestCase {
             )
         }
         return try XCTUnwrap(archive.data)
+    }
+}
+
+extension TVTimeListImportTests {
+    func testExplicitNativeListIDCannotImpersonateGeneratedIdentifier() {
+        let generatedID = BoundedStableIdentifier.identifier(for: "Favorites")
+        let records = [
+            ["list_name": "Favorites", "tvdb_id": "1"],
+            ["list_id": generatedID, "list_name": "Another list", "tvdb_id": "2"]
+        ]
+        var entities: [String: TVTimeEntity] = [:]
+        var lists: [MediaList.ID: TVTimeList] = [:]
+        var membershipAccumulator = TVTimeListMembershipAccumulator()
+
+        XCTAssertThrowsError(
+            try TVTimeListParser.parseNative(
+                records,
+                entities: &entities,
+                lists: &lists,
+                membershipAccumulator: &membershipAccumulator
+            )
+        ) { error in
+            guard let importError = error as? TVTimeImportError,
+                  case .invalidArchive = importError else {
+                return XCTFail("Expected invalidArchive, got \(error)")
+            }
+        }
+        XCTAssertEqual(lists.values.first?.name, "Favorites")
+        XCTAssertEqual(membershipAccumulator.count, 1)
+    }
+
+    func testGeneratedListIdentifierRetriesInsteadOfMergingHashCollision() throws {
+        let prefix = "tvtime:gdpr:"
+        let collidingID = "\(prefix)forced-0"
+        let lists = [
+            collidingID: TVTimeList(id: collidingID, name: "Another list", memberships: [])
+        ]
+
+        let generatedID = try TVTimeListIdentifier.generatedID(
+            prefix: prefix,
+            name: "Favorites",
+            lists: lists,
+            identifier: { _, collisionAttempt in "forced-\(collisionAttempt)" }
+        )
+
+        XCTAssertEqual(generatedID, "\(prefix)forced-1")
+    }
+
+    func testGeneratedListIdentifierReusesLegacyHexListWithoutDuplicatingIt() {
+        let legacyID = "tvtime:gdpr:4661766f7269746573"
+        let generatedID = "tvtime:gdpr:\(BoundedStableIdentifier.identifier(for: "Favorites"))"
+        let current = [
+            MediaList(id: legacyID, name: "Favorites", titleIDs: [], updatedAt: .distantPast)
+        ]
+        let imported = [
+            TVTimeList(
+                id: generatedID,
+                name: "Favorites",
+                memberships: [],
+                generatedIDPrefix: "tvtime:gdpr:"
+            )
+        ]
+
+        let result = TVTimeListMerger.merge(imported, into: current, resolved: [:])
+
+        XCTAssertEqual(result.lists.count, 1)
+        XCTAssertEqual(result.lists.first?.id, legacyID)
+    }
+
+    func testGeneratedListMergeDoesNotReuseConflictingPersistedIdentifier() {
+        let generatedID = "tvtime:gdpr:\(BoundedStableIdentifier.identifier(for: "Favorites"))"
+        let current = [
+            MediaList(id: generatedID, name: "Another list", titleIDs: [], updatedAt: .distantPast)
+        ]
+        let imported = [
+            TVTimeList(
+                id: generatedID,
+                name: "Favorites",
+                memberships: [],
+                generatedIDPrefix: "tvtime:gdpr:"
+            )
+        ]
+
+        let result = TVTimeListMerger.merge(imported, into: current, resolved: [:])
+
+        XCTAssertEqual(result.lists.count, 2)
+        XCTAssertEqual(result.lists.first?.name, "Another list")
+        XCTAssertEqual(result.lists.last?.name, "Favorites")
+        XCTAssertNotEqual(result.lists.last?.id, generatedID)
+        XCTAssertEqual(result.lists.last?.id.utf8.count, "tvtime:gdpr:sha256-".utf8.count + 64)
     }
 }

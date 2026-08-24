@@ -29,6 +29,7 @@ Expected adversaries include automated scrapers, replay attackers, modified or f
 - **Unsupported/simulator bypass:** production has no bypass; development requires an explicit secret and receives one quarter of normal origin quotas.
 - **CORS confusion:** native auth is App Attest; CORS is optional and does not affect authorization.
 - **Log exfiltration:** structured logs use path only and exclude query, IP, headers, body, secrets, assertions, receipts, and personal fields.
+- **Malicious library import:** selected files are size-preflighted and read through a capped stream; JSON/CSV records, fields, semantic TV Time entities and list memberships, plus ZIP entries and actual expansion are bounded before catalog resolution or persistence; duplicate recognized TV Time paths are rejected after locale-stable Unicode folding; and imported or legacy-persisted auto-loaded artwork is limited to supported catalog image hosts before hydration.
 - **Operator-funded AI abuse:** the server has no OpenRouter credential or reranking endpoint; users pay through their own capped key.
 - **Nearby invitation interception:** pairing advertises only while the owner keeps the screen open; the invitation travels over TLS authenticated by the displayed code and is accepted through the existing CloudKit flow.
 

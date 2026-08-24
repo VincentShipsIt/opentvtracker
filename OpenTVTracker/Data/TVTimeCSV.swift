@@ -1,49 +1,58 @@
 import Foundation
 
 enum TVTimeCSV {
-    static func rows(_ csv: String) -> [[String]] {
-        var rows: [[String]] = []
-        var row: [String] = []
-        var field = ""
-        var isQuoted = false
-        var index = csv.startIndex
+    private static let internetDateTimeWithFractionalSeconds = Date.ISO8601FormatStyle(
+        includingFractionalSeconds: true
+    )
+    private static let internetDateTime = Date.ISO8601FormatStyle()
 
-        while index < csv.endIndex {
-            let character = csv[index]
-            if character == "\"" {
-                let next = csv.index(after: index)
-                if isQuoted, next < csv.endIndex, csv[next] == "\"" {
-                    field.append("\"")
-                    index = next
-                } else {
-                    isQuoted.toggle()
-                }
-            } else if character == ",", !isQuoted {
-                row.append(field)
-                field = ""
-            } else if character == "\n", !isQuoted {
-                row.append(field.trimmingCharacters(in: .newlines))
-                rows.append(row)
-                row = []
-                field = ""
-            } else if character != "\r" || isQuoted {
-                field.append(character)
-            }
-            index = csv.index(after: index)
-        }
-        if !field.isEmpty || !row.isEmpty {
-            row.append(field)
-            rows.append(row)
-        }
-        return rows
+    static func rows(
+        _ csv: String,
+        maximumRecordCount: Int = LibraryImportLimits.maximumRecordCount,
+        maximumFieldSize: Int = LibraryImportLimits.maximumFieldSize,
+        maximumValueCount: Int = LibraryImportLimits.maximumCSVValueCount,
+        maximumFieldSizesByHeader: [String: Int] = [:]
+    ) throws -> [[String]] {
+        try BoundedCSVParser.rows(
+            csv,
+            maximumRecordCount: maximumRecordCount,
+            maximumFieldSize: maximumFieldSize,
+            maximumValueCount: maximumValueCount,
+            maximumFieldSizesByHeader: maximumFieldSizesByHeader
+        )
+    }
+
+    static func forEachRow(
+        in csv: String,
+        maximumRecordCount: Int = LibraryImportLimits.maximumRecordCount,
+        maximumFieldSize: Int = LibraryImportLimits.maximumFieldSize,
+        maximumValueCount: Int = LibraryImportLimits.maximumCSVValueCount,
+        maximumFieldSizesByHeader: [String: Int] = [:],
+        _ body: ([String]) throws -> Void
+    ) throws {
+        try BoundedCSVParser.forEachRow(
+            in: csv,
+            maximumRecordCount: maximumRecordCount,
+            maximumFieldSize: maximumFieldSize,
+            maximumValueCount: maximumValueCount,
+            maximumFieldSizesByHeader: maximumFieldSizesByHeader,
+            body
+        )
     }
 
     static func record(header: [String], row: [String]) -> [String: String] {
-        let normalizedHeader = header.map {
+        record(normalizedHeader: normalizedHeader(header), row: row)
+    }
+
+    static func normalizedHeader(_ header: [String]) -> [String] {
+        header.map {
             $0.trimmingCharacters(in: .whitespacesAndNewlines)
                 .lowercased()
                 .replacingOccurrences(of: " ", with: "_")
         }
+    }
+
+    static func record(normalizedHeader: [String], row: [String]) -> [String: String] {
         let padded = row + Array(repeating: "", count: max(0, normalizedHeader.count - row.count))
         return zip(normalizedHeader, padded).reduce(into: [:]) { result, pair in
             result[pair.0] = pair.1.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -58,12 +67,15 @@ enum TVTimeCSV {
         string(values, keys).flatMap { value in
             if let integer = Int(value) { return integer }
             guard let number = Double(value), number.isFinite else { return nil }
-            return Int(number)
+            return Int(exactly: number)
         }
     }
 
     static func double(_ values: [String: String], _ keys: [String]) -> Double? {
-        string(values, keys).flatMap(Double.init)
+        guard let value = string(values, keys).flatMap(Double.init), value.isFinite else {
+            return nil
+        }
+        return value
     }
 
     static func bool(_ values: [String: String], _ keys: [String]) -> Bool? {
@@ -85,11 +97,8 @@ enum TVTimeCSV {
         if let epoch = epochSeconds(value) {
             return Date(timeIntervalSince1970: epoch)
         }
-        let internetFormatter = ISO8601DateFormatter()
-        internetFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let date = internetFormatter.date(from: value) { return date }
-        internetFormatter.formatOptions = [.withInternetDateTime]
-        if let date = internetFormatter.date(from: value) { return date }
+        if let date = try? internetDateTimeWithFractionalSeconds.parse(value) { return date }
+        if let date = try? internetDateTime.parse(value) { return date }
 
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
@@ -110,8 +119,13 @@ enum TVTimeCSV {
         } else {
             return nil
         }
-        guard let raw = TimeInterval(digits) else { return nil }
-        return raw > 10_000_000_000 ? raw / 1_000 : raw
+        guard !digits.isEmpty,
+              digits.allSatisfy(\.isNumber),
+              let raw = TimeInterval(digits),
+              raw.isFinite else { return nil }
+        let seconds = raw > 10_000_000_000 ? raw / 1_000 : raw
+        guard seconds <= LibraryImportLimits.maximumImportedEpochSeconds else { return nil }
+        return seconds
     }
 
     static func normalizedTitle(_ title: String) -> String {

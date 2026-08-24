@@ -37,19 +37,29 @@ enum LibraryTransferService {
     }
 
     static func previewImport(_ data: Data, into current: LibrarySnapshot) throws -> LibraryImportPreview {
+        guard data.count <= LibraryImportLimits.maximumLibraryFileSize else {
+            throw LibraryImportSafetyError.fileTooLarge
+        }
         if LibraryBackupMerge.appearsToBeJSON(data) {
+            try LibraryJSONImportValidator.validateEncodedFields(in: data)
+            let imported: LibrarySnapshot
             do {
-                return merge(imported: try LibraryArchiveCodec.decode(data), into: current)
+                imported = try LibraryArchiveCodec.decode(data)
             } catch let error as LibraryArchiveError {
                 throw error
             } catch {
                 throw LibraryTransferError.unreadableFile
             }
+            try LibraryJSONImportValidator.validateCollections(in: imported)
+            return merge(
+                imported: ImportedLibraryMetadataSanitizer.sanitized(imported),
+                into: current
+            )
         }
         guard let csv = String(data: data, encoding: .utf8) else {
             throw LibraryTransferError.unreadableFile
         }
-        let rows = parseCSV(csv)
+        let rows = try BoundedCSVParser.rows(csv)
         if let listPreview = previewListImport(rows, into: current) {
             return listPreview
         }
@@ -58,7 +68,7 @@ enum LibraryTransferService {
                 return try mergeDiaryCSV(rows, into: current)
             }
         }
-        return try mergeCSV(csv, into: current)
+        return try mergeCSV(rows, into: current)
     }
 }
 
@@ -73,21 +83,55 @@ extension LibraryTransferService {
         var duplicates = 0
         var seen = Set<String>()
         var importedTitleIDMap: [MediaTitle.ID: MediaTitle.ID] = [:]
+        var catalogIndexByIdentity: [String: Array<MediaTitle>.Index] = [:]
+        var allTitleIndexByIdentity: [String: Array<MediaTitle>.Index] = [:]
+        var uncatalogedTitleIndexByIdentity: [String: Array<MediaTitle>.Index] = [:]
+        catalogIndexByIdentity.reserveCapacity(merged.titles.count)
+        allTitleIndexByIdentity.reserveCapacity(merged.titles.count)
+        uncatalogedTitleIndexByIdentity.reserveCapacity(merged.titles.count)
+        for index in merged.titles.indices {
+            let title = merged.titles[index]
+            let titleIdentity = titleIdentityKey(for: title)
+            if allTitleIndexByIdentity[titleIdentity] == nil {
+                allTitleIndexByIdentity[titleIdentity] = index
+            }
+            if title.catalogID > 0 {
+                let catalogIdentity = identityKey(for: title)
+                if catalogIndexByIdentity[catalogIdentity] == nil {
+                    catalogIndexByIdentity[catalogIdentity] = index
+                }
+            } else if uncatalogedTitleIndexByIdentity[titleIdentity] == nil {
+                uncatalogedTitleIndexByIdentity[titleIdentity] = index
+            }
+        }
 
         for sourceTitle in imported.titles {
             let importedTitle = sourceTitle.migratedTrackingState(
                 fromSchemaVersion: imported.schemaVersion
             )
             let identity = identityKey(for: importedTitle)
+            let titleIdentity = titleIdentityKey(for: importedTitle)
+            let destinationIndex: Array<MediaTitle>.Index?
+            if importedTitle.catalogID > 0 {
+                let catalogIndex = catalogIndexByIdentity[identity]
+                let uncatalogedIndex = uncatalogedTitleIndexByIdentity[titleIdentity]
+                if let catalogIndex, let uncatalogedIndex {
+                    destinationIndex = min(catalogIndex, uncatalogedIndex)
+                } else {
+                    destinationIndex = catalogIndex ?? uncatalogedIndex
+                }
+            } else {
+                destinationIndex = allTitleIndexByIdentity[titleIdentity]
+            }
             guard seen.insert(identity).inserted else {
-                if let destination = merged.titles.first(where: { titlesMatch($0, importedTitle) }) {
-                    importedTitleIDMap[importedTitle.id] = destination.id
+                if let index = destinationIndex {
+                    importedTitleIDMap[importedTitle.id] = merged.titles[index].id
                 }
                 duplicates += 1
                 continue
             }
 
-            if let index = merged.titles.firstIndex(where: { titlesMatch($0, importedTitle) }) {
+            if let index = destinationIndex {
                 importedTitleIDMap[importedTitle.id] = merged.titles[index].id
                 merged.titles[index] = mergingTracking(
                     from: importedTitle,
@@ -98,6 +142,17 @@ extension LibraryTransferService {
             } else {
                 importedTitleIDMap[importedTitle.id] = importedTitle.id
                 merged.titles.append(importedTitle)
+                let appendedIndex = merged.titles.index(before: merged.titles.endIndex)
+                if allTitleIndexByIdentity[titleIdentity] == nil {
+                    allTitleIndexByIdentity[titleIdentity] = appendedIndex
+                }
+                if importedTitle.catalogID > 0 {
+                    if catalogIndexByIdentity[identity] == nil {
+                        catalogIndexByIdentity[identity] = appendedIndex
+                    }
+                } else if uncatalogedTitleIndexByIdentity[titleIdentity] == nil {
+                    uncatalogedTitleIndexByIdentity[titleIdentity] = appendedIndex
+                }
                 added += 1
             }
         }
@@ -160,8 +215,15 @@ extension LibraryTransferService {
         if let aliases = imported.importResolutionAliases {
             var mergedAliases = merged.importResolutionAliases ?? [:]
             mergedAliases.merge(aliases) { _, importedAlias in importedAlias }
+            let retainedAliases = Set(merged.titles.map(ImportResolutionAlias.init(title:)))
             merged.importResolutionAliases = mergedAliases.filter { _, alias in
-                merged.titles.contains(where: alias.matches)
+                retainedAliases.contains(
+                    ImportResolutionAlias(
+                        kind: alias.kind,
+                        catalogID: alias.catalogID,
+                        metadataSource: alias.resolvedMetadataSource
+                    )
+                )
             }
         }
         merged.sharedSpace = LibraryBackupMerge.sharedSpace(
@@ -177,10 +239,9 @@ extension LibraryTransferService {
     }
 
     private static func mergeCSV(
-        _ csv: String,
+        _ rows: [[String]],
         into current: LibrarySnapshot
     ) throws -> LibraryImportPreview {
-        let rows = parseCSV(csv)
         guard let header = rows.first, !header.isEmpty else { throw LibraryTransferError.emptyFile }
         let normalizedHeader = header.map(normalizedHeaderName)
         var merged = current
@@ -188,10 +249,16 @@ extension LibraryTransferService {
         var duplicates = 0
         var skipped = 0
         var seen = Set<MediaTitle.ID>()
+        let titleMatchIndex = LibraryTitleMatchIndex(titles: current.titles)
 
         for row in rows.dropFirst() where row.contains(where: { !$0.isEmpty }) {
             let values = csvValues(header: normalizedHeader, row: row)
-            switch applyCSVRow(values, titles: &merged.titles, seen: &seen) {
+            switch applyCSVRow(
+                values,
+                titles: &merged.titles,
+                titleMatchIndex: titleMatchIndex,
+                seen: &seen
+            ) {
             case .matched: matched += 1
             case .duplicate: duplicates += 1
             case .skipped: skipped += 1
@@ -217,9 +284,10 @@ extension LibraryTransferService {
     private static func applyCSVRow(
         _ values: [String: String],
         titles: inout [MediaTitle],
+        titleMatchIndex: LibraryTitleMatchIndex,
         seen: inout Set<MediaTitle.ID>
     ) -> CSVRowResult {
-        guard let index = matchingTitleIndex(values, titles: titles) else { return .skipped }
+        guard let index = titleMatchIndex.matchingIndex(values) else { return .skipped }
         guard seen.insert(titles[index].id).inserted else { return .duplicate }
         applyCSVTracking(values, title: &titles[index])
         applyCSVProgress(values, title: &titles[index])
@@ -244,7 +312,7 @@ extension LibraryTransferService {
             title.notes = notes
         }
         if let rewatches = intValue(in: values, keys: ["rewatches", "rewatch_count"]) {
-            title.rewatchCount = max(rewatches, 0)
+            title.rewatchCount = LibraryImportLimits.boundedRewatchCount(rewatches)
         }
         if let watchedAt = stringValue(in: values, keys: ["last_watched_at", "watched_at"]) {
             title.lastWatchedAt = iso8601Date(watchedAt)
@@ -260,7 +328,7 @@ extension LibraryTransferService {
             title.upNextSnoozedUntil = iso8601Date(snoozedUntil)
         }
         if let manualOrder = intValue(in: values, keys: ["up_next_manual_order"]) {
-            title.upNextManualOrder = max(manualOrder, 0)
+            title.upNextManualOrder = LibraryImportLimits.boundedOrderingValue(manualOrder)
         }
     }
 
@@ -269,10 +337,15 @@ extension LibraryTransferService {
         let episode = intValue(in: values, keys: ["episode", "episode_number"])
         let totalEpisodes = intValue(in: values, keys: ["total_episodes", "episode_count"])
         guard let season, let episode else { return }
+        let boundedEpisode = LibraryImportLimits.boundedProgressValue(episode)
+        let boundedTotal = max(
+            LibraryImportLimits.boundedProgressValue(totalEpisodes ?? episode),
+            1
+        )
         title.progress = EpisodeProgress(
-            season: max(season, 1),
-            episode: max(episode, 0),
-            totalEpisodes: max(totalEpisodes ?? episode, 1)
+            season: max(LibraryImportLimits.boundedProgressValue(season), 1),
+            episode: min(boundedEpisode, boundedTotal),
+            totalEpisodes: boundedTotal
         )
     }
 
@@ -316,44 +389,6 @@ extension LibraryTransferService {
         return "\"\(field.replacingOccurrences(of: "\"", with: "\"\""))\""
     }
 
-    private static func parseCSV(_ csv: String) -> [[String]] {
-        var rows: [[String]] = []
-        var row: [String] = []
-        var field = ""
-        var isQuoted = false
-        var index = csv.startIndex
-
-        while index < csv.endIndex {
-            let character = csv[index]
-            if character == "\"" {
-                let next = csv.index(after: index)
-                if isQuoted, next < csv.endIndex, csv[next] == "\"" {
-                    field.append("\"")
-                    index = next
-                } else {
-                    isQuoted.toggle()
-                }
-            } else if character == ",", !isQuoted {
-                row.append(field)
-                field = ""
-            } else if character == "\n", !isQuoted {
-                row.append(field.trimmingCharacters(in: .newlines))
-                rows.append(row)
-                row = []
-                field = ""
-            } else if character != "\r" || isQuoted {
-                field.append(character)
-            }
-            index = csv.index(after: index)
-        }
-
-        if !field.isEmpty || !row.isEmpty {
-            row.append(field)
-            rows.append(row)
-        }
-        return rows
-    }
-
     static func normalizedHeaderName(_ header: String) -> String {
         header.trimmingCharacters(in: .whitespacesAndNewlines)
             .lowercased()
@@ -369,7 +404,11 @@ extension LibraryTransferService {
     }
 
     static func doubleValue(in values: [String: String], keys: [String]) -> Double? {
-        stringValue(in: values, keys: keys).flatMap(Double.init)
+        guard let value = stringValue(in: values, keys: keys).flatMap(Double.init),
+              value.isFinite else {
+            return nil
+        }
+        return value
     }
 
     static func boolValue(in values: [String: String], keys: [String]) -> Bool? {

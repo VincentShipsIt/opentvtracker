@@ -162,7 +162,9 @@ enum TVTimeHistoryApplier {
     private static func rewatchCounts(for watches: [TVTimeWatch]) -> (title: Int, episodes: Int) {
         (
             title: watches.map(\.importedRewatchCount).max() ?? 0,
-            episodes: watches.reduce(0) { $0 + $1.importedRewatchCount }
+            episodes: watches.reduce(0) { total, watch in
+                LibraryImportLimits.saturatingAdd(total, watch.importedRewatchCount)
+            }
         )
     }
 
