@@ -59,18 +59,6 @@ final class AppAttestClientTests: XCTestCase {
         assertRecordedHashes(service)
     }
 
-    private func assertRecordedHashes(_ service: MockAppAttestService) {
-        let emptyBodyHash = Data(SHA256.hash(data: Data())).base64URLEncodedString()
-        let payload = [
-            "opentv-app-attest-v1",
-            "request-challenge",
-            "GET",
-            "/v1/catalog/search?q=Drama&page=1&region=MT",
-            emptyBodyHash
-        ].joined(separator: "\n")
-        XCTAssertEqual(service.assertionHashes, [Data(SHA256.hash(data: Data(payload.utf8)))])
-    }
-
     func testConcurrentValidCredentialsSerializeFourCatalogRequestsAcrossClients() async throws {
         let service = MockAppAttestService(isSupported: true)
         let store = try Self.credentialStore(token: "valid-token", expiresAt: "2030-01-01T00:00:00Z")
@@ -78,11 +66,7 @@ final class AppAttestClientTests: XCTestCase {
         TestURLProtocol.asyncHandler = { request in
             try await server.response(for: request)
         }
-        let session = TestURLProtocol.session()
-        let clients = [
-            Self.client(service: service, store: store, session: session),
-            Self.client(service: service, store: store, session: session)
-        ]
+        let clients = Self.clients(service: service, store: store)
 
         let responses = try await Self.concurrentCatalogResponses(
             clients: clients,
@@ -107,11 +91,7 @@ final class AppAttestClientTests: XCTestCase {
         TestURLProtocol.asyncHandler = { request in
             try await server.response(for: request)
         }
-        let session = TestURLProtocol.session()
-        let clients = [
-            Self.client(service: service, store: store, session: session),
-            Self.client(service: service, store: store, session: session)
-        ]
+        let clients = Self.clients(service: service, store: store)
 
         let responses = try await Self.concurrentCatalogResponses(
             clients: clients,
@@ -137,11 +117,7 @@ final class AppAttestClientTests: XCTestCase {
         TestURLProtocol.asyncHandler = { request in
             try await server.response(for: request)
         }
-        let session = TestURLProtocol.session()
-        let clients = [
-            Self.client(service: service, store: store, session: session),
-            Self.client(service: service, store: store, session: session)
-        ]
+        let clients = Self.clients(service: service, store: store)
 
         let responses = try await Self.concurrentCatalogResponses(
             clients: clients,
@@ -170,11 +146,7 @@ final class AppAttestClientTests: XCTestCase {
         TestURLProtocol.asyncHandler = { request in
             try await server.response(for: request)
         }
-        let session = TestURLProtocol.session()
-        let clients = [
-            Self.client(service: service, store: store, session: session),
-            Self.client(service: service, store: store, session: session)
-        ]
+        let clients = Self.clients(service: service, store: store)
         let firstClient = clients[0]
         let firstRequest = Self.catalogRequest(index: 0)
         let first = Task {
@@ -234,13 +206,10 @@ final class AppAttestClientTests: XCTestCase {
 
     func testExpiredTokenRetriesTheSameCatalogRequestOnce() async throws {
         let service = MockAppAttestService(isSupported: true)
-        let store = MemorySecureCredentialStore()
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        let stale = try encoder.encode(
-            DeviceCredentialsProbe(keyID: "secure-enclave-key", token: "stale-token", tokenExpiresAt: Date(timeIntervalSince1970: 1_900_000_000))
+        let store = try Self.credentialStore(
+            token: "stale-token",
+            expiresAt: "2030-03-17T17:46:40Z"
         )
-        try store.set(stale, for: AppAttestClient.credentialsAccount)
 
         let catalogAttempts = RequestCounter()
         TestURLProtocol.handler = { request in
@@ -278,14 +247,7 @@ final class AppAttestClientTests: XCTestCase {
             return try Self.jsonResponse(request, status: 200, body: ["results": []])
         }
 
-        let client = AppAttestClient(
-            baseURL: URL(string: "https://proxy.example/")!,
-            session: TestURLProtocol.session(),
-            appAttest: service,
-            credentialStore: store,
-            developmentToken: nil,
-            now: { Date(timeIntervalSince1970: 1_800_000_000) }
-        )
+        let client = Self.client(service: service, store: store, session: TestURLProtocol.session())
 
         let (_, response) = try await client.data(
             for: URLRequest(url: URL(string: "https://proxy.example/v1/catalog/search")!)
@@ -314,6 +276,20 @@ final class AppAttestClientTests: XCTestCase {
             XCTFail("Unexpected error: \(error)")
         }
     }
+}
+
+private extension AppAttestClientTests {
+    private func assertRecordedHashes(_ service: MockAppAttestService) {
+        let emptyBodyHash = Data(SHA256.hash(data: Data())).base64URLEncodedString()
+        let payload = [
+            "opentv-app-attest-v1",
+            "request-challenge",
+            "GET",
+            "/v1/catalog/search?q=Drama&page=1&region=MT",
+            emptyBodyHash
+        ].joined(separator: "\n")
+        XCTAssertEqual(service.assertionHashes, [Data(SHA256.hash(data: Data(payload.utf8)))])
+    }
 
     private static func client(
         service: MockAppAttestService,
@@ -328,6 +304,17 @@ final class AppAttestClientTests: XCTestCase {
             developmentToken: nil,
             now: { Date(timeIntervalSince1970: 1_800_000_000) }
         )
+    }
+
+    private static func clients(
+        service: MockAppAttestService,
+        store: MemorySecureCredentialStore
+    ) -> [AppAttestClient] {
+        let session = TestURLProtocol.session()
+        return [
+            client(service: service, store: store, session: session),
+            client(service: service, store: store, session: session)
+        ]
     }
 
     private static func credentialStore(
@@ -493,28 +480,7 @@ private actor AppAttestServerHarness {
     func response(for request: URLRequest) async throws -> (HTTPURLResponse, Data) {
         let path = try XCTUnwrap(request.url?.path)
         if path == "/v1/app-attest/challenge" {
-            let body = try XCTUnwrap(TestURLProtocol.bodyData(for: request))
-            let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: String])
-            let purpose = try XCTUnwrap(json["purpose"])
-            let sequence: Int
-            switch purpose {
-            case "attestation":
-                attestationChallenges += 1
-                sequence = attestationChallenges
-            case "token":
-                tokenChallenges += 1
-                sequence = tokenChallenges
-            case "request":
-                requestChallenges += 1
-                sequence = requestChallenges
-            default:
-                throw URLError(.badServerResponse)
-            }
-            return try jsonResponse(request, status: 201, body: [
-                "id": "\(purpose)-id-\(sequence)",
-                "challenge": "\(purpose)-challenge-\(sequence)",
-                "expiresAt": "2030-01-01T00:00:00Z"
-            ])
+            return try challengeResponse(for: request)
         }
         if path == "/v1/app-attest/register" {
             registrations += 1
@@ -544,6 +510,31 @@ private actor AppAttestServerHarness {
                 && request.value(forHTTPHeaderField: "X-App-Attest-Assertion") != nil
         }
         return try await delayedSignedResponse(request, status: 200, body: ["results": []])
+    }
+
+    private func challengeResponse(for request: URLRequest) throws -> (HTTPURLResponse, Data) {
+        let body = try XCTUnwrap(TestURLProtocol.bodyData(for: request))
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: String])
+        let purpose = try XCTUnwrap(json["purpose"])
+        let sequence: Int
+        switch purpose {
+        case "attestation":
+            attestationChallenges += 1
+            sequence = attestationChallenges
+        case "token":
+            tokenChallenges += 1
+            sequence = tokenChallenges
+        case "request":
+            requestChallenges += 1
+            sequence = requestChallenges
+        default:
+            throw URLError(.badServerResponse)
+        }
+        return try jsonResponse(request, status: 201, body: [
+            "id": "\(purpose)-id-\(sequence)",
+            "challenge": "\(purpose)-challenge-\(sequence)",
+            "expiresAt": "2030-01-01T00:00:00Z"
+        ])
     }
 
     func snapshot() -> Snapshot {
