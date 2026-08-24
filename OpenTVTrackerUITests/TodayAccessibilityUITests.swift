@@ -15,6 +15,32 @@ final class TodayAccessibilityUITests: XCTestCase {
         assertToolbarActionsReachable()
         attachScreenshot(named: "today-ax5-initial-reflow")
         assertHeroActionsReachable(tabBar: tabBar)
+        assertShelvesReflowVertically()
+    }
+
+    func testTodayPreservesHorizontalShelfAtDefaultDynamicType() {
+        launchAtDefaultDynamicType()
+
+        let shelf = app.descendants(matching: .any)["today.start-watching"]
+        assertExists(shelf)
+        let carousel = shelf.scrollViews.firstMatch
+        assertExists(carousel)
+        scrollToHittable(carousel)
+
+        let firstPoster = carousel.buttons.firstMatch
+        assertExists(firstPoster)
+        XCTAssertLessThan(
+            firstPoster.frame.width,
+            app.frame.width * 0.6,
+            "Expected the default-size shelf to retain compact horizontal poster cards"
+        )
+        let restingX = firstPoster.frame.minX
+        carousel.swipeLeft()
+        XCTAssertLessThan(
+            firstPoster.frame.minX,
+            restingX - 40,
+            "Expected the default-size shelf to remain horizontally browsable"
+        )
     }
 
     private func assertTodayViewportClearsBottomChrome(_ tabBar: XCUIElement) {
@@ -90,6 +116,41 @@ final class TodayAccessibilityUITests: XCTestCase {
         )
     }
 
+    private func assertShelvesReflowVertically() {
+        let shelf = app.descendants(matching: .any)["today.start-watching"]
+        scrollUntilExists(shelf)
+        XCTAssertEqual(
+            shelf.scrollViews.count,
+            0,
+            "Expected AX5 to replace the nested horizontal carousel with vertical rows"
+        )
+
+        let firstRow = app.descendants(matching: .any)["today.shelf-item.ui-test-catalog-1"]
+        scrollToHittable(firstRow)
+        XCTAssertGreaterThan(
+            firstRow.frame.width,
+            app.frame.width * 0.75,
+            "Expected AX5 shelf rows to use the available device width instead of 144 points"
+        )
+        XCTAssertTrue(
+            firstRow.label.contains("A Deliberately Long Catalog Pick for Accessibility Layout Verification"),
+            "Expected the full shelf title to remain in the accessibility label"
+        )
+        XCTAssertFalse(firstRow.label.contains("…"), "Expected the AX5 shelf title not to truncate")
+        let firstRowX = firstRow.frame.minX
+        attachScreenshot(named: "today-ax5-vertical-shelf")
+
+        let secondRow = app.descendants(matching: .any)["today.shelf-item.ui-test-catalog-2"]
+        scrollUntilExists(secondRow)
+        scrollToHittable(secondRow)
+        XCTAssertEqual(
+            secondRow.frame.minX,
+            firstRowX,
+            accuracy: 2,
+            "Expected shelf items to align as vertical rows"
+        )
+    }
+
     private func launchAtAX5() {
         continueAfterFailure = false
         app = XCUIApplication()
@@ -98,6 +159,13 @@ final class TodayAccessibilityUITests: XCTestCase {
             "-UIPreferredContentSizeCategoryName",
             "UICTContentSizeCategoryAccessibilityXXXL"
         ]
+        app.launch()
+    }
+
+    private func launchAtDefaultDynamicType() {
+        continueAfterFailure = false
+        app = XCUIApplication()
+        app.launchArguments = ["-ui-testing-core-journeys"]
         app.launch()
     }
 
@@ -155,7 +223,7 @@ final class TodayAccessibilityUITests: XCTestCase {
         line: UInt = #line
     ) {
         assertExists(element, file: file, line: line)
-        for _ in 0..<4 where !element.isHittable {
+        for _ in 0..<20 where !element.isHittable {
             app.swipeUp()
         }
         XCTAssertTrue(
@@ -164,6 +232,17 @@ final class TodayAccessibilityUITests: XCTestCase {
             file: file,
             line: line
         )
+    }
+
+    private func scrollUntilExists(
+        _ element: XCUIElement,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        for _ in 0..<20 where !element.exists {
+            app.swipeUp()
+        }
+        assertExists(element, timeout: 2, file: file, line: line)
     }
 
     private func assertHittable(

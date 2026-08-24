@@ -132,18 +132,25 @@ struct TodayView: View {
                 )
                 .padding(.horizontal, AppTheme.horizontalPadding)
 
-                HorizontalShelf {
-                    LazyHStack(spacing: 14) {
-                        ForEach(picks) { title in
-                            NavigationLink(value: title) {
-                                PosterShelfCard(title: title)
-                                    .frame(width: 144)
-                            }
-                            .buttonStyle(.plain)
+                TodayResponsiveShelf {
+                    ForEach(picks) { title in
+                        NavigationLink(value: title) {
+                            PosterShelfCard(title: title)
+                                .frame(width: 144)
                         }
+                        .buttonStyle(.plain)
                     }
-                    .padding(.horizontal, AppTheme.horizontalPadding)
-                    .padding(.bottom, 4)
+                } accessibilityContent: {
+                    ForEach(picks) { title in
+                        NavigationLink(value: title) {
+                            TodayAccessibilityShelfRow(
+                                title: title,
+                                detail: "\(title.displayYear) · \(title.kind.label) · \(title.runtimeMinutes) min"
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("today.shelf-item.\(title.id)")
+                    }
                 }
             }
             // Grouped, not just identified. An identifier on a bare `VStack` never reaches
@@ -175,14 +182,14 @@ struct TodayView: View {
                 SectionHeading(title: "Also up next", subtitle: "Small commitments, ready when you are")
                     .padding(.horizontal, AppTheme.horizontalPadding)
 
-                HorizontalShelf {
-                    LazyHStack(spacing: 14) {
-                        ForEach(remaining) { title in
-                            UpNextPosterCard(title: title)
-                        }
+                TodayResponsiveShelf {
+                    ForEach(remaining) { title in
+                        UpNextPosterCard(title: title)
                     }
-                    .padding(.horizontal, AppTheme.horizontalPadding)
-                    .padding(.bottom, 4)
+                } accessibilityContent: {
+                    ForEach(remaining) { title in
+                        UpNextAccessibilityRow(title: title)
+                    }
                 }
             }
         }
@@ -198,19 +205,20 @@ struct TodayView: View {
                 )
                 .padding(.horizontal, AppTheme.horizontalPadding)
 
-                HorizontalShelf {
-                    LazyHStack(spacing: 14) {
-                        ForEach(model.staleUpNext) { title in
-                            UpNextPosterCard(
-                                title: title,
-                                subtitle: title.lastWatchedAt.map {
-                                    "Last watched \($0.formatted(.relative(presentation: .named)))"
-                                } ?? "Ready when you are"
-                            )
-                        }
+                TodayResponsiveShelf {
+                    ForEach(model.staleUpNext) { title in
+                        UpNextPosterCard(
+                            title: title,
+                            subtitle: staleSubtitle(for: title)
+                        )
                     }
-                    .padding(.horizontal, AppTheme.horizontalPadding)
-                    .padding(.bottom, 4)
+                } accessibilityContent: {
+                    ForEach(model.staleUpNext) { title in
+                        UpNextAccessibilityRow(
+                            title: title,
+                            subtitle: staleSubtitle(for: title)
+                        )
+                    }
                 }
             }
         }
@@ -227,21 +235,34 @@ struct TodayView: View {
                 )
                 .padding(.horizontal, AppTheme.horizontalPadding)
 
-                HorizontalShelf {
-                    LazyHStack(spacing: 14) {
-                        ForEach(releases) { title in
-                            NavigationLink(value: title) {
-                                PosterShelfCard(title: title)
-                                    .frame(width: 144)
-                            }
-                            .buttonStyle(.plain)
+                TodayResponsiveShelf {
+                    ForEach(releases) { title in
+                        NavigationLink(value: title) {
+                            PosterShelfCard(title: title)
+                                .frame(width: 144)
                         }
+                        .buttonStyle(.plain)
                     }
-                    .padding(.horizontal, AppTheme.horizontalPadding)
-                    .padding(.bottom, 4)
+                } accessibilityContent: {
+                    ForEach(releases) { title in
+                        NavigationLink(value: title) {
+                            TodayAccessibilityShelfRow(
+                                title: title,
+                                detail: "\(title.displayYear) · \(title.kind.label) · \(title.runtimeMinutes) min"
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("today.shelf-item.\(title.id)")
+                    }
                 }
             }
         }
+    }
+
+    private func staleSubtitle(for title: MediaTitle) -> String {
+        title.lastWatchedAt.map {
+            "Last watched \($0.formatted(.relative(presentation: .named)))"
+        } ?? "Ready when you are"
     }
 
 }
@@ -381,6 +402,31 @@ private struct UpNextPosterCard: View {
                 .frame(maxWidth: .infinity, alignment: .trailing)
         }
         .frame(width: 144)
+    }
+}
+
+private struct UpNextAccessibilityRow: View {
+    @Environment(AppModel.self) private var model
+    let title: MediaTitle
+    var subtitle: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            NavigationLink(value: title) {
+                TodayAccessibilityShelfRow(
+                    title: title,
+                    detail: subtitle ?? title.nextReleaseDescription ?? "Ready when you are",
+                    progress: model.progressSummary(for: title)
+                )
+            }
+            .buttonStyle(.plain)
+
+            QueueActionsMenu(title: title, displaysLabel: true)
+                .controlSize(.large)
+                .buttonStyle(.bordered)
+                .frame(maxWidth: .infinity)
+        }
+        .accessibilityIdentifier("today.shelf-item.\(title.id)")
     }
 }
 
