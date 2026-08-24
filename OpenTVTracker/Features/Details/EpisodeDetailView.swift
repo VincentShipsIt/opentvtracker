@@ -389,17 +389,3 @@ private extension String {
         return trimmed.isEmpty ? nil : trimmed
     }
 }
-
-#Preview {
-    NavigationStack {
-        EpisodeDetailView(
-            route: EpisodeDetailRoute(
-                titleID: "severance",
-                seasonID: "season-1",
-                episodeID: "severance-s1e1"
-            )
-        )
-        .environment(AppModel(store: MemoryLibraryStore(), seed: .sample))
-        .environment(\.allowsRemoteArtwork, false)
-    }
-}
