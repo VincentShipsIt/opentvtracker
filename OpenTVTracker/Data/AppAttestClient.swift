@@ -53,6 +53,8 @@ struct SystemAppAttestService: AppAttestServicing, @unchecked Sendable {
 
 actor AppAttestClient {
     static let credentialsAccount = "app-attest.device-credentials"
+    // Catalog and cinema construct separate clients but share this Keychain account and key.
+    private static let protectedRequests = AppAttestProtectedRequestCoordinator()
 
     private let baseURL: URL
     private let session: URLSession
@@ -78,19 +80,26 @@ actor AppAttestClient {
     }
 
     func data(for unsignedRequest: URLRequest) async throws -> (Data, URLResponse) {
-        try await data(for: unsignedRequest, allowsTokenRetry: true)
-    }
-
-    private func data(
-        for unsignedRequest: URLRequest,
-        allowsTokenRetry: Bool
-    ) async throws -> (Data, URLResponse) {
         if let developmentToken {
             var request = unsignedRequest
             request.setValue(developmentToken, forHTTPHeaderField: "X-OpenTV-Development-Token")
             return try await session.data(for: request)
         }
         guard appAttest.isSupported else { throw AppAttestClientError.unsupportedDevice }
+        try Task.checkCancellation()
+
+        let operation = await Self.protectedRequests.enqueue { [self] in
+            try await protectedData(for: unsignedRequest, allowsTokenRetry: true)
+        }
+        let result = await operation.result
+        try Task.checkCancellation()
+        return try result.get()
+    }
+
+    private func protectedData(
+        for unsignedRequest: URLRequest,
+        allowsTokenRetry: Bool
+    ) async throws -> (Data, URLResponse) {
         var credentials = try await validCredentials()
         let challenge = try await requestChallenge(
             purpose: .request,
@@ -112,7 +121,7 @@ actor AppAttestClient {
             credentials.tokenExpiresAt = .distantPast
             try save(credentials)
             if allowsTokenRetry {
-                return try await data(for: unsignedRequest, allowsTokenRetry: false)
+                return try await protectedData(for: unsignedRequest, allowsTokenRetry: false)
             }
         }
         return result
@@ -231,6 +240,28 @@ actor AppAttestClient {
 
     private func save(_ credentials: DeviceCredentials) throws {
         try credentialStore.set(try JSONEncoder.openTV.encode(credentials), for: Self.credentialsAccount)
+    }
+}
+
+private actor AppAttestProtectedRequestCoordinator {
+    private var tail: Task<Void, Never>?
+
+    func enqueue<Result: Sendable>(
+        _ operation: @escaping @Sendable () async throws -> Result
+    ) -> Task<Result, Error> {
+        let precedingOperation = tail
+        // Queue-owned tasks outlive a cancelled caller so shared registration or refresh work
+        // can finish and unblock every request behind it.
+        let task = Task {
+            if let precedingOperation {
+                await precedingOperation.value
+            }
+            return try await operation()
+        }
+        tail = Task {
+            _ = await task.result
+        }
+        return task
     }
 }
 
