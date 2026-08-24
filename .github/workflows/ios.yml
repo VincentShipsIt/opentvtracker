@@ -23,6 +23,15 @@ jobs:
         run: sudo xcode-select -s /Applications/Xcode_26.4.1.app
       - name: Show toolchain
         run: xcodebuild -version
+      - name: Verify reproducible Xcode project
+        run: .github/scripts/generate-ios-project.sh check
+      - name: Resolve locked Swift packages
+        run: >-
+          xcodebuild -resolvePackageDependencies
+          -project OpenTVTracker.xcodeproj
+          -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages"
+          -onlyUsePackageVersionsFromResolvedFile
+          -disableAutomaticPackageResolution
       - name: Validate privacy manifest
         run: plutil -lint OpenTVTracker/Resources/PrivacyInfo.xcprivacy
       - name: Build and test
@@ -32,6 +41,9 @@ jobs:
           -scheme OpenTVTracker
           -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=latest'
           -derivedDataPath "$RUNNER_TEMP/DerivedData"
+          -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages"
+          -onlyUsePackageVersionsFromResolvedFile
+          -disableAutomaticPackageResolution
           -resultBundlePath "$RUNNER_TEMP/OpenTVTrackerTests.xcresult"
           CODE_SIGNING_ALLOWED=NO
       - name: Upload failed test diagnostics

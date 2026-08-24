@@ -1005,7 +1005,6 @@
 					};
 					96396D01C2F07D817EF2875C = {
 						DevelopmentTeam = C76R5DRH64;
-						SystemCapabilities = "[\"com.apple.DeviceCheck\": [\"enabled\": 1], \"com.apple.iCloud\": [\"enabled\": 1], \"com.apple.Push\": [\"enabled\": 1]]";
 					};
 					B0AF29D3A827D293C2407B7B = {
 						DevelopmentTeam = C76R5DRH64;
@@ -1656,8 +1655,8 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/weichsel/ZIPFoundation";
 			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 0.9.20;
+				kind = exactVersion;
+				version = 0.9.20;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
