@@ -1,6 +1,75 @@
 import Foundation
 
 extension AppModel {
+    func setWatchState(_ state: WatchState, for id: MediaTitle.ID) {
+        if state == .completed || state == .caughtUp {
+            markWatched(id)
+            guard let index = ensureTrackableTitleIndex(for: id) else { return }
+            let canBeCaughtUp = titles[index].kind == .series
+                && titles[index].resolvedSeriesLifecycle != .ended
+            let resolvedState: WatchState = state == .caughtUp && canBeCaughtUp ? .caughtUp : .completed
+            guard titles[index].state != resolvedState else { return }
+            titles[index].state = resolvedState
+            persist()
+            refreshRecommendationsSoon()
+            return
+        }
+        guard let index = ensureTrackableTitleIndex(for: id) else { return }
+        titles[index].state = state
+        if state == .planned {
+            titles[index].personalWatchlist = true
+        } else if state == .dropped {
+            titles[index].personalWatchlist = false
+            titles[index].isUpNextPinned = nil
+            titles[index].upNextSnoozedUntil = nil
+            titles[index].upNextManualOrder = nil
+        } else if state == .watching {
+            titles[index].upNextSnoozedUntil = nil
+        }
+        persist()
+        refreshRecommendationsSoon()
+    }
+
+    func recordRewatch(_ id: MediaTitle.ID) {
+        guard let index = ensureTrackableTitleIndex(for: id) else { return }
+        let watchedAt = Date.now
+        titles[index].rewatchCount = LibraryImportLimits.incrementedRewatchCount(
+            titles[index].completedRewatches
+        )
+        titles[index].lastWatchedAt = watchedAt
+        recordTitleRewatchInDiary(titles[index], watchedAt: watchedAt)
+        appendWatchEvent(title: titles[index], kind: .rewatch, occurredAt: watchedAt)
+        addActivity(
+            description: "rewatched \(titles[index].title)",
+            titleID: titles[index].id,
+            symbol: "arrow.clockwise"
+        )
+        persist()
+        syncSharedStateSoon()
+    }
+
+    func correctProgress(_ progress: EpisodeProgress, for id: MediaTitle.ID) {
+        guard let index = ensureTrackableTitleIndex(for: id), titles[index].kind == .series else { return }
+        let corrected = EpisodeProgress(
+            season: max(progress.season, 1),
+            episode: min(max(progress.episode, 0), max(progress.totalEpisodes, 1)),
+            totalEpisodes: max(progress.totalEpisodes, 1)
+        )
+        let supersededID = sharedSpace.watchEvents?.last(where: { $0.titleID == id })?.id
+        titles[index].progress = corrected
+        titles[index].state = corrected.episode == corrected.totalEpisodes
+            ? finishedState(for: titles[index])
+            : .watching
+        appendWatchEvent(title: titles[index], kind: .correction, supersedesEventID: supersededID)
+        addActivity(
+            description: "corrected \(titles[index].title) to \(corrected.label)",
+            titleID: titles[index].id,
+            symbol: "slider.horizontal.3"
+        )
+        persist()
+        syncSharedStateSoon()
+    }
+
     func markNextWatched(_ id: MediaTitle.ID) {
         guard let index = trackableTitleIndex(for: id) else { return }
         let watchedAt = Date.now
