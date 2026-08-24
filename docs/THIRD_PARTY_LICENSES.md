@@ -1,10 +1,10 @@
 # Third-party software and data
 
-The app target links exactly ZIPFoundation 0.9.20 at revision `22787ffb59de99e5dc1fbfe80b19c97a904ad48d` (MIT) to inspect TV Time data-export ZIP archives in memory. The exact version is declared in `project.yml` and the revision is recorded in the committed shared `Package.resolved`. ZIPFoundation is Copyright © 2017-2025 Thomas Zoechling and contributors; its license is available at https://github.com/weichsel/ZIPFoundation/blob/0.9.20/LICENSE.
+The app target links ZIPFoundation (MIT) to inspect TV Time data-export ZIP archives in memory. [`project.yml`](../project.yml) owns the exact version requirement, and the committed shared [`Package.resolved`](../OpenTVTracker.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved) owns the resolved revision. ZIPFoundation is Copyright © 2017-2025 Thomas Zoechling and contributors; its license is available in the [upstream repository](https://github.com/weichsel/ZIPFoundation/blob/development/LICENSE).
 
 The remaining app dependencies are Apple system frameworks: SwiftUI, Observation, Foundation, SwiftData, CloudKit, UIKit, UniformTypeIdentifiers, Speech, and WebKit. No third-party binary SDK is embedded.
 
-Development uses XcodeGen 2.46.0 through the checksum-verified repository entrypoint. XcodeGen is MIT licensed. There is no `.swiftlint.yml` and SwiftLint is not a CI job. GitHub Actions uses `actions/checkout`, `oven-sh/setup-bun`, `gitleaks/gitleaks-action`, `aws-actions/configure-aws-credentials`, and `actions/upload-artifact`.
+Development uses XcodeGen through the checksum-verified repository entrypoint. XcodeGen is MIT licensed. [`.swiftlint.yml`](../.swiftlint.yml) configures optional local SwiftLint checks; SwiftLint is not a required CI job. GitHub Action versions are owned by the workflow manifests in [`.github/workflows`](../.github/workflows).
 
 The optional Bun proxy depends on `node-app-attest` (MIT) for Apple App Attest verification. Its cryptography and CBOR dependency tree includes `asn1js` and `pkijs` (BSD-3-Clause) and `cbor` (MIT), plus their transitive dependencies recorded in `server/bun.lock`. Distribution of a self-hosted proxy must retain the dependency license notices shipped in `server/node_modules` or the corresponding package archives.
 

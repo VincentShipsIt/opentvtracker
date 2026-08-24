@@ -2,7 +2,7 @@
 
 TestFlight uploads are manually dispatched from the protected `main` version of the workflow after creating a `vX.Y.Z` GitHub release. The workflow resolves the requested tag, SHA, or branch once to a full commit SHA, verifies that immutable SHA, and uploads that exact source to App Store Connect. The source must point to a commit on `main`. The archive job checks out only the gated SHA; it never resolves the original input again. The workflow does not commit signing material or retain the signed IPA as a GitHub artifact.
 
-GitHub release tags identify source releases; they do not set the App Store version. `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in the Xcode project's Release configuration are the source of truth for the TestFlight version and build. Increment those values intentionally before publishing or dispatching an upload.
+GitHub release tags identify source releases; they do not set the App Store version. `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in [`project.yml`](../project.yml) are the source of truth for the TestFlight version and build; the generated Xcode project reflects those settings. Increment them intentionally before publishing or dispatching an upload.
 
 ## One-time setup
 
@@ -41,11 +41,7 @@ base64 -i AuthKey_KEYID.p8 | tr -d '\n'
 
 ### Exact-SHA verification contract
 
-Before requesting the `testflight` environment or reading signing secrets, **Verify exact source checks** rejects dispatches whose workflow ref is not `refs/heads/main`, resolves the requested source to one 40-character SHA, and proves that SHA is on `main`. It then binds each literal required check to the `push` workflow suite created for that SHA on `main`:
-
-- `.github/workflows/ios.yml` → `build-and-test`
-- `.github/workflows/server.yml` → `test-and-typecheck`
-- `.github/workflows/secret-scan.yml` → `gitleaks`
+Before requesting the `testflight` environment or reading signing secrets, **Verify exact source checks** rejects dispatches whose workflow ref is not `refs/heads/main`, resolves the requested source to one 40-character SHA, and proves that SHA is on `main`. [`.github/scripts/required-checks.sh`](../.github/scripts/required-checks.sh) owns the literal required workflow/check pairs, and each referenced workflow owns its corresponding job name. The gate binds those checks to the `push` workflow suites created for that SHA on `main`.
 
 Pull-request, manual-dispatch, differently named, wrong-SHA, wrong-workflow, and non-GitHub-Actions check suites are ignored and cannot satisfy the gate. Inside each selected push suite, GitHub's `filter=latest` result defines the current rerun attempt. The selected workflow suite must be completed, and only its exact check with `status=completed` and `conclusion=success` passes. Cancelled, failed, skipped, neutral, stale, timed-out, action-required, null, unknown, or ambiguous results fail closed; an older success never overrides a pending or completed rerun.
 
@@ -87,4 +83,4 @@ Operational gates for a public or TestFlight source release. The former standalo
 - [ ] On two devices, test invite, accept, watched-together partner notification, denied-then-enabled notification permission, decline, revoke, leave, offline retry, relaunch persistence, and Apple ID switch.
 - [ ] Test JSON/CSV export/import rollback (including diary and lists CSV), VoiceOver, Dynamic Type, contrast, reduced motion/transparency, and button shapes.
 - [ ] Verify TMDB/JustWatch/TVmaze attribution and official cinema links (live Embassy showtimes; Eden/Citadel booking links).
-- [ ] Publish a `vX.Y.Z` GitHub release, dispatch the protected-main TestFlight workflow using the steps above, and require its pre-upload gate to confirm exact-SHA `build-and-test`, `test-and-typecheck`, and `gitleaks` success from the push-to-`main` workflow suites.
+- [ ] Publish a `vX.Y.Z` GitHub release, dispatch the protected-main TestFlight workflow using the steps above, and require its pre-upload gate to confirm every workflow/check pair owned by [`.github/scripts/required-checks.sh`](../.github/scripts/required-checks.sh) succeeds for the exact SHA in its push-to-`main` workflow suite.
