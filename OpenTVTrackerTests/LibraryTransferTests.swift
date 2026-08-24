@@ -642,9 +642,8 @@ extension LibraryTransferTests {
             repeating: "x",
             count: LibraryImportLimits.maximumFieldSize + 1
         )
-        let data = try XCTUnwrap(
-            "catalog_id,title,notes\n95396,Severance,\(overlongField)\n".data(using: .utf8)
-        )
+        let csv = "catalog_id,title,notes\n95396,Severance,\(overlongField)\n"
+        let data = Data(csv.utf8)
 
         XCTAssertThrowsError(
             try LibraryTransferService.previewImport(data, into: .sample)

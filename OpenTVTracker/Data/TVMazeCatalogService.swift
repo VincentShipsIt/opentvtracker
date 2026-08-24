@@ -119,14 +119,14 @@ private struct TVMazeSearchResultDTO: Decodable {
 
 /// One entry from `shows/:id/images`. TVmaze tags each image with a type, and only
 /// `background` is genuinely landscape — posters and banners are the wrong shape for a hero.
+private struct TVMazeImageResolutionDTO: Decodable {
+    let url: URL?
+}
+
 private struct TVMazeImageDTO: Decodable {
     struct Resolutions: Decodable {
-        struct Entry: Decodable {
-            let url: URL?
-        }
-
-        let original: Entry?
-        let medium: Entry?
+        let original: TVMazeImageResolutionDTO?
+        let medium: TVMazeImageResolutionDTO?
     }
 
     let id: Int?

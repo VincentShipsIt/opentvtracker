@@ -101,11 +101,7 @@ enum TVTimeArchiveParser {
         } else if filename == "ratings-live-votes.csv" {
             parseRatingVote(values, entities: &state.entities, diagnostics: &state.diagnostics)
         } else if filename == "lists-prod-lists.csv" {
-            try TVTimeListParser.parseGDPR(
-                [values],
-                lists: &state.lists,
-                membershipAccumulator: &state.membershipAccumulator
-            )
+            try parseGDPRListRecord(values, state: &state)
         } else if filename.contains("tvtime-lists-") {
             try TVTimeListParser.parseNative(
                 [values],
@@ -143,6 +139,17 @@ private extension TVTimeImportDiagnostics {
 }
 
 private extension TVTimeArchiveParser {
+    private static func parseGDPRListRecord(
+        _ values: [String: String],
+        state: inout TVTimeArchiveParseState
+    ) throws {
+        try TVTimeListParser.parseGDPR(
+            [values],
+            lists: &state.lists,
+            membershipAccumulator: &state.membershipAccumulator
+        )
+    }
+
     private static func parseEpisodeRecord(
         _ values: [String: String],
         entities: inout [String: TVTimeEntity],
@@ -210,9 +217,7 @@ private extension TVTimeArchiveParser {
         let title = kind == .movie
             ? legacyMovieTitle(values, type: type)
             : TVTimeCSV.string(values, ["series_name", "title", "name"])
-        let sourceID = TVTimeCSV.string(values, kind == .movie
-            ? ["uuid", "movie_id", "entity_id", "id"]
-            : ["s_id", "series_id", "tv_show_id"])
+        let sourceID = legacySourceID(values, kind: kind)
         guard let identity = identity(kind: kind, sourceID: sourceID, title: title) else {
             diagnostics.missingIdentityCount += 1
             return
@@ -335,6 +340,15 @@ private extension TVTimeArchiveParser {
         } else {
             diagnostics.unsupportedRecordCount += 1
         }
+    }
+
+    private static func legacySourceID(
+        _ values: [String: String],
+        kind: MediaKind
+    ) -> String? {
+        TVTimeCSV.string(values, kind == .movie
+            ? ["uuid", "movie_id", "entity_id", "id"]
+            : ["s_id", "series_id", "tv_show_id"])
     }
 
     private static func legacyMovieTitle(_ values: [String: String], type: String) -> String? {

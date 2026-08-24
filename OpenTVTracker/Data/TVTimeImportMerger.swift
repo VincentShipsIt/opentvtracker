@@ -20,25 +20,7 @@ enum TVTimeImportMerger {
         let requestBudget = TVTimeCatalogRequestBudget(catalog: catalog)
         let currentTitles = TVTimeMediaTitleLookup(current.titles)
         let aliases = current.importResolutionAliases ?? [:]
-        var currentTitleByAlias: [ImportResolutionAlias: MediaTitle] = [:]
-        currentTitleByAlias.reserveCapacity(current.titles.count)
-        for title in current.titles {
-            let alias = ImportResolutionAlias(title: title)
-            if currentTitleByAlias[alias] == nil {
-                currentTitleByAlias[alias] = title
-            }
-        }
-        var aliasTitles: [String: MediaTitle] = [:]
-        for entity in entities {
-            guard let alias = aliases[entity.identity] else { continue }
-            let normalizedAlias = ImportResolutionAlias(
-                kind: alias.kind,
-                catalogID: alias.catalogID,
-                metadataSource: alias.resolvedMetadataSource
-            )
-            guard let localTitle = currentTitleByAlias[normalizedAlias] else { continue }
-            aliasTitles[entity.identity] = localTitle
-        }
+        var aliasTitles = localAliasTitles(entities, aliases: aliases, currentTitles: current.titles)
 
         let aliasResolution = await TVTimeImportAliasResolver.resolve(
             entities.filter { aliasTitles[$0.identity] == nil },
@@ -134,6 +116,33 @@ enum TVTimeImportMerger {
 }
 
 private extension TVTimeImportMerger {
+    private static func localAliasTitles(
+        _ entities: [TVTimeEntity],
+        aliases: [String: ImportResolutionAlias],
+        currentTitles: [MediaTitle]
+    ) -> [String: MediaTitle] {
+        var currentTitleByAlias: [ImportResolutionAlias: MediaTitle] = [:]
+        currentTitleByAlias.reserveCapacity(currentTitles.count)
+        for title in currentTitles {
+            let alias = ImportResolutionAlias(title: title)
+            if currentTitleByAlias[alias] == nil {
+                currentTitleByAlias[alias] = title
+            }
+        }
+        var aliasTitles: [String: MediaTitle] = [:]
+        for entity in entities {
+            guard let alias = aliases[entity.identity] else { continue }
+            let normalizedAlias = ImportResolutionAlias(
+                kind: alias.kind,
+                catalogID: alias.catalogID,
+                metadataSource: alias.resolvedMetadataSource
+            )
+            guard let localTitle = currentTitleByAlias[normalizedAlias] else { continue }
+            aliasTitles[entity.identity] = localTitle
+        }
+        return aliasTitles
+    }
+
     private static func applyManualResolutions(
         _ manualResolutions: [ImportResolutionIssue.ID: MediaTitle],
         resolved: inout [String: CatalogResolvedTitle],
