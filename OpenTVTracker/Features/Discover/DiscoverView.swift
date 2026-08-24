@@ -80,8 +80,6 @@ struct DiscoverView: View {
                 switch sheet {
                 case .assistant:
                     DiscoveryAssistantView()
-                        .presentationDetents([.medium, .large])
-                        .presentationDragIndicator(.visible)
                 case .categories:
                     DiscoveryCategoryPickerView()
                 case .services:

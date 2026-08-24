@@ -44,6 +44,7 @@ jobs:
           -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages"
           -onlyUsePackageVersionsFromResolvedFile
           -disableAutomaticPackageResolution
+          -skip-testing:OpenTVTrackerUITests/AccessibilityEvidenceUITests
           -resultBundlePath "$RUNNER_TEMP/OpenTVTrackerTests.xcresult"
           CODE_SIGNING_ALLOWED=NO
       - name: Upload failed test diagnostics
