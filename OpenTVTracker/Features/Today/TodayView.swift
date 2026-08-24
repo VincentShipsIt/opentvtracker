@@ -2,8 +2,10 @@ import SwiftUI
 
 struct TodayView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Binding var selectedTab: AppTab
     @State private var presentedSheet: TodaySheet?
+    private let floatingChromeClearance = AppAccessibility.minimumTouchTarget * 2
 
     var body: some View {
         NavigationStack {
@@ -12,6 +14,13 @@ struct TodayView: View {
 
                 ScrollView {
                     LazyVStack(spacing: AppTheme.sectionSpacing) {
+                        if dynamicTypeSize.isAccessibilitySize {
+                            TodayAccessibilityHeader(
+                                greeting: greeting,
+                                formattedDate: formattedDate
+                            )
+                        }
+
                         if let first = model.activeUpNext.first {
                             UpNextHero(title: first)
                         } else if let recommendation = model.recommendations.first {
@@ -40,52 +49,39 @@ struct TodayView: View {
                     }
                     .padding(.bottom, 32)
                 }
+                // The iOS 26 tab bar floats over the scroll viewport instead of consuming
+                // its full height. At accessibility sizes its labelled controls become tall
+                // enough to cover Today's progress and actions while they pass underneath.
+                // Shrinking the actual viewport by two minimum touch targets reserves the
+                // 83-point system bar plus separation; trailing scroll content alone would
+                // still draw beneath it. Default-size layout and visual direction stay unchanged.
+                .padding(
+                    .bottom,
+                    dynamicTypeSize.isAccessibilitySize ? floatingChromeClearance : 0
+                )
+                .scrollEdgeEffectStyle(
+                    dynamicTypeSize.isAccessibilitySize ? .hard : .automatic,
+                    for: .bottom
+                )
             }
             .suspendsSpaceSwitchWhenCovered()
             .navigationDestination(for: MediaTitle.self) { title in
                 MediaDetailView(titleID: title.id)
             }
-            // The greeting is the screen's title, so it has to be the *navigation* title.
-            // Drawn by hand inside the scroll content it could never collapse into the bar
-            // on scroll, and it shared a row with the toolbar icons instead of passing
-            // under them — the greeting ran straight into the calendar glyph at the top of
-            // the screen. `LibraryView` has had this shape all along.
-            .navigationTitle(greeting)
-            .navigationSubtitle(Date.now.formatted(.dateTime.weekday(.wide).month(.wide).day()))
-            .navigationBarTitleDisplayMode(.large)
+            // Default sizes keep the collapsible navigation treatment used throughout the
+            // app. A system large title is single-line, though, so at accessibility sizes it
+            // becomes a short stable screen title while the full greeting reflows in the
+            // scroll content below.
+            .navigationTitle(dynamicTypeSize.isAccessibilitySize ? "Today" : greeting)
+            .navigationSubtitle(dynamicTypeSize.isAccessibilitySize ? "" : formattedDate)
+            .navigationBarTitleDisplayMode(dynamicTypeSize.isAccessibilitySize ? .inline : .large)
             .spaceModeToolbar()
             .toolbar {
-                // `.tint` is per item: a `ToolbarItemGroup` is toolbar content, not a view,
-                // so there is nothing above these three to hang one modifier on. Bar chrome
-                // has to read as chrome — left as-is they inherit the space tint and every
-                // icon in the bar comes out the same blue as the calls to action below it.
-                ToolbarItemGroup(placement: .topBarTrailing) {
-                    NavigationLink {
-                        UpcomingCalendarView()
-                    } label: {
-                        Label("Upcoming calendar", systemImage: "calendar")
-                    }
-                    .tint(Color.primary)
-                    .accessibilityHint("Shows upcoming episodes and movie releases")
-                    .accessibilityIdentifier("home.upcoming-calendar")
-
-                    Button("Ask OpenTV", systemImage: "sparkles") {
-                        presentedSheet = .assistant
-                    }
-                    .tint(Color.primary)
-                    .accessibilityHint("Opens personalized viewing suggestions")
-                    .accessibilityIdentifier("today.ask-opentv")
-
-                    // Same glyph, same corner, same meaning on Today, Discover, and
-                    // Library. It used to switch to the Library tab here and open
-                    // settings there, which is exactly the inconsistency it looked like.
-                    Button("Profile and settings", systemImage: "person.crop.circle") {
-                        presentedSheet = .settings
-                    }
-                    .tint(Color.primary)
-                    .accessibilityHint("Opens your private profile, app settings, and backup status")
-                    .accessibilityIdentifier("today.settings")
-                }
+                TodayToolbar(
+                    usesCompactPresentation: dynamicTypeSize.isAccessibilitySize,
+                    onAskOpenTV: { presentedSheet = .assistant },
+                    onOpenSettings: { presentedSheet = .settings }
+                )
             }
             .sheet(item: $presentedSheet) { sheet in
                 switch sheet {
@@ -100,6 +96,10 @@ struct TodayView: View {
                 }
             }
         }
+    }
+
+    private var formattedDate: String {
+        Date.now.formatted(.dateTime.weekday(.wide).month(.wide).day())
     }
 
     private var greeting: String {
@@ -132,18 +132,25 @@ struct TodayView: View {
                 )
                 .padding(.horizontal, AppTheme.horizontalPadding)
 
-                HorizontalShelf {
-                    LazyHStack(spacing: 14) {
-                        ForEach(picks) { title in
-                            NavigationLink(value: title) {
-                                PosterShelfCard(title: title)
-                                    .frame(width: 144)
-                            }
-                            .buttonStyle(.plain)
+                TodayResponsiveShelf {
+                    ForEach(picks) { title in
+                        NavigationLink(value: title) {
+                            PosterShelfCard(title: title)
+                                .frame(width: 144)
                         }
+                        .buttonStyle(.plain)
                     }
-                    .padding(.horizontal, AppTheme.horizontalPadding)
-                    .padding(.bottom, 4)
+                } accessibilityContent: {
+                    ForEach(picks) { title in
+                        NavigationLink(value: title) {
+                            TodayAccessibilityShelfRow(
+                                title: title,
+                                detail: "\(title.displayYear) · \(title.kind.label) · \(title.runtimeMinutes) min"
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("today.shelf-item.\(title.id)")
+                    }
                 }
             }
             // Grouped, not just identified. An identifier on a bare `VStack` never reaches
@@ -175,14 +182,14 @@ struct TodayView: View {
                 SectionHeading(title: "Also up next", subtitle: "Small commitments, ready when you are")
                     .padding(.horizontal, AppTheme.horizontalPadding)
 
-                HorizontalShelf {
-                    LazyHStack(spacing: 14) {
-                        ForEach(remaining) { title in
-                            UpNextPosterCard(title: title)
-                        }
+                TodayResponsiveShelf {
+                    ForEach(remaining) { title in
+                        UpNextPosterCard(title: title)
                     }
-                    .padding(.horizontal, AppTheme.horizontalPadding)
-                    .padding(.bottom, 4)
+                } accessibilityContent: {
+                    ForEach(remaining) { title in
+                        UpNextAccessibilityRow(title: title)
+                    }
                 }
             }
         }
@@ -198,19 +205,20 @@ struct TodayView: View {
                 )
                 .padding(.horizontal, AppTheme.horizontalPadding)
 
-                HorizontalShelf {
-                    LazyHStack(spacing: 14) {
-                        ForEach(model.staleUpNext) { title in
-                            UpNextPosterCard(
-                                title: title,
-                                subtitle: title.lastWatchedAt.map {
-                                    "Last watched \($0.formatted(.relative(presentation: .named)))"
-                                } ?? "Ready when you are"
-                            )
-                        }
+                TodayResponsiveShelf {
+                    ForEach(model.staleUpNext) { title in
+                        UpNextPosterCard(
+                            title: title,
+                            subtitle: staleSubtitle(for: title)
+                        )
                     }
-                    .padding(.horizontal, AppTheme.horizontalPadding)
-                    .padding(.bottom, 4)
+                } accessibilityContent: {
+                    ForEach(model.staleUpNext) { title in
+                        UpNextAccessibilityRow(
+                            title: title,
+                            subtitle: staleSubtitle(for: title)
+                        )
+                    }
                 }
             }
         }
@@ -227,21 +235,34 @@ struct TodayView: View {
                 )
                 .padding(.horizontal, AppTheme.horizontalPadding)
 
-                HorizontalShelf {
-                    LazyHStack(spacing: 14) {
-                        ForEach(releases) { title in
-                            NavigationLink(value: title) {
-                                PosterShelfCard(title: title)
-                                    .frame(width: 144)
-                            }
-                            .buttonStyle(.plain)
+                TodayResponsiveShelf {
+                    ForEach(releases) { title in
+                        NavigationLink(value: title) {
+                            PosterShelfCard(title: title)
+                                .frame(width: 144)
                         }
+                        .buttonStyle(.plain)
                     }
-                    .padding(.horizontal, AppTheme.horizontalPadding)
-                    .padding(.bottom, 4)
+                } accessibilityContent: {
+                    ForEach(releases) { title in
+                        NavigationLink(value: title) {
+                            TodayAccessibilityShelfRow(
+                                title: title,
+                                detail: "\(title.displayYear) · \(title.kind.label) · \(title.runtimeMinutes) min"
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("today.shelf-item.\(title.id)")
+                    }
                 }
             }
         }
+    }
+
+    private func staleSubtitle(for title: MediaTitle) -> String {
+        title.lastWatchedAt.map {
+            "Last watched \($0.formatted(.relative(presentation: .named)))"
+        } ?? "Ready when you are"
     }
 
 }
@@ -256,6 +277,7 @@ private enum TodaySheet: Hashable, Identifiable {
 
 private struct UpNextHero: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let title: MediaTitle
     @State private var progressTrigger = 0
 
@@ -287,14 +309,17 @@ private struct UpNextHero: View {
                             Text(title.title)
                                 .font(.largeTitle.weight(.black))
                                 .foregroundStyle(.white)
-                                .lineLimit(2)
+                                .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 2)
+                                .fixedSize(horizontal: false, vertical: dynamicTypeSize.isAccessibilitySize)
                             Text("\(title.kind.label) · \(title.genres.prefix(2).joined(separator: " · ")) · \(title.runtimeMinutes) min")
                                 .font(.subheadline.weight(.medium))
                                 .foregroundStyle(.white)
-                                .lineLimit(2)
+                                .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 2)
+                                .fixedSize(horizontal: false, vertical: dynamicTypeSize.isAccessibilitySize)
                             Text(progressSummary.label)
                                 .font(.headline)
                                 .foregroundStyle(.white)
+                                .fixedSize(horizontal: false, vertical: dynamicTypeSize.isAccessibilitySize)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -305,13 +330,20 @@ private struct UpNextHero: View {
                         .tint(.white)
                         .accessibilityLabel("Viewing progress")
                         .accessibilityValue(progressSummary.label)
+                        .accessibilityIdentifier("today.hero-progress")
 
-                    ViewThatFits(in: .horizontal) {
-                        HStack(spacing: 10) {
-                            heroActionButtons
-                        }
+                    if dynamicTypeSize.isAccessibilitySize {
                         VStack(alignment: .leading, spacing: 10) {
                             heroActionButtons
+                        }
+                    } else {
+                        ViewThatFits(in: .horizontal) {
+                            HStack(spacing: 10) {
+                                heroActionButtons
+                            }
+                            VStack(alignment: .leading, spacing: 10) {
+                                heroActionButtons
+                            }
                         }
                     }
                 }
@@ -333,8 +365,13 @@ private struct UpNextHero: View {
         .tint(.white)
         .foregroundStyle(.black)
         .sensoryFeedback(.success, trigger: progressTrigger)
+        .accessibilityIdentifier("today.hero-mark-watched")
 
-        QueueActionsMenu(title: title, includesProgressAction: false)
+        QueueActionsMenu(
+            title: title,
+            includesProgressAction: false,
+            displaysLabel: dynamicTypeSize.isAccessibilitySize
+        )
             .controlSize(.large)
             .buttonStyle(.bordered)
             .tint(.white)
@@ -368,10 +405,36 @@ private struct UpNextPosterCard: View {
     }
 }
 
+private struct UpNextAccessibilityRow: View {
+    @Environment(AppModel.self) private var model
+    let title: MediaTitle
+    var subtitle: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            NavigationLink(value: title) {
+                TodayAccessibilityShelfRow(
+                    title: title,
+                    detail: subtitle ?? title.nextReleaseDescription ?? "Ready when you are",
+                    progress: model.progressSummary(for: title)
+                )
+            }
+            .buttonStyle(.plain)
+
+            QueueActionsMenu(title: title, displaysLabel: true)
+                .controlSize(.large)
+                .buttonStyle(.bordered)
+                .frame(maxWidth: .infinity)
+        }
+        .accessibilityIdentifier("today.shelf-item.\(title.id)")
+    }
+}
+
 private struct QueueActionsMenu: View {
     @Environment(AppModel.self) private var model
     let title: MediaTitle
     var includesProgressAction = true
+    var displaysLabel = false
     @State private var progressTrigger = 0
 
     var body: some View {
@@ -422,14 +485,22 @@ private struct QueueActionsMenu: View {
                     Label("Mark dropped", systemImage: "xmark.circle")
                 }
             }
-        } label: {
-            Label("Queue actions", systemImage: "ellipsis.circle")
-                .labelStyle(.iconOnly)
-        }
+        } label: { menuLabel }
         .accessibilityLabel("Queue actions for \(title.title)")
         .accessibilityIdentifier("today.queue-actions.\(title.id)")
         .minimumTouchTarget()
         .sensoryFeedback(.success, trigger: progressTrigger)
+    }
+
+    @ViewBuilder
+    private var menuLabel: some View {
+        if displaysLabel {
+            Label("Queue actions", systemImage: "ellipsis.circle")
+                .frame(maxWidth: .infinity)
+        } else {
+            Label("Queue actions", systemImage: "ellipsis.circle")
+                .labelStyle(.iconOnly)
+        }
     }
 
     private var progressAction: QueueProgressAction? {
