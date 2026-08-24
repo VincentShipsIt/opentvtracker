@@ -9,277 +9,10 @@ final class AppAttestClientTests: XCTestCase {
         super.tearDown()
     }
 
-    func testRegistersThenSignsExactCatalogRequestAndPersistsCredentials() async throws {
-        let service = MockAppAttestService(isSupported: true)
-        let store = MemorySecureCredentialStore()
-        TestURLProtocol.handler = { request in
-            let path = try XCTUnwrap(request.url?.path)
-            if path == "/v1/app-attest/challenge" {
-                let body = try XCTUnwrap(TestURLProtocol.bodyData(for: request))
-                let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: String])
-                let purpose = try XCTUnwrap(json["purpose"])
-                let challenge = purpose == "attestation" ? "registration-challenge" : "request-challenge"
-                let identifier = purpose == "attestation" ? "registration-id" : "request-id"
-                if purpose == "request" {
-                    XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "AppAttest short-lived-token")
-                }
-                return try Self.jsonResponse(request, status: 201, body: [
-                    "id": identifier,
-                    "challenge": challenge,
-                    "expiresAt": "2030-01-01T00:00:00Z"
-                ])
-            }
-            if path == "/v1/app-attest/register" {
-                return try Self.jsonResponse(request, status: 201, body: [
-                    "token": "short-lived-token",
-                    "expiresAt": "2030-01-01T00:00:00Z"
-                ])
-            }
-            XCTAssertEqual(path, "/v1/catalog/search")
-            XCTAssertEqual(request.value(forHTTPHeaderField: "X-App-Attest-Key-ID"), "secure-enclave-key")
-            XCTAssertEqual(request.value(forHTTPHeaderField: "X-App-Attest-Challenge-ID"), "request-id")
-            XCTAssertNotNil(request.value(forHTTPHeaderField: "X-App-Attest-Assertion"))
-            return try Self.jsonResponse(request, status: 200, body: ["results": []])
-        }
-        let client = AppAttestClient(
-            baseURL: URL(string: "https://proxy.example/")!,
-            session: TestURLProtocol.session(),
-            appAttest: service,
-            credentialStore: store,
-            developmentToken: nil,
-            now: { Date(timeIntervalSince1970: 1_800_000_000) }
-        )
-        let requestURL = URL(string: "https://proxy.example/v1/catalog/search?q=Drama&page=1&region=MT")!
-
-        let (_, response) = try await client.data(for: URLRequest(url: requestURL))
-
-        XCTAssertEqual((response as? HTTPURLResponse)?.statusCode, 200)
-        XCTAssertEqual(store.writtenAccounts, [AppAttestClient.credentialsAccount])
-        XCTAssertEqual(service.attestationHashes, [Data(SHA256.hash(data: Data("registration-challenge".utf8)))])
-        assertRecordedHashes(service)
-    }
-
-    func testConcurrentValidCredentialsSerializeFourCatalogRequestsAcrossClients() async throws {
-        let service = MockAppAttestService(isSupported: true)
-        let store = try Self.credentialStore(token: "valid-token", expiresAt: "2030-01-01T00:00:00Z")
-        let server = AppAttestServerHarness(holdsSignedResponses: true)
-        TestURLProtocol.asyncHandler = { request in
-            try await server.response(for: request)
-        }
-        let clients = Self.clients(service: service, store: store)
-
-        let responses = try await Self.concurrentCatalogResponses(
-            clients: clients,
-            server: server,
-            signedRequestCount: 4
-        )
-        let snapshot = await server.snapshot()
-
-        XCTAssertEqual(responses.map(\.statusCode), [200, 200, 200, 200])
-        XCTAssertEqual(snapshot.catalogRequests, 4)
-        XCTAssertEqual(snapshot.maximumSignedRequestsInFlight, 1)
-        XCTAssertTrue(snapshot.allCatalogRequestsWereSigned)
-        XCTAssertEqual(snapshot.registrations, 0)
-        XCTAssertEqual(snapshot.tokenRefreshes, 0)
-        XCTAssertEqual(service.generateKeyCallCount, 0)
-    }
-
-    func testConcurrentFirstUseSharesOneRegistration() async throws {
-        let service = MockAppAttestService(isSupported: true)
-        let store = MemorySecureCredentialStore()
-        let server = AppAttestServerHarness(holdsSignedResponses: true)
-        TestURLProtocol.asyncHandler = { request in
-            try await server.response(for: request)
-        }
-        let clients = Self.clients(service: service, store: store)
-
-        let responses = try await Self.concurrentCatalogResponses(
-            clients: clients,
-            server: server,
-            signedRequestCount: 4
-        )
-        let snapshot = await server.snapshot()
-
-        XCTAssertEqual(responses.map(\.statusCode), [200, 200, 200, 200])
-        XCTAssertEqual(service.generateKeyCallCount, 1)
-        XCTAssertEqual(service.attestationHashes.count, 1)
-        XCTAssertEqual(snapshot.attestationChallenges, 1)
-        XCTAssertEqual(snapshot.registrations, 1)
-        XCTAssertEqual(snapshot.catalogRequests, 4)
-        XCTAssertEqual(snapshot.maximumSignedRequestsInFlight, 1)
-        XCTAssertTrue(snapshot.allCatalogRequestsWereSigned)
-    }
-
-    func testConcurrentExpiredCredentialsShareOneRefresh() async throws {
-        let service = MockAppAttestService(isSupported: true)
-        let store = try Self.credentialStore(token: "expired-token", expiresAt: "2020-01-01T00:00:00Z")
-        let server = AppAttestServerHarness(holdsSignedResponses: true)
-        TestURLProtocol.asyncHandler = { request in
-            try await server.response(for: request)
-        }
-        let clients = Self.clients(service: service, store: store)
-
-        let responses = try await Self.concurrentCatalogResponses(
-            clients: clients,
-            server: server,
-            signedRequestCount: 5
-        )
-        let snapshot = await server.snapshot()
-
-        XCTAssertEqual(responses.map(\.statusCode), [200, 200, 200, 200])
-        XCTAssertEqual(snapshot.tokenChallenges, 1)
-        XCTAssertEqual(snapshot.tokenRefreshes, 1)
-        XCTAssertEqual(snapshot.catalogRequests, 4)
-        XCTAssertEqual(snapshot.maximumSignedRequestsInFlight, 1)
-        XCTAssertTrue(snapshot.allCatalogRequestsWereSigned)
-        XCTAssertEqual(service.generateKeyCallCount, 0)
-    }
-
-    func testCancellingFirstUseWaiterDoesNotCancelSharedWorkOrDeadlockQueue() async throws {
-        let registrationGate = AsyncTestGate()
-        let service = MockAppAttestService(
-            isSupported: true,
-            generateKeyGate: registrationGate
-        )
-        let store = MemorySecureCredentialStore()
-        let server = AppAttestServerHarness(holdsSignedResponses: true)
-        TestURLProtocol.asyncHandler = { request in
-            try await server.response(for: request)
-        }
-        let clients = Self.clients(service: service, store: store)
-        let firstClient = clients[0]
-        let firstRequest = Self.catalogRequest(index: 0)
-        let first = Task {
-            try await firstClient.data(for: firstRequest)
-        }
-        try await service.waitUntilGenerateKeyCallCount(1)
-        let survivingClient = clients[1]
-        let survivingRequest = Self.catalogRequest(index: 1)
-        let survivor = Task {
-            try await survivingClient.data(for: survivingRequest)
-        }
-
-        first.cancel()
-        await registrationGate.open()
-        try await Self.releaseSignedResponses(server, count: 2)
-
-        do {
-            _ = try await first.value
-            XCTFail("Expected the cancelled waiter to observe cancellation")
-        } catch is CancellationError {
-            // The queue-owned credential work continues for the surviving waiter.
-        }
-        let (_, survivorResponse) = try await survivor.value
-        let snapshot = await server.snapshot()
-
-        XCTAssertEqual((survivorResponse as? HTTPURLResponse)?.statusCode, 200)
-        XCTAssertEqual(service.generateKeyCallCount, 1)
-        XCTAssertEqual(snapshot.registrations, 1)
-        XCTAssertEqual(snapshot.catalogRequests, 2)
-        XCTAssertEqual(snapshot.maximumSignedRequestsInFlight, 1)
-    }
-
-    func testDevelopmentBypassRemainsDirect() async throws {
-        let service = MockAppAttestService(isSupported: false)
-        let store = MemorySecureCredentialStore()
-        let server = AppAttestServerHarness()
-        TestURLProtocol.asyncHandler = { request in
-            try await server.response(for: request)
-        }
-        let client = AppAttestClient(
-            baseURL: URL(string: "https://proxy.example/")!,
-            session: TestURLProtocol.session(),
-            appAttest: service,
-            credentialStore: store,
-            developmentToken: "development-token"
-        )
-
-        let (_, response) = try await client.data(for: Self.catalogRequest(index: 0))
-        let snapshot = await server.snapshot()
-
-        XCTAssertEqual((response as? HTTPURLResponse)?.statusCode, 200)
-        XCTAssertEqual(snapshot.developmentTokens, ["development-token"])
-        XCTAssertEqual(snapshot.maximumSignedRequestsInFlight, 0)
-        XCTAssertEqual(service.generateKeyCallCount, 0)
-        XCTAssertTrue(store.writtenAccounts.isEmpty)
-    }
-
-    func testExpiredTokenRetriesTheSameCatalogRequestOnce() async throws {
-        let service = MockAppAttestService(isSupported: true)
-        let store = try Self.credentialStore(
-            token: "stale-token",
-            expiresAt: "2030-03-17T17:46:40Z"
-        )
-
-        let catalogAttempts = RequestCounter()
-        TestURLProtocol.handler = { request in
-            let path = try XCTUnwrap(request.url?.path)
-            if path == "/v1/app-attest/challenge" {
-                let body = try XCTUnwrap(TestURLProtocol.bodyData(for: request))
-                let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: String])
-                let purpose = try XCTUnwrap(json["purpose"])
-                if purpose == "token" {
-                    return try Self.jsonResponse(request, status: 201, body: [
-                        "id": "token-id",
-                        "challenge": "token-challenge",
-                        "expiresAt": "2030-01-01T00:00:00Z"
-                    ])
-                }
-                return try Self.jsonResponse(request, status: 201, body: [
-                    "id": "request-id",
-                    "challenge": "request-challenge",
-                    "expiresAt": "2030-01-01T00:00:00Z"
-                ])
-            }
-            if path == "/v1/app-attest/token" {
-                return try Self.jsonResponse(request, status: 201, body: [
-                    "token": "fresh-token",
-                    "expiresAt": "2030-01-01T00:00:00Z"
-                ])
-            }
-            XCTAssertEqual(path, "/v1/catalog/search")
-            let attempt = catalogAttempts.increment()
-            if attempt == 1 {
-                XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "AppAttest stale-token")
-                return try Self.jsonResponse(request, status: 401, body: ["error": "expired"])
-            }
-            XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "AppAttest fresh-token")
-            return try Self.jsonResponse(request, status: 200, body: ["results": []])
-        }
-
-        let client = Self.client(service: service, store: store, session: TestURLProtocol.session())
-
-        let (_, response) = try await client.data(
-            for: URLRequest(url: URL(string: "https://proxy.example/v1/catalog/search")!)
-        )
-
-        XCTAssertEqual((response as? HTTPURLResponse)?.statusCode, 200)
-        XCTAssertEqual(catalogAttempts.value, 2)
-    }
-
-    func testUnsupportedDeviceFailsGracefullyWithoutCallingHostedProxy() async {
-        let service = MockAppAttestService(isSupported: false)
-        let client = AppAttestClient(
-            baseURL: URL(string: "https://proxy.example/")!,
-            session: TestURLProtocol.session(),
-            appAttest: service,
-            credentialStore: MemorySecureCredentialStore(),
-            developmentToken: nil
-        )
-
-        do {
-            _ = try await client.data(for: URLRequest(url: URL(string: "https://proxy.example/v1/catalog/search")!))
-            XCTFail("Expected unsupported device error")
-        } catch let error as AppAttestClientError {
-            guard case .unsupportedDevice = error else { return XCTFail("Unexpected error: \(error)") }
-        } catch {
-            XCTFail("Unexpected error: \(error)")
-        }
-    }
 }
 
-private extension AppAttestClientTests {
-    private func assertRecordedHashes(_ service: MockAppAttestService) {
+extension AppAttestClientTests {
+    func assertRecordedHashes(_ service: MockAppAttestService) {
         let emptyBodyHash = Data(SHA256.hash(data: Data())).base64URLEncodedString()
         let payload = [
             "opentv-app-attest-v1",
@@ -291,7 +24,7 @@ private extension AppAttestClientTests {
         XCTAssertEqual(service.assertionHashes, [Data(SHA256.hash(data: Data(payload.utf8)))])
     }
 
-    private static func client(
+    static func client(
         service: MockAppAttestService,
         store: MemorySecureCredentialStore,
         session: URLSession
@@ -306,7 +39,7 @@ private extension AppAttestClientTests {
         )
     }
 
-    private static func clients(
+    static func clients(
         service: MockAppAttestService,
         store: MemorySecureCredentialStore
     ) -> [AppAttestClient] {
@@ -317,7 +50,7 @@ private extension AppAttestClientTests {
         ]
     }
 
-    private static func credentialStore(
+    static func credentialStore(
         token: String,
         expiresAt: String
     ) throws -> MemorySecureCredentialStore {
@@ -336,7 +69,7 @@ private extension AppAttestClientTests {
         return store
     }
 
-    private static func concurrentCatalogResponses(
+    static func concurrentCatalogResponses(
         clients: [AppAttestClient],
         server: AppAttestServerHarness,
         signedRequestCount: Int
@@ -366,7 +99,7 @@ private extension AppAttestClientTests {
         }
     }
 
-    private static func releaseSignedResponses(
+    static func releaseSignedResponses(
         _ server: AppAttestServerHarness,
         count: Int
     ) async throws {
@@ -390,11 +123,11 @@ private extension AppAttestClientTests {
         await server.releaseAllSignedResponses()
     }
 
-    private static func catalogRequest(index: Int) -> URLRequest {
+    static func catalogRequest(index: Int) -> URLRequest {
         URLRequest(url: URL(string: "https://proxy.example/v1/catalog/search?q=\(index)")!)
     }
 
-    private static func jsonResponse(
+    static func jsonResponse(
         _ request: URLRequest,
         status: Int,
         body: [String: Any]
@@ -408,30 +141,12 @@ private extension AppAttestClientTests {
     }
 }
 
-private struct DeviceCredentialsProbe: Encodable {
-    let keyID: String
-    let token: String
-    let tokenExpiresAt: Date
-}
-
 private enum AppAttestTestHarnessError: Error {
     case timedOut(waitingFor: String)
     case overlappingSignedRequests(inFlight: Int, maximum: Int)
 }
 
-private final class RequestCounter: @unchecked Sendable {
-    private let lock = NSLock()
-    private(set) var value = 0
-
-    func increment() -> Int {
-        lock.withLock {
-            value += 1
-            return value
-        }
-    }
-}
-
-private actor AsyncTestGate {
+actor AsyncTestGate {
     private var isOpen = false
 
     func wait() async throws {
@@ -446,7 +161,7 @@ private actor AsyncTestGate {
     }
 }
 
-private actor AppAttestServerHarness {
+actor AppAttestServerHarness {
     struct Snapshot: Sendable {
         let attestationChallenges: Int
         let tokenChallenges: Int
@@ -618,7 +333,7 @@ private actor AppAttestServerHarness {
     }
 }
 
-private final class MockAppAttestService: AppAttestServicing, @unchecked Sendable {
+final class MockAppAttestService: AppAttestServicing, @unchecked Sendable {
     let isSupported: Bool
     private let lock = NSLock()
     private let generateKeyGate: AsyncTestGate?
