@@ -286,6 +286,7 @@ private struct LibraryShelfPicker: View {
         .buttonStyle(.plain)
         .accessibilityLabel(count > 0 ? "\(shelf.label), \(count)" : shelf.label)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .accessibilityIdentifier("library.shelf.\(shelf.rawValue)")
     }
 }
 

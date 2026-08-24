@@ -34,6 +34,7 @@ struct TogetherView: View {
                     .padding(.top, 10)
                     .padding(.bottom, 32)
                 }
+                .accessibilityIdentifier("together.scroll")
             }
             .suspendsSpaceSwitchWhenCovered()
             .spaceModeToolbar()
