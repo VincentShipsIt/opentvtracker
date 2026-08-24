@@ -12,9 +12,13 @@ final class AppModel {
     let catalogService: any CatalogProviding
     private let seed: LibrarySnapshot
     var saveTask: Task<Void, Never>?
+    var persistenceDebounceTask: Task<Void, Never>?
     var reminderTask: Task<Void, Never>?
     var recommendationTask: Task<Void, Never>?
+    var pendingPersistence: PendingLibraryPersistence?
     var persistenceRevision = 0
+    var lastPersistedRevision = 0
+    var persistenceFlushCount = 0
     /// First-occurrence index for O(1) library lookups. Rebuilt whenever `titles` changes.
     private(set) var titleIndexByID: [MediaTitle.ID: Int] = [:]
     var titles: [MediaTitle] = [] {
@@ -375,9 +379,6 @@ extension AppModel {
         !selectedProviderIDs.isDisjoint(with: Set(title.providers.map(\.id)))
     }
 
-    func flushPendingPersistence() async {
-        await saveTask?.value
-    }
     func flushPendingReminders() async {
         await reminderTask?.value
     }

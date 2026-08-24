@@ -1,5 +1,10 @@
 import Foundation
 
+struct PendingLibraryPersistence: Sendable {
+    let revision: Int
+    let snapshot: LibrarySnapshot
+}
+
 extension AppModel {
     func merging(savedTitles: [MediaTitle], catalogTitles: [MediaTitle]) -> [MediaTitle] {
         let savedByID = savedTitles.keyedByKeepingFirst(\.id)
@@ -30,31 +35,89 @@ extension AppModel {
     }
 
     func persist() {
-        let snapshot = self.snapshot
-        let store = store
         persistenceRevision += 1
         let revision = persistenceRevision
-        saveTask?.cancel()
+        pendingPersistence = PendingLibraryPersistence(
+            revision: revision,
+            snapshot: snapshot
+        )
+        persistenceDebounceTask?.cancel()
 
-        saveTask = Task {
-            do {
-                try await Task.sleep(for: .milliseconds(150))
-                guard !Task.isCancelled else { return }
-                try await store.save(snapshot)
-                if revision == persistenceRevision {
-                    persistenceError = nil
-                    publishWidgetSnapshot()
-                }
-            } catch is CancellationError {
-                return
-            } catch {
-                if revision == persistenceRevision {
-                    persistenceError = "Your latest change is visible but could not be saved."
+        if persistenceFlushCount == 0 {
+            persistenceDebounceTask = Task {
+                do {
+                    try await Task.sleep(for: .milliseconds(150))
+                    guard !Task.isCancelled else { return }
+                    await savePendingPersistence(expectedRevision: revision)
+                } catch is CancellationError {
+                    return
+                } catch {
+                    return
                 }
             }
+        } else {
+            persistenceDebounceTask = nil
         }
         if reminderSettings.isEnabled {
             refreshRemindersSoon()
+        }
+    }
+
+    /// Cancels the foreground debounce and drains every pending revision through the one writer.
+    /// Both inactive and background transitions call this boundary, so concurrent callers join
+    /// the same save instead of issuing duplicate writes.
+    func prepareForSuspension() async {
+        await flushPendingPersistence()
+    }
+
+    func flushPendingPersistence() async {
+        persistenceFlushCount += 1
+        defer { persistenceFlushCount -= 1 }
+        persistenceDebounceTask?.cancel()
+        persistenceDebounceTask = nil
+
+        while let pending = pendingPersistence {
+            await savePendingPersistence()
+            guard lastPersistedRevision >= pending.revision
+                || pendingPersistence?.revision != pending.revision else { return }
+        }
+    }
+
+    private func savePendingPersistence(expectedRevision: Int? = nil) async {
+        while let activeSave = saveTask {
+            await activeSave.value
+            if expectedRevision != nil, Task.isCancelled { return }
+        }
+
+        if expectedRevision != nil, Task.isCancelled { return }
+        guard let pending = pendingPersistence else { return }
+        if let expectedRevision, pending.revision != expectedRevision { return }
+
+        let task = Task {
+            await writePendingPersistence(pending)
+            saveTask = nil
+        }
+        saveTask = task
+        await task.value
+    }
+
+    private func writePendingPersistence(_ pending: PendingLibraryPersistence) async {
+        do {
+            try await store.save(pending.snapshot)
+            lastPersistedRevision = max(lastPersistedRevision, pending.revision)
+            if pendingPersistence?.revision == pending.revision {
+                pendingPersistence = nil
+            }
+            if pending.revision == persistenceRevision {
+                persistenceError = nil
+                publishWidgetSnapshot()
+            }
+        } catch is CancellationError {
+            return
+        } catch {
+            if pending.revision == persistenceRevision {
+                persistenceError = "Your latest change is visible but could not be saved."
+            }
         }
     }
 
