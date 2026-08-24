@@ -180,21 +180,48 @@ final class LibraryShelfAccessibilityUITests: AccessibilityEvidenceUITestCase {
                     -0.35,
                     min(0.35, (targetMinX - frame.minX) / viewport.width)
                 )
-                dragHorizontally(in: scrollView, normalizedDelta: normalizedDelta)
+                dragHorizontally(
+                    in: scrollView,
+                    through: element,
+                    normalizedDelta: normalizedDelta
+                )
+                let updatedMinX = element.frame.minX
+                if normalizedDelta < 0 {
+                    XCTAssertLessThan(
+                        updatedMinX,
+                        frame.minX - 1,
+                        "Expected the trailing shelf action to move toward the viewport"
+                    )
+                } else {
+                    XCTAssertGreaterThan(
+                        updatedMinX,
+                        frame.minX + 1,
+                        "Expected the leading shelf action to move toward the viewport"
+                    )
+                }
             }
         }
     }
 
     private func dragHorizontally(
         in scrollView: XCUIElement,
+        through element: XCUIElement,
         normalizedDelta: CGFloat
     ) {
+        let viewport = scrollView.frame
+        let normalizedY = (element.frame.midY - viewport.minY) / viewport.height
+        guard normalizedY.isFinite else {
+            XCTFail("Expected a finite shelf-row gesture coordinate")
+            return
+        }
+        let gestureY = max(0.05, min(0.95, normalizedY))
+
         scrollView.coordinate(
-            withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)
+            withNormalizedOffset: CGVector(dx: 0.5, dy: gestureY)
         ).press(
             forDuration: 0.1,
             thenDragTo: scrollView.coordinate(
-                withNormalizedOffset: CGVector(dx: 0.5 + normalizedDelta, dy: 0.5)
+                withNormalizedOffset: CGVector(dx: 0.5 + normalizedDelta, dy: gestureY)
             ),
             withVelocity: .slow,
             thenHoldForDuration: 0.1
