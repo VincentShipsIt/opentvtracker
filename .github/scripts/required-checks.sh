@@ -48,6 +48,7 @@ required_checks_api_collection() {
   local separator='?'
   local page=1
   local total_count=-1
+  local advertised_total=0
   local fetched_count=0
   local page_count=0
   local page_file=""
@@ -97,12 +98,22 @@ required_checks_api_collection() {
       return 1
     fi
 
+    advertised_total="$(jq -r '.total_count' "$page_file")"
     if (( total_count < 0 )); then
-      total_count="$(jq -r '.total_count' "$page_file")"
+      total_count="$advertised_total"
+    elif (( advertised_total != total_count )); then
+      echo "::error::GitHub changed the advertised '$collection_key' total from $total_count to $advertised_total while paginating; refusing an inconsistent result." >&2
+      rm -f "${page_files[@]}"
+      return 1
     fi
     page_count="$(jq -r --arg key "$collection_key" '.[$key] | length' "$page_file")"
     fetched_count=$((fetched_count + page_count))
-    if (( fetched_count >= total_count )); then
+    if (( fetched_count > total_count )); then
+      echo "::error::GitHub returned $fetched_count '$collection_key' items for an advertised total of $total_count; refusing an inconsistent result." >&2
+      rm -f "${page_files[@]}"
+      return 1
+    fi
+    if (( fetched_count == total_count )); then
       break
     fi
     if (( page_count == 0 )); then
@@ -113,16 +124,29 @@ required_checks_api_collection() {
     page=$((page + 1))
   done
 
-  if (( fetched_count < total_count )); then
+  if (( fetched_count != total_count )); then
     echo "::error::GitHub '$collection_key' listing exceeded ${REQUIRED_CHECKS_MAX_PAGES} pages; refusing a partial result." >&2
     rm -f "${page_files[@]}"
     return 1
   fi
 
-  jq -s --arg key "$collection_key" '{
-    total_count: (map(.total_count) | max),
-    items: [.[] | .[$key][]]
-  }' "${page_files[@]}" > "$output"
+  if ! jq -e -s --arg key "$collection_key" '
+    (map(.total_count) | unique) as $totals
+    | {
+        total_count: $totals[0],
+        items: [.[] | .[$key][]]
+      }
+    | select(
+        ($totals | length) == 1 and
+        (.items | length) == .total_count and
+        all(.items[]; (.id | type) == "number") and
+        ([.items[].id] | unique | length) == .total_count
+      )
+  ' "${page_files[@]}" > "$output"; then
+    echo "::error::GitHub returned an inconsistent '$collection_key' collection; refusing a partial result." >&2
+    rm -f "$output" "${page_files[@]}"
+    return 1
+  fi
   rm -f "${page_files[@]}"
 }
 

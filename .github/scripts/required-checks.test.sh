@@ -205,7 +205,84 @@ write_checks() {
   ' > "$output"
 }
 
+write_paginated_runs() {
+  local page=0
+  local total=0
+  local start=0
+  local count=0
+
+  case "$url" in
+    *[?\&]page=1*) page=1 ;;
+    *[?\&]page=2*) page=2 ;;
+    *)
+      echo "Unexpected pagination URL: $url" >&2
+      exit 91
+      ;;
+  esac
+
+  case "${MOCK_PAGINATION_SCENARIO:-stable}" in
+    stable)
+      total=101
+      if (( page == 1 )); then
+        count=100
+      else
+        start=100
+        count=1
+      fi
+      ;;
+    growing)
+      if (( page == 1 )); then
+        total=101
+        count=100
+      else
+        total=201
+        start=100
+        count=100
+      fi
+      ;;
+    shrinking)
+      if (( page == 1 )); then
+        total=201
+        count=100
+      else
+        total=101
+        start=100
+        count=1
+      fi
+      ;;
+    duplicate)
+      total=101
+      if (( page == 1 )); then
+        count=100
+      else
+        start=99
+        count=1
+      fi
+      ;;
+    *)
+      echo "Unexpected pagination scenario: $MOCK_PAGINATION_SCENARIO" >&2
+      exit 92
+      ;;
+  esac
+
+  jq -n \
+    --argjson total "$total" \
+    --argjson start "$start" \
+    --argjson count "$count" '
+    {
+      total_count: $total,
+      workflow_runs: [
+        range($start; $start + $count)
+        | {id: .}
+      ]
+    }
+  ' > "$output"
+}
+
 case "$url" in
+  */actions/workflows/pagination.yml/runs*)
+    write_paginated_runs
+    ;;
   */actions/workflows/ios.yml/runs*)
     write_runs '.github/workflows/ios.yml' 1001 11 2001
     ;;
@@ -464,6 +541,62 @@ export MOCK_CURL_LOG="$mock_log"
 export MOCK_SHA="$SHA"
 export GITHUB_REPOSITORY='VincentShipsIt/opentvtracker'
 export GITHUB_TOKEN='test-token'
+
+pagination_fixture="$TMP/pagination.json"
+expect_pagination_failure() {
+  local label="$1"
+  local scenario="$2"
+  local expected_text="$3"
+
+  export MOCK_PAGINATION_SCENARIO="$scenario"
+  set +e
+  run_output="$(PATH="$mock_bin:$PATH" required_checks_api_collection \
+    'actions/workflows/pagination.yml/runs' \
+    workflow_runs \
+    "$pagination_fixture" 2>&1)"
+  run_status=$?
+  set -e
+  if (( run_status == 0 )); then
+    fail "$label should fail closed"
+  elif [[ "$run_output" != *"$expected_text"* ]]; then
+    fail "$label omitted a deterministic diagnostic: $run_output"
+  else
+    pass "$label fails closed"
+  fi
+}
+
+export MOCK_PAGINATION_SCENARIO=stable
+if ! PATH="$mock_bin:$PATH" required_checks_api_collection \
+  'actions/workflows/pagination.yml/runs' \
+  workflow_runs \
+  "$pagination_fixture"
+then
+  fail "stable paginated metadata should be collected completely"
+elif ! jq -e '
+  .total_count == 101 and
+  (.items | length) == 101 and
+  .items[0].id == 0 and
+  .items[100].id == 100
+' "$pagination_fixture" >/dev/null; then
+  fail "stable pagination did not preserve the collection contract: $(cat "$pagination_fixture")"
+else
+  pass "stable pagination fetches every advertised item"
+fi
+
+expect_pagination_failure \
+  "growing pagination totals" \
+  growing \
+  "changed the advertised 'workflow_runs' total from 101 to 201"
+expect_pagination_failure \
+  "shrinking pagination totals" \
+  shrinking \
+  "changed the advertised 'workflow_runs' total from 201 to 101"
+expect_pagination_failure \
+  "duplicate paginated item IDs" \
+  duplicate \
+  "returned an inconsistent 'workflow_runs' collection"
+unset MOCK_PAGINATION_SCENARIO
+
 fetched_snapshot="$TMP/fetched.json"
 if ! PATH="$mock_bin:$PATH" required_checks_fetch_snapshot "$SHA" "$fetched_snapshot"; then
   fail "mocked GitHub metadata fetch should succeed"
