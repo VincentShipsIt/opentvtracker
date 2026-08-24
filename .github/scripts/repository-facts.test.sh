@@ -101,6 +101,14 @@ fixture="$(make_fixture unrelated-build-prose)"
 printf '\nA future benchmark may build 10 targets in parallel.\n' >> "$fixture/README.md"
 expect_success "allows unrelated prose containing build and a number" "$fixture"
 
+fixture="$(make_fixture marketing-version-example-prose)"
+printf '\nA future guide may explain marketing version examples such as 1.2.3.\n' >> "$fixture/README.md"
+expect_success "allows a marketing-version example" "$fixture"
+
+fixture="$(make_fixture build-number-example-prose)"
+printf '\nA future guide may explain build number examples such as 10.\n' >> "$fixture/README.md"
+expect_success "allows a build-number example" "$fixture"
+
 fixture="$(make_fixture stale-roadmap-version)"
 printf '\nMarketing version 0.1.1.\n' >> "$fixture/docs/ROADMAP.md"
 expect_failure "rejects a duplicated roadmap version" "$fixture" "docs/ROADMAP.md" "marketing version"
@@ -116,6 +124,10 @@ expect_failure "requires the README build owner link" "$fixture" "README.md" "ma
 fixture="$(make_fixture duplicated-package-version)"
 printf '\nZIPFoundation 0.8.0 remains pinned.\n' >> "$fixture/docs/THIRD_PARTY_LICENSES.md"
 expect_failure "rejects a stale package version" "$fixture" "docs/THIRD_PARTY_LICENSES.md" "ZIPFoundation exact version"
+
+fixture="$(make_fixture package-toolchain-example-prose)"
+printf '\nA future guide may describe whether ZIPFoundation supports Xcode 26.4.1.\n' >> "$fixture/docs/THIRD_PARTY_LICENSES.md"
+expect_success "allows an unrelated ZIPFoundation toolchain example" "$fixture"
 
 fixture="$(make_fixture duplicated-package-revision)"
 printf '\nPinned package revision: 0000000000000000000000000000000000000000.\n' >> "$fixture/docs/THIRD_PARTY_LICENSES.md"

@@ -110,11 +110,11 @@ reject_literal() {
 
 reject_version_claims() {
   local file="$1"
-  if grep -Eiq 'marketing[[:space:]]+version[^[:cntrl:][:digit:]]{0,40}[0-9]+\.[0-9]+\.[0-9]+' "$file"; then
+  if grep -Eiq 'marketing[[:space:]]+version([[:space:]]+(is([[:space:]]+currently)?|equals|currently))?[[:space:]*`:_=-]*v?[0-9]+\.[0-9]+\.[0-9]+' "$file"; then
     fact_error "marketing version" "$file" \
       "Do not duplicate the marketing version; link to project.yml."
   fi
-  if grep -Eiq 'build[[:space:]]+number[^[:cntrl:][:digit:]]{0,40}[0-9]+' "$file"; then
+  if grep -Eiq 'build[[:space:]]+number([[:space:]]+(is([[:space:]]+currently)?|equals|currently))?[[:space:]*`:_=-]*[0-9]+' "$file"; then
     fact_error "build number" "$file" \
       "Do not duplicate the build number; link to project.yml."
   fi
@@ -122,12 +122,16 @@ reject_version_claims() {
 
 reject_dependency_claims() {
   local file="$1"
-  if grep -Eiq 'ZIPFoundation[^[:cntrl:]]{0,80}[0-9]+\.[0-9]+\.[0-9]+' "$file"; then
+  if grep -Eiq 'ZIPFoundation[[:space:]*`:_=-]+v?[0-9]+\.[0-9]+\.[0-9]+' "$file" \
+    || grep -Eiq 'ZIPFoundation[[:space:]]+(exact[[:space:]]+)?version([[:space:]]+(is([[:space:]]+currently)?|equals|currently))?[[:space:]*`:_=-]*v?[0-9]+\.[0-9]+\.[0-9]+' "$file" \
+    || grep -Eiq 'ZIPFoundation[[:space:]]+(is[[:space:]]+)?(pinned|resolved)([[:space:]]+(at|to))?[[:space:]*`:_=-]+v?[0-9]+\.[0-9]+\.[0-9]+' "$file"
+  then
     fact_error "ZIPFoundation exact version" "$file" \
       "Do not duplicate a ZIPFoundation version; link to project.yml."
   fi
-  if grep -Eiq 'package[[:space:]]+revision[^[:cntrl:]]{0,40}[0-9a-f]{40}' "$file" \
-    || grep -Eiq 'ZIPFoundation[^[:cntrl:]]{0,80}(revision|commit|resolved[[:space:]]+to)[^[:cntrl:][:xdigit:]]{0,20}[0-9a-f]{40}' "$file"
+  if grep -Eiq 'package[[:space:]]+revision([[:space:]]+(is|equals|currently))?[[:space:]*`:_=-]*[0-9a-f]{40}' "$file" \
+    || grep -Eiq 'ZIPFoundation[[:space:]]+(revision|commit)([[:space:]]+(is|equals|currently))?[[:space:]*`:_=-]*[0-9a-f]{40}' "$file" \
+    || grep -Eiq 'ZIPFoundation[[:space:]]+(is[[:space:]]+)?resolved[[:space:]]+to[[:space:]*`:_=-]*[0-9a-f]{40}' "$file"
   then
     fact_error "ZIPFoundation resolved revision" "$file" \
       "Do not duplicate a package revision; link to Package.resolved."
