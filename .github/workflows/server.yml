@@ -2,6 +2,8 @@ name: Server
 
 on:
   pull_request:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -10,6 +12,9 @@ concurrency:
 
 jobs:
   test-and-typecheck:
+    name: test-and-typecheck
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -19,6 +24,9 @@ jobs:
       - name: Exercise production deploy validation
         working-directory: .
         run: bash deploy/aws/deploy-opentvtracker.test.sh
+      - name: Exercise exact-SHA release gate
+        working-directory: .
+        run: bash .github/scripts/required-checks.test.sh
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       - run: bun test
