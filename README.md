@@ -4,7 +4,7 @@ An open-source, privacy-minded iPhone and iPad app for tracking TV shows and mov
 
 Website: [opentvtracker.dev](https://opentvtracker.dev)
 
-Marketing version **0.1.1**, build **6**. Latest GitHub source release: [v0.1.3](https://github.com/VincentShipsIt/opentvtracker/releases/tag/v0.1.3).
+The app's marketing version and build number are owned by [`project.yml`](project.yml). Published source versions are listed under [GitHub Releases](https://github.com/VincentShipsIt/opentvtracker/releases); release tags do not override the app build settings.
 
 ## Product
 
@@ -35,7 +35,7 @@ The three tabs are **Today**, **Discover**, and **Library**. Tracking works with
 | Security | [SECURITY.md](SECURITY.md) |
 | Contributing | [CONTRIBUTING.md](CONTRIBUTING.md) |
 | TestFlight and public release | [docs/TESTFLIGHT_RELEASES.md](docs/TESTFLIGHT_RELEASES.md) |
-| Public release checklist (stub) | [docs/PUBLIC_RELEASE_CHECKLIST.md](docs/PUBLIC_RELEASE_CHECKLIST.md) |
+| Public release checklist | [docs/PUBLIC_RELEASE_CHECKLIST.md](docs/PUBLIC_RELEASE_CHECKLIST.md) |
 | CloudKit schema | [docs/CLOUDKIT_SCHEMA.md](docs/CLOUDKIT_SCHEMA.md) |
 | Trakt mapping | [docs/TRAKT_SYNC.md](docs/TRAKT_SYNC.md) |
 
@@ -49,7 +49,9 @@ The Xcode project is generated from `project.yml` using the repository-pinned Xc
 open OpenTVTracker.xcodeproj
 ```
 
-`generate` verifies the pinned XcodeGen release checksum, the exact ZIPFoundation lock, and the app's entitlement contract before regenerating the project. `check` generates twice, requires byte-stable output, and rejects committed-project drift. Keep `OpenTVTracker.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved` committed; CI refuses package versions outside that lock.
+`generate` verifies the pinned XcodeGen release checksum, the exact ZIPFoundation lock, and the app's entitlement contract before regenerating the project. `check` generates twice, requires byte-stable output, and rejects committed-project drift. The ZIPFoundation requirement is owned by [`project.yml`](project.yml), while the resolved revision is owned by the committed [`Package.resolved`](OpenTVTracker.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved). CI refuses package versions outside that lock.
+
+Release-gate workflow/check pairs are owned by [`.github/scripts/required-checks.sh`](.github/scripts/required-checks.sh) and the corresponding workflow job names. [The TestFlight runbook](docs/TESTFLIGHT_RELEASES.md#exact-sha-verification-contract) explains the gate without redefining that machine-readable contract.
 
 The keyless build works with public TV sources. For a local proxy, copy `Config/Secrets.example.xcconfig` to the ignored `Config/Secrets.xcconfig`, set your proxy URL, and use the development-only App Attest bypass described in [self-hosting](docs/SELF_HOSTING.md). Never ship that bypass token.
 

@@ -1,0 +1,160 @@
+#!/usr/bin/env bash
+# Markdown fixture literals intentionally keep backticks inert.
+# shellcheck disable=SC2016
+set -Eeuo pipefail
+
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+readonly ROOT
+readonly SCRIPT="$ROOT/.github/scripts/repository-facts.sh"
+
+TMP="$(mktemp -d)"
+readonly TMP
+trap 'rm -rf "$TMP"' EXIT
+
+failures=0
+run_status=0
+run_output=""
+
+fail() {
+  echo "FAIL: $*" >&2
+  failures=$((failures + 1))
+}
+
+pass() {
+  echo "PASS: $*"
+}
+
+make_fixture() {
+  local name="$1"
+  local fixture="$TMP/$name"
+  local path=""
+  local -a paths=(
+    .swiftlint.yml
+    .github/scripts/required-checks.sh
+    .github/workflows/ios.yml
+    .github/workflows/secret-scan.yml
+    .github/workflows/server.yml
+    OpenTVTracker.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+    README.md
+    docs/PUBLIC_RELEASE_CHECKLIST.md
+    docs/ROADMAP.md
+    docs/TESTFLIGHT_RELEASES.md
+    docs/THIRD_PARTY_LICENSES.md
+    project.yml
+  )
+
+  for path in "${paths[@]}"; do
+    mkdir -p "$fixture/$(dirname "$path")"
+    cp "$ROOT/$path" "$fixture/$path"
+  done
+  printf '%s\n' "$fixture"
+}
+
+run_checker() {
+  local fixture="$1"
+  set +e
+  run_output="$(OPENTV_REPOSITORY_ROOT="$fixture" "$SCRIPT" 2>&1)"
+  run_status=$?
+  set -e
+}
+
+expect_success() {
+  local label="$1"
+  local fixture="$2"
+  run_checker "$fixture"
+  if (( run_status == 0 )); then
+    pass "$label"
+  else
+    fail "$label returned $run_status: $run_output"
+  fi
+}
+
+expect_failure() {
+  local label="$1"
+  local fixture="$2"
+  local expected_file="$3"
+  local expected_fact="$4"
+  run_checker "$fixture"
+  if (( run_status == 0 )); then
+    fail "$label unexpectedly succeeded"
+  elif [[ "$run_output" != *"file=$expected_file"* ]]; then
+    fail "$label omitted file diagnostic '$expected_file': $run_output"
+  elif [[ "$run_output" != *"Repository fact ($expected_fact)"* ]]; then
+    fail "$label omitted fact diagnostic '$expected_fact': $run_output"
+  else
+    pass "$label"
+  fi
+}
+
+fixture="$(make_fixture exact-repository)"
+expect_success "accepts the exact repository facts" "$fixture"
+
+fixture="$(make_fixture stale-readme-build)"
+printf '\nBuild **6**.\n' >> "$fixture/README.md"
+expect_failure "rejects a stale README build" "$fixture" "README.md" "build number"
+
+fixture="$(make_fixture stale-roadmap-version)"
+printf '\nMarketing version 0.1.1.\n' >> "$fixture/docs/ROADMAP.md"
+expect_failure "rejects a duplicated roadmap version" "$fixture" "docs/ROADMAP.md" "marketing version"
+
+fixture="$(make_fixture stale-readme-stub)"
+printf '\nPublic release checklist (stub).\n' >> "$fixture/README.md"
+expect_failure "rejects a stale checklist label" "$fixture" "README.md" "public release checklist"
+
+fixture="$(make_fixture missing-readme-owner)"
+perl -0pi -e 's/\[`project\.yml`\]\(project\.yml\)/project.yml/g' "$fixture/README.md"
+expect_failure "requires the README build owner link" "$fixture" "README.md" "marketing version and build number"
+
+fixture="$(make_fixture duplicated-package-version)"
+printf '\nZIPFoundation 0.8.0 remains pinned.\n' >> "$fixture/docs/THIRD_PARTY_LICENSES.md"
+expect_failure "rejects a stale package version" "$fixture" "docs/THIRD_PARTY_LICENSES.md" "ZIPFoundation exact version"
+
+fixture="$(make_fixture duplicated-package-revision)"
+printf '\nPinned package revision: 0000000000000000000000000000000000000000.\n' >> "$fixture/docs/THIRD_PARTY_LICENSES.md"
+expect_failure "rejects a stale package revision" "$fixture" "docs/THIRD_PARTY_LICENSES.md" "ZIPFoundation resolved revision"
+
+fixture="$(make_fixture stale-swiftlint-claim)"
+printf '\nThere is no `.swiftlint.yml`.\n' >> "$fixture/docs/THIRD_PARTY_LICENSES.md"
+expect_failure "rejects a stale SwiftLint claim" "$fixture" "docs/THIRD_PARTY_LICENSES.md" "SwiftLint configuration"
+
+fixture="$(make_fixture mismatched-lock-version)"
+lock="$fixture/OpenTVTracker.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
+jq '.pins[0].state.version = "99.0.0"' "$lock" > "$lock.next"
+mv "$lock.next" "$lock"
+expect_failure "rejects a lock version outside project.yml" "$fixture" "OpenTVTracker.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved" "ZIPFoundation resolved revision"
+
+fixture="$(make_fixture malformed-lock-revision)"
+lock="$fixture/OpenTVTracker.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
+jq '.pins[0].state.revision = "not-a-full-revision"' "$lock" > "$lock.next"
+mv "$lock.next" "$lock"
+expect_failure "rejects a malformed resolved revision" "$fixture" "OpenTVTracker.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved" "ZIPFoundation resolved revision"
+
+fixture="$(make_fixture duplicate-build-owner)"
+printf '\n# duplicate fixture\nCURRENT_PROJECT_VERSION: 11\n' >> "$fixture/project.yml"
+expect_failure "rejects duplicate build owners" "$fixture" "project.yml" "build number"
+
+fixture="$(make_fixture stale-required-check)"
+perl -0pi -e "s/\\.github\\/workflows\\/ios\\.yml\|build-and-test/.github\\/workflows\\/ios.yml|stale-build/" \
+  "$fixture/.github/scripts/required-checks.sh"
+expect_failure "rejects a required check missing from its workflow" "$fixture" ".github/workflows/ios.yml" "release gate"
+
+fixture="$(make_fixture renamed-required-job)"
+perl -0pi -e 's/^    name: build-and-test$/    name: renamed-build/m' \
+  "$fixture/.github/workflows/ios.yml"
+expect_failure "rejects a workflow check-name drift" "$fixture" ".github/workflows/ios.yml" "release gate"
+
+fixture="$(make_fixture stale-checklist-redirect)"
+perl -0pi -e 's/#public-release-checklist/#removed-checklist/' \
+  "$fixture/docs/PUBLIC_RELEASE_CHECKLIST.md"
+expect_failure "rejects a stale checklist redirect" "$fixture" "docs/PUBLIC_RELEASE_CHECKLIST.md" "public release checklist"
+
+fixture="$(make_fixture missing-testflight-owner)"
+perl -0pi -e 's/\[`project\.yml`\]\(\.\.\/project\.yml\)/project.yml/g' \
+  "$fixture/docs/TESTFLIGHT_RELEASES.md"
+expect_failure "requires the TestFlight build owner link" "$fixture" "docs/TESTFLIGHT_RELEASES.md" "marketing version and build number"
+
+if (( failures > 0 )); then
+  echo "$failures assertion(s) failed" >&2
+  exit 1
+fi
+echo "All repository-facts assertions passed."
