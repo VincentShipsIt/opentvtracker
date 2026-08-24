@@ -119,8 +119,13 @@ enum TVTimeCSV {
         } else {
             return nil
         }
-        guard let raw = TimeInterval(digits) else { return nil }
-        return raw > 10_000_000_000 ? raw / 1_000 : raw
+        guard !digits.isEmpty,
+              digits.allSatisfy(\.isNumber),
+              let raw = TimeInterval(digits),
+              raw.isFinite else { return nil }
+        let seconds = raw > 10_000_000_000 ? raw / 1_000 : raw
+        guard seconds <= LibraryImportLimits.maximumImportedEpochSeconds else { return nil }
+        return seconds
     }
 
     static func normalizedTitle(_ title: String) -> String {

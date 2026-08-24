@@ -22,15 +22,29 @@ final class TVTimeImportTests: XCTestCase {
         XCTAssertEqual(legacy, standard)
     }
 
-    func testHostileTVTimeNumbersAreRejectedOrBounded() throws {
+    func testHostileTVTimeNumbersAreRejectedOrBounded() async throws {
         XCTAssertNil(TVTimeCSV.int(["value": "1e100"], ["value"]))
         XCTAssertNil(TVTimeCSV.double(["value": "1e309"], ["value"]))
+        XCTAssertNil(TVTimeCSV.date(
+            ["watched_at": String(repeating: "9", count: 100)],
+            ["watched_at"]
+        ))
+        XCTAssertNil(TVTimeCSV.date(
+            ["watched_at": "watch-date-1e100"],
+            ["watched_at"]
+        ))
+        XCTAssertEqual(
+            TVTimeCSV.date(["watched_at": "1739565000000"], ["watched_at"])?
+                .timeIntervalSince1970,
+            1_739_565_000
+        )
 
         let maximum = String(Int.max)
+        let hostileTimestamp = String(repeating: "9", count: 100)
         let archive = try TVTimeArchiveParser.parse(makeArchive([
             "tvtime-series-episodes-2026.csv": """
-            series_tvdb_id,title,season,episode,is_watched,rewatch_count
-            37,Hostile Series,\(maximum),\(maximum),true,\(maximum)
+            series_tvdb_id,title,season,episode,is_watched,watched_at,rewatch_count
+            42,Severance,\(maximum),\(maximum),true,\(hostileTimestamp),\(maximum)
             """
         ]))
         let entity = try XCTUnwrap(archive.entities.first)
@@ -42,6 +56,21 @@ final class TVTimeImportTests: XCTestCase {
             watch.importedRewatchCount,
             LibraryImportLimits.maximumImportedRewatchCount
         )
+        XCTAssertNil(watch.occurredAt)
+
+        let current = snapshotWithSeveranceEpisodes()
+        let preview = try await TVTimeImportService.previewImport(
+            makeArchive([
+                "tvtime-series-episodes-2026.csv": """
+                series_tvdb_id,title,season,episode,is_watched,watched_at,rewatch_count
+                42,Severance,1,1,true,\(hostileTimestamp),0
+                """
+            ]),
+            into: current,
+            catalog: LocalCatalogService(titles: current.titles),
+            region: .malta
+        )
+        XCTAssertEqual(preview.watchEventCount, 0)
     }
 
     func testTVTimeZIPRestoresEpisodeHistoryRatingAndWatchDate() async throws {

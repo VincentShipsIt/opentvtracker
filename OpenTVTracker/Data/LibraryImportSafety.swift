@@ -16,6 +16,7 @@ enum LibraryImportLimits {
     static let maximumImportedOrderingValue = maximumRecordCount
     static let maximumImportedProgressValue = maximumRecordCount
     static let maximumImportedRuntimeMinutes = 7 * 24 * 60
+    static let maximumImportedEpochSeconds: TimeInterval = 253_402_300_799
     static let maximumCSVFieldCount = 128
     static let maximumJSONDepth = 64
     static let maximumZIPEntryCount = 1_024

@@ -201,9 +201,8 @@ final class AppModel {
                     )
                 )
                 if snapshot != storedSnapshot {
-                    do {
-                        try await store.save(snapshot)
-                    } catch {
+                    let didPersistCleanup = await persistMetadataCleanup(snapshot)
+                    if !didPersistCleanup {
                         persistenceError = "Your saved library was opened safely, but its cleanup could not be saved."
                     }
                 }

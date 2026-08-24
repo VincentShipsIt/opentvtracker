@@ -195,6 +195,44 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(persisted.lists, snapshot.lists)
     }
 
+    func testLoadingCleanupCannotOverwriteNewerMutationWhileItsSaveIsSuspended() async throws {
+        let snapshot = try remoteMetadataSnapshot(
+            posterURL: URL(string: "https://attacker.invalid/poster.jpg")!,
+            backdropURL: URL(string: "https://attacker.invalid/backdrop.jpg")!,
+            trailerURL: URL(string: "https://attacker.invalid/trailer")!,
+            sourceURL: URL(string: "https://attacker.invalid/source")!,
+            reviewAvatarURL: URL(string: "https://attacker.invalid/avatar")!,
+            reviewSourceURL: URL(string: "https://attacker.invalid/review")!,
+            seasonArtworkURL: URL(string: "https://attacker.invalid/season.jpg")!,
+            episodeStillURL: URL(string: "https://attacker.invalid/episode.jpg")!
+        )
+        let store = RecordingLibraryStore(snapshot: snapshot, suspendsFirstSave: true)
+        let model = AppModel(
+            store: store,
+            reminderScheduler: NoopReminderScheduler(),
+            partnerActivityNotifier: NoopPartnerActivityNotifier(),
+            catalogService: LocalCatalogService(titles: []),
+            traktService: UnconfiguredTraktSyncService(),
+            seed: .empty
+        )
+
+        let load = Task { await model.load() }
+        await store.waitUntilFirstSaveStarts()
+        model.updateNotes("Newer note written while cleanup was suspended.", for: "severance")
+        await store.releaseFirstSave()
+        await load.value
+        await model.flushPendingPersistence()
+
+        let storedSnapshot = try await store.load()
+        let saved = try XCTUnwrap(storedSnapshot)
+        let savedTitle = try XCTUnwrap(saved.titles.first(where: { $0.id == "severance" }))
+        let metrics = await store.metrics()
+        XCTAssertEqual(savedTitle.notes, "Newer note written while cleanup was suspended.")
+        XCTAssertNil(savedTitle.posterURL)
+        XCTAssertEqual(metrics.saveCount, 2)
+        XCTAssertEqual(metrics.maximumConcurrentSaveCount, 1)
+    }
+
     func testLoadingPreservesAllowlistedHTTPSMetadataAndPrivateState() async throws {
         let snapshot = try remoteMetadataSnapshot(
             posterURL: URL(string: "https://image.tmdb.org/t/p/w500/poster.jpg")!,
@@ -651,7 +689,12 @@ private actor RecordingLibraryStore: LibraryPersisting {
     private var firstSaveStarted = false
     private var firstSaveReleased = false
 
-    init(suspendsFirstSave: Bool = false, failsFirstSave: Bool = false) {
+    init(
+        snapshot: LibrarySnapshot? = nil,
+        suspendsFirstSave: Bool = false,
+        failsFirstSave: Bool = false
+    ) {
+        self.snapshot = snapshot
         self.suspendsFirstSave = suspendsFirstSave
         self.failsFirstSave = failsFirstSave
     }
