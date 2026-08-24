@@ -26,19 +26,19 @@ extension AppModel {
     func setStreamingRegionOverride(_ region: StreamingRegion?) {
         let previousRegion = streamingRegion
         storeStreamingRegionOverride(region)
+        if streamingRegion != previousRegion {
+            refreshCatalogForLocaleChange()
+        }
         persist()
-
-        guard streamingRegion != previousRegion else { return }
-        refreshCatalogForLocaleChange()
     }
 
     func setContentLanguageOverride(_ language: ContentLanguage?) {
         let previousLanguage = contentLanguage
         storeContentLanguageOverride(language)
+        if contentLanguage != previousLanguage {
+            refreshCatalogForLocaleChange()
+        }
         persist()
-
-        guard contentLanguage != previousLanguage else { return }
-        refreshCatalogForLocaleChange()
     }
 
     private func refreshCatalogForLocaleChange() {
