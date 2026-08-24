@@ -3,25 +3,6 @@ import ZIPFoundation
 @testable import OpenTVTracker
 
 final class TVTimeImportTests: XCTestCase {
-    func testDateParserPreservesInternetAndLegacyFormats() throws {
-        let standard = try XCTUnwrap(TVTimeCSV.date(
-            ["watched_at": "2025-02-14T20:30:00Z"],
-            ["watched_at"]
-        ))
-        let fractional = try XCTUnwrap(TVTimeCSV.date(
-            ["watched_at": "2025-02-14T20:30:00.125Z"],
-            ["watched_at"]
-        ))
-        let legacy = try XCTUnwrap(TVTimeCSV.date(
-            ["watched_at": "2025-02-14 20:30:00"],
-            ["watched_at"]
-        ))
-
-        XCTAssertEqual(standard.timeIntervalSince1970, 1_739_565_000, accuracy: 0.001)
-        XCTAssertEqual(fractional.timeIntervalSince1970, 1_739_565_000.125, accuracy: 0.001)
-        XCTAssertEqual(legacy, standard)
-    }
-
     func testHostileTVTimeNumbersAreRejectedOrBounded() async throws {
         XCTAssertNil(TVTimeCSV.int(["value": "1e100"], ["value"]))
         XCTAssertNil(TVTimeCSV.double(["value": "1e309"], ["value"]))
@@ -268,28 +249,6 @@ final class TVTimeImportTests: XCTestCase {
 
 extension TVTimeImportTests {
     @MainActor
-    func testCancelledResolutionSearchDoesNotSurfaceCatalogError() async throws {
-        let session = TVTimeImportSession(
-            archive: TVTimeArchive(
-                entities: [],
-                duplicateCount: 0,
-                diagnostics: TVTimeImportDiagnostics()
-            ),
-            current: .empty,
-            catalog: CancellingCatalog(),
-            region: .malta
-        )
-        let coordinator = TVTimeImportCoordinator(session: session)
-
-        do {
-            _ = try await coordinator.search("Severance", kind: .series)
-            XCTFail("Expected cancellation to propagate")
-        } catch is CancellationError {
-            XCTAssertNil(coordinator.errorMessage)
-        }
-    }
-
-    @MainActor
     func testConcurrentManualResolutionsAreSerialized() async throws {
         let candidates = Array(LibrarySnapshot.sample.titles.prefix(2))
         let first = try XCTUnwrap(candidates.first)
@@ -360,146 +319,6 @@ extension TVTimeImportTests {
         XCTAssertEqual(preview.snapshot.diaryEntries?.first?.rating, 8)
     }
 
-    func testZIPWithoutTVTimeTrackingDataIsRejected() async throws {
-        let archive = try makeArchive(["profile.csv": "name\nVincent\n"])
-
-        do {
-            _ = try await TVTimeImportService.previewImport(
-                archive,
-                into: .sample,
-                catalog: LocalCatalogService(titles: LibrarySnapshot.sample.titles),
-                region: .malta
-            )
-            XCTFail("Expected unsupported TV Time data to be rejected")
-        } catch let error as TVTimeImportError {
-            XCTAssertEqual(error.errorDescription, "This ZIP does not contain recognizable TV Time tracking data.")
-        }
-    }
-
-    func testZIPRejectsCaseInsensitiveDuplicateRecognizedFullPaths() throws {
-        let archive = try makeArchive([
-            (
-                path: "Exports/TRACKING-PROD-RECORDS-V2.CSV",
-                contents: "key,s_id,series_name,s_no,ep_no\nfirst,42,Severance,1,1\n"
-            ),
-            (
-                path: "exports/tracking-prod-records-v2.csv",
-                contents: "key,s_id,series_name,s_no,ep_no\nsecond,42,Severance,1,2\n"
-            )
-        ])
-
-        XCTAssertThrowsError(try TVTimeZIPReader.recognizedFiles(in: archive)) { error in
-            guard let importError = error as? TVTimeImportError,
-                  case .duplicateRecognizedPath = importError else {
-                return XCTFail("Expected duplicateRecognizedPath, got \(error)")
-            }
-        }
-    }
-
-    func testZIPRejectsUnicodeCaseFoldDuplicateRecognizedFullPaths() throws {
-        let archive = try makeArchive([
-            (
-                path: "Σ/tracking-prod-records-v2.csv",
-                contents: "key,s_id,series_name,s_no,ep_no\nfirst,42,Severance,1,1\n"
-            ),
-            (
-                path: "ς/tracking-prod-records-v2.csv",
-                contents: "key,s_id,series_name,s_no,ep_no\nsecond,42,Severance,1,2\n"
-            )
-        ])
-
-        XCTAssertThrowsError(try TVTimeZIPReader.recognizedFiles(in: archive)) { error in
-            guard let importError = error as? TVTimeImportError,
-                  case .duplicateRecognizedPath = importError else {
-                return XCTFail("Expected duplicateRecognizedPath, got \(error)")
-            }
-        }
-    }
-
-    func testZIPRejectsMultiScalarCaseFoldDuplicateRecognizedFullPaths() throws {
-        let archive = try makeArchive([
-            (
-                path: "Straße/tracking-prod-records-v2.csv",
-                contents: "key,s_id,series_name,s_no,ep_no\nfirst,42,Severance,1,1\n"
-            ),
-            (
-                path: "STRASSE/tracking-prod-records-v2.csv",
-                contents: "key,s_id,series_name,s_no,ep_no\nsecond,42,Severance,1,2\n"
-            )
-        ])
-
-        XCTAssertThrowsError(try TVTimeZIPReader.recognizedFiles(in: archive)) { error in
-            guard let importError = error as? TVTimeImportError,
-                  case .duplicateRecognizedPath = importError else {
-                return XCTFail("Expected duplicateRecognizedPath, got \(error)")
-            }
-        }
-    }
-
-    func testBoundedExtractionRejectsUnderreportedOutputBeforeAppendingPastLimit() throws {
-        let exact = try TVTimeZIPReader.boundedExtraction(
-            declaredSize: 1,
-            maximumSize: 4
-        ) { consumer in
-            try consumer(Data([0, 1]))
-            try consumer(Data([2, 3]))
-        }
-        XCTAssertEqual(exact, Data([0, 1, 2, 3]))
-
-        var completedConsumerCalls = 0
-        XCTAssertThrowsError(
-            try TVTimeZIPReader.boundedExtraction(
-                declaredSize: 1,
-                maximumSize: 4
-            ) { consumer in
-                try consumer(Data([0, 1, 2]))
-                completedConsumerCalls += 1
-                try consumer(Data([3, 4]))
-                completedConsumerCalls += 1
-            }
-        ) { error in
-            guard let importError = error as? TVTimeImportError,
-                  case .archiveTooLarge = importError else {
-                return XCTFail("Expected archiveTooLarge, got \(error)")
-            }
-        }
-        XCTAssertEqual(completedConsumerCalls, 1)
-    }
-
-    func testZIPRejectsExcessiveTotalEntryCount() throws {
-        var files = [
-            (
-                path: "tracking-prod-records-v2.csv",
-                contents: "key,s_id,series_name,s_no,ep_no\nfirst,42,Severance,1,1\n"
-            )
-        ]
-        files.append(contentsOf: (0..<LibraryImportLimits.maximumZIPEntryCount).map { index in
-            (path: "unrecognized/entry-\(index).txt", contents: "")
-        })
-        let archive = try makeArchive(files)
-
-        XCTAssertThrowsError(try TVTimeZIPReader.recognizedFiles(in: archive)) { error in
-            guard let importError = error as? TVTimeImportError,
-                  case .tooManyArchiveEntries = importError else {
-                return XCTFail("Expected tooManyArchiveEntries, got \(error)")
-            }
-        }
-    }
-
-    func testGDPRListAggregateFieldMayExceedNormalFieldLimit() throws {
-        let objects = String(
-            repeating: "x",
-            count: LibraryImportLimits.maximumFieldSize + 1
-        )
-        let archive = try makeArchive([
-            "lists-prod-lists.csv": "name,objects\nLarge list,\(objects)\n"
-        ])
-
-        let parsed = try TVTimeArchiveParser.parse(archive)
-
-        XCTAssertEqual(parsed.lists.map(\.name), ["Large list"])
-    }
-
     private func snapshotWithSeveranceEpisodes() -> LibrarySnapshot {
         var snapshot = LibrarySnapshot.sample
         guard let index = snapshot.titles.firstIndex(where: { $0.id == "severance" }) else {
@@ -548,7 +367,7 @@ extension TVTimeImportTests {
         )
     }
 
-    private func makeArchive(_ files: [String: String]) throws -> Data {
+    func makeArchive(_ files: [String: String]) throws -> Data {
         try makeArchive(
             files.sorted(by: { $0.key < $1.key }).map { path, contents in
                 (path: path, contents: contents)
@@ -556,7 +375,7 @@ extension TVTimeImportTests {
         )
     }
 
-    private func makeArchive(_ files: [(path: String, contents: String)]) throws -> Data {
+    func makeArchive(_ files: [(path: String, contents: String)]) throws -> Data {
         let archive = try Archive(accessMode: .create)
         for file in files {
             let data = Data(file.contents.utf8)

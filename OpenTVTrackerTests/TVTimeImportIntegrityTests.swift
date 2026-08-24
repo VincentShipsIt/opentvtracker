@@ -336,6 +336,49 @@ extension TVTimeImportIntegrityTests {
     }
 }
 
+extension TVTimeImportTests {
+    func testDateParserPreservesInternetAndLegacyFormats() throws {
+        let standard = try XCTUnwrap(TVTimeCSV.date(
+            ["watched_at": "2025-02-14T20:30:00Z"],
+            ["watched_at"]
+        ))
+        let fractional = try XCTUnwrap(TVTimeCSV.date(
+            ["watched_at": "2025-02-14T20:30:00.125Z"],
+            ["watched_at"]
+        ))
+        let legacy = try XCTUnwrap(TVTimeCSV.date(
+            ["watched_at": "2025-02-14 20:30:00"],
+            ["watched_at"]
+        ))
+
+        XCTAssertEqual(standard.timeIntervalSince1970, 1_739_565_000, accuracy: 0.001)
+        XCTAssertEqual(fractional.timeIntervalSince1970, 1_739_565_000.125, accuracy: 0.001)
+        XCTAssertEqual(legacy, standard)
+    }
+
+    @MainActor
+    func testCancelledResolutionSearchDoesNotSurfaceCatalogError() async throws {
+        let session = TVTimeImportSession(
+            archive: TVTimeArchive(
+                entities: [],
+                duplicateCount: 0,
+                diagnostics: TVTimeImportDiagnostics()
+            ),
+            current: .empty,
+            catalog: CancellingCatalog(),
+            region: .malta
+        )
+        let coordinator = TVTimeImportCoordinator(session: session)
+
+        do {
+            _ = try await coordinator.search("Severance", kind: .series)
+            XCTFail("Expected cancellation to propagate")
+        } catch is CancellationError {
+            XCTAssertNil(coordinator.errorMessage)
+        }
+    }
+}
+
 private struct AliasOnlyCatalog: CatalogProviding {
     let title: MediaTitle
 
