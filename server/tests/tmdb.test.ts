@@ -145,7 +145,7 @@ describe("mapReviews", () => {
         ],
       })[0],
     ).toEqual({
-      id: "tmdb-review-review-id",
+      id: "tmdb-review-provider-review-id",
       author: "Reviewer",
       excerpt: content,
       rating: 8,
@@ -175,8 +175,8 @@ describe("mapReviews", () => {
     expect(page.page).toBe(2);
     expect(page.totalPages).toBe(100);
     expect(page.results.map((review) => review.id)).toEqual([
-      "tmdb-review-stable",
-      "tmdb-review-2-1",
+      "tmdb-review-provider-stable",
+      "tmdb-review-fallback-2-1",
     ]);
   });
 
@@ -187,7 +187,166 @@ describe("mapReviews", () => {
     );
 
     expect(page.page).toBe(3);
-    expect(page.results[0]?.id).toBe("tmdb-review-3-0");
+    expect(page.results[0]?.id).toBe("tmdb-review-fallback-3-0");
+  });
+
+  test("keeps provider and fallback identities distinct during pagination deduplication", () => {
+    const fallback = mapReviewPage(
+      { results: [{ content: "Fallback review" }] },
+      1,
+    ).results[0]!;
+    const provider = mapReviewPage(
+      { results: [{ id: "fallback-1-0", content: "Provider review" }] },
+      2,
+    ).results[0]!;
+    const seenIDs = new Set<string>();
+    const paginated = [fallback, fallback, provider, provider].filter((review) =>
+      seenIDs.has(review.id) ? false : Boolean(seenIDs.add(review.id)),
+    );
+
+    expect(paginated.map((review) => review.id)).toEqual([
+      "tmdb-review-fallback-1-0",
+      "tmdb-review-provider-fallback-1-0",
+    ]);
+    expect(paginated.map((review) => review.excerpt)).toEqual([
+      "Fallback review",
+      "Provider review",
+    ]);
+  });
+
+  test("accepts only provider-relative avatar artwork on the TMDB image CDN", () => {
+    const avatarPaths = [
+      ["/avatar.jpg", "https://image.tmdb.org/t/p/w185/avatar.jpg"],
+      [undefined, null],
+      ["", null],
+      ["/https://secure.gravatar.com/avatar/hash?s=200", null],
+      ["/http://secure.gravatar.com/avatar/hash", null],
+      ["https://attacker.example/avatar.jpg", null],
+      ["http://attacker.example/avatar.jpg", null],
+      ["//attacker.example/avatar.jpg", null],
+      ["/image.tmdb.org.attacker.example/avatar.jpg", null],
+      ["https://user:password@image.tmdb.org/avatar.jpg", null],
+      ["data:image/png;base64,AAAA", null],
+      ["javascript:alert(1)", null],
+      ["/\\attacker.example/avatar.jpg", null],
+      ["/avatar.jpg?redirect=https://attacker.example", null],
+      ["/avatar.jpg#attacker", null],
+    ] as const;
+
+    const mapped = mapReviews({
+      results: avatarPaths.map(([avatarPath], index) => ({
+        id: `avatar-${index}`,
+        content: "Review",
+        author_details: { avatar_path: avatarPath },
+      })),
+    }, 1, avatarPaths.length);
+
+    expect(mapped.map((review) => review.avatarURL)).toEqual(
+      avatarPaths.map(([, expected]) => expected),
+    );
+  });
+
+  test("derives original-review links from bounded provider identifiers", () => {
+    const mapped = mapReviews({
+      results: [
+        { id: "safe_review-123", content: "No upstream URL" },
+        {
+          id: "safe-review-456",
+          content: "Hostile upstream URL",
+          url: "https://attacker.example/review/stolen",
+        },
+        {
+          id: "safe-review-789",
+          content: "Mismatched upstream URL",
+          url: "https://www.themoviedb.org/review/different-id",
+        },
+      ],
+    });
+
+    expect(mapped.map((review) => review.sourceURL)).toEqual([
+      "https://www.themoviedb.org/review/safe_review-123",
+      "https://www.themoviedb.org/review/safe-review-456",
+      "https://www.themoviedb.org/review/safe-review-789",
+    ]);
+  });
+
+  test("canonicalizes only strict TMDB review URLs when the provider ID is unavailable", () => {
+    const sourceURLs = [
+      [
+        "https://www.themoviedb.org/review/fallback-id",
+        "https://www.themoviedb.org/review/fallback-id",
+      ],
+      ["http://www.themoviedb.org/review/review-id", null],
+      ["//www.themoviedb.org/review/review-id", null],
+      ["https://user:password@www.themoviedb.org/review/review-id", null],
+      ["https://www.themoviedb.org:443/review/review-id", null],
+      ["https://themoviedb.org/review/review-id", null],
+      ["https://reviews.themoviedb.org/review/review-id", null],
+      ["https://www.themoviedb.org.attacker.example/review/review-id", null],
+      ["https://www.themoviedb.org/movie/review-id", null],
+      ["https://www.themoviedb.org/review/review-id/extra", null],
+      ["https://www.themoviedb.org/review/invalid.id", null],
+      ["https://www.themoviedb.org/review/review-id?redirect=attacker", null],
+      ["https://www.themoviedb.org/review/review-id#attacker", null],
+      ["not a URL", null],
+    ] as const;
+
+    const mapped = mapReviews({
+      results: sourceURLs.map(([url]) => ({ content: "Review", url })),
+    }, 4, sourceURLs.length);
+
+    expect(mapped.map((review) => review.sourceURL)).toEqual(
+      sourceURLs.map(([, expected]) => expected),
+    );
+    expect(mapped.map((review) => review.id)).toEqual(
+      sourceURLs.map((_, index) => `tmdb-review-fallback-4-${index}`),
+    );
+  });
+
+  test("uses page identities for invalid or oversized provider IDs", () => {
+    const invalidIDs = [
+      "slash/id",
+      "dot.id",
+      "percent%2Fid",
+      "unicode-é",
+      " spaced ",
+      "query?id",
+      "fragment#id",
+      "x".repeat(129),
+    ];
+
+    const page = mapReviewPage(
+      {
+        results: invalidIDs.map((id) => ({
+          id,
+          content: "Review",
+          url: `https://attacker.example/review/${id}`,
+        })),
+      },
+      3,
+    );
+
+    expect(page.results.map((review) => review.id)).toEqual(
+      invalidIDs.map((_, index) => `tmdb-review-fallback-3-${index}`),
+    );
+    expect(page.results.every((review) => review.sourceURL === null)).toBe(true);
+  });
+
+  test("uses the same URL trust boundary for embedded and paginated reviews", () => {
+    const payload = {
+      results: [
+        {
+          id: "shared-review",
+          content: "Review",
+          author_details: { avatar_path: "//attacker.example/avatar.jpg" },
+          url: "https://attacker.example/review/shared-review",
+        },
+      ],
+    };
+
+    expect(mapReviewPage(payload, 2).results).toEqual(
+      mapReviews(payload, 2, 20),
+    );
   });
 });
 
