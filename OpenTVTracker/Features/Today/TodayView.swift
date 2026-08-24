@@ -63,6 +63,7 @@ struct TodayView: View {
                     dynamicTypeSize.isAccessibilitySize ? .hard : .automatic,
                     for: .bottom
                 )
+                .accessibilityIdentifier("today.scroll")
             }
             .suspendsSpaceSwitchWhenCovered()
             .navigationDestination(for: MediaTitle.self) { title in
@@ -87,8 +88,6 @@ struct TodayView: View {
                 switch sheet {
                 case .assistant:
                     DiscoveryAssistantView()
-                        .presentationDetents([.medium, .large])
-                        .presentationDragIndicator(.visible)
                 case .services:
                     ServiceManagerView()
                 case .settings:

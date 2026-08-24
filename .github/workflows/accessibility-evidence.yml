@@ -1,0 +1,216 @@
+name: Accessibility Evidence
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: accessibility-evidence-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  evidence-matrix:
+    name: evidence-${{ matrix.device_class }}
+    runs-on: macos-26
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        device_class: [small-iphone, ipad]
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Define evidence paths
+        shell: bash
+        run: echo "RESULT_BUNDLE_PATH=$RUNNER_TEMP/AccessibilityEvidence-${{ matrix.device_class }}.xcresult" >> "$GITHUB_ENV"
+
+      - name: Select Xcode with an installed iOS runtime
+        run: sudo xcode-select -s /Applications/Xcode_26.4.1.app
+
+      - name: Verify reproducible Xcode project
+        run: .github/scripts/generate-ios-project.sh check
+
+      - name: Resolve locked Swift packages
+        run: >-
+          xcodebuild -resolvePackageDependencies
+          -project OpenTVTracker.xcodeproj
+          -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages"
+          -onlyUsePackageVersionsFromResolvedFile
+          -disableAutomaticPackageResolution
+
+      - name: Select or create supported simulator
+        id: simulator
+        env:
+          DEVICE_CLASS: ${{ matrix.device_class }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          runtime_json="$(xcrun simctl list runtimes -j)"
+          runtime_id="$(jq -r '
+            [.runtimes[] | select(.isAvailable and .platform == "iOS")]
+            | sort_by(.version | split(".") | map(tonumber))
+            | last
+            | .identifier // empty
+          ' <<< "$runtime_json")"
+          [[ -n "$runtime_id" ]] || {
+            echo "::error::No available iOS simulator runtime is installed."
+            exit 1
+          }
+
+          if [[ "$DEVICE_CLASS" == "small-iphone" ]]; then
+            candidates=(
+              com.apple.CoreSimulator.SimDeviceType.iPhone-SE-3rd-generation
+              com.apple.CoreSimulator.SimDeviceType.iPhone-13-mini
+              com.apple.CoreSimulator.SimDeviceType.iPhone-12-mini
+            )
+          elif [[ "$DEVICE_CLASS" == "ipad" ]]; then
+            candidates=(
+              com.apple.CoreSimulator.SimDeviceType.iPad-mini-A17-Pro
+              com.apple.CoreSimulator.SimDeviceType.iPad-mini-6th-generation
+              com.apple.CoreSimulator.SimDeviceType.iPad-A16
+              com.apple.CoreSimulator.SimDeviceType.iPad-Pro-11-inch-M5-12GB
+              com.apple.CoreSimulator.SimDeviceType.iPad-Pro-11-inch-M4-8GB
+            )
+          else
+            echo "::error::Unsupported device class: $DEVICE_CLASS"
+            exit 1
+          fi
+
+          supported_types="$(jq -r --arg runtime "$runtime_id" '
+            .runtimes[]
+            | select(.identifier == $runtime)
+            | .supportedDeviceTypes[].identifier
+          ' <<< "$runtime_json")"
+          device_type=""
+          for candidate in "${candidates[@]}"; do
+            if grep -Fxq "$candidate" <<< "$supported_types"; then
+              device_type="$candidate"
+              break
+            fi
+          done
+          [[ -n "$device_type" ]] || {
+            echo "::error::Runtime $runtime_id supports none of the approved $DEVICE_CLASS device types."
+            exit 1
+          }
+
+          devices_json="$(xcrun simctl list devices -j)"
+          udid="$(jq -r --arg runtime "$runtime_id" --arg type "$device_type" '
+            [.devices[$runtime][]? | select(.isAvailable and .deviceTypeIdentifier == $type)]
+            | first
+            | .udid // empty
+          ' <<< "$devices_json")"
+          created=false
+          if [[ -z "$udid" ]]; then
+            name="OpenTV Accessibility $DEVICE_CLASS $GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+            udid="$(xcrun simctl create "$name" "$device_type" "$runtime_id")"
+            created=true
+          fi
+
+          device_name="$(xcrun simctl list devices -j | jq -r --arg runtime "$runtime_id" --arg udid "$udid" '
+            .devices[$runtime][] | select(.udid == $udid) | .name
+          ')"
+          [[ -n "$device_name" ]] || {
+            echo "::error::Selected simulator $udid was not discoverable after selection."
+            exit 1
+          }
+
+          xcrun simctl boot "$udid" 2>/dev/null || true
+          xcrun simctl bootstatus "$udid" -b
+          {
+            echo "SIMULATOR_UDID=$udid"
+            echo "SIMULATOR_CREATED=$created"
+            echo "SIMULATOR_NAME=$device_name"
+            echo "SIMULATOR_RUNTIME=$runtime_id"
+          } >> "$GITHUB_ENV"
+          echo "Selected $device_name ($udid) on $runtime_id; created=$created."
+
+      - name: Run accessibility evidence matrix
+        run: >-
+          xcodebuild test
+          -project OpenTVTracker.xcodeproj
+          -scheme OpenTVTracker
+          -destination "platform=iOS Simulator,id=$SIMULATOR_UDID"
+          -derivedDataPath "$RUNNER_TEMP/AccessibilityEvidenceDerivedData-${{ matrix.device_class }}"
+          -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages"
+          -onlyUsePackageVersionsFromResolvedFile
+          -disableAutomaticPackageResolution
+          -resultBundlePath "$RESULT_BUNDLE_PATH"
+          -only-testing:OpenTVTrackerUITests/AccessibilityEvidenceUITests
+          CODE_SIGNING_ALLOWED=NO
+
+      - name: Verify complete retained evidence
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -d "$RESULT_BUNDLE_PATH" ]] || {
+            echo "::error::The accessibility result bundle was not produced."
+            exit 1
+          }
+          export_dir="$RUNNER_TEMP/AccessibilityEvidenceAttachments-${{ matrix.device_class }}"
+          xcrun xcresulttool export attachments \
+            --path "$RESULT_BUNDLE_PATH" \
+            --output-path "$export_dir"
+          manifest="$export_dir/manifest.json"
+          [[ -f "$manifest" ]] || {
+            echo "::error::The result bundle did not export an attachment manifest."
+            exit 1
+          }
+          expected_screenshots="$RUNNER_TEMP/expected-screenshots.txt"
+          expected_hierarchies="$RUNNER_TEMP/expected-hierarchies.txt"
+          actual_screenshots="$RUNNER_TEMP/actual-screenshots.txt"
+          actual_hierarchies="$RUNNER_TEMP/actual-hierarchies.txt"
+          flows=(first-run today discover-search shared library media-details discovery-assistant)
+          modes=(default ax5)
+          for flow in "${flows[@]}"; do
+            for mode in "${modes[@]}"; do
+              echo "$flow-$mode-screenshot"
+            done
+          done | sort > "$expected_screenshots"
+          for flow in "${flows[@]}"; do
+            for mode in "${modes[@]}"; do
+              echo "$flow-$mode-accessibility-hierarchy"
+            done
+          done | sort > "$expected_hierarchies"
+
+          jq -r '
+            .[]? | .attachments[]? | .suggestedHumanReadableName
+            | sub("_[0-9]+_.*$"; "")
+            | select(endswith("-screenshot"))
+          ' "$manifest" | sort > "$actual_screenshots"
+          jq -r '
+            .[]? | .attachments[]? | .suggestedHumanReadableName
+            | sub("_[0-9]+_.*$"; "")
+            | select(endswith("-accessibility-hierarchy"))
+          ' "$manifest" | sort > "$actual_hierarchies"
+
+          diff -u "$expected_screenshots" "$actual_screenshots" || {
+            echo "::error::Screenshot evidence names are missing, extra, or duplicated."
+            exit 1
+          }
+          diff -u "$expected_hierarchies" "$actual_hierarchies" || {
+            echo "::error::Accessibility hierarchy evidence names are missing, extra, or duplicated."
+            exit 1
+          }
+          echo "Verified the exact 14 screenshot and 14 hierarchy attachment names for $SIMULATOR_NAME."
+
+      - name: Upload accessibility evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: opentvtracker-accessibility-evidence-${{ matrix.device_class }}-${{ github.run_attempt }}
+          path: ${{ env.RESULT_BUNDLE_PATH }}
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Clean up selected simulator
+        if: always() && env.SIMULATOR_UDID != ''
+        shell: bash
+        run: |
+          xcrun simctl shutdown "$SIMULATOR_UDID" 2>/dev/null || true
+          if [[ "$SIMULATOR_CREATED" == "true" ]]; then
+            xcrun simctl delete "$SIMULATOR_UDID"
+          fi
