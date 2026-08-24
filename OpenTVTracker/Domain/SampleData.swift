@@ -394,10 +394,3 @@ extension LibrarySnapshot {
     }()
 }
 #endif
-
-extension CommunityReview {
-    static let sampleThoughtful = CommunityReview(id: "review-thoughtful", author: "Maya R.", excerpt: "Patient, precise, and far stranger than its premise first suggests.", rating: 9, source: "TMDB", containsSpoilers: false)
-    static let sampleWarm = CommunityReview(id: "review-warm", author: "Jonas", excerpt: "Chaotic on the surface, deeply generous underneath.", rating: 8.5, source: "TMDB", containsSpoilers: false)
-    static let sampleSharp = CommunityReview(id: "review-sharp", author: "Nadia", excerpt: "The dialogue moves like a knife fight and somehow stays funny.", rating: 8, source: "TMDB", containsSpoilers: false)
-    static let sampleTender = CommunityReview(id: "review-tender", author: "Eli", excerpt: "A quiet film about the lives we choose and the ones that remain possible.", rating: 9, source: "TMDB", containsSpoilers: false)
-}
