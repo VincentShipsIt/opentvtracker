@@ -53,6 +53,44 @@ yaml_scalar() {
   printf '%s' "$matches"
 }
 
+zipfoundation_exact_version() {
+  local parsed=""
+  local block_count=0
+  local count=0
+  local value=""
+
+  parsed="$(awk '
+    /^packages:[[:space:]]*(#.*)?$/ { in_packages = 1; next }
+    in_packages && /^[^[:space:]#]/ { in_packages = 0; in_zipfoundation = 0 }
+    in_packages && /^  ZIPFoundation:[[:space:]]*(#.*)?$/ {
+      block_count += 1
+      in_zipfoundation = 1
+      next
+    }
+    in_packages && /^  [A-Za-z0-9_.-]+:[[:space:]]*(#.*)?$/ {
+      in_zipfoundation = 0
+    }
+    in_zipfoundation && /^    exactVersion:[[:space:]]*[^#[:space:]]+/ {
+      candidate = $0
+      sub(/^    exactVersion:[[:space:]]*/, "", candidate)
+      sub(/[[:space:]#].*$/, "", candidate)
+      version_count += 1
+      if (version_count == 1) {
+        version = candidate
+      }
+    }
+    END { printf "%d|%d|%s\n", block_count + 0, version_count + 0, version }
+  ' "$PROJECT_SPEC")"
+  IFS='|' read -r block_count count value <<< "$parsed"
+  [[ "$block_count" == "1" ]] \
+    || fact_error "ZIPFoundation exact version" "$PROJECT_SPEC" \
+      "Expected exactly one packages.ZIPFoundation mapping in project.yml; found $block_count."
+  [[ "$count" == "1" ]] \
+    || fact_error "ZIPFoundation exact version" "$PROJECT_SPEC" \
+      "Expected exactly one exactVersion inside packages.ZIPFoundation; found $count."
+  printf '%s' "$value"
+}
+
 require_literal() {
   local fact="$1"
   local file="$2"
@@ -72,11 +110,11 @@ reject_literal() {
 
 reject_version_claims() {
   local file="$1"
-  if grep -Eiq 'marketing version[[:space:]*`:_-]*[0-9]+\.[0-9]+\.[0-9]+' "$file"; then
+  if grep -Eiq 'marketing[[:space:]]+version[^[:cntrl:][:digit:]]{0,40}[0-9]+\.[0-9]+\.[0-9]+' "$file"; then
     fact_error "marketing version" "$file" \
       "Do not duplicate the marketing version; link to project.yml."
   fi
-  if grep -Eiq 'build[[:space:]*`:_-]*[0-9]+' "$file"; then
+  if grep -Eiq 'build[[:space:]]+number[^[:cntrl:][:digit:]]{0,40}[0-9]+' "$file"; then
     fact_error "build number" "$file" \
       "Do not duplicate the build number; link to project.yml."
   fi
@@ -88,7 +126,9 @@ reject_dependency_claims() {
     fact_error "ZIPFoundation exact version" "$file" \
       "Do not duplicate a ZIPFoundation version; link to project.yml."
   fi
-  if grep -Eiq '(revision|commit)[^[:cntrl:]]{0,40}[0-9a-f]{40}' "$file"; then
+  if grep -Eiq 'package[[:space:]]+revision[^[:cntrl:]]{0,40}[0-9a-f]{40}' "$file" \
+    || grep -Eiq 'ZIPFoundation[^[:cntrl:]]{0,80}(revision|commit|resolved[[:space:]]+to)[^[:cntrl:][:xdigit:]]{0,20}[0-9a-f]{40}' "$file"
+  then
     fact_error "ZIPFoundation resolved revision" "$file" \
       "Do not duplicate a package revision; link to Package.resolved."
   fi
@@ -186,7 +226,7 @@ main() {
 
   marketing_version="$(yaml_scalar MARKETING_VERSION "marketing version")"
   build_number="$(yaml_scalar CURRENT_PROJECT_VERSION "build number")"
-  package_version="$(yaml_scalar exactVersion "ZIPFoundation exact version")"
+  package_version="$(zipfoundation_exact_version)"
   [[ "$marketing_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][A-Za-z0-9]+)*$ ]] \
     || fact_error "marketing version" "$PROJECT_SPEC" \
       "MARKETING_VERSION is not a semantic version: $marketing_version"

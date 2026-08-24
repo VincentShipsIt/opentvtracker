@@ -90,8 +90,16 @@ fixture="$(make_fixture exact-repository)"
 expect_success "accepts the exact repository facts" "$fixture"
 
 fixture="$(make_fixture stale-readme-build)"
-printf '\nBuild **6**.\n' >> "$fixture/README.md"
+printf '\nBuild number **6**.\n' >> "$fixture/README.md"
 expect_failure "rejects a stale README build" "$fixture" "README.md" "build number"
+
+fixture="$(make_fixture natural-stale-readme-facts)"
+printf '\nThe marketing version is 9.9.9 and the build number is 999.\n' >> "$fixture/README.md"
+expect_failure "rejects natural stale README facts" "$fixture" "README.md" "marketing version"
+
+fixture="$(make_fixture unrelated-build-prose)"
+printf '\nA future benchmark may build 10 targets in parallel.\n' >> "$fixture/README.md"
+expect_success "allows unrelated prose containing build and a number" "$fixture"
 
 fixture="$(make_fixture stale-roadmap-version)"
 printf '\nMarketing version 0.1.1.\n' >> "$fixture/docs/ROADMAP.md"
@@ -113,6 +121,14 @@ fixture="$(make_fixture duplicated-package-revision)"
 printf '\nPinned package revision: 0000000000000000000000000000000000000000.\n' >> "$fixture/docs/THIRD_PARTY_LICENSES.md"
 expect_failure "rejects a stale package revision" "$fixture" "docs/THIRD_PARTY_LICENSES.md" "ZIPFoundation resolved revision"
 
+fixture="$(make_fixture natural-stale-package-revision)"
+printf '\nZIPFoundation is resolved to 0000000000000000000000000000000000000000.\n' >> "$fixture/docs/THIRD_PARTY_LICENSES.md"
+expect_failure "rejects a natural stale package revision" "$fixture" "docs/THIRD_PARTY_LICENSES.md" "ZIPFoundation resolved revision"
+
+fixture="$(make_fixture unrelated-revision-prose)"
+printf '\nAn unrelated fixture commit is 0000000000000000000000000000000000000000.\n' >> "$fixture/docs/THIRD_PARTY_LICENSES.md"
+expect_success "allows an unrelated full commit identifier" "$fixture"
+
 fixture="$(make_fixture stale-swiftlint-claim)"
 printf '\nThere is no `.swiftlint.yml`.\n' >> "$fixture/docs/THIRD_PARTY_LICENSES.md"
 expect_failure "rejects a stale SwiftLint claim" "$fixture" "docs/THIRD_PARTY_LICENSES.md" "SwiftLint configuration"
@@ -132,6 +148,17 @@ expect_failure "rejects a malformed resolved revision" "$fixture" "OpenTVTracker
 fixture="$(make_fixture duplicate-build-owner)"
 printf '\n# duplicate fixture\nCURRENT_PROJECT_VERSION: 11\n' >> "$fixture/project.yml"
 expect_failure "rejects duplicate build owners" "$fixture" "project.yml" "build number"
+
+fixture="$(make_fixture misplaced-package-owner)"
+perl -0pi -e 's/exactVersion: 0\.9\.20/from: 0.9.20/' "$fixture/project.yml"
+perl -0pi -e 's/packages:\n/packages:\n  OtherPackage:\n    url: https:\/\/example.invalid\/other-package\n    exactVersion: 0.9.20\n/' \
+  "$fixture/project.yml"
+expect_failure "rejects exactVersion owned by another package" "$fixture" "project.yml" "ZIPFoundation exact version"
+
+fixture="$(make_fixture second-exact-package)"
+perl -0pi -e 's/packages:\n/packages:\n  OtherPackage:\n    url: https:\/\/example.invalid\/other-package\n    exactVersion: 1.2.3\n/' \
+  "$fixture/project.yml"
+expect_success "allows a second package with its own exactVersion" "$fixture"
 
 fixture="$(make_fixture stale-required-check)"
 perl -0pi -e "s/\\.github\\/workflows\\/ios\\.yml\|build-and-test/.github\\/workflows\\/ios.yml|stale-build/" \
