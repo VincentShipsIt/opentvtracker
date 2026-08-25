@@ -264,7 +264,10 @@ struct DiscoverView: View {
         .padding(.horizontal, AppTheme.horizontalPadding)
     }
 
-    private var noServiceMatches: some View {
+}
+
+private extension DiscoverView {
+    var noServiceMatches: some View {
         GlassSurface(tint: .orange) {
             ContentUnavailableView(
                 model.selectedProviderIDs.isEmpty ? "Pick a streaming service" : "Nothing matches yet",
@@ -279,9 +282,6 @@ struct DiscoverView: View {
         }
     }
 
-}
-
-private extension DiscoverView {
     var rotatedRecommendations: [MediaTitle] {
         let titles = model.recommendations
         guard !titles.isEmpty else { return [] }
@@ -322,108 +322,6 @@ private extension DiscoverView {
             return
         }
         presentedSheet = .trailer(trailer)
-    }
-}
-
-private struct DiscoveryCatalogBrowser: View {
-    @Environment(AppModel.self) private var model
-    let spaceMode: AppSpaceMode
-    let onInvitePartner: () -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            SectionHeading(
-                title: "Browse everything",
-                subtitle: status
-            )
-
-            if model.discoveryCatalogTitles.isEmpty {
-                if model.isLoadingDiscoveryCatalog {
-                    ProgressView("Loading the catalog…")
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 24)
-                } else if let error = model.discoveryCatalogError {
-                    retryPanel(error: error)
-                } else {
-                    ContentUnavailableView(
-                        "No catalog titles available",
-                        systemImage: "rectangle.stack",
-                        description: Text("Try refreshing the catalog in a moment.")
-                    )
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 24)
-                }
-            } else {
-                AdaptiveGrid(rowSpacing: 18, columnSpacing: 14) {
-                    ForEach(model.discoveryCatalogTitles) { title in
-                        CatalogSearchCard(
-                            result: title,
-                            spaceMode: spaceMode,
-                            onInvitePartner: onInvitePartner
-                        )
-                            .task {
-                                if title.id == model.discoveryCatalogTitles.last?.id {
-                                    await model.loadMoreDiscoveryCatalog()
-                                }
-                            }
-                    }
-                }
-
-                if model.isLoadingDiscoveryCatalog {
-                    ProgressView("Loading more shows and movies…")
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                } else if let error = model.discoveryCatalogError {
-                    retryPanel(error: error)
-                } else if !model.hasMoreDiscoveryCatalogTitles {
-                    Text("You’ve reached the end of the catalog.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                }
-            }
-        }
-        .padding(.horizontal, AppTheme.horizontalPadding)
-        .accessibilityIdentifier("discover.catalog-browser")
-    }
-
-    private var status: String {
-        if model.isLoadingDiscoveryCatalog, model.discoveryCatalogTitles.isEmpty {
-            return "Loading shows and movies…"
-        }
-        if model.discoveryCatalogError != nil, model.discoveryCatalogTitles.isEmpty {
-            return "Catalog unavailable"
-        }
-        if !model.hasMoreDiscoveryCatalogTitles {
-            return "\(model.discoveryCatalogTitles.count) shows and movies loaded"
-        }
-        return "\(model.discoveryCatalogTitles.count) loaded · more appear as you scroll"
-    }
-
-    private func retryPanel(error: String) -> some View {
-        GlassSurface(tint: .orange) {
-            VStack(alignment: .leading, spacing: 12) {
-                Label("Couldn’t load more titles", systemImage: "wifi.exclamationmark")
-                    .font(.headline)
-                Text(error)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-
-                Button("Try again", systemImage: "arrow.clockwise") {
-                    Task {
-                        if model.discoveryCatalogTitles.isEmpty {
-                            await model.refreshDiscoveryCatalog()
-                        } else {
-                            await model.loadMoreDiscoveryCatalog()
-                        }
-                    }
-                }
-                .adaptiveGlassButton(prominent: true)
-            }
-            .padding(16)
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
     }
 }
 
