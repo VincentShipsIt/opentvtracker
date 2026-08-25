@@ -185,6 +185,13 @@ perl -0pi -e 's/^        run: \.github\/scripts\/run-swiftlint\.sh$/        # ru
   "$fixture/.github/workflows/ios.yml"
 expect_failure "rejects a commented-out SwiftLint workflow gate" "$fixture" ".github/workflows/ios.yml" "SwiftLint CI gate"
 
+fixture="$(make_fixture job-environment-swiftlint-lookalike)"
+perl -0pi -e 's/^      - name: Enforce pinned SwiftLint\n        run: \.github\/scripts\/run-swiftlint\.sh\n//m' \
+  "$fixture/.github/workflows/ios.yml"
+perl -0pi -e 's/^    timeout-minutes: 45$/    timeout-minutes: 45\n    env:\n      run: .github\/scripts\/run-swiftlint.sh/m' \
+  "$fixture/.github/workflows/ios.yml"
+expect_failure "rejects a job environment SwiftLint lookalike" "$fixture" ".github/workflows/ios.yml" "SwiftLint CI gate"
+
 fixture="$(make_fixture mismatched-lock-version)"
 lock="$fixture/OpenTVTracker.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
 jq '.pins[0].state.version = "99.0.0"' "$lock" > "$lock.next"

@@ -232,7 +232,7 @@ validate_swiftlint_contract() {
   local job_block=""
   local workflow_count=0
   local job_count=0
-  local swiftlint_run_pattern='^[[:space:]]+run:[[:space:]]+\.github/scripts/run-swiftlint\.sh([[:space:]]+#.*)?[[:space:]]*$'
+  local swiftlint_run_pattern='^        run:[[:space:]]+\.github/scripts/run-swiftlint\.sh([[:space:]]+#.*)?[[:space:]]*$'
 
   version="$(shell_readonly_scalar "$SWIFTLINT_SCRIPT" SWIFTLINT_VERSION "SwiftLint CI gate")"
   archive_sha="$(shell_readonly_scalar "$SWIFTLINT_SCRIPT" SWIFTLINT_ARCHIVE_SHA256 "SwiftLint CI gate")"
