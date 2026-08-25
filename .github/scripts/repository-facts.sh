@@ -9,7 +9,11 @@ readonly ROOT
 readonly PROJECT_SPEC="$ROOT/project.yml"
 readonly PACKAGE_LOCK="$ROOT/OpenTVTracker.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
 readonly REQUIRED_CHECKS_SCRIPT="$ROOT/.github/scripts/required-checks.sh"
+readonly IOS_WORKFLOW="$ROOT/.github/workflows/ios.yml"
+readonly SWIFTLINT_SCRIPT="$ROOT/.github/scripts/run-swiftlint.sh"
+readonly APPROVED_SWIFTLINT_ARCHIVE_SHA256="d6cb0aa7a2f5f1ef306fc9e37bcb54dc9a26facc8f7784ac0c3dd3eccf5c6ba6"
 readonly README="$ROOT/README.md"
+readonly CONTRIBUTING="$ROOT/CONTRIBUTING.md"
 readonly ROADMAP="$ROOT/docs/ROADMAP.md"
 readonly THIRD_PARTY="$ROOT/docs/THIRD_PARTY_LICENSES.md"
 readonly PUBLIC_RELEASE_CHECKLIST="$ROOT/docs/PUBLIC_RELEASE_CHECKLIST.md"
@@ -50,6 +54,21 @@ yaml_scalar() {
   [[ "$count" == "1" ]] \
     || fact_error "$fact" "$PROJECT_SPEC" \
       "Expected exactly one $key owner in project.yml; found $count."
+  printf '%s' "$matches"
+}
+
+shell_readonly_scalar() {
+  local file="$1"
+  local key="$2"
+  local fact="$3"
+  local matches=""
+  local count=0
+
+  matches="$(sed -nE "s/^readonly ${key}=\"([^\"]+)\"$/\\1/p" "$file")"
+  count="$(awk 'NF { count += 1 } END { print count + 0 }' <<< "$matches")"
+  [[ "$count" == "1" ]] \
+    || fact_error "$fact" "$file" \
+      "Expected exactly one readonly $key owner; found $count."
   printf '%s' "$matches"
 }
 
@@ -207,6 +226,39 @@ validate_release_contract() {
   done
 }
 
+validate_swiftlint_contract() {
+  local version=""
+  local archive_sha=""
+  local job_block=""
+  local workflow_count=0
+  local job_count=0
+  local swiftlint_run_pattern='^        run:[[:space:]]+\.github/scripts/run-swiftlint\.sh([[:space:]]+#.*)?[[:space:]]*$'
+
+  version="$(shell_readonly_scalar "$SWIFTLINT_SCRIPT" SWIFTLINT_VERSION "SwiftLint CI gate")"
+  archive_sha="$(shell_readonly_scalar "$SWIFTLINT_SCRIPT" SWIFTLINT_ARCHIVE_SHA256 "SwiftLint CI gate")"
+  [[ "$version" == "0.65.0" ]] \
+    || fact_error "SwiftLint CI gate" "$SWIFTLINT_SCRIPT" \
+      "SwiftLint must remain pinned to 0.65.0; found $version."
+  [[ "$archive_sha" =~ ^[0-9a-f]{64}$ ]] \
+    || fact_error "SwiftLint CI gate" "$SWIFTLINT_SCRIPT" \
+      "SWIFTLINT_ARCHIVE_SHA256 must be a full lowercase SHA-256 digest."
+  [[ "$archive_sha" == "$APPROVED_SWIFTLINT_ARCHIVE_SHA256" ]] \
+    || fact_error "SwiftLint CI gate" "$SWIFTLINT_SCRIPT" \
+      "SwiftLint 0.65.0 archive checksum must match the approved release digest."
+  require_literal "SwiftLint CI gate" "$SWIFTLINT_SCRIPT" \
+    'https://github.com/realm/SwiftLint/releases/download/${SWIFTLINT_VERSION}/portable_swiftlint.zip'
+
+  workflow_count="$(grep -Ec "$swiftlint_run_pattern" "$IOS_WORKFLOW" || true)"
+  [[ "$workflow_count" == "1" ]] \
+    || fact_error "SwiftLint CI gate" "$IOS_WORKFLOW" \
+      "The workflow must invoke the pinned SwiftLint entrypoint exactly once; found $workflow_count."
+  job_block="$(workflow_job_block "$IOS_WORKFLOW" "build-and-test")"
+  job_count="$(grep -Ec "$swiftlint_run_pattern" <<< "$job_block" || true)"
+  [[ "$job_count" == "1" ]] \
+    || fact_error "SwiftLint CI gate" "$IOS_WORKFLOW" \
+      "The pinned SwiftLint entrypoint must run inside the existing build-and-test job."
+}
+
 main() {
   local marketing_version=""
   local build_number=""
@@ -221,7 +273,10 @@ main() {
   require_file "marketing version and build number" "$PROJECT_SPEC"
   require_file "ZIPFoundation resolved revision" "$PACKAGE_LOCK"
   require_file "release gate" "$REQUIRED_CHECKS_SCRIPT"
+  require_file "SwiftLint CI gate" "$IOS_WORKFLOW"
+  require_file "SwiftLint CI gate" "$SWIFTLINT_SCRIPT"
   require_file "marketing version and build number" "$README"
+  require_file "SwiftLint CI gate" "$CONTRIBUTING"
   require_file "marketing version and build number" "$ROADMAP"
   require_file "ZIPFoundation dependency" "$THIRD_PARTY"
   require_file "public release checklist" "$PUBLIC_RELEASE_CHECKLIST"
@@ -268,6 +323,12 @@ main() {
   reject_dependency_claims "$THIRD_PARTY"
   require_literal "SwiftLint configuration" "$THIRD_PARTY" '[`.swiftlint.yml`](../.swiftlint.yml)'
   reject_literal "SwiftLint configuration" "$THIRD_PARTY" 'There is no `.swiftlint.yml`'
+  require_literal "SwiftLint CI gate" "$THIRD_PARTY" \
+    '[`.github/scripts/run-swiftlint.sh`](../.github/scripts/run-swiftlint.sh)'
+  reject_literal "SwiftLint CI gate" "$THIRD_PARTY" 'SwiftLint is not a required CI job'
+  require_literal "SwiftLint CI gate" "$CONTRIBUTING" \
+    '[`.github/scripts/run-swiftlint.sh`](.github/scripts/run-swiftlint.sh)'
+  reject_literal "SwiftLint CI gate" "$CONTRIBUTING" 'There is no SwiftLint job'
 
   require_literal "public release checklist" "$PUBLIC_RELEASE_CHECKLIST" \
     '[public release checklist](TESTFLIGHT_RELEASES.md#public-release-checklist)'
@@ -279,6 +340,7 @@ main() {
     '[`.github/scripts/required-checks.sh`](../.github/scripts/required-checks.sh)'
 
   validate_release_contract
+  validate_swiftlint_contract
 
   printf 'Repository facts are consistent (app %s build %s; ZIPFoundation %s at %s).\n' \
     "$marketing_version" "$build_number" "$package_version" "$package_revision"

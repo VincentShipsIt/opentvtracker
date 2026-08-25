@@ -31,10 +31,12 @@ make_fixture() {
   local -a paths=(
     .swiftlint.yml
     .github/scripts/required-checks.sh
+    .github/scripts/run-swiftlint.sh
     .github/workflows/ios.yml
     .github/workflows/secret-scan.yml
     .github/workflows/server.yml
     OpenTVTracker.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+    CONTRIBUTING.md
     README.md
     docs/PUBLIC_RELEASE_CHECKLIST.md
     docs/ROADMAP.md
@@ -144,6 +146,51 @@ expect_success "allows an unrelated full commit identifier" "$fixture"
 fixture="$(make_fixture stale-swiftlint-claim)"
 printf '\nThere is no `.swiftlint.yml`.\n' >> "$fixture/docs/THIRD_PARTY_LICENSES.md"
 expect_failure "rejects a stale SwiftLint claim" "$fixture" "docs/THIRD_PARTY_LICENSES.md" "SwiftLint configuration"
+
+fixture="$(make_fixture stale-swiftlint-ci-claim)"
+printf '\nSwiftLint is not a required CI job.\n' >> "$fixture/docs/THIRD_PARTY_LICENSES.md"
+expect_failure "rejects a stale SwiftLint CI claim" "$fixture" "docs/THIRD_PARTY_LICENSES.md" "SwiftLint CI gate"
+
+fixture="$(make_fixture missing-swiftlint-doc-owner)"
+perl -0pi -e 's/\[`\.github\/scripts\/run-swiftlint\.sh`\]\(\.\.\/\.github\/scripts\/run-swiftlint\.sh\)/.github\/scripts\/run-swiftlint.sh/g' \
+  "$fixture/docs/THIRD_PARTY_LICENSES.md"
+expect_failure "requires the SwiftLint license owner link" "$fixture" "docs/THIRD_PARTY_LICENSES.md" "SwiftLint CI gate"
+
+fixture="$(make_fixture stale-contributing-swiftlint-claim)"
+printf '\nThere is no SwiftLint job.\n' >> "$fixture/CONTRIBUTING.md"
+expect_failure "rejects a stale contributing SwiftLint claim" "$fixture" "CONTRIBUTING.md" "SwiftLint CI gate"
+
+fixture="$(make_fixture wrong-swiftlint-version)"
+perl -0pi -e 's/readonly SWIFTLINT_VERSION="0\.65\.0"/readonly SWIFTLINT_VERSION="0.64.0"/' \
+  "$fixture/.github/scripts/run-swiftlint.sh"
+expect_failure "rejects a different SwiftLint version" "$fixture" ".github/scripts/run-swiftlint.sh" "SwiftLint CI gate"
+
+fixture="$(make_fixture malformed-swiftlint-checksum)"
+perl -0pi -e 's/readonly SWIFTLINT_ARCHIVE_SHA256="[0-9a-f]+"/readonly SWIFTLINT_ARCHIVE_SHA256="not-a-sha256"/' \
+  "$fixture/.github/scripts/run-swiftlint.sh"
+expect_failure "rejects a malformed SwiftLint checksum" "$fixture" ".github/scripts/run-swiftlint.sh" "SwiftLint CI gate"
+
+fixture="$(make_fixture unapproved-swiftlint-checksum)"
+perl -0pi -e 's/readonly SWIFTLINT_ARCHIVE_SHA256="[0-9a-f]+"/readonly SWIFTLINT_ARCHIVE_SHA256="0000000000000000000000000000000000000000000000000000000000000000"/' \
+  "$fixture/.github/scripts/run-swiftlint.sh"
+expect_failure "rejects an unapproved SwiftLint checksum" "$fixture" ".github/scripts/run-swiftlint.sh" "SwiftLint CI gate"
+
+fixture="$(make_fixture missing-swiftlint-workflow-gate)"
+perl -0pi -e 's/\.github\/scripts\/run-swiftlint\.sh/.github\/scripts\/missing-swiftlint.sh/' \
+  "$fixture/.github/workflows/ios.yml"
+expect_failure "requires SwiftLint in the existing iOS job" "$fixture" ".github/workflows/ios.yml" "SwiftLint CI gate"
+
+fixture="$(make_fixture commented-swiftlint-workflow-gate)"
+perl -0pi -e 's/^        run: \.github\/scripts\/run-swiftlint\.sh$/        # run: .github\/scripts\/run-swiftlint.sh/m' \
+  "$fixture/.github/workflows/ios.yml"
+expect_failure "rejects a commented-out SwiftLint workflow gate" "$fixture" ".github/workflows/ios.yml" "SwiftLint CI gate"
+
+fixture="$(make_fixture job-environment-swiftlint-lookalike)"
+perl -0pi -e 's/^      - name: Enforce pinned SwiftLint\n        run: \.github\/scripts\/run-swiftlint\.sh\n//m' \
+  "$fixture/.github/workflows/ios.yml"
+perl -0pi -e 's/^    timeout-minutes: 45$/    timeout-minutes: 45\n    env:\n      run: .github\/scripts\/run-swiftlint.sh/m' \
+  "$fixture/.github/workflows/ios.yml"
+expect_failure "rejects a job environment SwiftLint lookalike" "$fixture" ".github/workflows/ios.yml" "SwiftLint CI gate"
 
 fixture="$(make_fixture mismatched-lock-version)"
 lock="$fixture/OpenTVTracker.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
