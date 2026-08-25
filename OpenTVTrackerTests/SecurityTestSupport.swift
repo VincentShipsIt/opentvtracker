@@ -232,7 +232,6 @@ enum LibraryTransferRemoteMetadataFixtures {
         return season
     }
 }
-
 extension TVTimeImportTests {
     func testZIPWithoutTVTimeTrackingDataIsRejected() async throws {
         let archive = try makeArchive(["profile.csv": "name\nVincent\n"])
