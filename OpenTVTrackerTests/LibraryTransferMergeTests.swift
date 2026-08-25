@@ -1,7 +1,7 @@
 import XCTest
 @testable import OpenTVTracker
 
-extension LibraryTransferTests {
+final class LibraryTransferMergeTests: XCTestCase {
     func testJSONImportDiscardsResolutionAliasesWithoutRetainedTitles() throws {
         var snapshot = LibrarySnapshot.sample
         snapshot.importResolutionAliases = [
@@ -206,7 +206,10 @@ extension LibraryTransferTests {
         )
     }
 
-    private static func importTitle(
+}
+
+private extension LibraryTransferMergeTests {
+    static func importTitle(
         id: String,
         catalogID: Int,
         title: String,
@@ -234,7 +237,7 @@ extension LibraryTransferTests {
         )
     }
 
-    private static func firstMatchFixture() -> (
+    static func firstMatchFixture() -> (
         current: LibrarySnapshot,
         imported: LibrarySnapshot
     ) {
