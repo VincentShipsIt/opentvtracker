@@ -165,7 +165,9 @@ struct CloudKitPartnerSharingService: PartnerSharingProviding {
             )
         }
     }
+}
 
+extension CloudKitPartnerSharingService {
     static func saveInitialShare(
         root: CKRecord,
         share: CKShare,
@@ -382,9 +384,7 @@ struct CloudKitPartnerSharingService: PartnerSharingProviding {
             return PartnerInvitationLink(url: url, createdAt: Date.now)
         }
     }
-}
 
-extension CloudKitPartnerSharingService {
     static func makePrivateInvitationParticipant() -> CKShare.Participant {
         let participant = CKShare.Participant.oneTimeURLParticipant()
         participant.permission = .readWrite
