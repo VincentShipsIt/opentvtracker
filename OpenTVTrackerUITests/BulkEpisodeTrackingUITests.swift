@@ -249,4 +249,57 @@ extension CoreJourneySmokeUITests {
         markTogether.tap()
         assertExists(app.textFields["Add a private note"])
     }
+
+    func testRegionPickerKeepsCountryAndCodeOnOneRow() {
+        launchCoreJourneys()
+        app.buttons["today.settings"].tap()
+        assertExists(app.navigationBars["Settings"])
+
+        let streamingRegion = app.buttons.matching(
+            NSPredicate(format: "label CONTAINS %@", "Streaming region")
+        ).firstMatch
+        scrollLazyElementToHittable(streamingRegion)
+        streamingRegion.tap()
+
+        let afghanistan = app.buttons.matching(
+            NSPredicate(
+                format: "label CONTAINS %@ AND label CONTAINS %@",
+                "Afghanistan",
+                "AF"
+            )
+        ).firstMatch
+        assertExists(afghanistan)
+        XCTAssertLessThan(
+            afghanistan.frame.height,
+            60,
+            "Expected the country name and ISO code to remain on one compact row"
+        )
+    }
+
+    private func scrollLazyElementToHittable(_ element: XCUIElement) {
+        for _ in 0..<10 {
+            if element.exists { break }
+            nudgeSettingsScroll(upward: true)
+        }
+        XCTAssertTrue(element.exists, "Expected \(element) to exist after scrolling")
+        let navigationBarBottom = app.navigationBars["Settings"].frame.maxY
+        for _ in 0..<4 {
+            if element.frame.minY >= navigationBarBottom { break }
+            nudgeSettingsScroll(upward: false)
+        }
+        XCTAssertGreaterThanOrEqual(
+            element.frame.minY,
+            navigationBarBottom,
+            "Expected \(element) to clear the Settings navigation bar"
+        )
+        scrollToElement(element)
+    }
+
+    private func nudgeSettingsScroll(upward: Bool) {
+        let startY = upward ? 0.72 : 0.38
+        let endY = upward ? 0.52 : 0.58
+        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: startY))
+        let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: endY))
+        start.press(forDuration: 0.05, thenDragTo: end)
+    }
 }
