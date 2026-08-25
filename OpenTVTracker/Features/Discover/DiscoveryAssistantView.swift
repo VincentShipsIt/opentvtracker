@@ -1,12 +1,38 @@
 import SwiftUI
 
+private struct DiscoveryAssistantPresentationModifier: ViewModifier {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    let hasResponse: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .presentationDetents(
+                dynamicTypeSize.isAccessibilitySize || hasResponse
+                    ? [.large]
+                    : [.medium, .large]
+            )
+            .presentationDragIndicator(.visible)
+    }
+}
+
+extension View {
+    func discoveryAssistantPresentation(hasResponse: Bool = false) -> some View {
+        modifier(DiscoveryAssistantPresentationModifier(hasResponse: hasResponse))
+    }
+}
+
 struct DiscoveryAssistantView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var prompt = ""
     @State private var response: DiscoveryAssistantResponse?
     @State private var voice = VoiceSearchTranscriber()
     @FocusState private var isPromptFocused: Bool
+    @AccessibilityFocusState(for: .voiceOver) private var isResponseSummaryFocused: Bool
+
+    private static let responseAnchor = "assistant.response-anchor"
 
     private let suggestions = [
         "A funny show under 60 minutes",
@@ -20,26 +46,44 @@ struct DiscoveryAssistantView: View {
             ZStack {
                 AmbientBackdrop()
 
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 22) {
-                        AssistantScopeNotice()
-                        AssistantPromptSuggestions(suggestions: suggestions, onSelect: useSuggestion)
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 22) {
+                            if dynamicTypeSize.isAccessibilitySize {
+                                // A fixed AX5 composer can consume most of a small
+                                // phone's viewport. Keeping the full, unreduced
+                                // composer in the scroll flow makes both it and the
+                                // submitted result independently reachable.
+                                assistantComposer
+                            }
+                            AssistantScopeNotice()
+                            AssistantPromptSuggestions(suggestions: suggestions, onSelect: useSuggestion)
 
-                        if let response {
-                            AssistantResults(response: response)
-                        } else {
-                            ContentUnavailableView(
-                                "Tell me what sounds good",
-                                systemImage: "sparkles.bubble.fill",
-                                description: Text("Mention a mood, genre, runtime, rating, movie or show. I only pick from services you selected.")
-                            )
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 18)
+                            if let response {
+                                AssistantResults(
+                                    response: response,
+                                    isSummaryFocused: $isResponseSummaryFocused
+                                )
+                                .id(Self.responseAnchor)
+                            } else {
+                                ContentUnavailableView(
+                                    "Tell me what sounds good",
+                                    systemImage: "sparkles.bubble.fill",
+                                    description: Text("Mention a mood, genre, runtime, rating, movie or show. I only pick from services you selected.")
+                                )
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 18)
+                            }
                         }
+                        .padding(.horizontal, AppTheme.horizontalPadding)
+                        .padding(.top, 16)
+                        .padding(.bottom, 28)
                     }
-                    .padding(.horizontal, AppTheme.horizontalPadding)
-                    .padding(.top, 16)
-                    .padding(.bottom, 28)
+                    .accessibilityIdentifier("assistant.results-scroll")
+                    .onChange(of: response) { _, response in
+                        guard response != nil else { return }
+                        revealResponse(using: proxy)
+                    }
                 }
             }
             .navigationTitle("Ask OpenTV")
@@ -53,13 +97,9 @@ struct DiscoveryAssistantView: View {
                 MediaDetailView(titleID: title.id)
             }
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                AssistantComposer(
-                    prompt: $prompt,
-                    isPromptFocused: $isPromptFocused,
-                    voice: voice,
-                    onSubmit: submit,
-                    onToggleVoice: toggleVoice
-                )
+                if !dynamicTypeSize.isAccessibilitySize {
+                    assistantComposer
+                }
             }
             .onChange(of: voice.transcript) {
                 prompt = voice.transcript
@@ -68,6 +108,7 @@ struct DiscoveryAssistantView: View {
                 voice.stopRecording()
             }
         }
+        .discoveryAssistantPresentation(hasResponse: response != nil)
     }
 
     private func useSuggestion(_ suggestion: String) {
@@ -86,6 +127,40 @@ struct DiscoveryAssistantView: View {
 
     private func toggleVoice() {
         Task { await voice.toggleRecording() }
+    }
+
+    private var assistantComposer: some View {
+        AssistantComposer(
+            prompt: $prompt,
+            isPromptFocused: $isPromptFocused,
+            voice: voice,
+            onSubmit: submit,
+            onToggleVoice: toggleVoice
+        )
+    }
+
+    private func revealResponse(using proxy: ScrollViewProxy) {
+        Task { @MainActor in
+            await Task.yield()
+            // Let the response-driven large detent complete its layout pass
+            // before anchoring the result within the newly expanded viewport.
+            try? await Task.sleep(
+                for: .milliseconds(reduceMotion ? 50 : 350)
+            )
+            if reduceMotion {
+                proxy.scrollTo(Self.responseAnchor, anchor: .top)
+            } else {
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    proxy.scrollTo(Self.responseAnchor, anchor: .top)
+                }
+            }
+            try? await Task.sleep(for: .milliseconds(100))
+            // A final unanimated anchor accounts for the last sheet relayout
+            // without forcing motion when Reduce Motion is enabled.
+            proxy.scrollTo(Self.responseAnchor, anchor: .top)
+            await Task.yield()
+            isResponseSummaryFocused = true
+        }
     }
 }
 
@@ -107,6 +182,7 @@ private struct AssistantScopeNotice: View {
 }
 
 private struct AssistantPromptSuggestions: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let suggestions: [String]
     let onSelect: (String) -> Void
 
@@ -124,25 +200,39 @@ private struct AssistantPromptSuggestions: View {
             HorizontalShelf(showsIndicators: true) {
                 LazyHStack(spacing: 10) {
                     ForEach(suggestions, id: \.self) { suggestion in
-                        Button(suggestion) { onSelect(suggestion) }
-                            .adaptiveGlassButton()
+                        if dynamicTypeSize.isAccessibilitySize {
+                            suggestionButton(suggestion)
+                                .containerRelativeFrame(.horizontal)
+                        } else {
+                            suggestionButton(suggestion)
+                        }
                     }
                 }
                 .padding(.vertical, 2)
             }
             .accessibilityLabel("Suggested requests")
+            .accessibilityIdentifier("assistant.suggestions")
         }
+    }
+
+    private func suggestionButton(_ suggestion: String) -> some View {
+        Button(suggestion) { onSelect(suggestion) }
+            .adaptiveGlassButton()
+            .accessibilityIdentifier("assistant.suggestion.\(suggestion)")
     }
 }
 
 private struct AssistantResults: View {
     let response: DiscoveryAssistantResponse
+    let isSummaryFocused: AccessibilityFocusState<Bool>.Binding
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text(response.summary)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
+                .accessibilityFocused(isSummaryFocused)
+                .accessibilityIdentifier("assistant.response-summary")
 
             if response.matches.isEmpty {
                 ContentUnavailableView(
@@ -248,6 +338,7 @@ private struct AssistantComposer: View {
                         .buttonBorderShape(.circle)
                         .minimumTouchTarget()
                         .disabled(prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .accessibilityIdentifier("assistant.find-picks")
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
@@ -262,6 +353,8 @@ private struct AssistantComposer: View {
         .padding(.top, 10)
         .padding(.bottom, 8)
         .glassEffect(.regular, in: .rect)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("assistant.composer")
     }
 }
 

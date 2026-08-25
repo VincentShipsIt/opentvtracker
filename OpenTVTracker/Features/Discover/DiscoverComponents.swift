@@ -237,6 +237,7 @@ struct CatalogSearchCard: View {
                 .minimumTouchTarget()
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .accessibilityHint("Adds this title to your viewing history and recommendation profile")
+                .accessibilityIdentifier("discover.search-result.\(title.id).mark-watched")
             }
         }
     }
