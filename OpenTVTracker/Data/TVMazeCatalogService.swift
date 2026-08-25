@@ -4,10 +4,7 @@ struct TVMazeCatalogService: CatalogProviding {
     private let baseURL: URL
     private let session: URLSession
 
-    init(
-        baseURL: URL = URL(string: "https://api.tvmaze.com/")!,
-        session: URLSession = .shared
-    ) {
+    init(baseURL: URL = URL(string: "https://api.tvmaze.com/")!, session: URLSession = .shared) {
         self.baseURL = baseURL
         self.session = session
     }
@@ -49,9 +46,7 @@ struct TVMazeCatalogService: CatalogProviding {
 
     func title(kind: MediaKind, catalogID: Int, region _: StreamingRegion) async throws -> MediaTitle {
         guard kind == .series else { throw CatalogServiceError.notFound }
-        let url = try endpoint(path: "shows/\(catalogID)", queryItems: [
-            URLQueryItem(name: "embed", value: "episodes")
-        ])
+        let url = try endpoint(path: "shows/\(catalogID)", queryItems: [URLQueryItem(name: "embed", value: "episodes")])
 
         // The show payload carries no landscape art and no per-season art — TVmaze keeps both
         // on separate endpoints. They run alongside the detail fetch rather than after it, so
@@ -72,10 +67,7 @@ struct TVMazeCatalogService: CatalogProviding {
     }
 
     private func endpoint(path: String, queryItems: [URLQueryItem]) throws -> URL {
-        guard var components = URLComponents(
-            url: baseURL.appending(path: path),
-            resolvingAgainstBaseURL: false
-        ) else {
+        guard var components = URLComponents(url: baseURL.appending(path: path), resolvingAgainstBaseURL: false) else {
             throw CatalogServiceError.invalidEndpoint
         }
         // Nil rather than an empty array: assigning `[]` still appends a bare "?" to the path,
@@ -289,11 +281,8 @@ private struct TVMazeShowDTO: Decodable {
         return "Next: S\(season) E\(number)"
     }
 
-    private static func seasons(
-        from episodes: [TVMazeEpisodeDTO],
-        showID: Int,
-        artwork: [Int: URL]
-    ) -> [SeasonSummary]? {
+    private static func seasons(from episodes: [TVMazeEpisodeDTO], showID: Int,
+                                artwork: [Int: URL]) -> [SeasonSummary]? {
         let numberedEpisodes = episodes.compactMap { episode -> (Int, EpisodeSummary)? in
             guard let season = episode.season, let number = episode.number else { return nil }
             return (
@@ -326,10 +315,7 @@ private struct TVMazeShowDTO: Decodable {
     }
 
     private static func providers(network: String?, webChannel: String?) -> [StreamingProvider] {
-        let value = [network, webChannel]
-            .compactMap { $0 }
-            .joined(separator: " ")
-            .lowercased()
+        let value = [network, webChannel].compactMap { $0 }.joined(separator: " ").lowercased()
 
         var providers: [StreamingProvider] = []
         if value.contains("netflix") { providers.append(.netflix) }
@@ -364,21 +350,13 @@ private struct TVMazeShowDTO: Decodable {
 
     private static func plainText(_ html: String?) -> String? {
         guard let html else { return nil }
-        let withoutTags = html.replacingOccurrences(
-            of: "<[^>]+>",
-            with: " ",
-            options: .regularExpression
-        )
+        let withoutTags = html.replacingOccurrences(of: "<[^>]+>", with: " ", options: .regularExpression)
         let decoded = withoutTags
             .replacingOccurrences(of: "&amp;", with: "&")
             .replacingOccurrences(of: "&quot;", with: "\"")
             .replacingOccurrences(of: "&#39;", with: "'")
             .replacingOccurrences(of: "&nbsp;", with: " ")
-        let collapsed = decoded.replacingOccurrences(
-            of: "\\s+",
-            with: " ",
-            options: .regularExpression
-        )
+        let collapsed = decoded.replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
         let trimmed = collapsed.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
     }
