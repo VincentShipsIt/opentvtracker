@@ -170,10 +170,20 @@ perl -0pi -e 's/readonly SWIFTLINT_ARCHIVE_SHA256="[0-9a-f]+"/readonly SWIFTLINT
   "$fixture/.github/scripts/run-swiftlint.sh"
 expect_failure "rejects a malformed SwiftLint checksum" "$fixture" ".github/scripts/run-swiftlint.sh" "SwiftLint CI gate"
 
+fixture="$(make_fixture unapproved-swiftlint-checksum)"
+perl -0pi -e 's/readonly SWIFTLINT_ARCHIVE_SHA256="[0-9a-f]+"/readonly SWIFTLINT_ARCHIVE_SHA256="0000000000000000000000000000000000000000000000000000000000000000"/' \
+  "$fixture/.github/scripts/run-swiftlint.sh"
+expect_failure "rejects an unapproved SwiftLint checksum" "$fixture" ".github/scripts/run-swiftlint.sh" "SwiftLint CI gate"
+
 fixture="$(make_fixture missing-swiftlint-workflow-gate)"
 perl -0pi -e 's/\.github\/scripts\/run-swiftlint\.sh/.github\/scripts\/missing-swiftlint.sh/' \
   "$fixture/.github/workflows/ios.yml"
 expect_failure "requires SwiftLint in the existing iOS job" "$fixture" ".github/workflows/ios.yml" "SwiftLint CI gate"
+
+fixture="$(make_fixture commented-swiftlint-workflow-gate)"
+perl -0pi -e 's/^        run: \.github\/scripts\/run-swiftlint\.sh$/        # run: .github\/scripts\/run-swiftlint.sh/m' \
+  "$fixture/.github/workflows/ios.yml"
+expect_failure "rejects a commented-out SwiftLint workflow gate" "$fixture" ".github/workflows/ios.yml" "SwiftLint CI gate"
 
 fixture="$(make_fixture mismatched-lock-version)"
 lock="$fixture/OpenTVTracker.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"

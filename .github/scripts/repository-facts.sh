@@ -11,6 +11,7 @@ readonly PACKAGE_LOCK="$ROOT/OpenTVTracker.xcodeproj/project.xcworkspace/xcshare
 readonly REQUIRED_CHECKS_SCRIPT="$ROOT/.github/scripts/required-checks.sh"
 readonly IOS_WORKFLOW="$ROOT/.github/workflows/ios.yml"
 readonly SWIFTLINT_SCRIPT="$ROOT/.github/scripts/run-swiftlint.sh"
+readonly APPROVED_SWIFTLINT_ARCHIVE_SHA256="d6cb0aa7a2f5f1ef306fc9e37bcb54dc9a26facc8f7784ac0c3dd3eccf5c6ba6"
 readonly README="$ROOT/README.md"
 readonly CONTRIBUTING="$ROOT/CONTRIBUTING.md"
 readonly ROADMAP="$ROOT/docs/ROADMAP.md"
@@ -231,6 +232,7 @@ validate_swiftlint_contract() {
   local job_block=""
   local workflow_count=0
   local job_count=0
+  local swiftlint_run_pattern='^[[:space:]]+run:[[:space:]]+\.github/scripts/run-swiftlint\.sh([[:space:]]+#.*)?[[:space:]]*$'
 
   version="$(shell_readonly_scalar "$SWIFTLINT_SCRIPT" SWIFTLINT_VERSION "SwiftLint CI gate")"
   archive_sha="$(shell_readonly_scalar "$SWIFTLINT_SCRIPT" SWIFTLINT_ARCHIVE_SHA256 "SwiftLint CI gate")"
@@ -240,15 +242,18 @@ validate_swiftlint_contract() {
   [[ "$archive_sha" =~ ^[0-9a-f]{64}$ ]] \
     || fact_error "SwiftLint CI gate" "$SWIFTLINT_SCRIPT" \
       "SWIFTLINT_ARCHIVE_SHA256 must be a full lowercase SHA-256 digest."
+  [[ "$archive_sha" == "$APPROVED_SWIFTLINT_ARCHIVE_SHA256" ]] \
+    || fact_error "SwiftLint CI gate" "$SWIFTLINT_SCRIPT" \
+      "SwiftLint 0.65.0 archive checksum must match the approved release digest."
   require_literal "SwiftLint CI gate" "$SWIFTLINT_SCRIPT" \
     'https://github.com/realm/SwiftLint/releases/download/${SWIFTLINT_VERSION}/portable_swiftlint.zip'
 
-  workflow_count="$(grep -Fc '.github/scripts/run-swiftlint.sh' "$IOS_WORKFLOW" || true)"
+  workflow_count="$(grep -Ec "$swiftlint_run_pattern" "$IOS_WORKFLOW" || true)"
   [[ "$workflow_count" == "1" ]] \
     || fact_error "SwiftLint CI gate" "$IOS_WORKFLOW" \
       "The workflow must invoke the pinned SwiftLint entrypoint exactly once; found $workflow_count."
   job_block="$(workflow_job_block "$IOS_WORKFLOW" "build-and-test")"
-  job_count="$(grep -Fc '.github/scripts/run-swiftlint.sh' <<< "$job_block" || true)"
+  job_count="$(grep -Ec "$swiftlint_run_pattern" <<< "$job_block" || true)"
   [[ "$job_count" == "1" ]] \
     || fact_error "SwiftLint CI gate" "$IOS_WORKFLOW" \
       "The pinned SwiftLint entrypoint must run inside the existing build-and-test job."
