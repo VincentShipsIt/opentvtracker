@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import XCTest
 @testable import OpenTVTracker
@@ -102,274 +103,290 @@ final class MemorySecureCredentialStore: SecureCredentialStoring, @unchecked Sen
     }
 }
 
-enum LibraryTransferRemoteMetadataFixtures {
-    static func unsafeSnapshot(
-        snapshot: LibrarySnapshot,
-        title: MediaTitle,
-        review: CommunityReview
-    ) -> (snapshot: LibrarySnapshot, title: MediaTitle) {
-        var snapshot = snapshot
-        var title = title
-        title.state = .paused
-        title.progress = EpisodeProgress(season: 1, episode: 1, totalEpisodes: 9)
-        title.userRating = 9.25
-        title.notes = "Private import note"
-        title.rewatchCount = 3
-        title.lastWatchedAt = Date(timeIntervalSince1970: 1_700_000_000)
-        title.isDismissed = true
-        title.isDisliked = false
-        title.personalWatchlist = true
-        title.watchedEpisodeIDs = ["severance-s1e1"]
-        title.seriesLifecycle = .continuing
-        title.isUpNextPinned = true
-        title.upNextSnoozedUntil = Date(timeIntervalSince1970: 1_800_000_000)
-        title.upNextManualOrder = 4
-        title.posterURL = URL(string: "https://secure.gravatar.com/avatar/poster-tracker")
-        title.backdropURL = URL(string: "https://image.tmdb.org.attacker.invalid/backdrop.jpg")
-        title.trailerURL = URL(string: "https://www.youtube.com.attacker.invalid/watch?v=unsafe")
-        title.sourceURL = URL(string: "https://www.themoviedb.org@attacker.invalid/tv/95396")
-        title.reviews = [unsafeReview(from: review)]
-        title.seasons = [unsafeSeason()]
+extension AppAttestClientTests {
+    func testRegistersThenSignsExactCatalogRequestAndPersistsCredentials() async throws {
+        let service = MockAppAttestService(isSupported: true)
+        let store = MemorySecureCredentialStore()
+        TestURLProtocol.handler = { request in
+            let path = try XCTUnwrap(request.url?.path)
+            if path == "/v1/app-attest/challenge" {
+                let body = try XCTUnwrap(TestURLProtocol.bodyData(for: request))
+                let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: String])
+                let purpose = try XCTUnwrap(json["purpose"])
+                let challenge = purpose == "attestation" ? "registration-challenge" : "request-challenge"
+                let identifier = purpose == "attestation" ? "registration-id" : "request-id"
+                if purpose == "request" {
+                    XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "AppAttest short-lived-token")
+                }
+                return try Self.jsonResponse(request, status: 201, body: [
+                    "id": identifier,
+                    "challenge": challenge,
+                    "expiresAt": "2030-01-01T00:00:00Z"
+                ])
+            }
+            if path == "/v1/app-attest/register" {
+                return try Self.jsonResponse(request, status: 201, body: [
+                    "token": "short-lived-token",
+                    "expiresAt": "2030-01-01T00:00:00Z"
+                ])
+            }
+            XCTAssertEqual(path, "/v1/catalog/search")
+            XCTAssertEqual(request.value(forHTTPHeaderField: "X-App-Attest-Key-ID"), "secure-enclave-key")
+            XCTAssertEqual(request.value(forHTTPHeaderField: "X-App-Attest-Challenge-ID"), "request-id")
+            XCTAssertNotNil(request.value(forHTTPHeaderField: "X-App-Attest-Assertion"))
+            return try Self.jsonResponse(request, status: 200, body: ["results": []])
+        }
+        let client = AppAttestClient(
+            baseURL: URL(string: "https://proxy.example/")!,
+            session: TestURLProtocol.session(),
+            appAttest: service,
+            credentialStore: store,
+            developmentToken: nil,
+            now: { Date(timeIntervalSince1970: 1_800_000_000) }
+        )
+        let requestURL = URL(string: "https://proxy.example/v1/catalog/search?q=Drama&page=1&region=MT")!
 
-        snapshot.titles = [title]
-        snapshot.sharedSpace.titleIDs = [title.id]
-        snapshot.sharedSpace.titleMetadata = [title]
-        snapshot.diaryEntries = [LibraryDiaryTransferTests.diaryEntry]
-        snapshot.lists = [
-            MediaList(
-                id: "private-list",
-                name: "Private list",
-                titleIDs: [title.id],
-                updatedAt: Date(timeIntervalSince1970: 1_700_000_100)
-            )
-        ]
-        return (snapshot, title)
+        let (_, response) = try await client.data(for: URLRequest(url: requestURL))
+
+        XCTAssertEqual((response as? HTTPURLResponse)?.statusCode, 200)
+        XCTAssertEqual(store.writtenAccounts, [AppAttestClient.credentialsAccount])
+        XCTAssertEqual(service.attestationHashes, [Data(SHA256.hash(data: Data("registration-challenge".utf8)))])
+        assertRecordedHashes(service)
     }
 
-    static func trustedSnapshot(
-        snapshot: LibrarySnapshot,
-        title: MediaTitle,
-        review: CommunityReview
-    ) -> LibrarySnapshot {
-        var snapshot = snapshot
-        var title = title
-        title.posterURL = URL(
-            string: "HTTPS://IMAGE.TMDB.ORG:443/t/p/w500/poster.jpg?language=en#fragment"
-        )
-        title.backdropURL = URL(
-            string: "https://MEDIA.THEMOVIEDB.ORG:443/t/p/w780/backdrop.jpg#fragment"
-        )
-        title.trailerURL = URL(string: "https://YOUTU.BE:443/abcdefghijk#fragment")
-        title.sourceURL = URL(
-            string: "https://WWW.THEMOVIEDB.ORG:443/tv/95396?language=en#fragment"
-        )
-        title.reviews = [trustedReview(from: review)]
-        title.seasons = [trustedSeason()]
+    func testConcurrentValidCredentialsSerializeFourCatalogRequestsAcrossClients() async throws {
+        let service = MockAppAttestService(isSupported: true)
+        let store = try Self.credentialStore(token: "valid-token", expiresAt: "2030-01-01T00:00:00Z")
+        let server = AppAttestServerHarness(holdsSignedResponses: true)
+        TestURLProtocol.asyncHandler = { request in
+            try await server.response(for: request)
+        }
+        let clients = Self.clients(service: service, store: store)
 
-        snapshot.titles = [title]
-        snapshot.sharedSpace.titleIDs = [title.id]
-        snapshot.sharedSpace.titleMetadata = [title]
-        return snapshot
+        let responses = try await Self.concurrentCatalogResponses(
+            clients: clients,
+            server: server,
+            signedRequestCount: 4
+        )
+        let snapshot = await server.snapshot()
+
+        XCTAssertEqual(responses.map(\.statusCode), [200, 200, 200, 200])
+        XCTAssertEqual(snapshot.catalogRequests, 4)
+        XCTAssertEqual(snapshot.maximumSignedRequestsInFlight, 1)
+        XCTAssertTrue(snapshot.allCatalogRequestsWereSigned)
+        XCTAssertEqual(snapshot.registrations, 0)
+        XCTAssertEqual(snapshot.tokenRefreshes, 0)
+        XCTAssertEqual(service.generateKeyCallCount, 0)
     }
 
-    private static func unsafeReview(from review: CommunityReview) -> CommunityReview {
-        var review = review
-        review.avatarURL = URL(string: "https://secure.gravatar.com@attacker.invalid/avatar")
-        review.sourceURL = URL(string: "https://trakt.tv/reviews/unsafe")
-        return review
+    func testConcurrentFirstUseSharesOneRegistration() async throws {
+        let service = MockAppAttestService(isSupported: true)
+        let store = MemorySecureCredentialStore()
+        let server = AppAttestServerHarness(holdsSignedResponses: true)
+        TestURLProtocol.asyncHandler = { request in
+            try await server.response(for: request)
+        }
+        let clients = Self.clients(service: service, store: store)
+
+        let responses = try await Self.concurrentCatalogResponses(
+            clients: clients,
+            server: server,
+            signedRequestCount: 4
+        )
+        let snapshot = await server.snapshot()
+
+        XCTAssertEqual(responses.map(\.statusCode), [200, 200, 200, 200])
+        XCTAssertEqual(service.generateKeyCallCount, 1)
+        XCTAssertEqual(service.attestationHashes.count, 1)
+        XCTAssertEqual(snapshot.attestationChallenges, 1)
+        XCTAssertEqual(snapshot.registrations, 1)
+        XCTAssertEqual(snapshot.catalogRequests, 4)
+        XCTAssertEqual(snapshot.maximumSignedRequestsInFlight, 1)
+        XCTAssertTrue(snapshot.allCatalogRequestsWereSigned)
     }
 
-    private static func trustedReview(from review: CommunityReview) -> CommunityReview {
-        var review = review
-        review.avatarURL = URL(
-            string: "https://SECURE.GRAVATAR.COM:443/avatar/hash?s=64&d=https%3A%2F%2Ftracker.invalid%2Fpixel.png#fragment"
+    func testConcurrentExpiredCredentialsShareOneRefresh() async throws {
+        let service = MockAppAttestService(isSupported: true)
+        let store = try Self.credentialStore(token: "expired-token", expiresAt: "2020-01-01T00:00:00Z")
+        let server = AppAttestServerHarness(holdsSignedResponses: true)
+        TestURLProtocol.asyncHandler = { request in
+            try await server.response(for: request)
+        }
+        let clients = Self.clients(service: service, store: store)
+
+        let responses = try await Self.concurrentCatalogResponses(
+            clients: clients,
+            server: server,
+            signedRequestCount: 5
         )
-        review.sourceURL = URL(
-            string: "https://WWW.THEMOVIEDB.ORG:443/review/1#fragment"
-        )
-        return review
+        let snapshot = await server.snapshot()
+
+        XCTAssertEqual(responses.map(\.statusCode), [200, 200, 200, 200])
+        XCTAssertEqual(snapshot.tokenChallenges, 1)
+        XCTAssertEqual(snapshot.tokenRefreshes, 1)
+        XCTAssertEqual(snapshot.catalogRequests, 4)
+        XCTAssertEqual(snapshot.maximumSignedRequestsInFlight, 1)
+        XCTAssertTrue(snapshot.allCatalogRequestsWereSigned)
+        XCTAssertEqual(service.generateKeyCallCount, 0)
     }
 
-    private static func unsafeSeason() -> SeasonSummary {
-        var episode = EpisodeSummary(
-            id: "severance-s1e1",
-            number: 1,
-            title: "Good News About Hell",
-            airDate: Date(timeIntervalSince1970: 1_645_142_400),
-            runtimeMinutes: 57
+    func testCancellingFirstUseWaiterDoesNotCancelSharedWorkOrDeadlockQueue() async throws {
+        let registrationGate = AsyncTestGate()
+        let service = MockAppAttestService(
+            isSupported: true,
+            generateKeyGate: registrationGate
         )
-        episode.stillURL = URL(string: "http://static.tvmaze.com/uploads/still.jpg")
-        var season = SeasonSummary(
-            id: "severance-s1",
-            number: 1,
-            title: "Season 1",
-            episodes: [episode]
-        )
-        season.artworkURL = URL(fileURLWithPath: "/private/season.jpg")
-        return season
-    }
+        let store = MemorySecureCredentialStore()
+        let server = AppAttestServerHarness(holdsSignedResponses: true)
+        TestURLProtocol.asyncHandler = { request in
+            try await server.response(for: request)
+        }
+        let clients = Self.clients(service: service, store: store)
+        let firstClient = clients[0]
+        let firstRequest = Self.catalogRequest(index: 0)
+        let first = Task {
+            try await firstClient.data(for: firstRequest)
+        }
+        try await service.waitUntilGenerateKeyCallCount(1)
+        let survivingClient = clients[1]
+        let survivingRequest = Self.catalogRequest(index: 1)
+        let survivor = Task {
+            try await survivingClient.data(for: survivingRequest)
+        }
 
-    private static func trustedSeason() -> SeasonSummary {
-        var episode = EpisodeSummary(
-            id: "severance-s1e1",
-            number: 1,
-            title: "Good News About Hell",
-            airDate: nil,
-            runtimeMinutes: 57
-        )
-        episode.stillURL = URL(
-            string: "https://IMAGE.TMDB.ORG:443/t/p/w300/still.jpg#fragment"
-        )
-        var season = SeasonSummary(
-            id: "severance-s1",
-            number: 1,
-            title: "Season 1",
-            episodes: [episode]
-        )
-        season.artworkURL = URL(
-            string: "https://STATIC.TVMAZE.COM:443/uploads/images/original_untouched/season.jpg#fragment"
-        )
-        return season
-    }
-}
-extension TVTimeImportTests {
-    func testZIPWithoutTVTimeTrackingDataIsRejected() async throws {
-        let archive = try makeArchive(["profile.csv": "name\nVincent\n"])
+        first.cancel()
+        await registrationGate.open()
+        try await Self.releaseSignedResponses(server, count: 2)
 
         do {
-            _ = try await TVTimeImportService.previewImport(
-                archive,
-                into: .sample,
-                catalog: LocalCatalogService(titles: LibrarySnapshot.sample.titles),
-                region: .malta
-            )
-            XCTFail("Expected unsupported TV Time data to be rejected")
-        } catch let error as TVTimeImportError {
-            XCTAssertEqual(error.errorDescription, "This ZIP does not contain recognizable TV Time tracking data.")
+            _ = try await first.value
+            XCTFail("Expected the cancelled waiter to observe cancellation")
+        } catch is CancellationError {
+            // The queue-owned credential work continues for the surviving waiter.
         }
+        let (_, survivorResponse) = try await survivor.value
+        let snapshot = await server.snapshot()
+
+        XCTAssertEqual((survivorResponse as? HTTPURLResponse)?.statusCode, 200)
+        XCTAssertEqual(service.generateKeyCallCount, 1)
+        XCTAssertEqual(snapshot.registrations, 1)
+        XCTAssertEqual(snapshot.catalogRequests, 2)
+        XCTAssertEqual(snapshot.maximumSignedRequestsInFlight, 1)
     }
 
-    func testZIPRejectsCaseInsensitiveDuplicateRecognizedFullPaths() throws {
-        let archive = try makeArchive([
-            (
-                path: "Exports/TRACKING-PROD-RECORDS-V2.CSV",
-                contents: "key,s_id,series_name,s_no,ep_no\nfirst,42,Severance,1,1\n"
-            ),
-            (
-                path: "exports/tracking-prod-records-v2.csv",
-                contents: "key,s_id,series_name,s_no,ep_no\nsecond,42,Severance,1,2\n"
-            )
-        ])
-
-        XCTAssertThrowsError(try TVTimeZIPReader.recognizedFiles(in: archive)) { error in
-            guard let importError = error as? TVTimeImportError,
-                  case .duplicateRecognizedPath = importError else {
-                return XCTFail("Expected duplicateRecognizedPath, got \(error)")
-            }
+    func testDevelopmentBypassRemainsDirect() async throws {
+        let service = MockAppAttestService(isSupported: false)
+        let store = MemorySecureCredentialStore()
+        let server = AppAttestServerHarness()
+        TestURLProtocol.asyncHandler = { request in
+            try await server.response(for: request)
         }
-    }
-
-    func testZIPRejectsUnicodeCaseFoldDuplicateRecognizedFullPaths() throws {
-        let archive = try makeArchive([
-            (
-                path: "Σ/tracking-prod-records-v2.csv",
-                contents: "key,s_id,series_name,s_no,ep_no\nfirst,42,Severance,1,1\n"
-            ),
-            (
-                path: "ς/tracking-prod-records-v2.csv",
-                contents: "key,s_id,series_name,s_no,ep_no\nsecond,42,Severance,1,2\n"
-            )
-        ])
-
-        XCTAssertThrowsError(try TVTimeZIPReader.recognizedFiles(in: archive)) { error in
-            guard let importError = error as? TVTimeImportError,
-                  case .duplicateRecognizedPath = importError else {
-                return XCTFail("Expected duplicateRecognizedPath, got \(error)")
-            }
-        }
-    }
-
-    func testZIPRejectsMultiScalarCaseFoldDuplicateRecognizedFullPaths() throws {
-        let archive = try makeArchive([
-            (
-                path: "Straße/tracking-prod-records-v2.csv",
-                contents: "key,s_id,series_name,s_no,ep_no\nfirst,42,Severance,1,1\n"
-            ),
-            (
-                path: "STRASSE/tracking-prod-records-v2.csv",
-                contents: "key,s_id,series_name,s_no,ep_no\nsecond,42,Severance,1,2\n"
-            )
-        ])
-
-        XCTAssertThrowsError(try TVTimeZIPReader.recognizedFiles(in: archive)) { error in
-            guard let importError = error as? TVTimeImportError,
-                  case .duplicateRecognizedPath = importError else {
-                return XCTFail("Expected duplicateRecognizedPath, got \(error)")
-            }
-        }
-    }
-
-    func testBoundedExtractionRejectsUnderreportedOutputBeforeAppendingPastLimit() throws {
-        let exact = try TVTimeZIPReader.boundedExtraction(
-            declaredSize: 1,
-            maximumSize: 4
-        ) { consumer in
-            try consumer(Data([0, 1]))
-            try consumer(Data([2, 3]))
-        }
-        XCTAssertEqual(exact, Data([0, 1, 2, 3]))
-
-        var completedConsumerCalls = 0
-        XCTAssertThrowsError(
-            try TVTimeZIPReader.boundedExtraction(
-                declaredSize: 1,
-                maximumSize: 4
-            ) { consumer in
-                try consumer(Data([0, 1, 2]))
-                completedConsumerCalls += 1
-                try consumer(Data([3, 4]))
-                completedConsumerCalls += 1
-            }
-        ) { error in
-            guard let importError = error as? TVTimeImportError,
-                  case .archiveTooLarge = importError else {
-                return XCTFail("Expected archiveTooLarge, got \(error)")
-            }
-        }
-        XCTAssertEqual(completedConsumerCalls, 1)
-    }
-
-    func testZIPRejectsExcessiveTotalEntryCount() throws {
-        var files = [
-            (
-                path: "tracking-prod-records-v2.csv",
-                contents: "key,s_id,series_name,s_no,ep_no\nfirst,42,Severance,1,1\n"
-            )
-        ]
-        files.append(contentsOf: (0..<LibraryImportLimits.maximumZIPEntryCount).map { index in
-            (path: "unrecognized/entry-\(index).txt", contents: "")
-        })
-        let archive = try makeArchive(files)
-
-        XCTAssertThrowsError(try TVTimeZIPReader.recognizedFiles(in: archive)) { error in
-            guard let importError = error as? TVTimeImportError,
-                  case .tooManyArchiveEntries = importError else {
-                return XCTFail("Expected tooManyArchiveEntries, got \(error)")
-            }
-        }
-    }
-
-    func testGDPRListAggregateFieldMayExceedNormalFieldLimit() throws {
-        let objects = String(
-            repeating: "x",
-            count: LibraryImportLimits.maximumFieldSize + 1
+        let client = AppAttestClient(
+            baseURL: URL(string: "https://proxy.example/")!,
+            session: TestURLProtocol.session(),
+            appAttest: service,
+            credentialStore: store,
+            developmentToken: "development-token"
         )
-        let archive = try makeArchive([
-            "lists-prod-lists.csv": "name,objects\nLarge list,\(objects)\n"
-        ])
 
-        let parsed = try TVTimeArchiveParser.parse(archive)
+        let (_, response) = try await client.data(for: Self.catalogRequest(index: 0))
+        let snapshot = await server.snapshot()
 
-        XCTAssertEqual(parsed.lists.map(\.name), ["Large list"])
+        XCTAssertEqual((response as? HTTPURLResponse)?.statusCode, 200)
+        XCTAssertEqual(snapshot.developmentTokens, ["development-token"])
+        XCTAssertEqual(snapshot.maximumSignedRequestsInFlight, 0)
+        XCTAssertEqual(service.generateKeyCallCount, 0)
+        XCTAssertTrue(store.writtenAccounts.isEmpty)
+    }
+
+    func testExpiredTokenRetriesTheSameCatalogRequestOnce() async throws {
+        let service = MockAppAttestService(isSupported: true)
+        let store = try Self.credentialStore(
+            token: "stale-token",
+            expiresAt: "2030-03-17T17:46:40Z"
+        )
+
+        let catalogAttempts = RequestCounter()
+        TestURLProtocol.handler = { request in
+            let path = try XCTUnwrap(request.url?.path)
+            if path == "/v1/app-attest/challenge" {
+                let body = try XCTUnwrap(TestURLProtocol.bodyData(for: request))
+                let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: String])
+                let purpose = try XCTUnwrap(json["purpose"])
+                if purpose == "token" {
+                    return try Self.jsonResponse(request, status: 201, body: [
+                        "id": "token-id",
+                        "challenge": "token-challenge",
+                        "expiresAt": "2030-01-01T00:00:00Z"
+                    ])
+                }
+                return try Self.jsonResponse(request, status: 201, body: [
+                    "id": "request-id",
+                    "challenge": "request-challenge",
+                    "expiresAt": "2030-01-01T00:00:00Z"
+                ])
+            }
+            if path == "/v1/app-attest/token" {
+                return try Self.jsonResponse(request, status: 201, body: [
+                    "token": "fresh-token",
+                    "expiresAt": "2030-01-01T00:00:00Z"
+                ])
+            }
+            XCTAssertEqual(path, "/v1/catalog/search")
+            let attempt = catalogAttempts.increment()
+            if attempt == 1 {
+                XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "AppAttest stale-token")
+                return try Self.jsonResponse(request, status: 401, body: ["error": "expired"])
+            }
+            XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "AppAttest fresh-token")
+            return try Self.jsonResponse(request, status: 200, body: ["results": []])
+        }
+
+        let client = Self.client(service: service, store: store, session: TestURLProtocol.session())
+
+        let (_, response) = try await client.data(
+            for: URLRequest(url: URL(string: "https://proxy.example/v1/catalog/search")!)
+        )
+
+        XCTAssertEqual((response as? HTTPURLResponse)?.statusCode, 200)
+        XCTAssertEqual(catalogAttempts.value, 2)
+    }
+
+    func testUnsupportedDeviceFailsGracefullyWithoutCallingHostedProxy() async {
+        let service = MockAppAttestService(isSupported: false)
+        let client = AppAttestClient(
+            baseURL: URL(string: "https://proxy.example/")!,
+            session: TestURLProtocol.session(),
+            appAttest: service,
+            credentialStore: MemorySecureCredentialStore(),
+            developmentToken: nil
+        )
+
+        do {
+            _ = try await client.data(for: URLRequest(url: URL(string: "https://proxy.example/v1/catalog/search")!))
+            XCTFail("Expected unsupported device error")
+        } catch let error as AppAttestClientError {
+            guard case .unsupportedDevice = error else { return XCTFail("Unexpected error: \(error)") }
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+    }
+}
+
+struct DeviceCredentialsProbe: Encodable {
+    let keyID: String
+    let token: String
+    let tokenExpiresAt: Date
+}
+
+private final class RequestCounter: @unchecked Sendable {
+    private let lock = NSLock()
+    private(set) var value = 0
+
+    func increment() -> Int {
+        lock.withLock {
+            value += 1
+            return value
+        }
     }
 }
