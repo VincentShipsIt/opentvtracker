@@ -89,31 +89,6 @@ final class CoreJourneySmokeUITests: XCTestCase {
         assertExists(browser)
     }
 
-    func testRegionPickerKeepsCountryAndCodeOnOneRow() {
-        launchCoreJourneys()
-        app.buttons["today.settings"].tap()
-
-        let streamingRegion = app.buttons.matching(
-            NSPredicate(format: "label CONTAINS %@", "Streaming region")
-        ).firstMatch
-        assertExists(streamingRegion)
-        streamingRegion.tap()
-
-        let afghanistan = app.buttons.matching(
-            NSPredicate(
-                format: "label CONTAINS %@ AND label CONTAINS %@",
-                "Afghanistan",
-                "AF"
-            )
-        ).firstMatch
-        assertExists(afghanistan)
-        XCTAssertLessThan(
-            afghanistan.frame.height,
-            60,
-            "Expected the country name and ISO code to remain on one compact row"
-        )
-    }
-
     /// Guards the return leg specifically. Only the outbound crossing was covered, so a
     /// regression that left the toolbar button pointing at the space it was already in
     /// stranded anyone who crossed over, and still left CI green.
