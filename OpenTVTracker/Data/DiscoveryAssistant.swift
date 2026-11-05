@@ -10,8 +10,7 @@ struct DiscoveryAssistantIntent: Equatable, Sendable {
     let prefersRecentTitles: Bool
     var excludedGenres: Set<String> = []
 
-    /// Merges a follow-up message onto this intent. Fields the follow-up sets win,
-    /// everything else carries over, and a genre the follow-up rules out is dropped.
+    /// Merges a follow-up onto this intent: what it sets wins, the rest carries over.
     func refined(by followUp: DiscoveryAssistantIntent) -> DiscoveryAssistantIntent {
         DiscoveryAssistantIntent(
             kind: followUp.kind ?? kind,
@@ -40,6 +39,12 @@ struct DiscoveryAssistantResponse: Hashable, Sendable {
     let matches: [DiscoveryAssistantMatch]
 }
 
+struct DiscoveryAssistantContext: Sendable {
+    let titles: [MediaTitle]
+    let selectedProviderIDs: Set<StreamingProvider.ID>
+    let tasteProfiles: [MemberTasteProfile]
+}
+
 enum DiscoveryAssistantEngine {
     static func respond(
         to prompt: String,
@@ -51,10 +56,12 @@ enum DiscoveryAssistantEngine {
         respond(
             to: prompt,
             intent: parse(prompt),
-            titles: titles,
             excludingTitleIDs: [],
-            selectedProviderIDs: selectedProviderIDs,
-            tasteProfiles: tasteProfiles,
+            context: DiscoveryAssistantContext(
+                titles: titles,
+                selectedProviderIDs: selectedProviderIDs,
+                tasteProfiles: tasteProfiles
+            ),
             limit: limit
         )
     }
@@ -62,15 +69,13 @@ enum DiscoveryAssistantEngine {
     static func respond(
         to prompt: String,
         intent: DiscoveryAssistantIntent,
-        titles: [MediaTitle],
         excludingTitleIDs: Set<MediaTitle.ID>,
-        selectedProviderIDs: Set<StreamingProvider.ID>,
-        tasteProfiles: [MemberTasteProfile],
+        context: DiscoveryAssistantContext,
         limit: Int = 6
     ) -> DiscoveryAssistantResponse {
-        let eligibleTitles = titles.filter {
+        let eligibleTitles = context.titles.filter {
             !excludingTitleIDs.contains($0.id)
-                && isEligible($0, intent: intent, selectedProviderIDs: selectedProviderIDs)
+                && isEligible($0, intent: intent, selectedProviderIDs: context.selectedProviderIDs)
         }
         let moodAdjustedTitles = titlesMatchingMoodWhenPossible(eligibleTitles, mood: intent.mood)
         let matches = moodAdjustedTitles
@@ -78,7 +83,7 @@ enum DiscoveryAssistantEngine {
                 DiscoveryAssistantMatch(
                     title: title,
                     reason: reason(for: title, intent: intent),
-                    score: score(title, intent: intent, tasteProfiles: tasteProfiles)
+                    score: score(title, intent: intent, tasteProfiles: context.tasteProfiles)
                 )
             }
             .sorted(by: isBetterMatch)
@@ -87,13 +92,12 @@ enum DiscoveryAssistantEngine {
 
         return DiscoveryAssistantResponse(
             prompt: prompt,
-            summary: summary(for: matches, selectedProviderIDs: selectedProviderIDs),
+            summary: summary(for: matches, selectedProviderIDs: context.selectedProviderIDs),
             matches: matches
         )
     }
 
-    /// The cards offered before anyone has typed anything: the strongest unwatched
-    /// picks on the selected services, newest first when scores tie.
+    /// The starter cards: the strongest unwatched picks on the selected services.
     static func suggestions(
         titles: [MediaTitle],
         selectedProviderIDs: Set<StreamingProvider.ID>,
@@ -113,10 +117,12 @@ enum DiscoveryAssistantEngine {
         return respond(
             to: "",
             intent: intent,
-            titles: titles,
             excludingTitleIDs: [],
-            selectedProviderIDs: selectedProviderIDs,
-            tasteProfiles: tasteProfiles,
+            context: DiscoveryAssistantContext(
+                titles: titles,
+                selectedProviderIDs: selectedProviderIDs,
+                tasteProfiles: tasteProfiles
+            ),
             limit: count
         ).matches
     }
@@ -278,7 +284,7 @@ extension DiscoveryAssistantEngine {
         })
     }
 
-    /// True for phrasings such as "no horror", "not too much romance" or "without space".
+    /// True for phrasings such as "no horror" or "without space".
     private static func isNegated(_ keyword: String, in prompt: String) -> Bool {
         let pattern = #"\b(?:no|not|without|avoid|skip|less)\s+(?:(?:any|too much|more)\s+)?"#
             + NSRegularExpression.escapedPattern(for: keyword)
@@ -350,8 +356,7 @@ struct DiscoveryConversationTurn: Equatable, Identifiable, Sendable {
 }
 
 /// A multi-turn chat over `DiscoveryAssistantEngine`. Each message refines the running
-/// intent, so "shorter" or "no sci-fi" keeps the earlier kind and mood, and titles that
-/// were already suggested are not offered again.
+/// intent, and titles already suggested are not offered again.
 struct DiscoveryConversation: Equatable, Sendable {
     private(set) var turns: [DiscoveryConversationTurn] = []
     private var intent: DiscoveryAssistantIntent?
@@ -373,10 +378,12 @@ struct DiscoveryConversation: Equatable, Sendable {
         let response = DiscoveryAssistantEngine.respond(
             to: prompt,
             intent: merged,
-            titles: titles,
             excludingTitleIDs: shownTitleIDs,
-            selectedProviderIDs: selectedProviderIDs,
-            tasteProfiles: tasteProfiles,
+            context: DiscoveryAssistantContext(
+                titles: titles,
+                selectedProviderIDs: selectedProviderIDs,
+                tasteProfiles: tasteProfiles
+            ),
             limit: limit
         )
         let turn = DiscoveryConversationTurn(id: turns.count, prompt: prompt, response: response)
