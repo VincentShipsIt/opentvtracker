@@ -179,4 +179,39 @@ final class DiscoveryAssistantTests: XCTestCase {
         XCTAssertFalse(turn.response.matches.isEmpty)
         XCTAssertTrue(turn.response.matches.allSatisfy { $0.title.kind == .series })
     }
+
+    func testFollowUpWithInsteadReplacesEarlierGenreButAlsoAddsOne() {
+        let base = DiscoveryAssistantEngine.parse("A sci-fi show")
+
+        let replaced = base.refined(by: DiscoveryAssistantEngine.parse("comedy instead"))
+        let added = base.refined(by: DiscoveryAssistantEngine.parse("also comedy"))
+
+        XCTAssertEqual(replaced.genres, ["Comedy"])
+        XCTAssertEqual(added.genres, ["Sci-Fi", "Comedy"])
+    }
+
+    func testNegationCoversEveryGenreInACoordinatedList() {
+        let intent = DiscoveryAssistantEngine.parse("A show with no sci-fi or horror")
+
+        XCTAssertEqual(intent.excludedGenres, ["Sci-Fi", "Horror"])
+        XCTAssertTrue(intent.genres.isEmpty)
+    }
+
+    func testNegationDoesNotLeakPastUnrelatedWords() {
+        let intent = DiscoveryAssistantEngine.parse("Not too long and sci-fi")
+
+        XCTAssertEqual(intent.genres, ["Sci-Fi"])
+        XCTAssertTrue(intent.excludedGenres.isEmpty)
+    }
+
+    func testSuggestionsIgnoreDuplicateTitles() {
+        let titles = LibrarySnapshot.sample.titles
+        let suggestions = DiscoveryAssistantEngine.suggestions(
+            titles: titles + titles,
+            selectedProviderIDs: defaultProviderIDs,
+            tasteProfiles: []
+        )
+
+        XCTAssertEqual(Set(suggestions.map(\.id)).count, suggestions.count)
+    }
 }

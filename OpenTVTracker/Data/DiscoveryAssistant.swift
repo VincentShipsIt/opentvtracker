@@ -9,6 +9,8 @@ struct DiscoveryAssistantIntent: Equatable, Sendable {
     let isForBothMembers: Bool
     let prefersRecentTitles: Bool
     var excludedGenres: Set<String> = []
+    /// True for "comedy instead": the genres named here replace earlier ones instead of adding to them.
+    var replacesGenres = false
 
     /// Merges a follow-up onto this intent: what it sets wins, the rest carries over.
     func refined(by followUp: DiscoveryAssistantIntent) -> DiscoveryAssistantIntent {
@@ -17,7 +19,8 @@ struct DiscoveryAssistantIntent: Equatable, Sendable {
             mood: followUp.mood ?? mood,
             maximumRuntimeMinutes: followUp.maximumRuntimeMinutes ?? maximumRuntimeMinutes,
             minimumRating: followUp.minimumRating ?? minimumRating,
-            genres: genres.union(followUp.genres).subtracting(followUp.excludedGenres),
+            genres: (followUp.replacesGenres && !followUp.genres.isEmpty ? followUp.genres : genres.union(followUp.genres))
+                .subtracting(followUp.excludedGenres),
             isForBothMembers: isForBothMembers || followUp.isForBothMembers,
             prefersRecentTitles: prefersRecentTitles || followUp.prefersRecentTitles,
             excludedGenres: excludedGenres.union(followUp.excludedGenres).subtracting(followUp.genres)
@@ -73,7 +76,7 @@ enum DiscoveryAssistantEngine {
         context: DiscoveryAssistantContext,
         limit: Int = 6
     ) -> DiscoveryAssistantResponse {
-        let eligibleTitles = context.titles.filter {
+        let eligibleTitles = CollectionUniquing.uniqued(context.titles, by: \.id).filter {
             !excludingTitleIDs.contains($0.id)
                 && isEligible($0, intent: intent, selectedProviderIDs: context.selectedProviderIDs)
         }
@@ -165,7 +168,8 @@ extension DiscoveryAssistantEngine {
                 ["together", "both", "for us", "girlfriend", "date night", "couple"]
             ),
             prefersRecentTitles: containsAny(normalized, ["new", "newest", "latest", "recent"]),
-            excludedGenres: excludedGenres(in: normalized)
+            excludedGenres: excludedGenres(in: normalized),
+            replacesGenres: containsAny(normalized, ["instead", "rather than", "switch to", "change to"])
         )
     }
 
@@ -284,9 +288,11 @@ extension DiscoveryAssistantEngine {
         })
     }
 
-    /// True for phrasings such as "no horror" or "without space".
+    /// True for "no horror", "without space" and "or"/"and" lists such as "no sci-fi or horror".
     private static func isNegated(_ keyword: String, in prompt: String) -> Bool {
+        let anyGenre = genreKeywords.flatMap { $0.keywords }.map(NSRegularExpression.escapedPattern(for:)).joined(separator: "|")
         let pattern = #"\b(?:no|not|without|avoid|skip|less)\s+(?:(?:any|too much|more)\s+)?"#
+            + "(?:(?:\(anyGenre))\\s*(?:\\bor\\b|\\band\\b)\\s*)*"
             + NSRegularExpression.escapedPattern(for: keyword)
         return prompt.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil
     }
@@ -346,54 +352,5 @@ extension DiscoveryAssistantEngine {
         if lhs.title.rating != rhs.title.rating { return lhs.title.rating > rhs.title.rating }
         if lhs.title.year != rhs.title.year { return lhs.title.year > rhs.title.year }
         return lhs.title.title.localizedStandardCompare(rhs.title.title) == .orderedAscending
-    }
-}
-
-struct DiscoveryConversationTurn: Equatable, Identifiable, Sendable {
-    let id: Int
-    let prompt: String
-    let response: DiscoveryAssistantResponse
-}
-
-/// A multi-turn chat over `DiscoveryAssistantEngine`. Each message refines the running
-/// intent, and titles already suggested are not offered again.
-struct DiscoveryConversation: Equatable, Sendable {
-    private(set) var turns: [DiscoveryConversationTurn] = []
-    private var intent: DiscoveryAssistantIntent?
-
-    var shownTitleIDs: Set<MediaTitle.ID> {
-        Set(turns.flatMap { $0.response.matches.map(\.title.id) })
-    }
-
-    @discardableResult
-    mutating func ask(
-        _ prompt: String,
-        titles: [MediaTitle],
-        selectedProviderIDs: Set<StreamingProvider.ID>,
-        tasteProfiles: [MemberTasteProfile],
-        limit: Int = 3
-    ) -> DiscoveryConversationTurn {
-        let followUp = DiscoveryAssistantEngine.parse(prompt)
-        let merged = intent.map { $0.refined(by: followUp) } ?? followUp
-        let response = DiscoveryAssistantEngine.respond(
-            to: prompt,
-            intent: merged,
-            excludingTitleIDs: shownTitleIDs,
-            context: DiscoveryAssistantContext(
-                titles: titles,
-                selectedProviderIDs: selectedProviderIDs,
-                tasteProfiles: tasteProfiles
-            ),
-            limit: limit
-        )
-        let turn = DiscoveryConversationTurn(id: turns.count, prompt: prompt, response: response)
-        intent = merged
-        turns.append(turn)
-        return turn
-    }
-
-    mutating func reset() {
-        turns = []
-        intent = nil
     }
 }
