@@ -27,7 +27,7 @@ It should feel calm, personal, and fast. Tracking is useful without an account. 
 
 ## v1 experience
 
-Three tabs plus a Personal/Shared overlay. Shared is not a tab. Shake the device or use the toolbar control to switch spaces.
+Four tabs (Chat is the front door) plus a Personal/Shared overlay. Shared is not a tab. Shake the device or use the toolbar control to switch spaces.
 
 ### Today
 

@@ -5,7 +5,7 @@ Last reviewed 2026-08-24. Current app version and build metadata are defined in 
 ## Shipped
 
 - Native SwiftUI tracker designed around Liquid Glass on iOS 26, targeting iPhone and iPad
-- Three tabs — Today, Discover, Library — plus a Personal/Shared overlay
+- Four tabs — Chat, Today, Discover, Library — plus a Personal/Shared overlay
 - Live TV discovery, search, artwork, trailers, seasons, and episodes from TVmaze
 - Operator-owned TMDB boundary for movie and TV metadata, Malta provider availability, trailers, attributed reviews, and TVDB resolve
 - Personal and shared watchlists, episode progress, ratings, notes, rewatches, and release-aware Up Next
