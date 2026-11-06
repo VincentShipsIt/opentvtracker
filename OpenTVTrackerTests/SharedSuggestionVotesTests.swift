@@ -111,12 +111,19 @@ final class SharedSuggestionVotesTests: XCTestCase {
 
     // MARK: Persistence format
 
+    private func roundTrip(_ space: SharedSpace) throws -> SharedSpace {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try decoder.decode(SharedSpace.self, from: encoder.encode(space))
+    }
+
     func testVotesRoundTripThroughTheSharedSpacePayload() throws {
         var space = LibrarySnapshot.sample.sharedSpace
         space.suggestionVotes = [vote(.like, member: viewer)]
 
-        let data = try JSONEncoder.openTV.encode(space)
-        let decoded = try JSONDecoder.openTV.decode(SharedSpace.self, from: data)
+        let decoded = try roundTrip(space)
 
         XCTAssertEqual(decoded.suggestionVotes, space.suggestionVotes)
     }
@@ -124,9 +131,8 @@ final class SharedSuggestionVotesTests: XCTestCase {
     func testOlderPayloadsWithoutVotesStillDecode() throws {
         var space = LibrarySnapshot.sample.sharedSpace
         space.suggestionVotes = nil
-        let data = try JSONEncoder.openTV.encode(space)
 
-        let decoded = try JSONDecoder.openTV.decode(SharedSpace.self, from: data)
+        let decoded = try roundTrip(space)
 
         XCTAssertNil(decoded.suggestionVotes)
     }
