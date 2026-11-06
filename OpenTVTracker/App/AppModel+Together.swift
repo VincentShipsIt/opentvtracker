@@ -241,9 +241,11 @@ extension AppModel {
         let listTitleIDs = (sharedSpace.sharedLists ?? [])
             .filter { !$0.isDeleted }
             .flatMap(\.titleIDs)
-        let sharedTitleIDs = Array(Set(sharedSpace.titleIDs + listTitleIDs)).sorted()
+        let voteTitleIDs = (sharedSpace.suggestionVotes ?? []).map(\.titleID)
+        let sharedTitleIDs = Array(Set(sharedSpace.titleIDs + listTitleIDs + voteTitleIDs)).sorted()
+        let catalog = discoverableTitles
         sharedSpace.titleMetadata = sharedTitleIDs.compactMap { id in
-            if let title = titles.first(where: { $0.id == id }) {
+            if let title = titles.first(where: { $0.id == id }) ?? catalog.first(where: { $0.id == id }) {
                 return sharedMetadataCopy(of: title)
             }
             return existingByID[id]

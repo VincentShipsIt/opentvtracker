@@ -222,7 +222,7 @@ extension CoreJourneySmokeUITests {
     func testPrivatePartnerJourneyOpensEpisodeConversation() {
         launchCoreJourneys()
         XCTAssertFalse(app.tabBars.buttons["Together"].exists)
-        XCTAssertEqual(app.tabBars.buttons.count, 3)
+        XCTAssertEqual(app.tabBars.buttons.count, 4)
         switchToSharedSpace()
 
         assertExists(app.staticTexts["Test couch"])

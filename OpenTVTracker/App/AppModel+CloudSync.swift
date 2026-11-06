@@ -129,6 +129,10 @@ extension AppModel {
         remoteSpace.reactions = conversation.reactions
         remoteSpace.notes = conversation.notes
         remoteSpace.conversationDeletions = conversation.deletions
+        remoteSpace.suggestionVotes = SuggestionVoteReconciler.merge(
+            remote: remoteSpace.suggestionVotes ?? [],
+            local: sharedSpace.suggestionVotes ?? []
+        )
         let retainedNoteEventIDs = Set(conversation.notes.map { "note:\($0.id)" })
         let retainedReactionEventIDs = Set(conversation.reactions.map {
             "reaction:\($0.id):\($0.occurredAt.timeIntervalSince1970)"
