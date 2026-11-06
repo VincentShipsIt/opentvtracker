@@ -9,7 +9,7 @@ final class TodayAccessibilityUITests: XCTestCase {
 
         let tabBar = app.tabBars.firstMatch
         assertExists(tabBar)
-        XCTAssertEqual(tabBar.buttons.count, 3)
+        XCTAssertEqual(tabBar.buttons.count, 4)
         assertTodayViewportClearsBottomChrome(tabBar)
         assertGreetingReflows()
         assertToolbarActionsReachable()

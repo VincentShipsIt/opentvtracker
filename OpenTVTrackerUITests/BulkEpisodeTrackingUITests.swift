@@ -53,7 +53,7 @@ final class BulkEpisodeTrackingUITests: XCTestCase {
         let tabBar = app.tabBars.firstMatch
 
         XCTAssertTrue(tabBar.waitForExistence(timeout: 2))
-        XCTAssertEqual(tabBar.buttons.count, 3)
+        XCTAssertEqual(tabBar.buttons.count, 4)
         XCTAssertTrue(tabBar.buttons["Today"].exists)
         XCTAssertTrue(tabBar.buttons["Discover"].exists)
         XCTAssertTrue(tabBar.buttons["Library"].exists)
