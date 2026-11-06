@@ -5,7 +5,7 @@ struct ChatTurnView: View {
     let turn: DiscoveryConversationTurn
     let board: SuggestionVoteBoard
     let partnerName: String?
-    let onVote: (SuggestionVoteChoice, MediaTitle.ID) -> Void
+    let onVote: (SuggestionVoteChoice, MediaTitle) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -27,7 +27,7 @@ struct ChatTurnView: View {
                     match: match,
                     board: board,
                     partnerName: partnerName,
-                    onVote: { onVote($0, match.title.id) }
+                    onVote: { onVote($0, match.title) }
                 )
             }
         }
@@ -40,7 +40,7 @@ struct ChatPartnerVotesSection: View {
     let board: SuggestionVoteBoard
     let partnerName: String?
     let titleLookup: (MediaTitle.ID) -> MediaTitle?
-    let onVote: (SuggestionVoteChoice, MediaTitle.ID) -> Void
+    let onVote: (SuggestionVoteChoice, MediaTitle) -> Void
 
     var body: some View {
         if partnerName != nil {
@@ -69,7 +69,7 @@ struct ChatPartnerVotesSection: View {
                     match: match,
                     board: board,
                     partnerName: partnerName,
-                    onVote: { onVote($0, match.title.id) }
+                    onVote: { onVote($0, match.title) }
                 )
             }
         }

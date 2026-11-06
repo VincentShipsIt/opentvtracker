@@ -86,6 +86,10 @@ extension AppModel {
         let wasOwner = sharedSpace.isCurrentUserShareOwner != false
         sharedSpace.membershipState = state
         sharedSpace.isCloudSharingEnabled = state == .pending || state == .accepted
+        if state == .revoked || state == .left {
+            // A former partner's votes must not resurface in the next shared space.
+            sharedSpace.suggestionVotes = nil
+        }
         persist()
         if sharedSpace.isCloudSharingEnabled {
             syncSharedStateSoon()
@@ -123,6 +127,7 @@ extension AppModel {
         sharedSpace.members = [PartnerDeviceIdentity.currentMember]
         sharedSpace.membershipState = .accepted
         sharedSpace.isCloudSharingEnabled = true
+        adoptPlaceholderSuggestionVotes()
         persist()
         Task {
             await partnerActivityNotifier.requestAuthorization()
@@ -256,7 +261,7 @@ extension AppModel {
         mergeCatalogTitles(metadata)
     }
 
-    private func storeSharedTitleMetadata(_ title: MediaTitle) {
+    func storeSharedTitleMetadata(_ title: MediaTitle) {
         var metadata = sharedSpace.titleMetadata ?? []
         metadata.removeAll { $0.id == title.id }
         metadata.append(sharedMetadataCopy(of: title))

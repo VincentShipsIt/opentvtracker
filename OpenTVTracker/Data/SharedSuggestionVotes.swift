@@ -55,6 +55,44 @@ enum SuggestionVoteReconciler {
     }
 }
 
+extension SuggestionVoteReconciler {
+    /// Votes cast before a partner joined carry the placeholder member ID. Once the current
+    /// member has a real ID they are theirs, and a later vote under the real ID still wins.
+    static func adoptingPlaceholder(
+        _ votes: [SharedSuggestionVote],
+        as memberID: SpaceMember.ID
+    ) -> [SharedSuggestionVote] {
+        guard memberID != SharedSpace.localMemberID else { return votes }
+        let adopted = votes.map { vote -> SharedSuggestionVote in
+            guard vote.memberID == SharedSpace.localMemberID else { return vote }
+            return SharedSuggestionVote(
+                titleID: vote.titleID,
+                memberID: memberID,
+                choice: vote.choice,
+                votedAt: vote.votedAt
+            )
+        }
+        return merge(remote: [], local: adopted)
+    }
+}
+
+/// Keeps today's picks steady while the catalog loads, so a card you voted on does not
+/// vanish when a higher-ranked title arrives. New titles only fill open slots.
+enum DailySuggestionPicker {
+    static func stable(
+        current: [DiscoveryAssistantMatch],
+        fresh: [DiscoveryAssistantMatch],
+        count: Int = 3
+    ) -> [DiscoveryAssistantMatch] {
+        var picks = Array(current.prefix(count))
+        var seenIDs = Set(picks.map(\.id))
+        for match in fresh where picks.count < count && seenIDs.insert(match.id).inserted {
+            picks.append(match)
+        }
+        return picks
+    }
+}
+
 /// Where a title stands between two people.
 enum SuggestionVerdict: Equatable, Sendable {
     /// Nobody has voted yet.

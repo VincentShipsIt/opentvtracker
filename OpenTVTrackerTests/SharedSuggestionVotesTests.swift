@@ -141,36 +141,117 @@ final class SharedSuggestionVotesTests: XCTestCase {
 
     func testCastingAVoteRecordsItForTheCurrentMemberAndReplacesAnEarlierOne() throws {
         let model = AppModel(store: MemoryLibraryStore(), seed: .sample)
-        let titleID = try XCTUnwrap(model.titles.first?.id)
+        let title = try XCTUnwrap(model.titles.first)
 
-        model.castSuggestionVote(.maybe, for: titleID, at: now)
-        model.castSuggestionVote(.like, for: titleID, at: now.addingTimeInterval(5))
+        model.castSuggestionVote(.maybe, for: title, at: now)
+        model.castSuggestionVote(.like, for: title, at: now.addingTimeInterval(5))
 
-        XCTAssertEqual(model.suggestionVoteBoard.myChoice(for: titleID), .like)
+        XCTAssertEqual(model.suggestionVoteBoard.myChoice(for: title.id), .like)
         XCTAssertEqual(model.sharedSpace.suggestionVotes?.count, 1)
     }
 
     func testVotedTitlesTravelWithTheSharedMetadata() throws {
         let model = AppModel(store: MemoryLibraryStore(), seed: .sample)
-        let titleID = try XCTUnwrap(model.titles.first?.id)
+        let title = try XCTUnwrap(model.titles.first)
         model.sharedSpace.titleIDs = []
+        model.sharedSpace.titleMetadata = []
 
-        model.castSuggestionVote(.like, for: titleID)
+        model.castSuggestionVote(.like, for: title)
 
-        XCTAssertTrue(model.sharedSpace.titleMetadata?.contains { $0.id == titleID } == true)
+        XCTAssertTrue(model.sharedSpace.titleMetadata?.contains { $0.id == title.id } == true)
+    }
+
+    func testAVoteOnATitleOutsideTheLibraryStillShipsItsMetadata() throws {
+        let model = AppModel(store: MemoryLibraryStore(), seed: .sample)
+        let searchOnly = try XCTUnwrap(model.titles.first)
+        model.titles.removeAll { $0.id == searchOnly.id }
+        model.sharedSpace.titleIDs = []
+        model.sharedSpace.titleMetadata = []
+        XCTAssertFalse(model.discoverableTitles.contains { $0.id == searchOnly.id })
+
+        model.castSuggestionVote(.like, for: searchOnly)
+
+        XCTAssertTrue(model.sharedSpace.titleMetadata?.contains { $0.id == searchOnly.id } == true)
+    }
+
+    func testRevokingOrLeavingForgetsTheFormerPartnersVotes() throws {
+        for state in [SharedMembershipState.revoked, .left] {
+            let model = AppModel(store: MemoryLibraryStore(), seed: .sample)
+            let title = try XCTUnwrap(model.titles.first)
+            model.castSuggestionVote(.like, for: title)
+
+            model.setSharedMembershipState(state)
+
+            XCTAssertNil(model.sharedSpace.suggestionVotes, "\(state) should clear votes")
+        }
     }
 
     func testChatIsTheDefaultFrontDoor() {
         XCTAssertEqual(AppTab.launchDefault, .chat)
     }
 
-    func testDailyCardsAreThreeDistinctTitles() {
+    func testDailyCardsAreDistinctTitles() {
         let model = AppModel(store: MemoryLibraryStore(), seed: .sample)
 
         let cards = model.dailySuggestionCards
 
+        XCTAssertFalse(cards.isEmpty)
         XCTAssertLessThanOrEqual(cards.count, 3)
         XCTAssertEqual(Set(cards.map(\.id)).count, cards.count)
+    }
+
+    // MARK: Pairing
+
+    func testVotesCastBeforePairingBelongToTheCurrentMemberAfterwards() {
+        let solo = [vote(.like, member: SharedSpace.localMemberID)]
+
+        let adopted = SuggestionVoteReconciler.adoptingPlaceholder(solo, as: "real-me")
+
+        XCTAssertEqual(adopted.map(\.memberID), ["real-me"])
+        XCTAssertEqual(
+            SuggestionVoteBoard(votes: adopted, currentMemberID: "real-me").myChoice(for: "severance"),
+            .like
+        )
+    }
+
+    func testAnAdoptedVoteLosesToALaterVoteUnderTheRealID() {
+        let votes = [
+            vote(.like, member: SharedSpace.localMemberID, offset: 0),
+            vote(.pass, member: "real-me", offset: 10)
+        ]
+
+        let adopted = SuggestionVoteReconciler.adoptingPlaceholder(votes, as: "real-me")
+
+        XCTAssertEqual(adopted.map(\.choice), [.pass])
+    }
+
+    func testAdoptionLeavesOtherMembersAndPlaceholderOnlySpacesAlone() {
+        let partnerVote = vote(.like, member: partner)
+        XCTAssertEqual(
+            SuggestionVoteReconciler.adoptingPlaceholder([partnerVote], as: "real-me"),
+            [partnerVote]
+        )
+        let solo = [vote(.like, member: SharedSpace.localMemberID)]
+        XCTAssertEqual(
+            SuggestionVoteReconciler.adoptingPlaceholder(solo, as: SharedSpace.localMemberID),
+            solo
+        )
+    }
+
+    // MARK: Daily picks
+
+    func testDailyPicksKeepEarlierCardsAndOnlyFillOpenSlots() throws {
+        let titles = Array(LibrarySnapshot.sample.titles.prefix(4))
+        try XCTSkipIf(titles.count < 4, "Sample library needs four titles")
+        let matches = titles.map { DiscoveryAssistantMatch(title: $0, reason: "r", score: 1) }
+
+        let kept = DailySuggestionPicker.stable(current: [matches[1]], fresh: matches)
+
+        XCTAssertEqual(kept.map(\.id), [matches[1].id, matches[0].id, matches[2].id])
+        XCTAssertEqual(
+            DailySuggestionPicker.stable(current: Array(matches.prefix(3)), fresh: [matches[3]]).map(\.id),
+            matches.prefix(3).map(\.id)
+        )
     }
 }
 

@@ -92,7 +92,10 @@ struct ChatHomeView: View {
                 voice.stopRecording()
             }
             .task(id: model.discoverableTitles.count) {
-                starterCards = model.dailySuggestionCards
+                starterCards = DailySuggestionPicker.stable(
+                    current: starterCards,
+                    fresh: model.dailySuggestionCards
+                )
             }
         }
     }
@@ -113,7 +116,7 @@ struct ChatHomeView: View {
                     match: match,
                     board: model.suggestionVoteBoard,
                     partnerName: partnerName,
-                    onVote: { vote($0, for: match.title.id) }
+                    onVote: { vote($0, for: match.title) }
                 )
             }
 
@@ -137,8 +140,8 @@ struct ChatHomeView: View {
         }
     }
 
-    private func vote(_ choice: SuggestionVoteChoice, for titleID: MediaTitle.ID) {
-        model.castSuggestionVote(choice, for: titleID)
+    private func vote(_ choice: SuggestionVoteChoice, for title: MediaTitle) {
+        model.castSuggestionVote(choice, for: title)
     }
 
     private func submit() {

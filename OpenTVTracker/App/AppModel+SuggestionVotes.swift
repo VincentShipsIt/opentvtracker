@@ -25,8 +25,10 @@ extension AppModel {
     }
 
     /// Records the current member's vote on a title and shares it with the partner.
-    /// Changing your mind replaces the earlier vote.
-    func castSuggestionVote(_ choice: SuggestionVoteChoice, for titleID: MediaTitle.ID, at date: Date = .now) {
+    /// Changing your mind replaces the earlier vote. The title itself travels with the
+    /// vote, so a pick that only exists in search results still renders for the partner.
+    func castSuggestionVote(_ choice: SuggestionVoteChoice, for title: MediaTitle, at date: Date = .now) {
+        let titleID = title.id
         let memberID = currentMemberID
         var votes = sharedSpace.suggestionVotes ?? []
         votes.removeAll { $0.titleID == titleID && $0.memberID == memberID }
@@ -39,8 +41,18 @@ extension AppModel {
             )
         )
         sharedSpace.suggestionVotes = votes
+        storeSharedTitleMetadata(title)
         prepareSharedTitleMetadataForSync()
         persist()
         syncSharedStateSoon()
+    }
+
+    /// Moves votes cast before pairing under the current member's real ID.
+    func adoptPlaceholderSuggestionVotes() {
+        guard let votes = sharedSpace.suggestionVotes, !votes.isEmpty else { return }
+        sharedSpace.suggestionVotes = SuggestionVoteReconciler.adoptingPlaceholder(
+            votes,
+            as: currentMemberID
+        )
     }
 }
