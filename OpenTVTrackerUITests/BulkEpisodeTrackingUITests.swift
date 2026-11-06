@@ -49,11 +49,12 @@ final class BulkEpisodeTrackingUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Mark episode unwatched"].waitForExistence(timeout: 2))
     }
 
-    func testRootUsesExactlyThreeNativeTabs() {
+    func testRootUsesExactlyFourNativeTabs() {
         let tabBar = app.tabBars.firstMatch
 
         XCTAssertTrue(tabBar.waitForExistence(timeout: 2))
         XCTAssertEqual(tabBar.buttons.count, 4)
+        XCTAssertTrue(tabBar.buttons["Chat"].exists)
         XCTAssertTrue(tabBar.buttons["Today"].exists)
         XCTAssertTrue(tabBar.buttons["Discover"].exists)
         XCTAssertTrue(tabBar.buttons["Library"].exists)
