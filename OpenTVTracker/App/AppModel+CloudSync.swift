@@ -28,6 +28,7 @@ extension AppModel {
         let context = cloudSyncContext
         do {
             await CloudKitSyncCoordinator.shared.start()
+            adoptPlaceholderSuggestionVotes()
             await applyCachedSharedState()
             prepareSharedTitleMetadataForSync()
             guard let payload = try? JSONEncoder.openTV.encode(sharedSpace) else { return }
@@ -129,6 +130,13 @@ extension AppModel {
         remoteSpace.reactions = conversation.reactions
         remoteSpace.notes = conversation.notes
         remoteSpace.conversationDeletions = conversation.deletions
+        remoteSpace.suggestionVotes = SuggestionVoteReconciler.merge(
+            remote: remoteSpace.suggestionVotes ?? [],
+            local: SuggestionVoteReconciler.adoptingPlaceholder(
+                sharedSpace.suggestionVotes ?? [],
+                as: remoteSpace.resolvedCurrentMemberID
+            )
+        )
         let retainedNoteEventIDs = Set(conversation.notes.map { "note:\($0.id)" })
         let retainedReactionEventIDs = Set(conversation.reactions.map {
             "reaction:\($0.id):\($0.occurredAt.timeIntervalSince1970)"

@@ -2,9 +2,16 @@ import SwiftUI
 import UIKit
 
 enum AppTab: Hashable {
+    case chat
     case today
     case discover
     case library
+
+    /// Chat is the front door. UI tests that predate it launch on Today, so they keep
+    /// their starting point.
+    static var launchDefault: AppTab {
+        ProcessInfo.processInfo.arguments.contains { $0.hasPrefix("-ui-testing") } ? .today : .chat
+    }
 }
 
 enum AppSpaceMode: String, CaseIterable, Hashable, Identifiable {
@@ -208,7 +215,7 @@ extension View {
 
 struct RootTabView: View {
     @Environment(AppModel.self) private var model
-    @State private var selection: AppTab = .today
+    @State private var selection: AppTab = AppTab.launchDefault
     @State private var spaceMode: AppSpaceMode = .personal
     @State private var discoverSearchText = ""
     @State private var presentsFirstRun = false
@@ -216,6 +223,11 @@ struct RootTabView: View {
 
     var body: some View {
         TabView(selection: $selection) {
+            Tab("Chat", systemImage: "bubble.left.and.bubble.right.fill", value: .chat) {
+                ChatHomeView()
+                    .accessibilityIdentifier("tab.chat")
+            }
+
             Tab("Today", systemImage: "sun.max.fill", value: .today) {
                 SpaceModeContainer(selection: $spaceMode, isActive: selection == .today) {
                     TodayView(selectedTab: $selection)

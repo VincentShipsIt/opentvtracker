@@ -298,7 +298,7 @@ private struct AssistantResultCard: View {
     }
 }
 
-private struct AssistantComposer: View {
+struct AssistantComposer: View {
     @Binding var prompt: String
     var isPromptFocused: FocusState<Bool>.Binding
     let voice: VoiceSearchTranscriber

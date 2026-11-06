@@ -12,11 +12,11 @@ The app's marketing version and build number are owned by [`project.yml`](projec
 - Discover titles on selected streaming services with transparent on-device recommendations.
 - Optionally rerank the same bounded candidates with a user-controlled OpenRouter key.
 - Import from Trakt or a TV Time data-export ZIP. Keep an upcoming-episode calendar, local reminders, and home-screen widgets.
-- Share a watchlist and progress through an invitation-only CloudKit space. Personal and Shared are an overlay (shake or toolbar), not a fourth tab.
+- Share a watchlist and progress through an invitation-only CloudKit space. Personal and Shared are an overlay (shake or toolbar), not a separate tab.
 - View live Embassy Cinemas showtimes and open official Embassy, Eden, and Citadel booking pages.
 - Import and export a portable, versioned library.
 
-The three tabs are **Today**, **Discover**, and **Library**. Tracking works without iCloud, Trakt, OpenRouter, or the official proxy.
+The four tabs are **Chat** (the front door: three daily suggestions you and your partner can vote on, plus a conversational assistant), **Today**, **Discover**, and **Library**. Tracking works without iCloud, Trakt, OpenRouter, or the official proxy.
 
 ## Documentation
 

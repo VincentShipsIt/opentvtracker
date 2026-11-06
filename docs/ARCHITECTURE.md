@@ -18,7 +18,7 @@ SwiftUI features
 
 The personal library is the immediate source of truth and works offline. SwiftData never mirrors CloudKit collaboration records. Catalog, cinema, recommendation, persistence, and sharing protocols keep SwiftUI independent from DTOs, provider failures, and credentials.
 
-The three tabs are Today, Discover, and Library. Personal and Shared are an overlay (shake or toolbar), not a tab.
+The four tabs are Chat, Today, Discover, and Library. Personal and Shared are an overlay (shake or toolbar), not a tab.
 
 ## Catalog identity and migration
 
