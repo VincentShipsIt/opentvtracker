@@ -8,6 +8,24 @@ struct DiscoveryAssistantIntent: Equatable, Sendable {
     let genres: Set<String>
     let isForBothMembers: Bool
     let prefersRecentTitles: Bool
+    var excludedGenres: Set<String> = []
+    /// True for "comedy instead": the genres named here replace earlier ones instead of adding to them.
+    var replacesGenres = false
+
+    /// Merges a follow-up onto this intent: what it sets wins, the rest carries over.
+    func refined(by followUp: DiscoveryAssistantIntent) -> DiscoveryAssistantIntent {
+        DiscoveryAssistantIntent(
+            kind: followUp.kind ?? kind,
+            mood: followUp.mood ?? mood,
+            maximumRuntimeMinutes: followUp.maximumRuntimeMinutes ?? maximumRuntimeMinutes,
+            minimumRating: followUp.minimumRating ?? minimumRating,
+            genres: (followUp.replacesGenres && !followUp.genres.isEmpty ? followUp.genres : genres.union(followUp.genres))
+                .subtracting(followUp.excludedGenres),
+            isForBothMembers: isForBothMembers || followUp.isForBothMembers,
+            prefersRecentTitles: prefersRecentTitles || followUp.prefersRecentTitles,
+            excludedGenres: excludedGenres.union(followUp.excludedGenres).subtracting(followUp.genres)
+        )
+    }
 }
 
 struct DiscoveryAssistantMatch: Hashable, Identifiable, Sendable {
@@ -24,6 +42,12 @@ struct DiscoveryAssistantResponse: Hashable, Sendable {
     let matches: [DiscoveryAssistantMatch]
 }
 
+struct DiscoveryAssistantContext: Sendable {
+    let titles: [MediaTitle]
+    let selectedProviderIDs: Set<StreamingProvider.ID>
+    let tasteProfiles: [MemberTasteProfile]
+}
+
 enum DiscoveryAssistantEngine {
     static func respond(
         to prompt: String,
@@ -32,9 +56,29 @@ enum DiscoveryAssistantEngine {
         tasteProfiles: [MemberTasteProfile],
         limit: Int = 6
     ) -> DiscoveryAssistantResponse {
-        let intent = parse(prompt)
-        let eligibleTitles = titles.filter {
-            isEligible($0, intent: intent, selectedProviderIDs: selectedProviderIDs)
+        respond(
+            to: prompt,
+            intent: parse(prompt),
+            excludingTitleIDs: [],
+            context: DiscoveryAssistantContext(
+                titles: titles,
+                selectedProviderIDs: selectedProviderIDs,
+                tasteProfiles: tasteProfiles
+            ),
+            limit: limit
+        )
+    }
+
+    static func respond(
+        to prompt: String,
+        intent: DiscoveryAssistantIntent,
+        excludingTitleIDs: Set<MediaTitle.ID>,
+        context: DiscoveryAssistantContext,
+        limit: Int = 6
+    ) -> DiscoveryAssistantResponse {
+        let eligibleTitles = CollectionUniquing.uniqued(context.titles, by: \.id).filter {
+            !excludingTitleIDs.contains($0.id)
+                && isEligible($0, intent: intent, selectedProviderIDs: context.selectedProviderIDs)
         }
         let moodAdjustedTitles = titlesMatchingMoodWhenPossible(eligibleTitles, mood: intent.mood)
         let matches = moodAdjustedTitles
@@ -42,7 +86,7 @@ enum DiscoveryAssistantEngine {
                 DiscoveryAssistantMatch(
                     title: title,
                     reason: reason(for: title, intent: intent),
-                    score: score(title, intent: intent, tasteProfiles: tasteProfiles)
+                    score: score(title, intent: intent, tasteProfiles: context.tasteProfiles)
                 )
             }
             .sorted(by: isBetterMatch)
@@ -51,11 +95,43 @@ enum DiscoveryAssistantEngine {
 
         return DiscoveryAssistantResponse(
             prompt: prompt,
-            summary: summary(for: matches, selectedProviderIDs: selectedProviderIDs),
+            summary: summary(for: matches, selectedProviderIDs: context.selectedProviderIDs),
             matches: matches
         )
     }
 
+    /// The starter cards: the strongest unwatched picks on the selected services.
+    static func suggestions(
+        titles: [MediaTitle],
+        selectedProviderIDs: Set<StreamingProvider.ID>,
+        tasteProfiles: [MemberTasteProfile],
+        count: Int = 3,
+        forBothMembers: Bool = false
+    ) -> [DiscoveryAssistantMatch] {
+        let intent = DiscoveryAssistantIntent(
+            kind: nil,
+            mood: nil,
+            maximumRuntimeMinutes: nil,
+            minimumRating: nil,
+            genres: [],
+            isForBothMembers: forBothMembers,
+            prefersRecentTitles: true
+        )
+        return respond(
+            to: "",
+            intent: intent,
+            excludingTitleIDs: [],
+            context: DiscoveryAssistantContext(
+                titles: titles,
+                selectedProviderIDs: selectedProviderIDs,
+                tasteProfiles: tasteProfiles
+            ),
+            limit: count
+        ).matches
+    }
+}
+
+extension DiscoveryAssistantEngine {
     static func parse(_ prompt: String) -> DiscoveryAssistantIntent {
         let normalized = prompt.folding(
             options: [.caseInsensitive, .diacriticInsensitive],
@@ -91,7 +167,9 @@ enum DiscoveryAssistantEngine {
                 normalized,
                 ["together", "both", "for us", "girlfriend", "date night", "couple"]
             ),
-            prefersRecentTitles: containsAny(normalized, ["new", "newest", "latest", "recent"])
+            prefersRecentTitles: containsAny(normalized, ["new", "newest", "latest", "recent"]),
+            excludedGenres: excludedGenres(in: normalized),
+            replacesGenres: containsAny(normalized, ["instead", "rather than", "switch to", "change to"])
         )
     }
 
@@ -108,6 +186,10 @@ enum DiscoveryAssistantEngine {
         if let kind = intent.kind, title.kind != kind { return false }
         if let maximum = intent.maximumRuntimeMinutes, title.runtimeMinutes > maximum { return false }
         if let minimum = intent.minimumRating, title.rating < minimum { return false }
+        if !intent.excludedGenres.isEmpty {
+            let titleGenres = Set(title.genres.map(normalizedGenre))
+            guard titleGenres.isDisjoint(with: intent.excludedGenres.map(normalizedGenre)) else { return false }
+        }
         if !intent.genres.isEmpty {
             let titleGenres = Set(title.genres.map(normalizedGenre))
             guard !titleGenres.isDisjoint(with: intent.genres.map(normalizedGenre)) else { return false }
@@ -180,22 +262,39 @@ enum DiscoveryAssistantEngine {
         return "\(matches.count) picks available on \(services)."
     }
 
+    private static let genreKeywords: [(genre: String, keywords: [String])] = [
+        ("Sci-Fi", ["sci-fi", "science fiction", "space", "future"]),
+        ("Comedy", ["comedy", "sitcom"]),
+        ("Mystery", ["mystery", "detective", "whodunit"]),
+        ("Thriller", ["thriller", "suspense", "tense"]),
+        ("Romance", ["romance", "romantic", "date night"]),
+        ("Drama", ["drama", "emotional"]),
+        ("Action", ["action", "adventure"]),
+        ("Animation", ["animation", "animated", "anime"]),
+        ("Horror", ["horror"])
+    ]
+
     private static func genres(in prompt: String) -> Set<String> {
-        var matches: Set<String> = []
-        let mappings: [(String, [String])] = [
-            ("Sci-Fi", ["sci-fi", "science fiction", "space", "future"]),
-            ("Comedy", ["comedy", "sitcom"]),
-            ("Mystery", ["mystery", "detective", "whodunit"]),
-            ("Thriller", ["thriller", "suspense", "tense"]),
-            ("Romance", ["romance", "romantic", "date night"]),
-            ("Drama", ["drama", "emotional"]),
-            ("Action", ["action", "adventure"]),
-            ("Animation", ["animation", "animated", "anime"])
-        ]
-        for (genre, keywords) in mappings where containsAny(prompt, keywords) {
-            matches.insert(genre)
-        }
-        return matches
+        Set(genreKeywords.compactMap { entry in
+            entry.keywords.contains { prompt.localizedStandardContains($0) && !isNegated($0, in: prompt) }
+                ? entry.genre
+                : nil
+        })
+    }
+
+    private static func excludedGenres(in prompt: String) -> Set<String> {
+        Set(genreKeywords.compactMap { entry in
+            entry.keywords.contains { isNegated($0, in: prompt) } ? entry.genre : nil
+        })
+    }
+
+    /// True for "no horror", "without space" and "or"/"and" lists such as "no sci-fi or horror".
+    private static func isNegated(_ keyword: String, in prompt: String) -> Bool {
+        let anyGenre = genreKeywords.flatMap { $0.keywords }.map(NSRegularExpression.escapedPattern(for:)).joined(separator: "|")
+        let pattern = #"\b(?:no|not|without|avoid|skip|less)\s+(?:(?:any|too much|more)\s+)?"#
+            + "(?:(?:\(anyGenre))\\s*(?:\\bor\\b|\\band\\b)\\s*)*"
+            + NSRegularExpression.escapedPattern(for: keyword)
+        return prompt.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil
     }
 
     private static func maximumRuntime(in prompt: String) -> Int? {
